@@ -1,0 +1,1030 @@
+/*
+ * Style cho các trang AIHub tự viết (/product/[slug], /demo).
+ *
+ * Cố tình KHÔNG dùng Tailwind: layout đang nạp meltano-source.css cho 14 trang
+ * mirror, mà preflight của Tailwind sẽ reset và làm vỡ toàn bộ số trang đó.
+ *
+ * Bảng màu lấy trực tiếp từ app/meltano-source.css (không phải bịa mới):
+ * ink/body/soft/line/surface là các mã hex Meltano thật dùng cho phần
+ * pricing-v2 và data-partners của họ. Mọi cặp chữ/nền dưới đây đều đạt tối
+ * thiểu WCAG AA (4.5:1) cho cỡ chữ thường.
+ *
+ * Mọi selector đặt dưới .aihub để không rò rỉ sang trang mirror.
+ */
+
+.aihub {
+  --aihub-brand: #3a64fa;
+  --aihub-brand-dark: #311772;
+  --aihub-ink: #1d2838; /* .pricing-v2 h1..h6 */
+  --aihub-body: #475467; /* .pv2-plan-desc, .pv2-sp-desc — chữ thân bài */
+  --aihub-soft: #667084; /* .pv2-faq-answer, .pv2-testimonial-role — nhãn phụ */
+  --aihub-muted: #6b7690; /* chữ cho trạng thái "Coming Soon", vẫn ≥4.5:1 */
+  --aihub-line: #e4e7ec; /* .pv2-sp-card border */
+  --aihub-surface: #f1f5f9; /* modern light slate background */
+  --aihub-badge-muted-bg: #eef0f4;
+  --aihub-card: #ffffff;
+  --aihub-radius: 16px;
+
+  background: var(--aihub-surface);
+  color: var(--aihub-ink);
+  padding: 136px 24px 64px;
+  min-height: 100vh;
+}
+
+.aihub-shell {
+  max-width: 1560px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.aihub-eyebrow {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--aihub-brand);
+  margin: 0 0 12px;
+}
+
+.aihub-title {
+  font-size: clamp(30px, 4.4vw, 48px);
+  line-height: 1.12;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px;
+  color: var(--aihub-ink);
+}
+
+.aihub-lede {
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--aihub-body);
+  max-width: 62ch;
+  margin: 0;
+}
+
+.aihub-category {
+  margin-top: 64px;
+}
+
+.aihub-category-head {
+  border-top: 1px solid var(--aihub-line);
+  padding-top: 28px;
+  margin-bottom: 24px;
+}
+
+.aihub-category-name {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--aihub-ink);
+}
+
+.aihub-category-desc {
+  color: var(--aihub-body);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 68ch;
+}
+
+.aihub-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.aihub-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--aihub-card);
+  border: 1px solid var(--aihub-line);
+  border-radius: var(--aihub-radius);
+  padding: 24px;
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+a.aihub-card:hover {
+  border-color: var(--aihub-brand);
+  transform: translateY(-2px);
+}
+
+/*
+ * "Coming soon" trước đây làm mờ bằng opacity trên cả khối — chữ bị blend
+ * vào nền và mất hẳn độ tương phản. Giờ chỉ đổi màu chữ sang --aihub-muted
+ * (vẫn ≥4.5:1 trên nền trắng), viền và bố cục giữ nguyên độ rõ.
+ */
+.aihub-card[data-status="coming-soon"] .aihub-card-name,
+.aihub-card[data-status="coming-soon"] .aihub-card-tagline,
+.aihub-card[data-status="coming-soon"] .aihub-card-desc {
+  color: var(--aihub-muted);
+}
+
+.aihub-card-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.aihub-card-name {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--aihub-ink);
+}
+
+.aihub-card-tagline {
+  font-weight: 600;
+  color: var(--aihub-ink);
+  margin: 0;
+}
+
+.aihub-card-desc {
+  color: var(--aihub-body);
+  line-height: 1.6;
+  margin: 0;
+  flex: 1;
+}
+
+.aihub-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--aihub-soft);
+}
+
+.aihub-cta {
+  font-weight: 700;
+  color: var(--aihub-brand);
+}
+
+.aihub-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--aihub-line);
+  color: var(--aihub-soft);
+  white-space: nowrap;
+}
+
+.aihub-badge[data-status="stable"] {
+  background: var(--aihub-ink);
+  border-color: var(--aihub-ink);
+  color: #fff;
+}
+
+.aihub-badge[data-status="beta"] {
+  border-color: var(--aihub-brand);
+  color: var(--aihub-brand);
+}
+
+.aihub-badge[data-status="coming-soon"] {
+  background: var(--aihub-badge-muted-bg);
+  border-color: var(--aihub-badge-muted-bg);
+  color: var(--aihub-body);
+}
+
+/* --- Trang chi tiết sản phẩm --- */
+
+.aihub-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--aihub-soft);
+  margin-bottom: 20px;
+}
+
+.aihub-crumbs a {
+  color: var(--aihub-brand);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.aihub-crumbs a:hover {
+  color: var(--aihub-brand-dark);
+  text-decoration: underline;
+}
+
+.aihub-shortcuts {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin-top: 32px;
+}
+
+/* Facts grid (base URL, format, auth...) trong phần Tổng quan */
+
+.aihub-facts {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.aihub-facts li {
+  border: 1px solid var(--aihub-line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: var(--aihub-card);
+}
+
+.aihub-facts-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--aihub-soft);
+  margin-bottom: 4px;
+}
+
+.aihub-facts-value {
+  display: block;
+  font-size: 14px;
+  color: var(--aihub-ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-word;
+}
+
+/* Các bước tích hợp — danh sách tĩnh, không phải accordion tương tác */
+
+.aihub-steps {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  counter-reset: aihub-step;
+}
+
+.aihub-steps li {
+  position: relative;
+  padding: 0 0 28px 44px;
+}
+
+.aihub-steps li:last-child {
+  padding-bottom: 0;
+}
+
+.aihub-steps li::before {
+  counter-increment: aihub-step;
+  content: counter(aihub-step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--aihub-brand);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aihub-steps li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 28px;
+  bottom: 0;
+  width: 2px;
+  background: var(--aihub-line);
+}
+
+.aihub-steps h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--aihub-ink);
+  margin: 2px 0 6px;
+}
+
+.aihub-steps p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--aihub-body);
+  margin: 0;
+}
+
+/* Bảng schema request (trang API reference) */
+
+.aihub-schema {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 0;
+  font-size: 13.5px;
+}
+
+.aihub-schema th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--aihub-soft);
+  padding: 0 10px 8px 0;
+  border-bottom: 1px solid var(--aihub-line);
+}
+
+.aihub-schema td {
+  padding: 10px 10px 10px 0;
+  border-bottom: 1px solid var(--aihub-line);
+  vertical-align: top;
+  color: var(--aihub-body);
+}
+
+.aihub-schema td:first-child {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--aihub-ink);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.aihub-required {
+  color: var(--aihub-brand-dark);
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.aihub-optional {
+  color: var(--aihub-soft);
+  font-size: 11px;
+}
+
+.aihub-notes {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.aihub-notes li {
+  background: #fff7e6;
+  border: 1px solid #f3dfb0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--aihub-ink);
+  line-height: 1.55;
+}
+
+.aihub-refdetail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: start;
+  margin-top: 28px;
+}
+
+/*
+ * min-width mặc định của grid item là "auto", tức co theo nội dung bên trong
+ * (ở đây là <pre class="aihub-code"> chứa JSON không xuống dòng). Không có
+ * dòng này, cột chứa JSON dài sẽ "phình" và ép cột kia xuống còn vài chục px
+ * — đúng lỗi cột phải bị bóp thành dải hẹp, chữ vỡ từng ký tự.
+ */
+.aihub-refdetail > * {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .aihub-refdetail {
+    grid-template-columns: 1fr;
+  }
+}
+
+.aihub-endpoint {
+  background: var(--aihub-card);
+  border: 1px solid var(--aihub-line);
+  border-radius: var(--aihub-radius);
+  padding: 22px 24px;
+  margin-bottom: 12px;
+}
+
+.aihub-endpoint-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.aihub-method {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--aihub-brand);
+  color: #fff;
+}
+
+.aihub-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: var(--aihub-soft);
+  overflow-wrap: anywhere;
+}
+
+/* Badge mã trạng thái HTTP (khác .aihub-method — đó là verb, đây là status) */
+
+.aihub-status {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: 6px;
+  color: #fff;
+  background: var(--aihub-soft);
+}
+
+.aihub-status[data-tone="ok"] {
+  background: #2f855a;
+}
+
+.aihub-status[data-tone="warn"] {
+  background: #b7791f;
+}
+
+.aihub-status[data-tone="error"] {
+  background: #b3261e;
+}
+
+/* --- Bố cục chia đôi của trang Demo --- */
+
+.aihub--flush {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.aihub-split {
+  display: grid;
+  grid-template-columns: 460px 1fr;
+  gap: 24px;
+  align-items: start;
+  border: none;
+  background: transparent;
+}
+
+.aihub-split-left {
+  padding: 32px;
+  background: #ffffff;
+  border: 1px solid var(--aihub-line);
+  border-radius: var(--aihub-radius);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  min-width: 0;
+}
+
+.aihub-split-right {
+  padding: 32px;
+  background: #ffffff;
+  border: 1px solid var(--aihub-line);
+  border-radius: var(--aihub-radius);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  min-width: 0;
+  position: static;
+  max-height: none;
+  overflow: visible;
+  height: auto;
+}
+
+.aihub-split .aihub-title {
+  font-size: clamp(24px, 2.6vw, 32px);
+}
+
+.aihub-crumb-static,
+.aihub-sublabel {
+  font-size: 13px;
+  color: var(--aihub-soft);
+  margin: 0 0 12px;
+}
+
+.aihub-catlist,
+.aihub-prodlist {
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+}
+
+.aihub-catitem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: var(--aihub-radius);
+  background: transparent;
+  padding: 16px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.aihub-catitem:hover {
+  border-color: var(--aihub-line);
+}
+
+.aihub-catitem[aria-current="true"] {
+  background: var(--aihub-card);
+  border-color: var(--aihub-line);
+}
+
+.aihub-catitem .aihub-card-name {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.aihub-catitem .aihub-card-desc {
+  display: block;
+  font-size: 14px;
+}
+
+.aihub-prodrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 16px;
+  border-radius: var(--aihub-radius);
+  border: 1px solid transparent;
+}
+
+.aihub-prodrow:hover {
+  border-color: var(--aihub-line);
+}
+
+/* Xem chú thích ở .aihub-card[data-status="coming-soon"] phía trên. */
+.aihub-prodrow[data-status="coming-soon"] .aihub-card-name,
+.aihub-prodrow[data-status="coming-soon"] .aihub-card-desc {
+  color: var(--aihub-muted);
+}
+
+.aihub-prodrow .aihub-card-desc {
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.aihub-prodrow .aihub-cta {
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* --- Màn hình demo chi tiết: breadcrumb + accordion trái + backend panel phải --- */
+
+.aihub-crumbs-static {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--aihub-soft);
+  margin: 0 0 20px;
+}
+
+.aihub-crumbs-static a {
+  color: var(--aihub-brand);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.aihub-fieldset {
+  margin-bottom: 22px;
+}
+
+.aihub-fieldset:last-child {
+  margin-bottom: 0;
+}
+
+.aihub-fieldset-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--aihub-ink);
+  margin-bottom: 8px;
+}
+
+.aihub-fieldset-hint {
+  font-weight: 400;
+  color: var(--aihub-soft);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.aihub-checkrow {
+  display: flex;
+  gap: 20px;
+}
+
+.aihub-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--aihub-ink);
+  cursor: pointer;
+}
+
+.aihub-select,
+.aihub-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--aihub-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--aihub-ink);
+  background: #fff;
+}
+
+.aihub-select:disabled,
+.aihub-textarea:disabled {
+  color: var(--aihub-muted);
+  background: var(--aihub-badge-muted-bg);
+  cursor: not-allowed;
+}
+
+.aihub-textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.aihub-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--aihub-ink);
+  color: #fff;
+  transition: background 0.15s ease;
+}
+
+.aihub-btn:hover:not(:disabled) {
+  background: var(--aihub-brand-dark);
+}
+
+.aihub-btn:disabled {
+  background: var(--aihub-line);
+  color: var(--aihub-soft);
+  cursor: not-allowed;
+}
+
+.aihub-btn--ghost {
+  background: transparent;
+  color: var(--aihub-ink);
+  border: 1px solid var(--aihub-line);
+}
+
+.aihub-btn--ghost:hover:not(:disabled) {
+  background: var(--aihub-badge-muted-bg);
+}
+
+.aihub-btn--accent {
+  background: var(--aihub-brand);
+}
+
+.aihub-btn--accent:hover:not(:disabled) {
+  background: var(--aihub-brand-dark);
+}
+
+.aihub-error-text {
+  font-size: 13px;
+  color: #b3261e;
+  margin: 8px 0 0;
+}
+
+/* Accordion cột trái */
+
+.aihub-accordion {
+  border: 1px solid var(--aihub-line);
+  border-radius: var(--aihub-radius);
+  overflow: hidden;
+}
+
+.aihub-astep + .aihub-astep {
+  border-top: 1px solid var(--aihub-line);
+}
+
+.aihub-astep-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  background: #fff;
+  border: none;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  color: var(--aihub-ink);
+}
+
+.aihub-astep-head:disabled {
+  cursor: not-allowed;
+  color: var(--aihub-muted);
+}
+
+.aihub-astep-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--aihub-badge-muted-bg);
+  color: var(--aihub-body);
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.aihub-astep-head[aria-expanded="true"] .aihub-astep-num,
+.aihub-astep-head[data-done="true"] .aihub-astep-num {
+  background: var(--aihub-brand);
+  color: #fff;
+}
+
+.aihub-astep-title {
+  flex: 1;
+  font-weight: 700;
+}
+
+.aihub-astep-chevron {
+  color: var(--aihub-soft);
+  transition: transform 0.15s ease;
+}
+
+.aihub-astep-head[aria-expanded="true"] .aihub-astep-chevron {
+  transform: rotate(180deg);
+}
+
+.aihub-astep-body {
+  padding: 4px 18px 22px;
+  background: #fff;
+}
+
+/* Panel backend cột phải */
+
+.aihub-backend {
+  border: 1px solid var(--aihub-line);
+  border-radius: var(--aihub-radius);
+  background: #fff;
+  padding: 24px;
+}
+
+.aihub-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0;
+  padding-bottom: 4px;
+}
+
+.aihub-tab {
+  flex-shrink: 0;
+  border: 1px solid var(--aihub-line);
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--aihub-body);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.aihub-tab[aria-selected="true"] {
+  background: var(--aihub-ink);
+  border-color: var(--aihub-ink);
+  color: #fff;
+}
+
+.aihub-tab--sub {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
+.aihub-callout {
+  background: #eef3ff;
+  border: 1px solid #d5e2ff;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--aihub-ink);
+  line-height: 1.55;
+  margin-bottom: 16px;
+}
+
+.aihub-code {
+  margin: 0;
+  background: #161320;
+  color: #e7e4f5;
+  border-radius: 12px;
+  padding: 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.aihub-code-placeholder {
+  color: var(--aihub-soft);
+  font-size: 13px;
+  padding: 16px;
+  border: 1px dashed var(--aihub-line);
+  border-radius: 12px;
+  text-align: center;
+}
+
+/* Reference cards (kết quả bước 2) */
+
+.aihub-reflist {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.aihub-refcard {
+  border: 1px solid var(--aihub-line);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--aihub-surface);
+}
+
+.aihub-refcard-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--aihub-soft);
+  margin: 0 0 4px;
+}
+
+.aihub-refcard-prompt {
+  font-size: 14px;
+  color: var(--aihub-ink);
+  margin: 0 0 10px;
+  font-style: italic;
+}
+
+.aihub-refcard-img {
+  font-size: 12px;
+  color: var(--aihub-soft);
+  word-break: break-all;
+  margin: 0 0 6px;
+}
+
+.aihub-refcard-quote {
+  font-size: 13px;
+  color: var(--aihub-ink);
+  border-left: 3px solid var(--aihub-brand);
+  padding-left: 10px;
+  margin: 0 0 6px;
+}
+
+.aihub-refcard-explain {
+  font-size: 13px;
+  color: var(--aihub-body);
+  margin: 0;
+}
+
+/* Preview bài tập (bước 3) */
+
+.aihub-preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.aihub-exercise-item {
+  border: 1px solid var(--aihub-line);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.aihub-exercise-item img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 8px 0;
+}
+
+.aihub-exercise-q {
+  font-weight: 700;
+  color: var(--aihub-ink);
+  margin: 0 0 10px;
+}
+
+.aihub-options {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aihub-options li {
+  border: 1px solid var(--aihub-line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.aihub-options li[data-correct="true"] {
+  border-color: var(--aihub-brand);
+  background: #eef3ff;
+  font-weight: 600;
+}
+
+.aihub-chiprow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.aihub-chip {
+  border: 1px solid var(--aihub-line);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 13px;
+}
+
+.aihub-chip[data-order] {
+  background: var(--aihub-badge-muted-bg);
+}
+
+.aihub-explain {
+  font-size: 13px;
+  color: var(--aihub-body);
+  background: var(--aihub-surface);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0;
+}
+
+.aihub-sample-answer {
+  font-size: 14px;
+  color: var(--aihub-ink);
+  background: #eef3ff;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 10px 0;
+}
+
+@media (max-width: 900px) {
+  .aihub-split {
+    grid-template-columns: 1fr;
+  }
+
+  .aihub-split-left {
+    border-right: 0;
+    border-bottom: 1px solid var(--aihub-line);
+    border-bottom-left-radius: 0;
+  }
+
+  .aihub-split-right {
+    /* Xếp dọc thì không cần dính — dính lúc này chỉ gây nhảy layout. */
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+    border-top-right-radius: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .aihub {
+    padding: 104px 18px 72px;
+  }
+
+  .aihub--flush {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .aihub-split-left,
+  .aihub-split-right {
+    padding: 22px;
+  }
+}

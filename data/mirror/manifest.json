@@ -1,0 +1,22 @@
+{
+  "routes": {
+    "home": "/",
+    "about": "/about/",
+    "blog": "/blog/",
+    "case-studies": "/case-studies/",
+    "community": "/community/",
+    "connectors": "/connectors/",
+    "contact": "/contact/",
+    "meltano-vs-fivetran": "/meltano-vs-fivetran/",
+    "podcasts": "/podcasts/",
+    "pricing": "/pricing/",
+    "pricingcalculator": "/pricingcalculator/",
+    "privacy-policy": "/privacy-policy/",
+    "product": "/product/",
+    "terms-of-service": "/terms-of-service/"
+  },
+  "stylesheets": [
+    "/meltano-mirror/site-0.css"
+  ],
+  "downloadedAssets": 87
+}

@@ -1,0 +1,222 @@
+/*
+ * Ghi đè có chủ đích lên style của header/footer mirror (meltano-source.css).
+ * Nạp sau meltano-source.css trong layout để thắng thứ tự cascade; có !important
+ * ở màu vì cascade gốc của Meltano có sẵn !important trên vài rule liên quan.
+ *
+ * Lý do cần file riêng thay vì sửa thẳng meltano-source.css: file đó là tài
+ * sản mirror không version (xem .gitignore) — sửa trong đó sẽ mất khi máy
+ * khác clone về hoặc khi mirror được tải lại.
+ */
+
+/* =========================================================
+ * THANH HEADER BAR — 2 TRẠNG THÁI (DUAL STATES)
+ * ========================================================= */
+
+/* 1. TRẠNG THÁI 1: Khi ở trên cùng / Nền sáng (:not(.shrink-menu)) */
+header:not(.shrink-menu):not(.dark-header) nav.main-nav > ul > li,
+header:not(.shrink-menu):not(.dark-header) nav.main-nav > ul > li > a,
+header:not(.shrink-menu):not(.dark-header) nav.main-nav > ul > li > a:visited {
+  color: #1d2838 !important;
+  opacity: 1 !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  transition: color 0.2s ease !important;
+}
+
+header:not(.shrink-menu):not(.dark-header) .aihub-logo-text {
+  color: #1d2838 !important;
+  transition: color 0.2s ease !important;
+}
+
+header:not(.shrink-menu):not(.dark-header) .menu-extras a svg path,
+header:not(.shrink-menu):not(.dark-header) .menu-extras a svg {
+  fill: #1d2838 !important;
+  transition: fill 0.2s ease !important;
+}
+
+header:not(.shrink-menu):not(.dark-header) nav.main-nav > ul > li > a:hover {
+  color: #3a64fa !important;
+}
+
+/* 2. TRẠNG THÁI 2: Khi cuộn chuột (.shrink-menu) hoặc trên trang nền tối (.dark-header) */
+header.shrink-menu nav.main-nav > ul > li,
+header.shrink-menu nav.main-nav > ul > li > a,
+header.shrink-menu nav.main-nav > ul > li > a:visited,
+header.dark-header nav.main-nav > ul > li > a,
+header.dark-header nav.main-nav > ul > li > a:visited,
+body.dark-header header nav.main-nav > ul > li > a {
+  color: #ffffff !important;
+  opacity: 1 !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  transition: color 0.2s ease !important;
+}
+
+header.shrink-menu .aihub-logo-text,
+header.dark-header .aihub-logo-text,
+body.dark-header header .aihub-logo-text {
+  color: #ffffff !important;
+  transition: color 0.2s ease !important;
+}
+
+header.shrink-menu .menu-extras a svg path,
+header.shrink-menu .menu-extras a svg,
+header.dark-header .menu-extras a svg path,
+header.dark-header .menu-extras a svg,
+body.dark-header header .menu-extras a svg path {
+  fill: #ffffff !important;
+  stroke: #ffffff !important;
+  transition: fill 0.2s ease !important;
+}
+
+header.shrink-menu nav.main-nav > ul > li > a:hover,
+header.dark-header nav.main-nav > ul > li > a:hover {
+  color: #18c3fa !important;
+}
+
+.portal-top,
+.portal-meltano,
+.meltano-portal {
+  display: none !important;
+}
+
+.portal-bottom {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;
+  height: 48px !important;
+  padding: 0 20px 0 8px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(8px) !important;
+  text-decoration: none !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-sizing: border-box !important;
+}
+
+.portal-bottom:hover {
+  border-color: rgba(58, 100, 250, 0.8) !important;
+  background: rgba(58, 100, 250, 0.16) !important;
+  box-shadow: 0 0 20px rgba(58, 100, 250, 0.35) !important;
+  transform: translateY(-1px) !important;
+}
+
+.portal-bottom .portal-wrap {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  flex-shrink: 0 !important;
+}
+
+.portal-bottom .portal-image {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #3a64fa 0%, #18c3fa 100%) !important;
+  box-shadow: 0 0 10px rgba(58, 100, 250, 0.5) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  transition: transform 0.25s ease !important;
+}
+
+.portal-bottom:hover .portal-image {
+  transform: scale(1.08) !important;
+}
+
+.portal-bottom .portal-image:before {
+  display: none !important;
+}
+
+.portal-bottom .portal-logo {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em !important;
+  color: #ffffff !important;
+  line-height: 1 !important;
+}
+
+.portal-bottom .portal-logo span {
+  color: #ffffff !important;
+  opacity: 0.95 !important;
+  line-height: 1 !important;
+}
+
+.portal-bottom .portal-out {
+  opacity: 0.9 !important;
+  width: 14px !important;
+  height: 14px !important;
+  flex-shrink: 0 !important;
+}
+
+.portal-bottom .portal-out path {
+  fill: #ffffff !important;
+}
+
+/**
+ * Xóa hoàn toàn các dấu gạch chéo (/ ... /) sinh ra từ pseudo-elements em:before, em:after trên toàn trang
+ */
+em:before,
+em:after,
+.paragraphs-with-links-item em:before,
+.paragraphs-with-links-item em:after,
+.paragraphs-with-links-item:nth-child(2) em:before,
+.paragraphs-with-links-item:nth-child(2) em:after,
+.paragraphs-with-links-item:nth-child(3) em:before,
+.paragraphs-with-links-item:nth-child(3) em:after,
+.paragraphs-with-links-item:nth-child(4) em:before,
+.paragraphs-with-links-item:nth-child(4) em:after,
+.landing-page em:before,
+.landing-page em:after {
+  content: "" !important;
+  display: none !important;
+}
+
+em {
+  font-style: normal !important;
+}
+
+/**
+ * Căn chỉnh bố cục tiêu đề Hero:
+ * - Hàng 1: "Luyện viết IELTS thông minh với" cỡ chữ lớn ấn tượng như ban đầu
+ * - Hàng 2: "AiHub" đứng giữa một mình, kích thước chữ vượt trội to hơn hẳn
+ */
+.hero-title {
+  text-align: center !important;
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  font-size: clamp(38px, 4.8vw, 68px) !important;
+  font-weight: 800 !important;
+  line-height: 1.18 !important;
+  letter-spacing: -0.025em !important;
+  color: #1d2838 !important;
+}
+
+.hero-title br {
+  display: block !important;
+}
+
+.hero-title em {
+  display: block !important;
+  margin: 12px auto 0 !important;
+  font-size: clamp(54px, 7.6vw, 102px) !important;
+  font-weight: 900 !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.035em !important;
+  color: #240b54 !important;
+  font-style: normal !important;
+}
+
+
+

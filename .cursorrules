@@ -1,0 +1,12 @@
+# AI AGENT RULES & CONVENTIONS CONFIGURATION
+# Links to master rules in .agent/
+
+include:
+  - .agent/system-prompt.md
+  - .agent/rules/00-clean-architecture.md
+  - .agent/rules/01-coding-standards.md
+  - .agent/rules/02-security-guidelines.md
+  - .agent/rules/03-git-workflow.md
+  - .agent/workflows/code-review-checklist.md
+
+description: "AiHub AI Pair-Programming Rules — Hexagonal Clean Architecture & Production Standards"
