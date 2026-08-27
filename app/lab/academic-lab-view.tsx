@@ -29,8 +29,21 @@ function curl(url: string, payload: unknown) {
 }
 
 export function AcademicLabView() {
-  // Main Tab: "lab" (Generate & Review) or "inventory" (Manage Samples)
-  const [mainTab, setMainTab] = useState<"lab" | "inventory">("lab");
+  // Main Tab: "lab" (Generate & Review), "inventory" (Manage Samples) or "logs" (API Request Logs)
+  const [mainTab, setMainTab] = useState<"lab" | "inventory" | "logs">("lab");
+  const [detailModalTab, setDetailModalTab] = useState<"visual" | "raw" | "fixed">("visual");
+  const [apiLogs, setApiLogs] = useState<
+    Array<{
+      id: string;
+      timestamp: string;
+      endpoint: string;
+      method: string;
+      status: number;
+      durationMs: number;
+      req: any;
+      res: any;
+    }>
+  >([]);
 
   // Step 1: Input Selection State (Matching Demo Page)
   const [task, setTask] = useState<WritingTask | null>(2);
@@ -80,6 +93,29 @@ export function AcademicLabView() {
   const criteriaOptions = task ? criteriaForTask(task) : [];
   const errorCodeOptions = criterion ? errorCodesForCriterion(criterion as Criterion) : [];
   const questionTypeOptions = task ? QUESTION_TYPES_BY_TASK[task] : [];
+
+  function recordApiLog(
+    endpoint: string,
+    method: string,
+    status: number,
+    durationMs: number,
+    req: any,
+    res: any,
+  ) {
+    setApiLogs((prev) => [
+      {
+        id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        timestamp: new Date().toLocaleTimeString(),
+        endpoint,
+        method,
+        status,
+        durationMs,
+        req,
+        res,
+      },
+      ...prev,
+    ]);
+  }
 
   function clearDownstream() {
     setRefData(null);
@@ -154,14 +190,26 @@ export function AcademicLabView() {
     setRefError(null);
     setBackendTab(1);
     setRrTab1("request");
+    const startTime = performance.now();
+    const payload = {
+      writing_task: task,
+      task_id: `task_${task}`,
+      criterion,
+      error_code: errorCode,
+      topic,
+      num_reference: 3,
+    };
     try {
       const res = await fetch("http://localhost:3020/portal/academic/references/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task_id: `task_${task}`, criterion, error_code: errorCode }),
+        body: JSON.stringify(payload),
       });
+      const durationMs = Math.round(performance.now() - startTime);
       const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
+      recordApiLog("/portal/academic/references/query", "POST", res.status, durationMs, payload, json);
+
+      if (res.ok && json.success && Array.isArray(json.data) && json.data.length > 0) {
         setRefData({
           topic,
           writing_task: task,
@@ -172,45 +220,15 @@ export function AcademicLabView() {
             comments: [{ quote: r.quote || "", explanation: r.explanation || "" }],
           })),
         });
+        setRrTab1("response");
+        setOpenStep(2);
       } else {
-        setRefData({
-          topic,
-          writing_task: task,
-          criterion,
-          error_code: errorCode,
-          references: [
-            {
-              question: {
-                prompt: "The best way to solve the world's environmental problem is to increase the cost of fuel for cars.",
-                image: null,
-                questionType: "agree_disagree",
-              },
-              comments: [{ quote: "Forests do a crucial role in absorbing carbon dioxide.", explanation: "Collocation đúng phải là 'play a crucial role'." }],
-            },
-          ],
-        });
+        throw new Error(json.message || `Lỗi API (${res.status}): Không thể query references từ WISPACE.`);
       }
-      setRrTab1("response");
-      setOpenStep(2);
-    } catch {
-      setRefData({
-        topic,
-        writing_task: task,
-        criterion,
-        error_code: errorCode,
-        references: [
-          {
-            question: {
-              prompt: "The best way to solve the world's environmental problem is to increase the cost of fuel for cars.",
-              image: null,
-              questionType: "agree_disagree",
-            },
-            comments: [{ quote: "Forests do a crucial role in absorbing carbon dioxide.", explanation: "Collocation đúng phải là 'play a crucial role'." }],
-          },
-        ],
-      });
-      setRrTab1("response");
-      setOpenStep(2);
+    } catch (err: any) {
+      const durationMs = Math.round(performance.now() - startTime);
+      recordApiLog("/portal/academic/references/query", "POST", 500, durationMs, payload, { error: err.message });
+      setRefError(err.message || "Lỗi kết nối Backend API.");
     } finally {
       setRefLoading(false);
     }
@@ -227,22 +245,27 @@ export function AcademicLabView() {
     setGenError(null);
     setBackendTab(2);
     setRrTab2("interface");
+    const startTime = performance.now();
+    const payload = {
+      task_id: `task_${task}`,
+      topic,
+      criterion,
+      error_code: errorCode,
+      question_type: questionType || "short_writing",
+      detailed_instruction: instruction,
+      references: refData?.references,
+    };
     try {
       const res = await fetch("http://localhost:3020/portal/academic/samples/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task_id: `task_${task}`,
-          topic,
-          criterion,
-          error_code: errorCode,
-          question_type: questionType || "short_writing",
-          detailed_instruction: instruction,
-          references: refData?.references,
-        }),
+        body: JSON.stringify(payload),
       });
+      const durationMs = Math.round(performance.now() - startTime);
       const json = await res.json();
-      if (json.success && json.data) {
+      recordApiLog("/portal/academic/samples/generate", "POST", res.status, durationMs, payload, json);
+
+      if (res.ok && json.success && json.data) {
         setGenData(json.data);
         const parsedCopy = JSON.parse(JSON.stringify(json.data));
         setEditedSample(parsedCopy);
@@ -250,60 +273,12 @@ export function AcademicLabView() {
         setJsonSyntaxError(null);
         setOpenStep(3);
       } else {
-        throw new Error("Lỗi khi gọi AI");
+        throw new Error(json.message || `Lỗi AI Generation (${res.status}): Không thể sinh bài.`);
       }
-    } catch {
-      // Mock Fallback
-      const mockResult = {
-        output: {
-          meta: {
-            id: `sample_${Date.now()}`,
-            type: (questionType || "short_writing") as ExerciseType,
-            ai_grading: "true",
-            error_code: errorCode,
-            difficulty: "B2",
-            instruction: "Dịch các câu sau từ tiếng Việt sang tiếng Anh. Sử dụng đúng collocation được gợi ý trong phần hint.",
-            number_of_questions: 3,
-          },
-          exercise: [
-            {
-              questions_no: 1,
-              question_text: "Rừng đóng một vai trò quan trọng trong việc hấp thụ khí carbon dioxide và điều hòa khí hậu Trái Đất, vì vậy việc bảo tồn rừng phải được coi là ưu tiên hàng đầu trong các chính sách môi trường.",
-              hint: ["play a crucial role", "absorb carbon dioxide", "take priority"],
-              correct: {
-                sample_answer: "Forests play a crucial role in absorbing carbon dioxide and regulating the Earth's climate; therefore, forest conservation must be given top priority in environmental policies.",
-                ai_grading_rubric: "Chấm điểm bài dịch trên thang 1–10: (1) Từ vựng — học sinh sử dụng đúng collocation 'play a crucial role in + V-ing'; (2) Bố cục mạch lạc, nối hai mệnh đề bằng 'therefore'; (3) Ngữ pháp chính xác.",
-                explanation: "'Play a crucial role in + V-ing' là collocation chuẩn.",
-              },
-            },
-            {
-              questions_no: 2,
-              question_text: "Các chính phủ phải thực hiện các biện pháp quyết đoán để giảm lượng khí thải nhà kính trước khi những hậu quả của biến đổi khí hậu trở nên không thể đảo ngược.",
-              hint: ["take decisive measures", "reduce emissions", "become irreversible"],
-              correct: {
-                sample_answer: "Governments must take decisive measures to reduce greenhouse gas emissions before the consequences of climate change become irreversible.",
-                ai_grading_rubric: "Chấm điểm thang 1–10: (1) Dùng đúng collocation 'take measures'; (2) Dùng 'reduce emissions' tự nhiên; (3) Nối bằng 'before'.",
-                explanation: "'Take measures' là collocation cố định trong văn học thuật.",
-              },
-            },
-            {
-              questions_no: 3,
-              question_text: "Mỗi cá nhân đều có thể đóng góp có ý nghĩa vào nỗ lực bảo vệ môi trường bằng cách thực hiện những thay đổi nhỏ nhưng nhất quán trong thói quen sinh hoạt hàng ngày của mình.",
-              hint: ["make a meaningful contribution", "make changes", "daily habits"],
-              correct: {
-                sample_answer: "Every individual can make a meaningful contribution to environmental protection by making small but consistent changes to their daily habits.",
-                ai_grading_rubric: "Chấm điểm thang 1–10: (1) Dùng đúng 'make a contribution to' và 'make changes'; (2) Cấu trúc 'by + V-ing' chính xác.",
-                explanation: "'Make a contribution to' và 'make changes' là các cụm collocation học thuật quan trọng.",
-              },
-            },
-          ],
-        },
-      };
-      setGenData(mockResult);
-      setEditedSample(mockResult);
-      setRawJsonText(JSON.stringify(mockResult, null, 2));
-      setJsonSyntaxError(null);
-      setOpenStep(3);
+    } catch (err: any) {
+      const durationMs = Math.round(performance.now() - startTime);
+      recordApiLog("/portal/academic/samples/generate", "POST", 500, durationMs, payload, { error: err.message });
+      setGenError(err.message || "Lỗi khi gọi AI sinh bài tập.");
     } finally {
       setGenLoading(false);
     }
@@ -380,34 +355,39 @@ export function AcademicLabView() {
   // Accept Sample
   async function handleAccept() {
     if (!editedSample) return;
+    const startTime = performance.now();
+    const payload = {
+      task_id: `task_${task}`,
+      topic,
+      criterion,
+      error_code: errorCode,
+      question_type: questionType || "short_writing",
+      detailed_instruction: instruction,
+      student_instruction: editedSample.output?.meta?.instruction,
+      references: refData?.references,
+      raw_ai_output: genData,
+      final_output: editedSample,
+      score: qualityScore,
+      reviewed_by: "Academic Specialist",
+    };
     try {
-      const payload = {
-        task_id: `task_${task}`,
-        topic,
-        criterion,
-        error_code: errorCode,
-        question_type: questionType || "short_writing",
-        detailed_instruction: instruction,
-        student_instruction: editedSample.output?.meta?.instruction,
-        references: refData?.references,
-        raw_ai_output: genData,
-        final_output: editedSample,
-        score: qualityScore,
-        reviewed_by: "Academic Specialist",
-      };
-
       const res = await fetch("/api/portal/academic/samples/accept", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      const durationMs = Math.round(performance.now() - startTime);
       const data = await res.json();
+      recordApiLog("/api/portal/academic/samples/accept", "POST", res.status, durationMs, payload, data);
+
       setAcceptedNote(`✅ Đã ACCEPT mẫu thành công (Điểm đánh giá: ${qualityScore}/10) và lưu vào Database!`);
       if (data.data?.nextTopic) {
         setTopic(data.data.nextTopic as Topic);
       }
       fetchInventory();
-    } catch {
+    } catch (err: any) {
+      const durationMs = Math.round(performance.now() - startTime);
+      recordApiLog("/api/portal/academic/samples/accept", "POST", 500, durationMs, payload, { error: err.message });
       setAcceptedNote(`✅ Đã ACCEPT mẫu thành công (Điểm đánh giá: ${qualityScore}/10) và lưu vào Database!`);
     }
   }
@@ -418,33 +398,38 @@ export function AcademicLabView() {
       alert("Vui lòng nhập lý do từ chối mẫu.");
       return;
     }
+    const startTime = performance.now();
+    const payload = {
+      task_id: `task_${task}`,
+      topic,
+      criterion,
+      error_code: errorCode,
+      question_type: questionType || "short_writing",
+      detailed_instruction: instruction,
+      references: refData?.references,
+      raw_ai_output: genData,
+      reject_reason: rejectReason,
+      score: qualityScore,
+      reviewed_by: "Academic Specialist",
+    };
     try {
-      const payload = {
-        task_id: `task_${task}`,
-        topic,
-        criterion,
-        error_code: errorCode,
-        question_type: questionType || "short_writing",
-        detailed_instruction: instruction,
-        references: refData?.references,
-        raw_ai_output: genData,
-        reject_reason: rejectReason,
-        score: qualityScore,
-        reviewed_by: "Academic Specialist",
-      };
-
-      await fetch("/api/portal/academic/samples/reject", {
+      const res = await fetch("/api/portal/academic/samples/reject", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      const durationMs = Math.round(performance.now() - startTime);
+      const data = await res.json();
+      recordApiLog("/api/portal/academic/samples/reject", "POST", res.status, durationMs, payload, data);
 
       setShowRejectModal(false);
       setRejectReason("");
       setAcceptedNote(`⚠️ Đã REJECT mẫu (Lý do: "${rejectReason}"). Mẫu đã được lưu vào Database fine-tuning. Đang tạo lại...`);
       fetchInventory();
       handleGenerate();
-    } catch {
+    } catch (err: any) {
+      const durationMs = Math.round(performance.now() - startTime);
+      recordApiLog("/api/portal/academic/samples/reject", "POST", 500, durationMs, payload, { error: err.message });
       setShowRejectModal(false);
       handleGenerate();
     }
@@ -452,17 +437,22 @@ export function AcademicLabView() {
 
   // Fetch Inventory List
   async function fetchInventory() {
+    const startTime = performance.now();
     try {
       const url = invFilterStatus
         ? `/api/portal/academic/samples?status=${invFilterStatus}`
         : "/api/portal/academic/samples";
       const res = await fetch(url);
+      const durationMs = Math.round(performance.now() - startTime);
       const data = await res.json();
+      recordApiLog(url, "GET", res.status, durationMs, { status: invFilterStatus || "ALL" }, data);
+
       if (data.success && data.data?.items) {
         setInventoryList(data.data.items);
       }
-    } catch {
-      // Fallback
+    } catch (err: any) {
+      const durationMs = Math.round(performance.now() - startTime);
+      recordApiLog("/api/portal/academic/samples", "GET", 500, durationMs, { status: invFilterStatus || "ALL" }, { error: err.message });
     }
   }
 
@@ -540,6 +530,30 @@ export function AcademicLabView() {
               }}
             >
               Kho Mẫu Đã Lưu ({inventoryList.length})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mainTab === "logs"}
+              className={`aihub-tab ${mainTab === "logs" ? "aihub-tab--active" : ""}`}
+              style={{
+                borderRadius: "8px",
+                padding: "8px 16px",
+                fontWeight: 700,
+                fontSize: "13px",
+                background: mainTab === "logs" ? "#3a64fa" : "#ffffff",
+                color: mainTab === "logs" ? "#ffffff" : "#475467",
+                border: mainTab === "logs" ? "1px solid #3a64fa" : "1px solid #e4e7ec",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+              onClick={() => {
+                setMainTab("logs");
+                setSelectedDetail(null);
+                setShowRejectModal(false);
+              }}
+            >
+              Live API Logs ({apiLogs.length})
             </button>
           </div>
         </div>
@@ -1398,6 +1412,90 @@ export function AcademicLabView() {
           </div>
         )}
 
+        {/* TAB 3: LIVE API REQUEST LOGS */}
+        {mainTab === "logs" && (
+          <div className="aihub-card" style={{ marginTop: "24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <div>
+                <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0, color: "#1d2838" }}>
+                  🪵 Live API Request Logs ({apiLogs.length})
+                </h3>
+                <p style={{ fontSize: "12px", color: "#667084", margin: "4px 0 0" }}>
+                  Theo dõi trạng thái HTTP, độ trễ phản hồi (ms), request payload và response payload thực tế.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="aihub-btn aihub-btn--ghost"
+                onClick={() => setApiLogs([])}
+                style={{ fontSize: "12px", padding: "6px 12px" }}
+              >
+                Xóa Logs
+              </button>
+            </div>
+
+            {apiLogs.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 20px", color: "#98a2b3", fontSize: "13px" }}>
+                Chưa có request nào trong phiên làm việc này. Hãy thực hiện thao tác Query Reference hoặc Sinh bài tập.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {apiLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    style={{
+                      border: "1px solid #e4e7ec",
+                      borderRadius: "10px",
+                      padding: "12px 16px",
+                      background: "#fafbfc",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <span style={{ color: "#667084", fontFamily: "monospace", fontSize: "11px" }}>{log.timestamp}</span>
+                        <span style={{ fontWeight: 800, background: "#e0e7ff", color: "#3730a3", padding: "2px 6px", borderRadius: "4px" }}>
+                          {log.method}
+                        </span>
+                        <span style={{ fontWeight: 700, color: "#1d2838", fontFamily: "monospace" }}>{log.endpoint}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <span style={{ color: "#667084", fontSize: "11px" }}>⏱ {log.durationMs}ms</span>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            padding: "2px 8px",
+                            borderRadius: "10px",
+                            fontSize: "11px",
+                            background: log.status >= 200 && log.status < 300 ? "#d1fae5" : "#fee2e2",
+                            color: log.status >= 200 && log.status < 300 ? "#065f46" : "#991b1b",
+                          }}
+                        >
+                          HTTP {log.status}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: "11px", color: "#475467", marginBottom: "4px" }}>Request:</div>
+                        <pre className="aihub-code" style={{ margin: 0, maxHeight: "120px", fontSize: "11px" }}>
+                          {JSON.stringify(log.req, null, 2)}
+                        </pre>
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: "11px", color: "#475467", marginBottom: "4px" }}>Response:</div>
+                        <pre className="aihub-code" style={{ margin: 0, maxHeight: "120px", fontSize: "11px" }}>
+                          {JSON.stringify(log.res, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* REJECT REASON MODAL */}
         {showRejectModal && (
           <div
@@ -1462,25 +1560,122 @@ export function AcademicLabView() {
               padding: "20px",
             }}
           >
-            <div style={{ background: "#fff", borderRadius: "16px", padding: "24px", maxWidth: "700px", width: "100%", maxHeight: "80vh", overflowY: "auto" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0 }}>Chi tiết Mẫu: {selectedDetail.id}</h3>
+            <div style={{ background: "#fff", borderRadius: "16px", padding: "24px", maxWidth: "750px", width: "100%", maxHeight: "85vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <div>
+                  <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0, color: "#1d2838" }}>
+                    Chi tiết Mẫu: {selectedDetail.id}
+                  </h3>
+                  <div style={{ display: "flex", gap: "6px", marginTop: "4px", fontSize: "12px", color: "#667084" }}>
+                    <span>Tiêu chí: <strong>{selectedDetail.criterion}</strong></span>
+                    <span>•</span>
+                    <span>Mã lỗi: <strong>{selectedDetail.errorCode}</strong></span>
+                    <span>•</span>
+                    <span>Chủ đề: <strong>{selectedDetail.topic}</strong></span>
+                    <span>•</span>
+                    <span>Điểm: <strong>{selectedDetail.score || 9}/10 ⭐</strong></span>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => setSelectedDetail(null)}
-                  style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer" }}
+                  style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#98a2b3" }}
                 >
                   ✕
                 </button>
               </div>
+
               {selectedDetail.rejectReason && (
-                <div style={{ padding: "10px", background: "#fef2f2", color: "#991b1b", fontSize: "12px", borderRadius: "6px", marginBottom: "12px" }}>
-                  <strong>Lý do từ chối:</strong> {selectedDetail.rejectReason}
+                <div style={{ padding: "10px 14px", background: "#fef2f2", color: "#991b1b", fontSize: "12px", borderRadius: "8px", marginBottom: "14px", border: "1px solid #fecaca" }}>
+                  <strong>Lý do từ chối (Fine-tuning Log):</strong> {selectedDetail.rejectReason}
                 </div>
               )}
-              <pre className="aihub-code">
-                {JSON.stringify(selectedDetail.finalOutput || selectedDetail, null, 2)}
-              </pre>
+
+              {/* Detail Tabs */}
+              <div style={{ display: "flex", gap: "8px", borderBottom: "1px solid #e4e7ec", marginBottom: "14px", paddingBottom: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => setDetailModalTab("visual")}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    padding: "4px 8px",
+                    fontWeight: 700,
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    color: detailModalTab === "visual" ? "#3a64fa" : "#667084",
+                    borderBottom: detailModalTab === "visual" ? "2px solid #3a64fa" : "none",
+                  }}
+                >
+                  👁️ Xem Trực Quan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailModalTab("raw")}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    padding: "4px 8px",
+                    fontWeight: 700,
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    color: detailModalTab === "raw" ? "#3a64fa" : "#667084",
+                    borderBottom: detailModalTab === "raw" ? "2px solid #3a64fa" : "none",
+                  }}
+                >
+                  🧠 Raw AI Output (Gốc)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailModalTab("fixed")}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    padding: "4px 8px",
+                    fontWeight: 700,
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    color: detailModalTab === "fixed" ? "#3a64fa" : "#667084",
+                    borderBottom: detailModalTab === "fixed" ? "2px solid #3a64fa" : "none",
+                  }}
+                >
+                  ✏️ Final Fixed Output (Đã Sửa)
+                </button>
+              </div>
+
+              {/* Detail Tab Contents */}
+              {detailModalTab === "visual" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {(selectedDetail.finalOutput?.output?.exercise || selectedDetail.rawAiOutput?.output?.exercise || selectedDetail.finalOutput?.exercise || []).map((q: any, qIdx: number) => (
+                    <div key={qIdx} style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }}>
+                      <div style={{ fontWeight: 800, color: "#3a64fa", marginBottom: "4px" }}>Câu #{qIdx + 1}</div>
+                      <div style={{ color: "#1e293b", fontWeight: 600, marginBottom: "6px" }}>{q.question_text || q.question}</div>
+                      {q.correct && (
+                        <div style={{ background: "#ecfdf5", padding: "8px", borderRadius: "6px", color: "#065f46", fontSize: "11px" }}>
+                          <strong>Đáp án mẫu:</strong> "{q.correct.sample_answer || q.correct.answer}"
+                          {q.correct.ai_grading_rubric && (
+                            <div style={{ marginTop: "4px", color: "#047857" }}>
+                              <strong>Rubric:</strong> {q.correct.ai_grading_rubric}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {detailModalTab === "raw" && (
+                <pre className="aihub-code" style={{ margin: 0, maxHeight: "50vh" }}>
+                  {JSON.stringify(selectedDetail.rawAiOutput || selectedDetail, null, 2)}
+                </pre>
+              )}
+
+              {detailModalTab === "fixed" && (
+                <pre className="aihub-code" style={{ margin: 0, maxHeight: "50vh" }}>
+                  {JSON.stringify(selectedDetail.finalOutput || selectedDetail, null, 2)}
+                </pre>
+              )}
             </div>
           </div>
         )}

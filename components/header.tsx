@@ -75,6 +75,13 @@ export function Header() {
             {openMenu === "product" && <MegaMenu group={navProduct} />}
           </div>
 
+          <Link href="/specs" className={`${linkBase} flex items-center gap-1.5 font-bold text-brand-cyan`} onClick={close}>
+            <span>⚡ Spec & cURL Hub</span>
+            <span className="rounded-full bg-brand-cyan/20 px-2 py-0.5 text-[10px] font-black uppercase text-brand-cyan">
+              Live
+            </span>
+          </Link>
+
           <Link href="/lab" className={`${linkBase} flex items-center gap-1.5 font-bold text-brand-blue`} onClick={close}>
             <span>🧪 Academic Lab</span>
             <span className="rounded-full bg-brand-blue/20 px-2 py-0.5 text-[10px] font-black uppercase text-brand-blue">
@@ -114,6 +121,13 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <Link
+            href="/specs"
+            className="hidden items-center justify-center rounded-full border border-brand-cyan/40 px-3.5 py-1.5 text-xs font-bold text-brand-cyan transition-colors hover:bg-brand-cyan/10 sm:flex"
+          >
+            ⚡ Spec & cURL Hub
+          </Link>
+
           <Link
             href="/lab"
             className="hidden items-center justify-center rounded-full border border-brand-blue/40 px-3.5 py-1.5 text-xs font-bold text-brand-blue transition-colors hover:bg-brand-blue/10 sm:flex"
