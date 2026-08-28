@@ -2,23 +2,23 @@
 # AiHub Frontend Multi-stage Dockerfile
 # ==========================================
 
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --legacy-peer-deps
+RUN npm install --legacy-peer-deps --ignore-scripts
 
 COPY . .
 
 # Next.js build args
-ARG NEXT_PUBLIC_API_URL=https://api.aihubproduction.com
+ARG NEXT_PUBLIC_API_URL=https://aihub-api.aihubproduction.com
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build
 
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 
 WORKDIR /app
 
