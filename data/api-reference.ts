@@ -36,7 +36,7 @@ export const EXERCISE_GENERATION_OVERVIEW = {
   facts: [
     { label: "Base URL", value: "test-api-ielts-writing.aihubproduction.com" },
     { label: "Định dạng", value: "application/json" },
-    { label: "Xác thực", value: "Chưa tài liệu hoá — endpoint sample-references là nội bộ" },
+    { label: "Xác thực", value: "API Key (x-client-id / x-secret-key) hoặc Bearer Token" },
     { label: "Trạng thái", value: "Stable" },
   ],
 };

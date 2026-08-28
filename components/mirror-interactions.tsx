@@ -64,7 +64,7 @@ export function MirrorInteractions() {
       cleanups.push(() => element.removeEventListener(event, handler, options));
     };
 
-    if (pathname === "/") {
+    if (pathname === "/" || pathname === "/lab") {
       document.body.classList.add("home", "dark", "light-header", "dark-footer");
 
       const workflowTitle = document.querySelector<HTMLElement>(".workflow .heading .title-inline");

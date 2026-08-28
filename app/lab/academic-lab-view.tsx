@@ -29,6 +29,56 @@ function curl(url: string, payload: unknown) {
 }
 
 export function AcademicLabView() {
+  // Authentication State for Academic Lab
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (typeof window === "undefined") return;
+    const { innerWidth, innerHeight } = window;
+    const x = (e.clientX / innerWidth - 0.5) * 2; // -1 to 1
+    const y = (e.clientY / innerHeight - 0.5) * 2; // -1 to 1
+    setMousePos({ x, y });
+  }
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isAuth = localStorage.getItem("aihub_lab_auth") === "true";
+      setIsAuthenticated(isAuth);
+    }
+  }, []);
+
+  function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmedUser = loginUsername.trim().toLowerCase();
+    const trimmedPass = loginPassword.trim();
+
+    if (trimmedUser === "wispace" && trimmedPass === "200khachhang") {
+      setIsAuthenticated(true);
+      setLoginError(null);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("aihub_lab_auth", "true");
+        localStorage.setItem("aihub_lab_user", "Wispace");
+      }
+    } else {
+      setLoginError("Tên đăng nhập hoặc mật khẩu không chính xác.");
+    }
+  }
+
+  function handleLogout() {
+    setIsAuthenticated(false);
+    setLoginPassword("");
+    setLoginError(null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("aihub_lab_auth");
+      localStorage.removeItem("aihub_lab_user");
+    }
+  }
+
   // Main Tab: "lab" (Generate & Review), "inventory" (Manage Samples) or "logs" (API Request Logs)
   const [mainTab, setMainTab] = useState<"lab" | "inventory" | "logs">("lab");
   const [detailModalTab, setDetailModalTab] = useState<"visual" | "raw" | "fixed">("visual");
@@ -470,18 +520,291 @@ export function AcademicLabView() {
   const meta = editedSample?.output?.meta;
   const exerciseList = editedSample?.output?.exercise || [];
 
+  // 1. Loading state during hydration check
+  if (isAuthenticated === null) {
+    return (
+      <div
+        style={{
+          minHeight: "calc(100vh - 80px)",
+          background: "radial-gradient(circle at 50% 25%, #1e1145 0%, #080216 75%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "14px" }}>
+          Đang kiểm tra quyền truy cập...
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Login Gate - Cloned from Home Page Hero Structure (Dark Mode)
+  if (isAuthenticated === false) {
+    return (
+      <main>
+        <div
+          className="hero hero-scene section"
+          style={{
+            minHeight: "calc(100vh - 80px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            position: "relative",
+            padding: "40px 16px 80px",
+            boxSizing: "border-box",
+          }}
+        >
+          {/* Main Content Container with Centered Login Form */}
+          <div className="container" style={{ position: "relative", zIndex: 10, display: "flex", justifyContent: "center" }}>
+            <div
+              className="anim-lab-card"
+              style={{
+                maxWidth: "440px",
+                width: "100%",
+                background: "rgba(14, 8, 28, 0.88)",
+                backdropFilter: "blur(24px)",
+                WebkitBackdropFilter: "blur(24px)",
+                borderRadius: "20px",
+                border: "1px solid rgba(255, 255, 255, 0.16)",
+                boxShadow: "0 30px 70px -15px rgba(0, 0, 0, 0.85), 0 0 1px 1px rgba(255, 255, 255, 0.12)",
+                padding: "38px 32px",
+                position: "relative",
+                zIndex: 20,
+                overflow: "hidden",
+                margin: "40px auto 60px",
+              }}
+            >
+              {/* Top subtle glow shimmer line */}
+              <div
+                className="anim-lab-shimmer"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: "3px",
+                  background: "linear-gradient(90deg, #3a64fa, #f963bc, #18c3fa, #3a64fa)",
+                }}
+              />
+
+              {/* Header — sạch sẽ, chỉ có tiêu đề */}
+              <div style={{ textAlign: "center", marginBottom: "26px" }}>
+                <h1
+                  style={{
+                    margin: 0,
+                    fontSize: "24px",
+                    fontWeight: 800,
+                    color: "#ffffff",
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  Đăng nhập phòng Lab
+                </h1>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+                {loginError && (
+                  <div
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: "10px",
+                      background: "rgba(239, 68, 68, 0.15)",
+                      border: "1px solid rgba(239, 68, 68, 0.35)",
+                      color: "#fca5a5",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <span>⚠️</span>
+                    <span>{loginError}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "#cbd5e1",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    Tên đăng nhập
+                  </label>
+                  <input
+                    type="text"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                    placeholder="Nhập tên đăng nhập"
+                    autoFocus
+                    required
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      fontSize: "14.5px",
+                      borderRadius: "10px",
+                      border: "1px solid rgba(255, 255, 255, 0.16)",
+                      background: "rgba(255, 255, 255, 0.07)",
+                      color: "#ffffff",
+                      outline: "none",
+                      boxSizing: "border-box",
+                      transition: "all 0.2s ease",
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "#cbd5e1",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    Mật khẩu
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="Nhập mật khẩu"
+                      required
+                      style={{
+                        width: "100%",
+                        padding: "12px 42px 12px 14px",
+                        fontSize: "14.5px",
+                        borderRadius: "10px",
+                        border: "1px solid rgba(255, 255, 255, 0.16)",
+                        background: "rgba(255, 255, 255, 0.07)",
+                        color: "#ffffff",
+                        outline: "none",
+                        boxSizing: "border-box",
+                        transition: "all 0.2s ease",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: "absolute",
+                        right: "12px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "#94a3b8",
+                        fontSize: "15px",
+                        padding: "4px",
+                      }}
+                    >
+                      {showPassword ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  style={{
+                    width: "100%",
+                    padding: "13px",
+                    fontSize: "15px",
+                    fontWeight: 700,
+                    borderRadius: "10px",
+                    marginTop: "6px",
+                    cursor: "pointer",
+                    background: "linear-gradient(135deg, #3a64fa 0%, #254edb 100%)",
+                    color: "#ffffff",
+                    border: "none",
+                    boxShadow: "0 10px 25px -5px rgba(58, 100, 250, 0.45)",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  Truy cập Phòng Lab →
+                </button>
+              </form>
+
+              {/* Footer Back link */}
+              <div
+                style={{
+                  marginTop: "26px",
+                  paddingTop: "18px",
+                  borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+                  textAlign: "center",
+                }}
+              >
+                <Link
+                  href="/demo"
+                  style={{
+                    fontSize: "13px",
+                    color: "#94a3b8",
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    transition: "color 0.15s ease",
+                  }}
+                >
+                  <span>← Quay lại Danh mục Demo</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* EXACT Background Elements cloned from Home page with standard classes */}
+          <div className="background-elements">
+            <div className="cloud-left ready show"><img src="/assets/img/clouds-1.webp" alt="cloud left" width={420} height={205} /></div>
+            <div className="cloud-right ready show"><img src="/assets/img/clouds-2.webp" alt="cloud right" width={382} height={186} /></div>
+            <div className="hero-castle ready show"><img src="/assets/img/hero-castle.webp" alt="castle" width={1137} height={710} /></div>
+            <div className="hero-waterfall ready show"><img src="/assets/img/hero-waterfall.webp" alt="waterfall" width={800} height={710} /></div>
+            <div className="hero-bg ready show"><img alt="" src="/meltano-mirror/next/static/media/Mountainsback.1bef34c0.svg" className="full-width-img" width={4000} height={286} /></div>
+            <div className="hero-bg ready show"><img alt="" src="/meltano-mirror/next/static/media/Mountainsfront.f78aed9f.svg" className="full-width-img" width={4000} height={247} /></div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // 3. Render Authenticated Lab View
   return (
     <div className="aihub aihub--flush">
       <div className="aihub-shell">
         {/* Navigation Breadcrumb + Main Tab Bar */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-          <nav className="aihub-crumbs-static" style={{ margin: 0 }}>
-            <Link href="/demo">Danh mục sản phẩm</Link>
-            <span aria-hidden="true">/</span>
-            <span>Phòng Lab Academic</span>
-          </nav>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <nav className="aihub-crumbs-static" style={{ margin: 0 }}>
+              <Link href="/demo">Danh mục sản phẩm</Link>
+              <span aria-hidden="true">/</span>
+              <span>Phòng Lab Academic</span>
+            </nav>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                background: "#f0fdf4",
+                color: "#166534",
+                border: "1px solid #bbf7d0",
+                borderRadius: "20px",
+                padding: "3px 10px",
+                fontSize: "11.5px",
+                fontWeight: 700,
+              }}
+            >
+              <span>🏢</span> Wispace
+            </span>
+          </div>
 
-          <div style={{ display: "flex", gap: "8px", zIndex: 10, position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", zIndex: 10, position: "relative" }}>
             <button
               type="button"
               role="tab"
@@ -504,7 +827,7 @@ export function AcademicLabView() {
                 setShowRejectModal(false);
               }}
             >
-              Phòng Lab Tạo & Chấm Điểm
+              Phòng Lab Tạo &amp; Chấm Điểm
             </button>
             <button
               type="button"
@@ -554,6 +877,28 @@ export function AcademicLabView() {
               }}
             >
               Live API Logs ({apiLogs.length})
+            </button>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Đăng xuất khỏi phòng Lab"
+              style={{
+                borderRadius: "8px",
+                padding: "8px 12px",
+                fontWeight: 600,
+                fontSize: "12.5px",
+                background: "#fef2f2",
+                color: "#dc2626",
+                border: "1px solid #fecaca",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                transition: "all 0.15s ease",
+              }}
+            >
+              <span>🚪</span> Đăng xuất
             </button>
           </div>
         </div>
@@ -1062,11 +1407,59 @@ export function AcademicLabView() {
                             {meta?.instruction}
                           </p>
 
+                          {/* HÌNH ẢNH / BIỂU ĐỒ TỔNG THỂ CỦA ĐỀ BÀI (NẾU CÓ) */}
+                          {Boolean(
+                            editedSample?.image ||
+                            editedSample?.image_url ||
+                            editedSample?.imageUrl ||
+                            editedSample?.chart ||
+                            (editedSample?.data && (editedSample?.data?.image || editedSample?.data?.image_url || editedSample?.data?.imageUrl)) ||
+                            (editedSample?.question && (editedSample?.question?.image || editedSample?.question?.image_url))
+                          ) && (
+                            <div
+                              style={{
+                                margin: "0 0 20px",
+                                padding: "14px",
+                                borderRadius: "12px",
+                                background: "#ffffff",
+                                border: "1px solid #e2e8f0",
+                                textAlign: "center",
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                              }}
+                            >
+                              <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
+                                📊 Hình ảnh đề bài / Biểu đồ Task
+                              </div>
+                              <img
+                                src={
+                                  editedSample?.image ||
+                                  editedSample?.image_url ||
+                                  editedSample?.imageUrl ||
+                                  editedSample?.chart ||
+                                  editedSample?.data?.image ||
+                                  editedSample?.data?.image_url ||
+                                  editedSample?.data?.imageUrl ||
+                                  editedSample?.question?.image ||
+                                  editedSample?.question?.image_url
+                                }
+                                alt="Đề bài / Biểu đồ Task"
+                                style={{
+                                  maxWidth: "100%",
+                                  maxHeight: "360px",
+                                  objectFit: "contain",
+                                  borderRadius: "8px",
+                                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                                }}
+                              />
+                            </div>
+                          )}
+
                           {/* DANH SÁCH CÁC CÂU HỎI VỚI NÚT SỬA GÓC PHẢI TRÊN */}
                           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                             {exerciseList.map((item: any, idx: number) => {
                               const qNo = item.questions_no || idx + 1;
                               const isEditing = editingQuestionIndex === idx;
+                              const qImage = item.question_image || item.image || item.image_url || item.imageUrl || item.chart || null;
                               const sampleAns = typeof item.correct === "object" ? item.correct?.sample_answer : item.correct;
                               const rubric = typeof item.correct === "object" ? item.correct?.ai_grading_rubric : null;
                               const explain = typeof item.correct === "object" ? item.correct?.explanation : item.explanation;
@@ -1126,6 +1519,25 @@ export function AcademicLabView() {
                                           className="aihub-select"
                                           style={{ width: "100%", padding: "8px", fontSize: "13px", fontFamily: "inherit" }}
                                         />
+                                      </div>
+
+                                      <div>
+                                        <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#334155", marginBottom: "3px" }}>
+                                          Hình ảnh minh hoạ câu hỏi (URL nếu có):
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={qImage || ""}
+                                          onChange={(e) => handleEditField(idx, "question_image", e.target.value)}
+                                          placeholder="https://..."
+                                          className="aihub-select"
+                                          style={{ width: "100%", padding: "8px", fontSize: "13px" }}
+                                        />
+                                        {qImage && (
+                                          <div style={{ marginTop: "6px" }}>
+                                            <img src={qImage} alt="" style={{ maxHeight: "120px", borderRadius: "6px", border: "1px solid #e2e8f0" }} />
+                                          </div>
+                                        )}
                                       </div>
 
                                       <div>
@@ -1197,6 +1609,24 @@ export function AcademicLabView() {
                                       <p style={{ margin: "0 0 10px", fontSize: "14px", lineHeight: "1.6", color: "#1e293b", fontWeight: 600 }}>
                                         {item.question_text}
                                       </p>
+
+                                      {/* Hình ảnh minh hoạ câu hỏi nếu có */}
+                                      {qImage && (
+                                        <div style={{ margin: "10px 0 14px", textAlign: "center" }}>
+                                          <img
+                                            src={qImage}
+                                            alt={`Minh hoạ câu ${qNo}`}
+                                            style={{
+                                              maxWidth: "100%",
+                                              maxHeight: "320px",
+                                              objectFit: "contain",
+                                              borderRadius: "8px",
+                                              border: "1px solid #e2e8f0",
+                                              boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                                            }}
+                                          />
+                                        </div>
+                                      )}
 
                                       {/* Hints */}
                                       {Array.isArray(item.hint) && item.hint.length > 0 && (

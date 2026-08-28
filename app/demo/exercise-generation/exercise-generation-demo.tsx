@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   DEFAULT_NUM_REFERENCES,
+  EXERCISE_TYPE_LABELS,
   QUESTION_TYPES_BY_TASK,
   TOPICS,
   TOPIC_LABELS,
@@ -66,8 +67,7 @@ export function ExerciseGenerationDemo() {
   const [openStep, setOpenStep] = useState<1 | 2 | 3>(1);
   const [backendTab, setBackendTab] = useState<1 | 2>(1);
   const [rrTab1, setRrTab1] = useState<"request" | "response">("request");
-  const [rrTab2, setRrTab2] = useState<"request" | "response">("request");
-  const [previewTab, setPreviewTab] = useState<"sample" | "raw">("sample");
+  const [rrTab2, setRrTab2] = useState<"interface" | "response" | "request">("interface");
 
   const [refLoading, setRefLoading] = useState(false);
   const [refError, setRefError] = useState<string | null>(null);
@@ -126,8 +126,7 @@ export function ExerciseGenerationDemo() {
     setOpenStep(1);
     setBackendTab(1);
     setRrTab1("request");
-    setRrTab2("request");
-    setPreviewTab("sample");
+    setRrTab2("interface");
   }
 
   const canQueryReferences = task !== null && topic !== "" && criterion !== "" && errorCode !== "";
@@ -184,7 +183,7 @@ export function ExerciseGenerationDemo() {
     setGenLoading(true);
     setGenError(null);
     setBackendTab(2);
-    setRrTab2("request");
+    setRrTab2("interface");
     try {
       const res = await fetch("/api/demo/exercise-generation/generate", {
         method: "POST",
@@ -197,8 +196,7 @@ export function ExerciseGenerationDemo() {
         return;
       }
       setGenData(json);
-      setRrTab2("response");
-      setPreviewTab("sample");
+      setRrTab2("interface");
       setOpenStep(3);
     } catch {
       setGenError("Không gọi được API (lỗi mạng).");
@@ -453,34 +451,83 @@ export function ExerciseGenerationDemo() {
                 </button>
                 {openStep === 3 && genData && (
                   <div className="aihub-astep-body">
-                    <div className="aihub-tabs">
-                      <button
-                        type="button"
-                        className="aihub-tab"
-                        role="tab"
-                        aria-selected={previewTab === "sample"}
-                        onClick={() => setPreviewTab("sample")}
-                      >
-                        Sample Content
-                      </button>
-                      <button
-                        type="button"
-                        className="aihub-tab"
-                        role="tab"
-                        aria-selected={previewTab === "raw"}
-                        onClick={() => setPreviewTab("raw")}
-                      >
-                        Raw JSON
-                      </button>
+                    <div
+                      style={{
+                        background: "#f0fdf4",
+                        border: "1px solid #bbf7d0",
+                        borderRadius: "10px",
+                        padding: "14px 16px",
+                        marginBottom: "16px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "20px",
+                            height: "20px",
+                            borderRadius: "50%",
+                            background: "#22c55e",
+                            color: "#ffffff",
+                            fontSize: "12px",
+                            fontWeight: 800,
+                          }}
+                        >
+                          ✓
+                        </span>
+                        <strong style={{ color: "#166534", fontSize: "13.5px" }}>
+                          Đã tạo bộ bài tập thành công!
+                        </strong>
+                      </div>
+                      <p style={{ margin: "0 0 10px", fontSize: "12.5px", color: "#15803d", lineHeight: "1.5" }}>
+                        Dữ liệu bài tập trực quan (Interface) và Response JSON đầy đủ đã sẵn sàng ở cột bên phải.
+                      </p>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                        <span
+                          style={{
+                            background: "#ffffff",
+                            color: "#166534",
+                            border: "1px solid #86efac",
+                            padding: "2px 8px",
+                            borderRadius: "4px",
+                            fontSize: "11.5px",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {genData.data.meta.number_of_questions} câu hỏi
+                        </span>
+                        <span
+                          style={{
+                            background: "#ffffff",
+                            color: "#166534",
+                            border: "1px solid #86efac",
+                            padding: "2px 8px",
+                            borderRadius: "4px",
+                            fontSize: "11.5px",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Độ khó {genData.data.meta.difficulty}
+                        </span>
+                        <span
+                          style={{
+                            background: "#ffffff",
+                            color: "#166534",
+                            border: "1px solid #86efac",
+                            padding: "2px 8px",
+                            borderRadius: "4px",
+                            fontSize: "11.5px",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {EXERCISE_TYPE_LABELS[genData.data.meta.type] || genData.data.meta.type}
+                        </span>
+                      </div>
                     </div>
 
-                    {previewTab === "sample" ? (
-                      <ExercisePreview meta={genData.data.meta} exercise={genData.data.exercise} />
-                    ) : (
-                      <pre className="aihub-code">{JSON.stringify(genData, null, 2)}</pre>
-                    )}
-
-                    <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+                    <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
                       <button type="button" className="aihub-btn" onClick={handleAccept}>
                         Accept
                       </button>
@@ -493,7 +540,11 @@ export function ExerciseGenerationDemo() {
                         Retry
                       </button>
                     </div>
-                    {acceptedNote && <p className="aihub-explain" style={{ marginTop: 12 }}>{acceptedNote}</p>}
+                    {acceptedNote && (
+                      <p className="aihub-explain" style={{ marginTop: 12, borderLeft: "3px solid #10b981" }}>
+                        {acceptedNote}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -539,7 +590,7 @@ export function ExerciseGenerationDemo() {
             {backendTab === 1 && (
               <div>
                 <div className="aihub-callout">
-                  Gọi <code>POST /internal/micro-exercise/sample-references</code> với
+                  Gọi <code>POST /external/micro-exercise/sample-references</code> với
                   writing_task, topic, criterion, error_code để lấy các bài làm thật chứa đúng lỗi
                   cần luyện.
                 </div>
@@ -566,7 +617,10 @@ export function ExerciseGenerationDemo() {
                 {rrTab1 === "request" ? (
                   referencesPayload ? (
                     <pre className="aihub-code">
-                      {curl("/internal/micro-exercise/sample-references", referencesPayload)}
+                      {curl(
+                        "https://testbackend.aihubproduction.com/external/micro-exercise/sample-references",
+                        referencesPayload,
+                      )}
                     </pre>
                   ) : (
                     <div className="aihub-code-placeholder">
@@ -594,10 +648,10 @@ export function ExerciseGenerationDemo() {
                     type="button"
                     className="aihub-tab aihub-tab--sub"
                     role="tab"
-                    aria-selected={rrTab2 === "request"}
-                    onClick={() => setRrTab2("request")}
+                    aria-selected={rrTab2 === "interface"}
+                    onClick={() => setRrTab2("interface")}
                   >
-                    Request
+                    Interface
                   </button>
                   <button
                     type="button"
@@ -608,22 +662,54 @@ export function ExerciseGenerationDemo() {
                   >
                     Response
                   </button>
+                  <button
+                    type="button"
+                    className="aihub-tab aihub-tab--sub"
+                    role="tab"
+                    aria-selected={rrTab2 === "request"}
+                    onClick={() => setRrTab2("request")}
+                  >
+                    Request
+                  </button>
                 </div>
-                {rrTab2 === "request" ? (
-                  generatePayload ? (
-                    <pre className="aihub-code">
-                      {curl(
-                        "https://test-api-ielts-writing.aihubproduction.com/create-micro-exercise",
-                        generatePayload,
-                      )}
-                    </pre>
-                  ) : (
-                    <div className="aihub-code-placeholder">Cần lấy dữ liệu tham chiếu trước.</div>
-                  )
-                ) : genData ? (
-                  <pre className="aihub-code">{JSON.stringify(genData, null, 2)}</pre>
-                ) : (
-                  <div className="aihub-code-placeholder">Chưa gọi — bấm “Tạo bài tập” ở bên trái.</div>
+
+                {rrTab2 === "interface" && (
+                  <div>
+                    {genData ? (
+                      <ExercisePreview meta={genData.data.meta} exercise={genData.data.exercise} />
+                    ) : (
+                      <div className="aihub-code-placeholder">
+                        Chưa có dữ liệu bài tập — bấm “Tạo bài tập” ở Bước 2 bên trái.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {rrTab2 === "response" && (
+                  <div>
+                    {genData ? (
+                      <pre className="aihub-code">{JSON.stringify(genData, null, 2)}</pre>
+                    ) : (
+                      <div className="aihub-code-placeholder">
+                        Chưa gọi — bấm “Tạo bài tập” ở bên trái.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {rrTab2 === "request" && (
+                  <div>
+                    {generatePayload ? (
+                      <pre className="aihub-code">
+                        {curl(
+                          "https://test-api-ielts-writing.aihubproduction.com/create-micro-exercise",
+                          generatePayload,
+                        )}
+                      </pre>
+                    ) : (
+                      <div className="aihub-code-placeholder">Cần lấy dữ liệu tham chiếu trước.</div>
+                    )}
+                  </div>
                 )}
               </div>
             )}

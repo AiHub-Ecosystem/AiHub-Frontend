@@ -72,7 +72,7 @@ export const API_CATEGORIES: ApiCategory[] = [
             slug: "sample-references",
             name: "Lấy dữ liệu tham chiếu",
             method: "POST",
-            path: "/internal/micro-exercise/sample-references",
+            path: "/external/micro-exercise/sample-references",
             summary:
               "Lấy ngẫu nhiên các bài làm thật có đúng mã lỗi cần luyện, dùng làm ngữ cảnh cho bước sinh bài tập.",
           },

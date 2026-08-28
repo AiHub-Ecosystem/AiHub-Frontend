@@ -14,7 +14,8 @@ export async function POST(request: Request) {
 
   // 1. Try calling the real Backend Reference API
   try {
-    const backendRes = await fetch("http://localhost:3020/internal/micro-exercise/sample-references", {
+    const backendUrl = process.env.API_BASE_URL || process.env.BACKEND_URL || "http://localhost:3020";
+    const backendRes = await fetch(`${backendUrl.replace(/\/$/, "")}/external/micro-exercise/sample-references`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

@@ -13,7 +13,8 @@ export async function POST(request: Request) {
 
   // 1. Try calling the real Backend Exercise Generator
   try {
-    const backendRes = await fetch("http://localhost:3020/create-micro-exercise", {
+    const backendUrl = process.env.API_BASE_URL || process.env.BACKEND_URL || "http://localhost:3020";
+    const backendRes = await fetch(`${backendUrl.replace(/\/$/, "")}/create-micro-exercise`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
