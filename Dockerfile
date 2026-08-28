@@ -11,8 +11,11 @@ RUN npm ci
 
 COPY . .
 
-# Next.js build
+# Next.js build args
+ARG NEXT_PUBLIC_API_URL=https://api.aihub.vn
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
+
 RUN npm run build
 
 FROM node:20-alpine AS runner
