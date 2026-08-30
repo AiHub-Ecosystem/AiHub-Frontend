@@ -135,7 +135,7 @@ export function LabGenerateView({ onSampleSaved }: { onSampleSaved?: () => void 
     setIsQueryingRef(true);
     setActionMessage(null);
     try {
-      const res = await fetch("http://localhost:3020/portal/academic/references/query", {
+      const res = await fetch("/api/portal/academic/references/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ task_id: taskType, criterion, error_code: errorCode }),
@@ -202,7 +202,7 @@ export function LabGenerateView({ onSampleSaved }: { onSampleSaved?: () => void 
         image_url: taskType === "task_1" ? imageUrl : undefined,
       };
 
-      const res = await fetch("http://localhost:3020/portal/academic/samples/generate", {
+      const res = await fetch("/api/portal/academic/samples/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -252,7 +252,7 @@ export function LabGenerateView({ onSampleSaved }: { onSampleSaved?: () => void 
         reviewed_by: "Q.Đạt (Academic Specialist)",
       };
 
-      const res = await fetch("http://localhost:3020/portal/academic/samples/accept", {
+      const res = await fetch("/api/portal/academic/samples/accept", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -296,7 +296,7 @@ export function LabGenerateView({ onSampleSaved }: { onSampleSaved?: () => void 
         reviewed_by: "Q.Đạt (Academic Specialist)",
       };
 
-      await fetch("http://localhost:3020/portal/academic/samples/reject", {
+      await fetch("/api/portal/academic/samples/reject", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

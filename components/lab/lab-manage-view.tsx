@@ -20,7 +20,7 @@ export function LabManageView() {
       if (filterCriterion) params.append("criterion", filterCriterion);
       if (filterStatus) params.append("status", filterStatus);
 
-      const res = await fetch(`http://localhost:3020/portal/academic/samples?${params.toString()}`);
+      const res = await fetch(`/api/portal/academic/samples?${params.toString()}`);
       const data = await res.json();
       if (data.success && data.data?.items) {
         setSamples(data.data.items);

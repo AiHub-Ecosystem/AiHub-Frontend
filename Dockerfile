@@ -12,7 +12,7 @@ RUN npm install --legacy-peer-deps --ignore-scripts
 COPY . .
 
 # Next.js build args
-ARG NEXT_PUBLIC_API_URL=https://aihub-api.aihubproduction.com
+ARG NEXT_PUBLIC_API_URL=https://api.aihubproduction.com
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 

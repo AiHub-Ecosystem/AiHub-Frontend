@@ -250,7 +250,7 @@ export function AcademicLabView() {
       num_reference: 3,
     };
     try {
-      const res = await fetch("http://localhost:3020/portal/academic/references/query", {
+      const res = await fetch("/api/portal/academic/references/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -306,7 +306,7 @@ export function AcademicLabView() {
       references: refData?.references,
     };
     try {
-      const res = await fetch("http://localhost:3020/portal/academic/samples/generate", {
+      const res = await fetch("/api/portal/academic/samples/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

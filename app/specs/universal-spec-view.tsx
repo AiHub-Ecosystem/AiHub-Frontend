@@ -162,7 +162,7 @@ const STATIC_SPECS: SpecItem[] = [
     errorCodes: [
       { statusCode: 400, errorCode: "ESSAY_TOO_SHORT", description: "Bài viết dưới 30 từ, không đủ dữ liệu chấm điểm.", sampleResponse: { success: false, error: "Essay content must contain at least 30 words." } }
     ],
-    markdownDoc: `# 📋 IELTS Essay Full Scoring Specification\n\n## 1. Overview\nChấm điểm toàn diện bài viết IELTS theo 4 tiêu chí chính thức.\n\n## 2. cURL Example\n\`\`\`bash\ncurl -X POST "http://localhost:3020/ai/v1/ielts/essay-scoring" \\\n  -H "Content-Type: application/json" \\\n  -H "x-client-id: demo-sandbox" \\\n  -d '{"task_id": "task_2", "prompt": "...", "essay_content": "..."}'\n\`\`\``,
+    markdownDoc: `# 📋 IELTS Essay Full Scoring Specification\n\n## 1. Overview\nChấm điểm toàn diện bài viết IELTS theo 4 tiêu chí chính thức.\n\n## 2. cURL Example\n\`\`\`bash\ncurl -X POST "https://api.aihubproduction.com/ai/v1/ielts/essay-scoring" \\\n  -H "Content-Type: application/json" \\\n  -H "x-client-id: demo-sandbox" \\\n  -d '{"task_id": "task_2", "prompt": "...", "essay_content": "..."}'\n\`\`\``,
     databaseRequirements: { tablesNeeded: ["EssaySubmission", "ScoringAuditLog"], description: "Lưu lịch sử bài làm, band điểm và log chấm thi." }
   },
   {
@@ -329,7 +329,9 @@ export function UniversalSpecView() {
   // Generate real-time cURL command
   const generatedCurl = useMemo(() => {
     if (!selectedSpec) return "";
-    const baseUrl = "http://localhost:3020";
+    const baseUrl = typeof window !== "undefined" && window.location.hostname !== "localhost"
+      ? "https://api.aihubproduction.com"
+      : "http://localhost:3020";
     const bodyString = JSON.stringify(formInputs, null, 2);
     return `curl -X ${selectedSpec.method} "${baseUrl}${selectedSpec.routePath}" \\
   -H "Content-Type: application/json" \\
@@ -361,8 +363,8 @@ export function UniversalSpecView() {
     const startTime = Date.now();
 
     try {
-      // Call backend API /portal/specs/run-curl
-      const res = await fetch("http://localhost:3020/portal/specs/run-curl", {
+      // Call backend API via Next.js proxy route /api/portal/specs/run-curl
+      const res = await fetch("/api/portal/specs/run-curl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
