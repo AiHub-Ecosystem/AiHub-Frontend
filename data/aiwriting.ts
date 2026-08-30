@@ -84,17 +84,15 @@ function code(
   };
 }
 
-/**
- * 28 mã lỗi. Nhóm 11 mã đầu dùng chung cho `task_achievement` (Task 1) và
- * `task_response` (Task 2) — tài liệu gộp chung, chưa tách theo task, nên ta
- * khai báo hai lần với cùng dữ liệu.
- */
-const TASK_CODES: Array<[string, string, ExerciseType]> = [
+const TASK_1_CODES: Array<[string, string, ExerciseType]> = [
   ["inappropriate_structure", "Inappropriate structure", "multiple_choice_single"],
   ["poor_detail_selection", "Poor detail selection", "multiple_choice_multiple"],
   ["missing_data_support", "Missing data support", "multiple_choice_multiple"],
   ["inaccurate_data_support", "Inaccurate data support", "multiple_choice_multiple"],
   ["lack_comparison_analysis", "Lack of comparison/analysis", "annotation"],
+];
+
+const TASK_2_CODES: Array<[string, string, ExerciseType]> = [
   ["unclear_stance", "Unclear stance", "multiple_choice_multiple"],
   ["inconsistent_argument", "Inconsistent argument", "multiple_choice_multiple"],
   ["irrelevant_argument", "Irrelevant argument", "annotation"],
@@ -104,8 +102,8 @@ const TASK_CODES: Array<[string, string, ExerciseType]> = [
 ];
 
 export const ERROR_CODES: ErrorCode[] = [
-  ...TASK_CODES.map(([v, l, t]) => code(v, l, "task_achievement", t)),
-  ...TASK_CODES.map(([v, l, t]) => code(v, l, "task_response", t)),
+  ...TASK_1_CODES.map(([v, l, t]) => code(v, l, "task_achievement", t)),
+  ...TASK_2_CODES.map(([v, l, t]) => code(v, l, "task_response", t)),
 
   code("disorganized_structure", "Disorganized structure", "coherence_cohesion", "reorder"),
   code("unclear_information_relationship", "Unclear information relationship", "coherence_cohesion", "multiple_choice_single"),

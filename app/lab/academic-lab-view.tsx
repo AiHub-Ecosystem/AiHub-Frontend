@@ -266,7 +266,7 @@ export function AcademicLabView() {
           criterion,
           error_code: errorCode,
           references: json.data.map((r: any) => ({
-            question: { prompt: r.prompt, image: r.imageUrl || null, questionType: r.questionType || "agree_disagree" },
+            question: { prompt: r.prompt, image: r.imageUrl || r.image || null, question_type: r.questionType || r.question_type || "agree_disagree" },
             comments: [{ quote: r.quote || "", explanation: r.explanation || "" }],
           })),
         });
