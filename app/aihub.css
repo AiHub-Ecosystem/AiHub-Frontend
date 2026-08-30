@@ -1131,3 +1131,97 @@ a.aihub-card:hover {
   animation: labShimmer 4s ease infinite;
 }
 
+/* ==========================================================================
+   Exercise UI Components - Modern, Clean Typography, Icon-Free
+   ========================================================================== */
+.aihub-options {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aihub-option-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  transition: all 0.15s ease;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #1e293b;
+}
+
+.aihub-option-item--correct {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.aihub-option-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475467;
+}
+
+.aihub-option-item--correct .aihub-option-badge {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.aihub-option-correct-tag {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #059669;
+  background: #d1fae5;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.aihub-correct-box {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  font-size: 13px;
+  color: #065f46;
+}
+
+.aihub-rubric-box {
+  margin: 10px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 12px;
+  color: #334155;
+}
+
+.aihub-explanation-box {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #334155;
+}
+

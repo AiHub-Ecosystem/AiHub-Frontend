@@ -419,6 +419,58 @@ export function LabGenerateView({ onSampleSaved }: { onSampleSaved?: () => void 
                           </div>
                         )}
 
+                        {/* Multiple Choice Options */}
+                        {item.options && typeof item.options === "object" && Object.keys(item.options).length > 0 && (
+                          <div>
+                            <span className="text-xs font-semibold text-gray-600 block mb-1.5">Các phương án lựa chọn (Options):</span>
+                            <div className="space-y-2">
+                              {Object.entries(item.options as Record<string, string>).map(([optKey, optVal]) => {
+                                let isOptCorrect = false;
+                                if (Array.isArray(item.correct)) {
+                                  isOptCorrect = item.correct.includes(optKey);
+                                } else if (typeof item.correct === "string") {
+                                  isOptCorrect = item.correct.trim().toUpperCase() === optKey.toUpperCase();
+                                } else if (typeof item.correct === "object" && item.correct?.sample_answer) {
+                                  isOptCorrect = item.correct.sample_answer.includes(optKey);
+                                }
+
+                                return (
+                                  <div
+                                    key={optKey}
+                                    className={`flex items-start gap-3 p-3 rounded-lg border text-sm transition-all ${
+                                      isOptCorrect
+                                        ? "bg-emerald-50/60 border-emerald-300 text-emerald-950 font-medium"
+                                        : "bg-gray-50/50 border-gray-200 text-gray-800"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold shrink-0 ${
+                                        isOptCorrect ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-700"
+                                      }`}
+                                    >
+                                      {optKey}
+                                    </span>
+                                    <input
+                                      type="text"
+                                      value={optVal}
+                                      onChange={(e) => {
+                                        const updatedOptions = { ...item.options, [optKey]: e.target.value };
+                                        handleEditQuestion(idx, "options", updatedOptions);
+                                      }}
+                                      className="flex-1 bg-transparent border-none p-0 focus:outline-hidden text-sm"
+                                    />
+                                    {isOptCorrect && (
+                                      <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider bg-emerald-100 px-2 py-0.5 rounded">
+                                        Đáp án đúng
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Sample Answer */}
                         {item.correct?.sample_answer && (
                           <div>

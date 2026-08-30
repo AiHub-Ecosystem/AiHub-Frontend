@@ -1521,6 +1521,32 @@ export function AcademicLabView() {
                                         />
                                       </div>
 
+                                      {/* Chỉnh sửa options nếu có */}
+                                      {item.options && typeof item.options === "object" && (
+                                        <div>
+                                          <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#334155", marginBottom: "6px" }}>
+                                            Các phương án lựa chọn (Options):
+                                          </label>
+                                          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                            {Object.entries(item.options as Record<string, string>).map(([optKey, optVal]) => (
+                                              <div key={optKey} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                                <span style={{ fontWeight: 700, width: "20px", fontSize: "13px", color: "#475467" }}>{optKey}.</span>
+                                                <input
+                                                  type="text"
+                                                  value={optVal}
+                                                  onChange={(e) => {
+                                                    const updatedOptions = { ...item.options, [optKey]: e.target.value };
+                                                    handleEditField(idx, "options", updatedOptions);
+                                                  }}
+                                                  className="aihub-select"
+                                                  style={{ flex: 1, padding: "6px 10px", fontSize: "13px" }}
+                                                />
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+
                                       <div>
                                         <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#334155", marginBottom: "3px" }}>
                                           Hình ảnh minh hoạ câu hỏi (URL nếu có):
@@ -1553,31 +1579,37 @@ export function AcademicLabView() {
                                         />
                                       </div>
 
-                                      <div>
-                                        <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#065f46", marginBottom: "3px" }}>
-                                          Đáp án mẫu (Sample Answer):
-                                        </label>
-                                        <textarea
-                                          rows={2}
-                                          value={sampleAns || ""}
-                                          onChange={(e) => handleEditField(idx, "sample_answer", e.target.value)}
-                                          className="aihub-select"
-                                          style={{ width: "100%", padding: "8px", fontSize: "13px", fontFamily: "inherit", background: "#f0fdf4", color: "#065f46" }}
-                                        />
-                                      </div>
+                                      {/* Đáp án mẫu */}
+                                      {sampleAns !== undefined && (
+                                        <div>
+                                          <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#065f46", marginBottom: "3px" }}>
+                                            Đáp án mẫu (Sample Answer):
+                                          </label>
+                                          <textarea
+                                            rows={2}
+                                            value={sampleAns || ""}
+                                            onChange={(e) => handleEditField(idx, "sample_answer", e.target.value)}
+                                            className="aihub-select"
+                                            style={{ width: "100%", padding: "8px", fontSize: "13px", fontFamily: "inherit", background: "#f0fdf4", color: "#065f46" }}
+                                          />
+                                        </div>
+                                      )}
 
-                                      <div>
-                                        <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475467", marginBottom: "3px" }}>
-                                          Tiêu chí chấm điểm (Grading Rubric):
-                                        </label>
-                                        <textarea
-                                          rows={3}
-                                          value={rubric || ""}
-                                          onChange={(e) => handleEditField(idx, "ai_grading_rubric", e.target.value)}
-                                          className="aihub-select"
-                                          style={{ width: "100%", padding: "8px", fontSize: "12px", fontFamily: "inherit", background: "#f8fafc", color: "#334155" }}
-                                        />
-                                      </div>
+                                      {/* Rubric */}
+                                      {rubric !== null && rubric !== undefined && (
+                                        <div>
+                                          <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475467", marginBottom: "3px" }}>
+                                            Tiêu chí chấm điểm (Grading Rubric):
+                                          </label>
+                                          <textarea
+                                            rows={3}
+                                            value={rubric || ""}
+                                            onChange={(e) => handleEditField(idx, "ai_grading_rubric", e.target.value)}
+                                            className="aihub-select"
+                                            style={{ width: "100%", padding: "8px", fontSize: "12px", fontFamily: "inherit", background: "#f8fafc", color: "#334155" }}
+                                          />
+                                        </div>
+                                      )}
 
                                       <div>
                                         <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475467", marginBottom: "3px" }}>
@@ -1604,15 +1636,15 @@ export function AcademicLabView() {
                                       </div>
                                     </div>
                                   ) : (
-                                    /* KHI Ở CHẾ ĐỘ XEM CHUẨN ĐẸP */
+                                    /* KHI Ở CHẾ ĐỘ XEM CHUẨN ĐẸP (ICON-FREE, CLEAN, PROFESSIONAL) */
                                     <div>
-                                      <p style={{ margin: "0 0 10px", fontSize: "14px", lineHeight: "1.6", color: "#1e293b", fontWeight: 600 }}>
+                                      <p style={{ margin: "0 0 12px", fontSize: "14.5px", lineHeight: "1.6", color: "#0f172a", fontWeight: 600 }}>
                                         {item.question_text}
                                       </p>
 
                                       {/* Hình ảnh minh hoạ câu hỏi nếu có */}
                                       {qImage && (
-                                        <div style={{ margin: "10px 0 14px", textAlign: "center" }}>
+                                        <div style={{ margin: "12px 0 16px", textAlign: "center" }}>
                                           <img
                                             src={qImage}
                                             alt={`Minh hoạ câu ${qNo}`}
@@ -1628,45 +1660,161 @@ export function AcademicLabView() {
                                         </div>
                                       )}
 
-                                      {/* Hints */}
+                                      {/* Hints gợi ý */}
                                       {Array.isArray(item.hint) && item.hint.length > 0 && (
-                                        <div className="aihub-chiprow" style={{ margin: "8px 0" }}>
+                                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", margin: "8px 0 12px" }}>
+                                          <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", alignSelf: "center", marginRight: "4px" }}>
+                                            Gợi ý:
+                                          </span>
                                           {item.hint.map((h: string) => (
-                                            <span className="aihub-chip" key={h} style={{ fontSize: "11.5px" }}>
+                                            <span
+                                              key={h}
+                                              style={{
+                                                fontSize: "11.5px",
+                                                background: "#f1f5f9",
+                                                color: "#334155",
+                                                padding: "2px 8px",
+                                                borderRadius: "4px",
+                                                border: "1px solid #e2e8f0",
+                                              }}
+                                            >
                                               {h}
                                             </span>
                                           ))}
                                         </div>
                                       )}
 
-                                      {/* Multiple choice options if available */}
-                                      {item.options && typeof item.options === "object" && (
-                                        <ul className="aihub-options" style={{ margin: "10px 0" }}>
-                                          {Object.entries(item.options as Record<string, string>).map(([key, text]) => (
-                                            <li key={key} data-correct={key === item.correct}>
-                                              <strong>{key}.</strong> {text}
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      )}
+                                      {/* 1. DẠNG BÀI: MULTIPLE CHOICE (Single / Multiple) / CHOOSE FROM LIST */}
+                                      {item.options && typeof item.options === "object" && Object.keys(item.options).length > 0 && (
+                                        <div style={{ margin: "12px 0", display: "flex", flexDirection: "column", gap: "8px" }}>
+                                          {Object.entries(item.options as Record<string, string>).map(([key, text]) => {
+                                            let isCorrect = false;
+                                            if (Array.isArray(item.correct)) {
+                                              isCorrect = item.correct.includes(key);
+                                            } else if (typeof item.correct === "string") {
+                                              isCorrect = item.correct.trim().toUpperCase() === key.toUpperCase();
+                                            } else if (typeof item.correct === "object" && item.correct?.sample_answer) {
+                                              isCorrect = item.correct.sample_answer.includes(key);
+                                            }
 
-                                      {/* Sample Answer */}
-                                      {sampleAns && (
-                                        <div className="aihub-sample-answer" style={{ margin: "10px 0" }}>
-                                          <strong>Đáp án mẫu:</strong> {sampleAns}
+                                            return (
+                                              <div
+                                                key={key}
+                                                style={{
+                                                  display: "flex",
+                                                  alignItems: "flex-start",
+                                                  gap: "12px",
+                                                  padding: "10px 14px",
+                                                  borderRadius: "8px",
+                                                  border: isCorrect ? "1.5px solid #10b981" : "1px solid #e2e8f0",
+                                                  background: isCorrect ? "#f0fdf4" : "#ffffff",
+                                                  transition: "all 0.15s ease",
+                                                }}
+                                              >
+                                                <span
+                                                  style={{
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    width: "24px",
+                                                    height: "24px",
+                                                    minWidth: "24px",
+                                                    borderRadius: "6px",
+                                                    fontSize: "12px",
+                                                    fontWeight: 700,
+                                                    background: isCorrect ? "#10b981" : "#f1f5f9",
+                                                    color: isCorrect ? "#ffffff" : "#475467",
+                                                  }}
+                                                >
+                                                  {key}
+                                                </span>
+                                                <div style={{ flex: 1, fontSize: "13.5px", lineHeight: "1.5", color: "#1e293b", fontWeight: isCorrect ? 600 : 400 }}>
+                                                  {text}
+                                                </div>
+                                                {isCorrect && (
+                                                  <span
+                                                    style={{
+                                                      fontSize: "11px",
+                                                      fontWeight: 700,
+                                                      textTransform: "uppercase",
+                                                      letterSpacing: "0.04em",
+                                                      color: "#059669",
+                                                      background: "#d1fae5",
+                                                      padding: "2px 8px",
+                                                      borderRadius: "4px",
+                                                      whiteSpace: "nowrap",
+                                                    }}
+                                                  >
+                                                    Đáp án đúng
+                                                  </span>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
                                         </div>
                                       )}
 
-                                      {/* Rubric */}
-                                      {rubric && (
-                                        <div style={{ margin: "10px 0", padding: "10px 14px", borderRadius: "8px", background: "#f8fafc", border: "1px solid #e2e8f0", fontSize: "12px", color: "#334155" }}>
-                                          <strong style={{ display: "block", marginBottom: "4px", color: "#1e293b" }}>Tiêu chí chấm điểm (Grading Rubric):</strong>
-                                          {rubric}
-                                        </div>
+                                      {/* 2. DẠNG BÀI: GAP FILLING / REORDER / ANNOTATION / SHORT WRITING - Khi không có options */}
+                                      {(!item.options || Object.keys(item.options).length === 0) && (
+                                        <>
+                                          {/* Reorder / List Answer */}
+                                          {Array.isArray(item.correct) && (
+                                            <div style={{ margin: "10px 0", padding: "10px 14px", borderRadius: "8px", background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
+                                              <span style={{ fontSize: "12px", fontWeight: 700, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                                                Thứ tự / Đáp án đúng:
+                                              </span>{" "}
+                                              <span style={{ fontSize: "13.5px", fontWeight: 700, color: "#047857" }}>
+                                                {item.correct.join(" → ")}
+                                              </span>
+                                            </div>
+                                          )}
+
+                                          {/* Sample Answer (Short Writing / Sentence Translation) */}
+                                          {sampleAns && typeof sampleAns === "string" && sampleAns.trim().length > 0 && (
+                                            <div style={{ margin: "10px 0", padding: "10px 14px", borderRadius: "8px", background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
+                                              <div style={{ fontSize: "11.5px", fontWeight: 700, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "4px" }}>
+                                                Đáp án mẫu:
+                                              </div>
+                                              <div style={{ fontSize: "13.5px", color: "#064e3b", lineHeight: "1.5", fontWeight: 500 }}>
+                                                {sampleAns}
+                                              </div>
+                                            </div>
+                                          )}
+
+                                          {/* Rubric (Short Writing) */}
+                                          {rubric && typeof rubric === "string" && rubric.trim().length > 0 && (
+                                            <div style={{ margin: "10px 0", padding: "10px 14px", borderRadius: "8px", background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                                              <div style={{ fontSize: "11px", fontWeight: 700, color: "#475467", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "4px" }}>
+                                                Tiêu chí chấm điểm (Grading Rubric):
+                                              </div>
+                                              <div style={{ fontSize: "12.5px", color: "#334155", lineHeight: "1.5" }}>
+                                                {rubric}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </>
                                       )}
 
-                                      {/* Explanation */}
-                                      {explain && <p className="aihub-explain" style={{ margin: "6px 0 0" }}>{explain}</p>}
+                                      {/* GIẢI THÍCH HỌC THUẬT (Áp dụng cho mọi câu) */}
+                                      {explain && typeof explain === "string" && explain.trim().length > 0 && (
+                                        <div
+                                          style={{
+                                            margin: "12px 0 0",
+                                            padding: "12px 14px",
+                                            borderRadius: "8px",
+                                            background: "#f8fafc",
+                                            border: "1px solid #e2e8f0",
+                                            fontSize: "12.5px",
+                                            lineHeight: "1.6",
+                                            color: "#334155",
+                                          }}
+                                        >
+                                          <div style={{ fontSize: "11px", fontWeight: 700, color: "#475467", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "4px" }}>
+                                            Giải thích chi tiết:
+                                          </div>
+                                          <div>{explain}</div>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
