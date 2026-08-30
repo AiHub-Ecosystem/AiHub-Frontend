@@ -1,16 +1,6 @@
 import { NextResponse } from "next/server";
-import fs from "node:fs";
-import path from "node:path";
 
-const BACKEND_URL = process.env.API_BASE_URL || "http://localhost:3020";
-const LOCAL_DATA_PATH = path.resolve(process.cwd(), "..", "backend", "data", "academic_samples.json");
-
-function getNextTopicRotation(currentTopic: string): string {
-  const normalized = currentTopic.toLowerCase();
-  if (normalized === "environment") return "technology";
-  if (normalized === "technology") return "education";
-  return "environment";
-}
+const BACKEND_URL = process.env.API_BASE_URL || process.env.BACKEND_URL || "http://localhost:3020";
 
 export async function POST(request: Request) {
   try {
