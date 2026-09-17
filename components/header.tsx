@@ -89,7 +89,7 @@ export function Header() {
             </span>
           </Link>
 
-          <Link href="/demo/exercise-generation" className={linkBase} onClick={close}>
+          <Link href="/demo" className={linkBase} onClick={close}>
             🎮 Demo
           </Link>
 
@@ -136,7 +136,7 @@ export function Header() {
           </Link>
 
           <Link
-            href="/demo/exercise-generation"
+            href="/demo"
             className="btn-gradient hidden rounded-full px-4 py-2 text-xs font-bold text-white md:inline-flex"
           >
             Trải nghiệm Demo
@@ -159,8 +159,8 @@ export function Header() {
               <span>🧪 Phòng Lab Academic</span>
               <span className="rounded bg-brand-blue text-[10px] text-white px-1.5 py-0.5">REVIEW TOOL</span>
             </Link>
-            <Link href="/demo/exercise-generation" className="rounded-lg px-3 py-2.5 font-semibold hover:bg-brand-blue/10" onClick={close}>
-              🎮 Interactive Demo Tạo Bài Tập
+            <Link href="/demo" className="rounded-lg px-3 py-2.5 font-semibold hover:bg-brand-blue/10" onClick={close}>
+              🎮 Interactive Demo AIHub
             </Link>
             <Link href="/product" className="rounded-lg px-3 py-2.5 font-semibold hover:bg-brand-blue/10" onClick={close}>
               Sản phẩm & API Specs
@@ -172,7 +172,7 @@ export function Header() {
               Giới thiệu
             </Link>
             <Link
-              href="/demo/exercise-generation"
+              href="/demo"
               className="btn-gradient mt-2 rounded-full px-5 py-3 text-center text-sm font-bold text-white"
               onClick={close}
             >

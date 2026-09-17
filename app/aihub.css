@@ -480,6 +480,123 @@ a.aihub-card:hover {
   background: transparent;
 }
 
+/* Centered catalog used by the shared Demo entry point. */
+.aihub-demo-catalog {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.aihub-demo-catalog ::selection,
+.aihub-speaking ::selection {
+  background: rgb(58 100 250 / 0.18);
+  color: var(--aihub-ink);
+}
+
+.aihub-demo-intro {
+  max-width: 760px;
+  margin: 0 auto 48px;
+  text-align: center;
+}
+
+.aihub-demo-intro .aihub-crumb-static {
+  margin-bottom: 16px;
+  color: var(--aihub-brand);
+  font-weight: 700;
+}
+
+.aihub-demo-intro .aihub-title {
+  margin-bottom: 18px;
+  font-size: clamp(32px, 5vw, 56px);
+}
+
+.aihub-demo-intro .aihub-lede {
+  max-width: 64ch;
+  margin: 0 auto;
+}
+
+.aihub-demo-category-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.aihub-demo-category {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  min-width: 0;
+  padding: 28px;
+  background: var(--aihub-card);
+  border: 1px solid var(--aihub-line);
+  border-radius: var(--aihub-radius);
+  box-shadow: 0 4px 20px -2px rgb(29 40 56 / 0.05);
+}
+
+.aihub-demo-category-head h2 {
+  margin: 6px 0 10px;
+  color: var(--aihub-ink);
+  font-size: clamp(22px, 2.5vw, 30px);
+  line-height: 1.15;
+}
+
+.aihub-demo-category-head > p:last-child {
+  margin: 0;
+  color: var(--aihub-body);
+  line-height: 1.65;
+}
+
+.aihub-demo-product-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aihub-demo-product {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--aihub-line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.aihub-demo-product .aihub-card-name {
+  font-size: 17px;
+}
+
+.aihub-demo-product .aihub-card-desc {
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+.aihub-demo-product[data-status="coming-soon"] {
+  background: var(--aihub-surface);
+}
+
+.aihub-demo-product .aihub-cta {
+  flex: 0 0 auto;
+  text-decoration: none;
+}
+
+@media (max-width: 760px) {
+  .aihub-demo-intro {
+    margin-bottom: 32px;
+    text-align: left;
+  }
+
+  .aihub-demo-intro .aihub-lede {
+    margin-left: 0;
+  }
+
+  .aihub-demo-category-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .aihub-split-left {
   padding: 32px;
   background: #ffffff;
