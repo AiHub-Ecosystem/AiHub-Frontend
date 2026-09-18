@@ -7,7 +7,7 @@ FROM node:20-slim AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --legacy-peer-deps --ignore-scripts
+RUN npm ci --ignore-scripts
 
 COPY . .
 

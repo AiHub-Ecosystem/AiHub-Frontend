@@ -1,0 +1,155 @@
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  IMAGE_NAME: aihub-frontend
+  PUBLIC_API_URL: https://api.aihubproduction.com
+  VPS_HOST: 76.13.218.96
+  VPS_USER: ngoc_anh
+  VPS_COMPOSE_FILE: /home/VietHXQ/aihub/docker-compose.yml
+
+jobs:
+  quality:
+    name: Quality gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Lint (advisory)
+        # ponytail: keep deployment unblocked by the existing lint baseline; make it a gate after cleanup.
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit --incremental false
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ env.PUBLIC_API_URL }}
+
+      - name: Security audit
+        run: npm audit --audit-level=high
+
+  deploy:
+    name: Deploy production
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev') }}
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://aihubproduction.com
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "${SSH_PRIVATE_KEY:-}" || { echo "::error::Missing VPS_SSH_PRIVATE_KEY"; exit 1; }
+          test -n "${SSH_KNOWN_HOSTS:-}" || { echo "::error::Missing VPS_KNOWN_HOSTS"; exit 1; }
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/aihub_deploy_key"
+          chmod 600 "$HOME/.ssh/aihub_deploy_key"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+
+      - name: Transfer image to VPS
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # ponytail: stream the image over SSH; move to a registry if transfer time becomes a bottleneck.
+          docker save "${IMAGE_NAME}:${IMAGE_TAG}" | gzip -1 | \
+            ssh -i "$HOME/.ssh/aihub_deploy_key" \
+              -o BatchMode=yes \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes \
+              "${VPS_USER}@${VPS_HOST}" "sudo -n docker load"
+
+      - name: Deploy, smoke test, and roll back on failure
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/aihub_deploy_key" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "${VPS_USER}@${VPS_HOST}" \
+            "IMAGE_TAG='${IMAGE_TAG}' COMPOSE_FILE='${VPS_COMPOSE_FILE}' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          app_image="aihub-frontend:${IMAGE_TAG}"
+          rollback_tag="aihub-frontend:rollback-${IMAGE_TAG}"
+          previous_image="$(sudo -n docker inspect -f '{{.Image}}' aihub-frontend)"
+          sudo -n docker tag "$previous_image" "$rollback_tag"
+
+          rollback() {
+            echo "Deployment failed; restoring the previous image" >&2
+            sudo -n docker tag "$rollback_tag" aihub-frontend:latest || true
+            sudo -n docker compose -f "$COMPOSE_FILE" up -d --no-build --no-deps --force-recreate frontend || true
+          }
+          trap rollback ERR
+
+          sudo -n docker tag "$app_image" aihub-frontend:latest
+          sudo -n docker compose -f "$COMPOSE_FILE" up -d --no-build --no-deps --force-recreate frontend
+
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 5 http://127.0.0.1:3000/ >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "Local frontend health check failed" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
+          curl -fsS --max-time 15 https://aihubproduction.com/ >/dev/null
+
+          trap - ERR
+          sudo -n docker image rm "$rollback_tag" >/dev/null 2>&1 || true
+          sudo -n docker image rm "$app_image" >/dev/null 2>&1 || true
+          sudo -n docker image prune -f --filter "until=168h" >/dev/null
+          REMOTE
