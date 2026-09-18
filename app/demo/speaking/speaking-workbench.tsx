@@ -23,8 +23,6 @@ import {
 
 import { MAX_SPEAKING_BYTES } from '@/data/speaking-contract'
 import {
-  promptsForPart,
-  SPEAKING_PROMPTS,
   type SpeakingPart,
   type SpeakingPrompt,
 } from '@/data/speaking-prompts'
@@ -36,22 +34,13 @@ import {
 type Step = 1 | 2 | 3
 type ConsoleTab = 'interface' | 'response' | 'request'
 type PublicError = { code: string; message: string }
+type QuestionLoadState = 'idle' | 'loading' | 'success' | 'error'
 
 const PARTS: Array<{ value: SpeakingPart; label: string; note: string }> = [
   { value: 1, label: 'Part 1', note: 'Warm-up' },
   { value: 2, label: 'Part 2', note: 'Long turn' },
   { value: 3, label: 'Part 3', note: 'Discussion' },
 ]
-
-const PROMPT_LABELS: Record<string, string> = {
-  p1_hometown: 'Quê nhà',
-  p1_work: 'Work or studies',
-  p1_transport: 'Public transport',
-  p2_environment: 'Environmental problem',
-  p2_technology: 'Technology device',
-  p3_green: 'Green lifestyles',
-  p3_ai: 'AI and teachers',
-}
 
 function audioError(file: File) {
   const extension = file.name.toLowerCase().split('.').pop()
@@ -80,8 +69,13 @@ function errorFromPayload(payload: unknown): PublicError {
   return { code: 'AI_SERVICE_UNAVAILABLE', message: 'Không đọc được kết quả. Thử lại sau nhé.' }
 }
 
-function displayPrompt(result: SpeakingGradingEnvelope, fallback: SpeakingPrompt) {
-  return SPEAKING_PROMPTS.find((prompt) => prompt.id === result.data.question_id) ?? fallback
+function promptsFromPayload(payload: unknown, part: SpeakingPart): SpeakingPrompt[] | null {
+  if (typeof payload !== 'object' || payload === null || !('data' in payload) || typeof payload.data !== 'object' || payload.data === null || !('questions' in payload.data) || !Array.isArray(payload.data.questions)) return null
+  const prompts = payload.data.questions.map((item) => {
+    if (typeof item !== 'object' || item === null || !('id' in item) || !('part' in item) || !('question' in item) || !('sampleAudioUrl' in item) || typeof item.id !== 'string' || typeof item.part !== 'number' || item.part !== part || typeof item.question !== 'string' || typeof item.sampleAudioUrl !== 'string') return null
+    return { id: item.id, part: item.part as SpeakingPart, question: item.question, sampleAudioUrl: item.sampleAudioUrl } satisfies SpeakingPrompt
+  })
+  return prompts.some((prompt) => prompt === null) ? null : prompts as SpeakingPrompt[]
 }
 
 function FeedbackDashboard({ result }: { result: SpeakingGradingEnvelope }) {
@@ -227,11 +221,14 @@ export default function SpeakingWorkbench() {
   const [part, setPart] = useState<SpeakingPart>(1)
   const [query, setQuery] = useState('')
   const [questionOpen, setQuestionOpen] = useState(false)
+  const [questions, setQuestions] = useState<SpeakingPrompt[]>([])
+  const [questionLoadState, setQuestionLoadState] = useState<QuestionLoadState>('loading')
   const [selectedPrompt, setSelectedPrompt] = useState<SpeakingPrompt | null>(null)
   const [hasConfirmedPrompt, setHasConfirmedPrompt] = useState(false)
   const [step, setStep] = useState<Step>(1)
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [sampleAudioUrl, setSampleAudioUrl] = useState<string | null>(null)
   const [recording, setRecording] = useState(false)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle')
@@ -248,8 +245,8 @@ export default function SpeakingWorkbench() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const prompts = useMemo(
-    () => promptsForPart(part).filter((prompt) => prompt.question.toLowerCase().includes(query.toLowerCase().trim())),
-    [part, query],
+    () => questions.filter((prompt) => prompt.question.toLowerCase().includes(query.toLowerCase().trim())),
+    [questions, query],
   )
 
   useEffect(() => () => {
@@ -259,6 +256,28 @@ export default function SpeakingWorkbench() {
     streamRef.current?.getTracks().forEach((track) => track.stop())
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/demo/speaking/questions?part=' + part, { cache: 'no-store' })
+      .then(async (response) => {
+        const payload: unknown = await response.json().catch(() => null)
+        if (!response.ok) throw errorFromPayload(payload)
+        const loaded = promptsFromPayload(payload, part)
+        if (!loaded) throw new Error('invalid question payload')
+        if (!cancelled) {
+          setQuestions(loaded)
+          setQuestionLoadState('success')
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setQuestions([])
+          setQuestionLoadState('error')
+        }
+      })
+    return () => { cancelled = true }
+  }, [part])
 
   useEffect(() => {
     if (!recording) return
@@ -271,6 +290,7 @@ export default function SpeakingWorkbench() {
     previewUrlRef.current = null
     setPreviewUrl(null)
     setFile(null)
+    setSampleAudioUrl(null)
   }
 
   const stopRecorder = (discard = false) => {
@@ -293,6 +313,7 @@ export default function SpeakingWorkbench() {
     setQuestionOpen(false)
     setHasConfirmedPrompt(false)
     clearFile()
+    setSampleAudioUrl(prompt.sampleAudioUrl ?? null)
     setStep(1)
     setConsoleStep(1)
     setError(null)
@@ -303,6 +324,7 @@ export default function SpeakingWorkbench() {
   const selectPart = (nextPart: SpeakingPart) => {
     stopRecorder(true)
     clearFile()
+    setQuestionLoadState('loading')
     setPart(nextPart)
     setQuery('')
     setSelectedPrompt(null)
@@ -333,6 +355,7 @@ export default function SpeakingWorkbench() {
     previewUrlRef.current = URL.createObjectURL(nextFile)
     setPreviewUrl(previewUrlRef.current)
     setFile(nextFile)
+    setSampleAudioUrl(null)
     setResult(null)
     setStatus('idle')
     setError(null)
@@ -398,22 +421,34 @@ export default function SpeakingWorkbench() {
 
   const submitLive = async () => {
     const prompt = selectedPrompt
-    if (!file || !prompt) {
+    if ((!file && !sampleAudioUrl) || !prompt) {
       setError({ code: 'INVALID_REQUEST', message: 'Chọn hoặc ghi một câu trả lời trước khi chấm điểm.' })
       return
     }
     setStatus('submitting')
     setError(null)
-    const submittedFile = file
-    const form = new FormData()
-    form.append('audio', submittedFile, submittedFile.name)
-    form.append('part', String(prompt.part))
-    form.append('question_id', prompt.id)
-    form.append('prompt_text', prompt.question)
     const controller = new AbortController()
     const timeout = window.setTimeout(() => controller.abort(), 90_000)
     try {
-      const response = await fetch('/api/demo/speaking/grading', { method: 'POST', body: form, signal: controller.signal })
+      const request = file
+        ? (() => {
+            const form = new FormData()
+            form.append('audio', file, file.name)
+            form.append('part', String(prompt.part))
+            form.append('question_id', prompt.id)
+            form.append('prompt_text', prompt.question)
+            return { endpoint: '/api/demo/speaking/grading', body: form }
+          })()
+        : {
+            endpoint: '/api/demo/speaking/grading-json',
+            body: JSON.stringify({ audio_url: sampleAudioUrl, part: prompt.part, question_id: prompt.id, prompt_text: prompt.question, test_type: 'Practice' }),
+          }
+      const response = await fetch(request.endpoint, {
+        method: 'POST',
+        body: request.body,
+        headers: file ? undefined : { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+      })
       const payload: unknown = await response.json().catch(() => null)
       if (!response.ok) throw errorFromPayload(payload)
       if (!isSpeakingGradingEnvelope(payload)) throw { code: 'AI_SERVICE_CONTRACT_VIOLATION', message: 'Kết quả từ AIHUB không đúng định dạng.' } satisfies PublicError
@@ -454,17 +489,21 @@ export default function SpeakingWorkbench() {
   }
 
   const activePrompt = result
-    ? displayPrompt(result, selectedPrompt ?? SPEAKING_PROMPTS[0])
-    : selectedPrompt ?? SPEAKING_PROMPTS[0]
+    ? questions.find((prompt) => prompt.id === result.data.question_id) ?? selectedPrompt
+    : selectedPrompt
 
   const requestForStep = (currentStep: Step) => currentStep === 1
     ? 'GET /api/demo/speaking/questions?part=' + part
-    : 'POST /api/demo/speaking/grading\n\nform-data:\n  audio: ' + (file?.name ?? '—') + '\n  part: ' + activePrompt.part + '\n  question_id: ' + activePrompt.id + '\n  prompt_text: [provided]\n\n// secrets stay server-side'
+    : sampleAudioUrl && !file
+      ? 'POST /api/demo/speaking/grading-json\n\napplication/json:\n  audio_url: [presigned sample URL]\n  part: ' + (activePrompt?.part ?? part) + '\n  question_id: ' + (activePrompt?.id ?? '—') + '\n  prompt_text: [provided]\n\n// secrets stay server-side'
+      : 'POST /api/demo/speaking/grading\n\nform-data:\n  audio: ' + (file?.name ?? '—') + '\n  part: ' + (activePrompt?.part ?? part) + '\n  question_id: ' + (activePrompt?.id ?? '—') + '\n  prompt_text: [provided]\n\n// secrets stay server-side'
   const responsePayload = result ? JSON.stringify(result, null, 2) : JSON.stringify({ state: 'waiting', data: null }, null, 2)
   const copyPayload = () => void navigator.clipboard?.writeText(consoleTab === 'request' ? requestForStep(consoleStep) : responsePayload)
   const calloutEndpoint = consoleStep === 1
-    ? 'GET /api/v1/speaking/questions?part=' + part
-    : 'POST /api/v1/speaking/evaluate'
+    ? 'GET /v1/ielts/speaking/questions?part=' + part
+    : sampleAudioUrl && !file
+      ? 'POST /v1/ielts/speaking/grading-json'
+      : 'POST /v1/ielts/speaking/grading'
   const calloutStatus = consoleStep === 1
     ? 'để tải câu hỏi theo Part.'
     : consoleStep === 2
@@ -528,7 +567,7 @@ export default function SpeakingWorkbench() {
                     </button>
                     {questionOpen && (
                       <div aria-label="Speaking questions" className="question-options" id="question-options" role="listbox">
-                        {prompts.length ? prompts.map((prompt) => (
+                        {questionLoadState === 'loading' ? <div className="question-option-empty" role="status">Đang tải câu hỏi...</div> : questionLoadState === 'error' ? <div className="question-option-empty" role="alert">Không tải được câu hỏi từ API.</div> : prompts.length ? prompts.map((prompt) => (
                           <button
                             aria-selected={selectedPrompt?.id === prompt.id}
                             className={'question-option ' + (selectedPrompt?.id === prompt.id ? 'active' : '')}
@@ -539,7 +578,7 @@ export default function SpeakingWorkbench() {
                             role="option"
                             type="button"
                           >
-                            <span>Part {prompt.part} · {PROMPT_LABELS[prompt.id] ?? 'Question'}</span>
+                            <span>Part {prompt.part} · {prompt.sampleAudioUrl ? 'Audio mẫu sẵn có' : 'Question'}</span>
                             {prompt.question}
                           </button>
                         )) : <div className="question-option-empty">Không tìm thấy câu hỏi phù hợp.</div>}
@@ -562,8 +601,8 @@ export default function SpeakingWorkbench() {
                 <div className="step-content" data-testid="panel-audio-input">
                   <p>Chọn file có sẵn hoặc ghi âm trực tiếp trên trình duyệt. Định dạng hỗ trợ: MP3, WAV, M4A.</p>
                   <div className="audio-box">
-                    <strong>{recording ? 'Đang ghi âm câu trả lời' : file ? 'Đã sẵn sàng để đánh giá' : 'Chưa có audio'}</strong>
-                    <p>{recording ? 'Nói tự nhiên, sau đó dừng khi bạn hoàn tất.' : 'Audio chỉ được giữ trong bộ nhớ của customer web.'}</p>
+                    <strong>{recording ? 'Đang ghi âm câu trả lời' : file || sampleAudioUrl ? 'Đã sẵn sàng để đánh giá' : 'Chưa có audio'}</strong>
+                    <p>{recording ? 'Nói tự nhiên, sau đó dừng khi bạn hoàn tất.' : sampleAudioUrl && !file ? 'Audio mẫu được lấy từ AIHUB storage.' : 'Audio tự ghi/tải chỉ được giữ trong bộ nhớ của customer web.'}</p>
                     <div className="btn-row">
                       <button className="btn btn-sm" disabled={recording || status === 'submitting'} onClick={() => fileInputRef.current?.click()} type="button">
                         <UploadCloud size={13} /> Tải file
@@ -578,16 +617,17 @@ export default function SpeakingWorkbench() {
                         <span className="recording-actions"><FileAudio size={12} /> {file.name}</span>
                       </div>
                     )}
-                    {previewUrl && <audio aria-label="Preview selected audio" className="audio-player" controls src={previewUrl}>Your browser does not support audio playback.</audio>}
+                    {sampleAudioUrl && !file && <div className="recording-line" style={{ color: 'hsl(155 38% 35%)' }}><span className="recording-actions"><FileAudio size={12} /> Audio mẫu</span></div>}
+                    {(previewUrl || sampleAudioUrl) && <audio aria-label="Preview selected audio" className="audio-player" controls src={previewUrl ?? sampleAudioUrl ?? undefined}>Your browser does not support audio playback.</audio>}
                     {error && (
                       <div className="inline-error" role="alert">
                         <strong>{error.code}</strong> {error.message}
                       </div>
                     )}
-                    {file && !recording && <button className="btn btn-sm btn-danger" onClick={clearFile} type="button"><RotateCcw size={12} /> Xoá audio</button>}
+                    {(file || sampleAudioUrl) && !recording && <button className="btn btn-sm btn-danger" onClick={clearFile} type="button"><RotateCcw size={12} /> Xoá audio</button>}
                   </div>
                   <div className="confirm-actions">
-                    <button className="btn btn-primary" data-testid="button-confirm-step-2" disabled={!file || status === 'submitting'} onClick={submitLive} type="button">
+                    <button className="btn btn-primary" data-testid="button-confirm-step-2" disabled={(!file && !sampleAudioUrl) || status === 'submitting'} onClick={submitLive} type="button">
                       {status === 'submitting' ? <Timer size={12} /> : <Terminal size={12} />} {status === 'submitting' ? 'Đang đánh giá...' : 'Confirm Step 2 · Evaluate audio'}
                     </button>
                   </div>

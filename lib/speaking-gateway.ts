@@ -1,14 +1,16 @@
 import { createHash, randomUUID } from "node:crypto";
 import { MAX_SPEAKING_BYTES } from "@/data/speaking-contract";
-import { SPEAKING_PROMPTS } from "@/data/speaking-prompts";
 import {
   parseSpeakingGradingEnvelope,
   type SpeakingGradingEnvelope,
 } from "@/data/speaking-response";
 
 const MAX_TEXT_BYTES = 64 * 1024;
+const MAX_JSON_BYTES = 256 * 1024;
 const ALLOWED_EXTENSIONS = new Set(["wav", "mp3", "m4a", "webm", "ogg"]);
 const ALLOWED_FIELDS = new Set(["audio", "part", "question_id", "prompt_text", "test_type"]);
+const ALLOWED_JSON_FIELDS = new Set(["audio_url", "part", "question_id", "prompt_text", "test_type"]);
+const SPEAKING_AUDIO_URL_HOST = "s3.wispace.app";
 const INTERNAL_USER_ID = `cu_${createHash("sha256")
   .update("aihub-internal\0speaking-demo", "utf8")
   .digest("base64url")}`;
@@ -33,7 +35,14 @@ type SpeakingRequest = {
   audio: File;
   part: number;
   questionId: string;
-  promptText: string;
+  promptText?: string;
+};
+
+type SpeakingJsonRequest = {
+  audioUrl: string;
+  part: number;
+  questionId: string;
+  promptText?: string | null;
 };
 
 function invalidRequest() {
@@ -46,11 +55,8 @@ function required(name: string) {
   return value;
 }
 
-function getSandboxConfig() {
+export function getSandboxBaseUrl() {
   const rawBaseUrl = required("AIHUB_SANDBOX_BASE_URL").replace(/\/+$/, "");
-  const apiKey = required("AIHUB_SANDBOX_API_KEY");
-  required("AIHUB_SANDBOX_ORGANIZATION_ID");
-
   let baseUrl: URL;
   try {
     baseUrl = new URL(rawBaseUrl);
@@ -71,7 +77,14 @@ function getSandboxConfig() {
     throw new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
   }
 
-  return { baseUrl: rawBaseUrl, apiKey };
+  return rawBaseUrl;
+}
+
+function getSandboxConfig() {
+  const baseUrl = getSandboxBaseUrl();
+  const apiKey = required("AIHUB_SANDBOX_API_KEY");
+  required("AIHUB_SANDBOX_ORGANIZATION_ID");
+  return { baseUrl, apiKey };
 }
 
 function getSingleText(form: FormData, key: string, maxLength = MAX_TEXT_BYTES) {
@@ -102,6 +115,40 @@ function assertSameOrigin(request: Request) {
     if (error instanceof SpeakingBoundaryError) throw error;
     throw invalidRequest();
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isApprovedSpeakingAudioUrl(value: string) {
+  if (value.length === 0 || value.length > 2_048 || /\s/.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      url.hostname === SPEAKING_AUDIO_URL_HOST &&
+      url.port === "" &&
+      url.username === "" &&
+      url.password === "" &&
+      url.hash === ""
+    );
+  } catch {
+    return false;
+  }
+}
+
+function optionalJsonText(
+  body: Record<string, unknown>,
+  key: string,
+  maxLength = MAX_TEXT_BYTES,
+): string | null | undefined {
+  const value = body[key];
+  if (value === undefined || value === null) return value;
+  if (typeof value !== "string" || !value.trim() || new TextEncoder().encode(value).byteLength > maxLength) {
+    throw invalidRequest();
+  }
+  return value;
 }
 
 export async function parseSpeakingRequest(request: Request): Promise<SpeakingRequest> {
@@ -149,12 +196,53 @@ export async function parseSpeakingRequest(request: Request): Promise<SpeakingRe
   const testType = getSingleText(form, "test_type", 32);
   if (testType !== undefined && testType !== "Practice") throw invalidRequest();
 
-  const prompt = SPEAKING_PROMPTS.find((item) => item.id === questionId);
-  if (!prompt || prompt.part !== part || (promptText !== undefined && promptText !== prompt.question)) {
+  return {
+    audio,
+    part,
+    questionId,
+    ...(promptText === undefined ? {} : { promptText }),
+  };
+}
+
+export async function parseSpeakingJsonRequest(request: Request): Promise<SpeakingJsonRequest> {
+  assertSameOrigin(request);
+  const contentLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_JSON_BYTES) {
+    throw new SpeakingBoundaryError("PAYLOAD_TOO_LARGE");
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    throw invalidRequest();
+  }
+  if (!isRecord(body) || Object.keys(body).some((key) => !ALLOWED_JSON_FIELDS.has(key))) {
     throw invalidRequest();
   }
 
-  return { audio, part, questionId, promptText: prompt.question };
+  const audioUrl = body.audio_url;
+  if (typeof audioUrl !== "string" || !isApprovedSpeakingAudioUrl(audioUrl)) {
+    throw invalidRequest();
+  }
+  const part = body.part;
+  if (typeof part !== "number" || !Number.isInteger(part) || part < 1 || part > 3) {
+    throw invalidRequest();
+  }
+  const questionId = body.question_id;
+  if (typeof questionId !== "string" || !questionId.trim() || questionId.length > 256) {
+    throw invalidRequest();
+  }
+  const promptText = optionalJsonText(body, "prompt_text");
+  const testType = body.test_type;
+  if (testType !== undefined && testType !== "Practice") throw invalidRequest();
+
+  return {
+    audioUrl,
+    part,
+    questionId,
+    ...(promptText === undefined ? {} : { promptText }),
+  };
 }
 
 function toUpstreamForm(request: SpeakingRequest) {
@@ -162,7 +250,7 @@ function toUpstreamForm(request: SpeakingRequest) {
   form.append("audio", request.audio, request.audio.name);
   form.append("part", String(request.part));
   form.append("question_id", request.questionId);
-  form.append("prompt_text", request.promptText);
+  if (request.promptText !== undefined) form.append("prompt_text", request.promptText);
   form.append("test_type", "Practice");
   return form;
 }
@@ -213,8 +301,12 @@ function upstreamError(status: number) {
   return new SpeakingBoundaryError("AI_SERVICE_ERROR");
 }
 
-export async function gradeSpeaking(request: Request, requestId = `req_${randomUUID()}`): Promise<SpeakingGradingEnvelope> {
-  const input = await parseSpeakingRequest(request);
+async function callSpeakingGrading(
+  request: Request,
+  requestId: string,
+  operation: "speaking.grading" | "speaking.grading-json",
+  body: FormData | string,
+): Promise<SpeakingGradingEnvelope> {
   const { baseUrl, apiKey } = getSandboxConfig();
   const assertion = await mintSandboxAssertion(apiKey, baseUrl);
   const controller = new AbortController();
@@ -224,15 +316,16 @@ export async function gradeSpeaking(request: Request, requestId = `req_${randomU
 
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}/v1/ielts/speaking/grading`, {
+    response = await fetch(`${baseUrl}/v1/ielts/speaking/${operation === "speaking.grading" ? "grading" : "grading-json"}`, {
       method: "POST",
       headers: {
         Accept: "application/json",
         "X-API-Key": apiKey,
         "X-User-Assertion": assertion,
         "X-Correlation-Id": requestId,
+        ...(operation === "speaking.grading-json" ? { "Content-Type": "application/json" } : {}),
       },
-      body: toUpstreamForm(input),
+      body,
       cache: "no-store",
       signal: controller.signal,
     });
@@ -265,7 +358,28 @@ export async function gradeSpeaking(request: Request, requestId = `req_${randomU
       request_id: requestId,
       correlation_id: requestId,
       service: "speaking",
-      operation: "speaking.grading",
+      operation,
     },
   };
+}
+
+export async function gradeSpeaking(request: Request, requestId = `req_${randomUUID()}`): Promise<SpeakingGradingEnvelope> {
+  const input = await parseSpeakingRequest(request);
+  return callSpeakingGrading(request, requestId, "speaking.grading", toUpstreamForm(input));
+}
+
+export async function gradeSpeakingByUrl(request: Request, requestId = `req_${randomUUID()}`): Promise<SpeakingGradingEnvelope> {
+  const input = await parseSpeakingJsonRequest(request);
+  return callSpeakingGrading(
+    request,
+    requestId,
+    "speaking.grading-json",
+    JSON.stringify({
+      audio_url: input.audioUrl,
+      part: input.part,
+      question_id: input.questionId,
+      ...(input.promptText === undefined ? {} : { prompt_text: input.promptText }),
+      test_type: "Practice",
+    }),
+  );
 }
