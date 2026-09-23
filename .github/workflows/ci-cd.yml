@@ -40,6 +40,15 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
+      - name: Unit tests
+        run: npm test
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser tests
+        run: npm run test:e2e
+
       - name: Lint (advisory)
         # ponytail: keep deployment unblocked by the existing lint baseline; make it a gate after cleanup.
         continue-on-error: true

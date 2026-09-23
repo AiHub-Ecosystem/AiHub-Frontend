@@ -5,3 +5,6 @@ build/
 .env
 .env.local
 *.log
+.vitest/
+playwright-report/
+test-results/
