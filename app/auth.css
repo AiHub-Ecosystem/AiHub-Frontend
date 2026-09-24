@@ -167,6 +167,29 @@
   min-height: calc(100vh - 280px);
 }
 
+.organization-switcher {
+  display: grid;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.organization-switcher > a {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  color: #1d2838;
+  text-decoration: none;
+}
+
+.organization-switcher > a[aria-current="page"] {
+  border-color: #3a64fa;
+  background: #f4f1ff;
+}
+
 .auth-actions {
   display: flex;
   align-items: center;

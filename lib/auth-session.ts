@@ -20,6 +20,7 @@ const REFRESH_LOCK_PREFIX = "customer-web:refresh-lock:";
 const REFRESH_EARLY_MS = 60_000;
 const REFRESH_LOCK_MS = 15_000;
 const REFRESH_WAIT_MS = 12_000;
+const ORGANIZATION_CREATE_KEY_PREFIX = "customer-web:organization-create:";
 
 let redisClient: ReturnType<typeof createClient> | undefined;
 let redisConnection: Promise<ReturnType<typeof createClient>> | undefined;
@@ -166,6 +167,25 @@ export async function createWebSession(session: WebSession): Promise<string> {
 
 export async function deleteWebSession(id: string) {
   await (await redis()).del(sessionKey(id));
+}
+
+export async function organizationCreationKey(sessionId: string) {
+  const client = await redis();
+  const key = `${ORGANIZATION_CREATE_KEY_PREFIX}${sessionId}`;
+  let current = await client.get(key);
+  if (!current) {
+    await client.set(key, randomUUID(), {
+      condition: "NX",
+      expiration: { type: "EX", value: WEB_SESSION_TTL_SECONDS },
+    });
+    current = await client.get(key);
+  }
+  if (!current) throw new Error("Could not allocate organization creation key");
+  return current;
+}
+
+export async function completeOrganizationCreation(sessionId: string) {
+  await (await redis()).del(`${ORGANIZATION_CREATE_KEY_PREFIX}${sessionId}`);
 }
 
 export async function touchWebSession(id: string) {

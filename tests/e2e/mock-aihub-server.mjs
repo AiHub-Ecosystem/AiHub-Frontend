@@ -4,6 +4,17 @@ const host = "127.0.0.1";
 const port = 3101;
 const requests = [];
 const authRequests = [];
+const organizationRequests = [];
+let organizationConfig = {
+  roster: [],
+  unavailable: false,
+  creationLimit: false,
+  renameDenied: false,
+  createUncertainOnce: false,
+};
+const createdOrganizations = new Map();
+let uncertainCreationUsed = false;
+const knownForeignOrganizationIds = new Set(["foreign-org-known"]);
 let authMode = {
   refreshUnauthorized: false,
   logoutDown: false,
@@ -58,7 +69,124 @@ const server = createServer(async (request, response) => {
       forgotDown: false,
       resetDown: false,
     };
+    organizationRequests.length = 0;
+    createdOrganizations.clear();
+    organizationConfig = {
+      roster: [],
+      unavailable: false,
+      creationLimit: false,
+      renameDenied: false,
+      createUncertainOnce: false,
+    };
+    uncertainCreationUsed = false;
     response.writeHead(204).end();
+    return;
+  }
+
+  if (
+    request.method === "GET" &&
+    pathname === "/__test__/organizations/requests"
+  ) {
+    sendJson(response, 200, { requests: organizationRequests });
+    return;
+  }
+
+  if (
+    request.method === "GET" &&
+    pathname === "/__test__/organizations/state"
+  ) {
+    sendJson(response, 200, { organizations: organizationConfig.roster });
+    return;
+  }
+
+  if (
+    request.method === "POST" &&
+    pathname === "/__test__/organizations/config"
+  ) {
+    organizationConfig = {
+      ...organizationConfig,
+      ...(await readJson(request)),
+    };
+    response.writeHead(204).end();
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/v1/organizations/me/members") {
+    organizationRequests.push({ method: "GET", path: "roster" });
+    if (organizationConfig.unavailable) {
+      sendJson(response, 503, { error: { code: "LOCAL_MOCK_OUTAGE" } });
+      return;
+    }
+    sendJson(response, 200, { data: organizationConfig.roster });
+    return;
+  }
+
+  if (request.method === "POST" && pathname === "/v1/organizations") {
+    const body = await readJson(request);
+    organizationRequests.push({
+      method: "POST",
+      path: "create",
+      name: body.name,
+    });
+    if (organizationConfig.creationLimit) {
+      sendJson(response, 409, {
+        error: { code: "ORGANIZATION_CREATION_LIMIT_REACHED" },
+      });
+      return;
+    }
+    const key = request.headers["idempotency-key"];
+    let organization = createdOrganizations.get(key);
+    if (!organization) {
+      organization = {
+        id: "org-created-12345678",
+        name: body.name,
+        status: "active",
+      };
+      createdOrganizations.set(key, organization);
+      organizationConfig.roster.push({
+        organization,
+        membership_role: "owner",
+      });
+    }
+    if (organizationConfig.createUncertainOnce && !uncertainCreationUsed) {
+      uncertainCreationUsed = true;
+      sendJson(response, 503, {
+        error: { code: "LOCAL_MOCK_UNCERTAIN_RESULT" },
+      });
+      return;
+    }
+    sendJson(response, 201, { data: organization });
+    return;
+  }
+
+  if (
+    request.method === "PATCH" &&
+    /^\/v1\/organizations\/[^/]+$/.test(pathname)
+  ) {
+    const body = await readJson(request);
+    const id = pathname.split("/").at(-1);
+    organizationRequests.push({
+      method: "PATCH",
+      path: "rename",
+      id,
+      name: body.name,
+    });
+    const membership = organizationConfig.roster.find(
+      (item) => (item.organization?.id ?? item.organization_id) === id
+    );
+    if (
+      organizationConfig.renameDenied ||
+      knownForeignOrganizationIds.has(id) ||
+      membership?.membership_role !== "owner" ||
+      membership?.organization?.status === "suspended"
+    ) {
+      sendJson(response, 403, {
+        error: { code: "ORGANIZATION_ACCESS_DENIED" },
+      });
+      return;
+    }
+    membership.organization.name = body.name;
+    sendJson(response, 200, { data: membership.organization });
     return;
   }
 
