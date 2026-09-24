@@ -11,8 +11,13 @@ import {
 
 const noStore = { "Cache-Control": "no-store" };
 
-function redirectToLogin(error: string, retry?: number, next?: string) {
-  const login = new URL("/login", customerWebOrigin());
+function redirectToLogin(
+  error: string,
+  retry?: number,
+  next?: string,
+  returnTo = "/login"
+) {
+  const login = new URL(returnTo, customerWebOrigin());
   login.searchParams.set("error", error);
   if (retry !== undefined) login.searchParams.set("retry", String(retry));
   if (next) login.searchParams.set("next", next);
@@ -47,6 +52,12 @@ export async function POST(request: Request) {
   const next = safeLocalPath(
     typeof form.get("next") === "string" ? (form.get("next") as string) : null
   );
+  const returnTo = safeLocalPath(
+    typeof form.get("return_to") === "string"
+      ? (form.get("return_to") as string)
+      : null,
+    "/login"
+  );
   if (
     typeof email !== "string" ||
     email.length < 1 ||
@@ -68,19 +79,21 @@ export async function POST(request: Request) {
       signal: AbortSignal.timeout(8_000),
     });
   } catch {
-    return redirectToLogin("unavailable", undefined, next);
+    return redirectToLogin("unavailable", undefined, next, returnTo);
   }
 
   if (upstream.status === 401)
-    return redirectToLogin("invalid", undefined, next);
+    return redirectToLogin("invalid", undefined, next, returnTo);
   if (upstream.status === 429) {
     return redirectToLogin(
       "rate-limited",
       retryAfterSeconds(upstream.headers.get("retry-after")),
-      next
+      next,
+      returnTo
     );
   }
-  if (!upstream.ok) return redirectToLogin("unavailable", undefined, next);
+  if (!upstream.ok)
+    return redirectToLogin("unavailable", undefined, next, returnTo);
 
   try {
     const body = (await upstream.json()) as {
@@ -96,7 +109,7 @@ export async function POST(request: Request) {
       body.data.expires_in > 900 ||
       !refreshToken
     ) {
-      return redirectToLogin("unavailable", undefined, next);
+      return redirectToLogin("unavailable", undefined, next, returnTo);
     }
 
     const sessionId = await createWebSession({
@@ -113,6 +126,6 @@ export async function POST(request: Request) {
       },
     });
   } catch {
-    return redirectToLogin("unavailable", undefined, next);
+    return redirectToLogin("unavailable", undefined, next, returnTo);
   }
 }

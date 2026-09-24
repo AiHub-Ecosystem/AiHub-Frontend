@@ -80,6 +80,49 @@ export async function getWebSession(id: string): Promise<WebSession | null> {
   }
 }
 
+export async function requireWebSession(request: Request) {
+  const sessionId = request.headers
+    .get("cookie")
+    ?.split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${WEB_SESSION_COOKIE}=`))
+    ?.slice(WEB_SESSION_COOKIE.length + 1);
+  const headers = {
+    "Cache-Control": "no-store",
+    "Content-Type": "application/json",
+  };
+
+  if (!isWebSessionId(sessionId)) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: { code: "AUTH_REQUIRED", message: "Sign-in required." },
+      }),
+      { status: 401, headers }
+    );
+  }
+
+  try {
+    if (await getWebSession(sessionId)) return null;
+  } catch {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: { code: "AUTH_UNAVAILABLE", message: "Sign-in is unavailable." },
+      }),
+      { status: 503, headers }
+    );
+  }
+
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error: { code: "AUTH_REQUIRED", message: "Sign-in required." },
+    }),
+    { status: 401, headers }
+  );
+}
+
 async function saveWebSession(id: string, session: WebSession) {
   await (
     await redis()

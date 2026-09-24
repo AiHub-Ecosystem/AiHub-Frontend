@@ -1150,7 +1150,8 @@ a.aihub-card:hover {
    Lab Login Dynamic Animations & Effects
    ========================================================================== */
 @keyframes labCloudFloatLeft {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(0, 0) scale(1);
   }
   50% {
@@ -1159,7 +1160,8 @@ a.aihub-card:hover {
 }
 
 @keyframes labCloudFloatRight {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(0, 0) scale(1);
   }
   50% {
@@ -1168,7 +1170,8 @@ a.aihub-card:hover {
 }
 
 @keyframes labCastleFloat {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -1177,7 +1180,8 @@ a.aihub-card:hover {
 }
 
 @keyframes labWaterfallFloat {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -1186,7 +1190,8 @@ a.aihub-card:hover {
 }
 
 @keyframes labGlowPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.65;
     transform: translateX(-50%) scale(1);
   }
@@ -1342,3 +1347,129 @@ a.aihub-card:hover {
   color: #334155;
 }
 
+.lab-login-page {
+  min-height: calc(100vh - 72px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 108px 16px 72px;
+  box-sizing: border-box;
+}
+
+.lab-login-container {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+}
+
+.lab-login-card {
+  width: min(100%, 500px);
+  margin: 36px auto 52px;
+  padding: 38px clamp(24px, 5vw, 40px) 28px;
+  position: relative;
+  z-index: 20;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 22px;
+  background: rgb(21 17 31 / 94%);
+  box-shadow: 0 30px 70px -20px rgb(8 2 22 / 78%);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+
+.lab-login-accent {
+  height: 3px;
+  position: absolute;
+  inset: 0 0 auto;
+  background: linear-gradient(90deg, #3a64fa, #f963bc, #18c3fa, #3a64fa);
+  background-size: 200% 200%;
+}
+
+.lab-login-heading {
+  margin-bottom: 26px;
+}
+
+.lab-login-eyebrow {
+  margin: 0 0 12px;
+  color: #8ba5ff;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.lab-login-heading h1 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(25px, 5vw, 32px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.16;
+}
+
+.lab-login-heading > p:last-child {
+  max-width: 44ch;
+  margin: 12px 0 0;
+  color: #b3aac7;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.lab-login-footer {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  color: #b3aac7;
+  font-size: 13px;
+  text-align: center;
+}
+
+.lab-login-footer p {
+  margin: 0;
+}
+
+.lab-login-footer a {
+  color: #9db2ff;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.lab-login-footer a:hover {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.lab-login-footer .lab-login-back {
+  color: #b3aac7;
+  font-weight: 500;
+}
+
+.lab-login-page .background-elements {
+  pointer-events: none;
+}
+
+@media (max-width: 520px) {
+  .lab-login-page {
+    min-height: calc(100svh - 64px);
+    padding: 96px 16px 44px;
+  }
+
+  .lab-login-card {
+    margin: 20px auto 28px;
+    padding: 32px 22px 24px;
+    border-radius: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-login-card,
+  .lab-login-accent {
+    animation: none;
+  }
+}
