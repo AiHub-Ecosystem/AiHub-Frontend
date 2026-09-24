@@ -86,4 +86,6 @@ REDIS_URL=rediss://<credentials>@<dedicated-session-redis-host>:6379
 
 Redis này phải tách biệt Redis của control plane, bật AOF persistence, không publish port ra host/public network và chỉ cho container `aihub-frontend` truy cập qua private network. VPS compose được quản lý ngoài repository. Chưa rollout rộng cho tài khoản cũ cho đến khi issue #4 có luồng reset mật khẩu.
 
+Luồng đăng ký và xác minh email dùng `/register`, `/verify-email` và các BFF route `/api/auth/*`. Token xác minh được xóa khỏi URL trước khi gửi tới BFF; cấu hình reverse proxy/access log trên VPS phải bỏ hoặc che query string cho `/verify-email`.
+
 Playwright auth tests khởi chạy Redis 7 cô lập bằng Docker cùng AIHUB mock và Next.js trên loopback; không cần thông tin đăng nhập hay endpoint production.

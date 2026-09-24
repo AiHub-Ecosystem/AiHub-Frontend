@@ -28,6 +28,15 @@ _Avoid_: login, token, auth cookie
 The AIHUB account a person registers with email, username, and password, and verifies by email before signing in.
 _Avoid_: user, customer, profile
 
+**Username**:
+A normalized, unique account identifier, separate from the credential used to sign in.
+
+**Email Verification**:
+Proof that a User Account controls its registered email address; an unverified User Account cannot sign in.
+
+**Verification Token**:
+An expiring proof used for Email Verification. Resending while an account is pending invalidates earlier tokens; the exact token that activated an active account continues to succeed until it expires.
+
 **Organization**:
 The tenant that owns API keys, members, and identity configuration; one User Account may belong to several.
 _Avoid_: team, workspace, tenant, company

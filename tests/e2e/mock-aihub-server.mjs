@@ -4,7 +4,13 @@ const host = "127.0.0.1";
 const port = 3101;
 const requests = [];
 const authRequests = [];
-let authMode = { refreshUnauthorized: false, logoutDown: false };
+let authMode = {
+  refreshUnauthorized: false,
+  logoutDown: false,
+  registerDown: false,
+  resendDown: false,
+  verifyDown: false,
+};
 
 function sendJson(response, status, body, headers = {}) {
   response.writeHead(status, {
@@ -41,7 +47,13 @@ const server = createServer(async (request, response) => {
 
   if (request.method === "POST" && pathname === "/__test__/auth/reset") {
     authRequests.length = 0;
-    authMode = { refreshUnauthorized: false, logoutDown: false };
+    authMode = {
+      refreshUnauthorized: false,
+      logoutDown: false,
+      registerDown: false,
+      resendDown: false,
+      verifyDown: false,
+    };
     response.writeHead(204).end();
     return;
   }
@@ -97,6 +109,74 @@ const server = createServer(async (request, response) => {
         "Set-Cookie": `__Host-aihub_refresh=refresh-token-${loginNumber}; Path=/; Max-Age=2592000; Secure; HttpOnly; SameSite=Strict`,
       }
     );
+    return;
+  }
+
+  if (request.method === "POST" && pathname === "/v1/auth/register") {
+    const body = await readJson(request);
+    authRequests.push({
+      path: "register",
+      hasEmail: typeof body.email === "string",
+      hasUsername: typeof body.username === "string",
+      hasPassword: typeof body.password === "string",
+    });
+    if (authMode.registerDown) {
+      sendJson(response, 503, {
+        error: { code: "IDENTITY_PROVIDER_UNAVAILABLE" },
+      });
+      return;
+    }
+    if (body.email === "taken@example.test" || body.username === "taken-user") {
+      sendJson(response, 409, {
+        error: { code: "AUTH_IDENTITY_UNAVAILABLE", message: "private detail" },
+      });
+      return;
+    }
+    sendJson(response, 201, {
+      data: {
+        email: body.email,
+        username: body.username,
+        status: "pending_verification",
+      },
+      meta: { request_id: "local-mock" },
+    });
+    return;
+  }
+
+  if (
+    request.method === "POST" &&
+    pathname === "/v1/auth/resend-verification"
+  ) {
+    const body = await readJson(request);
+    authRequests.push({
+      path: "resend",
+      hasEmail: typeof body.email === "string",
+    });
+    if (authMode.resendDown) {
+      sendJson(response, 503, { error: { code: "INTERNAL_ERROR" } });
+      return;
+    }
+    response.writeHead(202, { "Cache-Control": "no-store" }).end();
+    return;
+  }
+
+  if (request.method === "POST" && pathname === "/v1/auth/verify-email") {
+    const body = await readJson(request);
+    authRequests.push({
+      path: "verify",
+      hasToken: typeof body.token === "string",
+    });
+    if (authMode.verifyDown) {
+      sendJson(response, 500, { error: { code: "INTERNAL_ERROR" } });
+      return;
+    }
+    if (typeof body.token !== "string" || body.token.startsWith("invalid")) {
+      sendJson(response, 400, {
+        error: { code: "AUTH_VERIFICATION_TOKEN_INVALID" },
+      });
+      return;
+    }
+    response.writeHead(204, { "Cache-Control": "no-store" }).end();
     return;
   }
 

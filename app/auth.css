@@ -81,6 +81,40 @@
   line-height: 1.5;
 }
 
+.auth-address {
+  margin: 20px 0 0;
+  color: #1d2838;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.auth-secondary {
+  margin: 20px 0 0;
+  color: #475467;
+  font-size: 14px;
+}
+
+.auth-secondary a,
+.auth-link-button {
+  color: #2e52d7;
+  font: inherit;
+  font-weight: 650;
+}
+
+.auth-link-button {
+  margin-top: 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.auth-submit:disabled,
+.auth-link-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .console-page {
   min-height: calc(100vh - 280px);
 }

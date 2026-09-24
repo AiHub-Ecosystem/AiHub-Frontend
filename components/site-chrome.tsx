@@ -273,7 +273,7 @@ const FALLBACK_NAV = [
 function authActions(signedIn: boolean) {
   return signedIn
     ? '<div class="auth-actions"><a href="/console">Console</a><details class="account-menu"><summary>Tài khoản</summary><form action="/api/auth/logout" method="post"><button type="submit">Đăng xuất</button></form></details></div>'
-    : '<div class="auth-actions"><a href="/login">Đăng nhập</a></div>';
+    : '<div class="auth-actions"><a href="/register">Đăng ký</a><a href="/login">Đăng nhập</a></div>';
 }
 
 export async function SiteHeader() {
@@ -320,7 +320,10 @@ export async function SiteHeader() {
                 </details>
               </>
             ) : (
-              <Link href="/login">Đăng nhập</Link>
+              <>
+                <Link href="/register">Đăng ký</Link>
+                <Link href="/login">Đăng nhập</Link>
+              </>
             )}
           </div>
         </div>
