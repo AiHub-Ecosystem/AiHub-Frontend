@@ -37,10 +37,15 @@ export function RegisterForm() {
 
   async function register(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setBusy(true);
     setMessage("");
     setFieldErrors({});
     setCanResend(false);
+    const length = [...password].length;
+    if (length < 12 || length > 128) {
+      setFieldErrors({ password: "Mật khẩu phải có từ 12 đến 128 ký tự." });
+      return;
+    }
+    setBusy(true);
     let body: { error?: AuthError } = {};
     try {
       const response = await fetch("/api/auth/register", {
@@ -71,7 +76,7 @@ export function RegisterForm() {
         if (fields.includes("username"))
           errors.username = "Username không hợp lệ.";
         if (fields.includes("password"))
-          errors.password = "Mật khẩu không hợp lệ.";
+          errors.password = "Mật khẩu phải có từ 12 đến 128 ký tự.";
         setFieldErrors(errors);
         setMessage(
           Object.keys(errors).length
@@ -203,7 +208,7 @@ export function RegisterForm() {
                 {fieldErrors.username}
               </p>
             )}
-            <label htmlFor="register-password">Mật khẩu</label>
+            <label htmlFor="register-password">Mật khẩu (12-128 ký tự)</label>
             <input
               id="register-password"
               type="password"

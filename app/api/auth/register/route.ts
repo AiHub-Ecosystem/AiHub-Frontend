@@ -28,7 +28,9 @@ export async function POST(request: Request) {
     typeof username !== "string" || username.length < 1 || username.length > 64
       ? "username"
       : null,
-    typeof password !== "string" || password.length < 1 || password.length > 256
+    typeof password !== "string" ||
+    [...password].length < 12 ||
+    [...password].length > 128
       ? "password"
       : null,
   ].filter((field): field is string => field !== null);

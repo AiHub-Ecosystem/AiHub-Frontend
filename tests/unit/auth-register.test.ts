@@ -73,6 +73,22 @@ describe("Customer Web registration BFF", () => {
     expect(upstreamFetch).not.toHaveBeenCalled();
   });
 
+  it("rejects passwords outside the backend length policy before calling AIHUB", async () => {
+    process.env.CUSTOMER_WEB_ORIGIN = "http://localhost:3100";
+    const upstreamFetch = vi.spyOn(globalThis, "fetch");
+
+    for (const password of ["😀".repeat(11), "x".repeat(129)]) {
+      const response = await POST(registrationRequest({ ...values, password }));
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: { code: "INVALID_REQUEST", fields: ["password"] },
+      });
+    }
+
+    expect(upstreamFetch).not.toHaveBeenCalled();
+  });
+
   it("maps duplicate email or Username without exposing upstream details", async () => {
     process.env.CUSTOMER_WEB_ORIGIN = "http://localhost:3100";
     process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
