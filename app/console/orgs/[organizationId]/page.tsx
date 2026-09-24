@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getCurrentWebSession, WEB_SESSION_COOKIE } from "@/lib/auth-session";
+import { requirePageWebSession } from "@/lib/page-session";
 import { readOrganizationRoster } from "@/lib/organization-server";
 import { SessionActivity } from "@/components/session-activity";
 import { OrganizationSwitcher } from "@/components/organizations/organization-switcher";
@@ -18,10 +17,7 @@ export default async function OrganizationOverviewPage({
 }: PageProps<"/console/orgs/[organizationId]">) {
   const { organizationId } = await params;
   const next = `/console/orgs/${encodeURIComponent(organizationId)}`;
-  const sessionId = (await cookies()).get(WEB_SESSION_COOKIE)?.value;
-  if (!sessionId) redirect(`/login?next=${encodeURIComponent(next)}`);
-  if (!(await getCurrentWebSession(sessionId)))
-    redirect(`/login?error=session&next=${encodeURIComponent(next)}`);
+  const sessionId = await requirePageWebSession(next);
   const roster = await readOrganizationRoster(sessionId);
   if (!roster) return <RosterUnavailable />;
   const organization = roster.find((item) => item.id === organizationId);

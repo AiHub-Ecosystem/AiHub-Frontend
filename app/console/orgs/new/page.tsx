@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { getCurrentWebSession, WEB_SESSION_COOKIE } from "@/lib/auth-session";
+import { requirePageWebSession } from "@/lib/page-session";
 import { readOrganizationRoster } from "@/lib/organization-server";
 import { SessionActivity } from "@/components/session-activity";
 import { OrganizationSwitcher } from "@/components/organizations/organization-switcher";
@@ -13,10 +11,7 @@ export const metadata: Metadata = { title: "Tạo Organization — AIHub" };
 export const dynamic = "force-dynamic";
 
 export default async function NewOrganizationPage() {
-  const sessionId = (await cookies()).get(WEB_SESSION_COOKIE)?.value;
-  if (!sessionId) redirect("/login?next=%2Fconsole%2Forgs%2Fnew");
-  if (!(await getCurrentWebSession(sessionId)))
-    redirect("/login?error=session&next=%2Fconsole%2Forgs%2Fnew");
+  const sessionId = await requirePageWebSession("/console/orgs/new");
   const roster = await readOrganizationRoster(sessionId);
   return (
     <>
@@ -26,9 +21,9 @@ export default async function NewOrganizationPage() {
           <p className="aihub-eyebrow">AIHub Console</p>
           <h1 className="aihub-title">Tạo Organization</h1>
           <p className="aihub-lede">
-            Self-serve Organization dùng dịch vụ Writing, gồm 100 requests mỗi
-            tháng với hard stop, 60 requests mỗi phút và tối đa 5 requests đồng
-            thời.
+            Tự tạo Organization để dùng dịch vụ Writing với 100 lượt yêu cầu mỗi
+            tháng, tự động dừng khi hết hạn mức, tối đa 60 lượt mỗi phút và 5
+            lượt đồng thời.
           </p>
           <p className="aihub-lede">
             Mỗi User Account được tạo tối đa 3 Organization trong suốt thời gian
