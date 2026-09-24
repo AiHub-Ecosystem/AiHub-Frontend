@@ -245,6 +245,147 @@ test("an invalid verification link gets the same generic recovery form", async (
   );
 });
 
+test("password recovery keeps confirmation generic and shows a retry delay", async ({
+  page,
+  request,
+}) => {
+  await resetAuthMock(request);
+  await page.goto("/login");
+  await page.getByRole("link", { name: "Quên mật khẩu?" }).click();
+  await expect(page).toHaveURL(`${appUrl}/forgot-password`);
+
+  for (const email of ["known@example.test", "unknown@example.test"]) {
+    await page.goto("/forgot-password");
+    await page.getByLabel("Email").fill(email);
+    await page
+      .getByRole("button", { name: "Gửi hướng dẫn", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Kiểm tra email", exact: true })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        "Nếu địa chỉ email này có User Account, chúng tôi sẽ gửi hướng dẫn phù hợp.",
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(page.getByText(email, { exact: true })).toBeVisible();
+  }
+
+  await page.goto("/forgot-password");
+  await page.getByLabel("Email").fill("rate-limit@example.test");
+  await page
+    .getByRole("button", { name: "Gửi hướng dẫn", exact: true })
+    .click();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText(
+    "Bạn đã gửi yêu cầu quá nhiều lần. Vui lòng thử lại sau 17 giây."
+  );
+  await expect(
+    page.getByRole("button", { name: "Thử lại sau 17 giây", exact: true })
+  ).toBeDisabled();
+
+  const logged = await request.get(`${mockUrl}/__test__/auth/requests`);
+  const authRequests = (await logged.json()).requests;
+  expect(
+    authRequests.filter((entry: { path: string }) => entry.path === "forgot")
+  ).toEqual([
+    { path: "forgot", email: "known@example.test" },
+    { path: "forgot", email: "unknown@example.test" },
+    { path: "forgot", email: "rate-limit@example.test" },
+  ]);
+});
+
+test("password reset removes its token, checks mismatch, and clears the current session", async ({
+  page,
+  request,
+}) => {
+  await resetAuthMock(request);
+  await signIn(page);
+  expect(
+    (await page.context().cookies()).some(
+      (cookie) => cookie.name === "__Host-aihub_web_session"
+    )
+  ).toBe(true);
+
+  const response = await request.get(
+    `${appUrl}/reset-password?token=private-reset-token`
+  );
+  expect(response.headers()["referrer-policy"]).toBe("no-referrer");
+
+  await page.goto(`${appUrl}/reset-password?token=private-reset-token`);
+  await expect(page).toHaveURL(`${appUrl}/reset-password`);
+  expect(await page.locator("body").innerText()).not.toContain(
+    "private-reset-token"
+  );
+  const resetForm = page.locator("form.auth-form");
+  await resetForm.getByLabel("Mật khẩu mới").fill(validPassword);
+  await resetForm.getByLabel("Xác nhận mật khẩu").fill("different-password");
+  await page.getByRole("button", { name: "Đặt mật khẩu", exact: true }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText(
+    "Mật khẩu không khớp."
+  );
+
+  await resetForm.getByLabel("Xác nhận mật khẩu").fill(validPassword);
+  await page.getByRole("button", { name: "Đặt mật khẩu", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Đổi mật khẩu thành công", exact: true })
+  ).toBeVisible();
+  await expect
+    .poll(async () =>
+      (await page.context().cookies()).some(
+        (cookie) => cookie.name === "__Host-aihub_web_session"
+      )
+    )
+    .toBe(false);
+  await expect(page.getByRole("link", { name: "Đăng nhập" })).toHaveAttribute(
+    "href",
+    "/login"
+  );
+  expect(await page.locator("body").innerText()).not.toContain(
+    "private-reset-token"
+  );
+
+  const logged = await request.get(`${mockUrl}/__test__/auth/requests`);
+  const authRequests = (await logged.json()).requests;
+  expect(
+    authRequests.filter((entry: { path: string }) => entry.path === "reset")
+  ).toEqual([{ path: "reset", hasToken: true, hasPassword: true }]);
+});
+
+test("an invalid or reloaded reset link offers a fresh recovery link", async ({
+  page,
+  request,
+}) => {
+  await resetAuthMock(request);
+  await page.goto(`${appUrl}/reset-password?token=invalid-expired-secret`);
+  await expect(page).toHaveURL(`${appUrl}/reset-password`);
+  const resetForm = page.locator("form.auth-form");
+  await resetForm.getByLabel("Mật khẩu mới").fill(validPassword);
+  await resetForm.getByLabel("Xác nhận mật khẩu").fill(validPassword);
+  await page.getByRole("button", { name: "Đặt mật khẩu", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "Đặt mật khẩu mới" }).getByRole("alert")
+  ).toContainText("không hợp lệ hoặc đã hết hạn");
+  await expect(
+    page.getByRole("link", { name: "Yêu cầu liên kết mới", exact: true })
+  ).toHaveAttribute("href", "/forgot-password");
+  expect(await page.locator("body").innerText()).not.toContain(
+    "invalid-expired-secret"
+  );
+
+  await page.reload();
+  await expect(
+    page.getByRole("region", { name: "Đặt mật khẩu mới" }).getByRole("alert")
+  ).toContainText("không hợp lệ hoặc đã hết hạn");
+  await expect(page.locator("form.auth-form")).toHaveCount(0);
+
+  const logged = await request.get(`${mockUrl}/__test__/auth/requests`);
+  const authRequests = (await logged.json()).requests;
+  expect(
+    authRequests.filter((entry: { path: string }) => entry.path === "reset")
+  ).toEqual([{ path: "reset", hasToken: true, hasPassword: true }]);
+});
+
 test("registration reports a duplicate identity and clears only the password", async ({
   page,
   request,
@@ -315,7 +456,13 @@ test("rejects foreign or missing Origin and coordinates refresh across app insta
       expect(response.status()).toBe(403);
     }
   }
-  for (const path of ["register", "resend-verification", "verify-email"]) {
+  for (const path of [
+    "register",
+    "resend-verification",
+    "verify-email",
+    "forgot-password",
+    "reset-password",
+  ]) {
     for (const headers of originCases) {
       const response = await request.post(`${appUrl}/api/auth/${path}`, {
         headers,
@@ -328,7 +475,9 @@ test("rejects foreign or missing Origin and coordinates refresh across app insta
               }
             : path === "verify-email"
               ? { token: "test-token" }
-              : { email: "user@example.test" },
+              : path === "reset-password"
+                ? { token: "test-token", password: validPassword }
+                : { email: "user@example.test" },
       });
       expect(response.status()).toBe(403);
     }
@@ -418,6 +567,9 @@ test("sign-out during token refresh cannot recreate the Web Session", async ({
   request,
 }) => {
   await resetAuthMock(request);
+  await request.post(`${mockUrl}/__test__/auth/mode`, {
+    data: { refreshHold: true },
+  });
   const cookie = await createSession(request, "expiring@example.test");
   await new Promise((resolve) => setTimeout(resolve, 2_100));
 
@@ -433,11 +585,17 @@ test("sign-out during token refresh cannot recreate the Web Session", async ({
     })
     .toBe(1);
 
-  const logout = await request.post(`${appUrl}/api/auth/logout`, {
-    headers: { Origin: appUrl, Cookie: cookie },
-    maxRedirects: 0,
-  });
-  expect(logout.status()).toBe(303);
+  try {
+    const logout = await request.post(`${appUrl}/api/auth/logout`, {
+      headers: { Origin: appUrl, Cookie: cookie },
+      maxRedirects: 0,
+    });
+    expect(logout.status()).toBe(303);
+  } finally {
+    await request.post(`${mockUrl}/__test__/auth/mode`, {
+      data: { refreshHold: false },
+    });
+  }
   expect(await (await consoleResponse).text()).toContain("Đăng nhập");
 
   const protectedPage = await request.get(`${appUrl}/console`, {

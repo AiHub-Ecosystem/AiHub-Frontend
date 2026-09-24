@@ -6,11 +6,15 @@ const requests = [];
 const authRequests = [];
 let authMode = {
   refreshUnauthorized: false,
+  refreshHold: false,
   logoutDown: false,
   registerDown: false,
   resendDown: false,
   verifyDown: false,
+  forgotDown: false,
+  resetDown: false,
 };
+let releaseRefresh;
 
 function sendJson(response, status, body, headers = {}) {
   response.writeHead(status, {
@@ -46,20 +50,30 @@ const server = createServer(async (request, response) => {
   }
 
   if (request.method === "POST" && pathname === "/__test__/auth/reset") {
+    releaseRefresh?.();
+    releaseRefresh = undefined;
     authRequests.length = 0;
     authMode = {
       refreshUnauthorized: false,
+      refreshHold: false,
       logoutDown: false,
       registerDown: false,
       resendDown: false,
       verifyDown: false,
+      forgotDown: false,
+      resetDown: false,
     };
     response.writeHead(204).end();
     return;
   }
 
   if (request.method === "POST" && pathname === "/__test__/auth/mode") {
-    authMode = { ...authMode, ...(await readJson(request)) };
+    const requestedMode = await readJson(request);
+    authMode = { ...authMode, ...requestedMode };
+    if (requestedMode.refreshHold === false) {
+      releaseRefresh?.();
+      releaseRefresh = undefined;
+    }
     response.writeHead(204).end();
     return;
   }
@@ -160,6 +174,29 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "POST" && pathname === "/v1/auth/forgot-password") {
+    const body = await readJson(request);
+    authRequests.push({
+      path: "forgot",
+      email: body.email,
+    });
+    if (authMode.forgotDown) {
+      sendJson(response, 503, { error: { code: "INTERNAL_ERROR" } });
+      return;
+    }
+    if (body.email === "rate-limit@example.test") {
+      sendJson(
+        response,
+        429,
+        { error: { code: "RATE_LIMITED" } },
+        { "Retry-After": "17" }
+      );
+      return;
+    }
+    response.writeHead(202, { "Cache-Control": "no-store" }).end();
+    return;
+  }
+
   if (request.method === "POST" && pathname === "/v1/auth/verify-email") {
     const body = await readJson(request);
     authRequests.push({
@@ -180,6 +217,27 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "POST" && pathname === "/v1/auth/reset-password") {
+    const body = await readJson(request);
+    authRequests.push({
+      path: "reset",
+      hasToken: typeof body.token === "string",
+      hasPassword: typeof body.password === "string",
+    });
+    if (authMode.resetDown) {
+      sendJson(response, 503, { error: { code: "INTERNAL_ERROR" } });
+      return;
+    }
+    if (typeof body.token !== "string" || body.token.startsWith("invalid")) {
+      sendJson(response, 400, {
+        error: { code: "AUTH_PASSWORD_RESET_TOKEN_INVALID" },
+      });
+      return;
+    }
+    response.writeHead(204, { "Cache-Control": "no-store" }).end();
+    return;
+  }
+
   if (request.method === "POST" && pathname === "/v1/auth/refresh") {
     const hasRefreshCookie = (request.headers.cookie ?? "").includes(
       "__Host-aihub_refresh="
@@ -190,6 +248,11 @@ const server = createServer(async (request, response) => {
         error: { code: "AUTH_REFRESH_TOKEN_INVALID" },
       });
       return;
+    }
+    if (authMode.refreshHold) {
+      await new Promise((resolve) => {
+        releaseRefresh = resolve;
+      });
     }
     const refreshNumber = authRequests.filter(
       (entry) => entry.path === "refresh"

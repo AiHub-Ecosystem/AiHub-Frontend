@@ -37,6 +37,14 @@ Proof that a User Account controls its registered email address; an unverified U
 **Verification Token**:
 An expiring proof used for Email Verification. Resending while an account is pending invalidates earlier tokens; the exact token that activated an active account continues to succeed until it expires.
 
+**Password Recovery**:
+A request to email password-reset instructions without revealing whether an address belongs to a User Account.
+_Avoid_: forgot-password request
+
+**Password Reset Token**:
+An expiring, one-time credential emailed for Password Recovery. A newer request replaces it, and a successful reset consumes it and revokes every existing AIHUB Refresh Token.
+_Avoid_: Verification Token, recovery link
+
 **Organization**:
 The tenant that owns API keys, members, and identity configuration; one User Account may belong to several.
 _Avoid_: team, workspace, tenant, company
