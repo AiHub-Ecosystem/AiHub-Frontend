@@ -4,13 +4,8 @@ import {
   touchWebSession,
   WEB_SESSION_COOKIE,
   WEB_SESSION_TTL_SECONDS,
+  webSessionCookie,
 } from "@/lib/auth-session";
-
-function sessionCookie(value: string) {
-  return `${WEB_SESSION_COOKIE}=${value}; Path=/; Max-Age=${WEB_SESSION_TTL_SECONDS}; HttpOnly; Secure; SameSite=Strict`;
-}
-
-const clearCookie = `${WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`;
 
 export async function POST(request: Request) {
   if (!originIsAllowed(request))
@@ -28,7 +23,10 @@ export async function POST(request: Request) {
   if (!isWebSessionId(sessionId)) {
     return new Response(null, {
       status: 401,
-      headers: { "Cache-Control": "no-store", "Set-Cookie": clearCookie },
+      headers: {
+        "Cache-Control": "no-store",
+        "Set-Cookie": webSessionCookie("", 0),
+      },
     });
   }
   try {
@@ -37,7 +35,10 @@ export async function POST(request: Request) {
       status: active ? 204 : 401,
       headers: {
         "Cache-Control": "no-store",
-        "Set-Cookie": active ? sessionCookie(sessionId) : clearCookie,
+        "Set-Cookie": webSessionCookie(
+          active ? sessionId : "",
+          active ? WEB_SESSION_TTL_SECONDS : 0
+        ),
       },
     });
   } catch {

@@ -5,6 +5,10 @@ export const WEB_SESSION_COOKIE = "__Host-aihub_web_session";
 export const AIHUB_REFRESH_COOKIE = "__Host-aihub_refresh";
 export const WEB_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 
+export function webSessionCookie(value: string, maxAge: number) {
+  return `${WEB_SESSION_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Strict`;
+}
+
 type WebSession = {
   accessToken: string;
   accessTokenExpiresAt: number;

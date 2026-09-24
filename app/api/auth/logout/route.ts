@@ -6,9 +6,8 @@ import {
   customerWebOrigin,
   originIsAllowed,
   WEB_SESSION_COOKIE,
+  webSessionCookie,
 } from "@/lib/auth-session";
-
-const clearCookie = `${WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`;
 
 export async function POST(request: Request) {
   if (!originIsAllowed(request))
@@ -54,7 +53,7 @@ export async function POST(request: Request) {
       "Cache-Control": "no-store",
       "Clear-Site-Data": '"cache"',
       Location: new URL("/", customerWebOrigin()).toString(),
-      "Set-Cookie": clearCookie,
+      "Set-Cookie": webSessionCookie("", 0),
     },
   });
 }

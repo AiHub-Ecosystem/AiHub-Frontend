@@ -5,8 +5,8 @@ import {
   extractRefreshToken,
   originIsAllowed,
   safeLocalPath,
-  WEB_SESSION_COOKIE,
   WEB_SESSION_TTL_SECONDS,
+  webSessionCookie,
 } from "@/lib/auth-session";
 
 const noStore = { "Cache-Control": "no-store" };
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
       headers: {
         ...noStore,
         Location: new URL(next, customerWebOrigin()).toString(),
-        "Set-Cookie": `${WEB_SESSION_COOKIE}=${sessionId}; Path=/; Max-Age=${WEB_SESSION_TTL_SECONDS}; HttpOnly; Secure; SameSite=Strict`,
+        "Set-Cookie": webSessionCookie(sessionId, WEB_SESSION_TTL_SECONDS),
       },
     });
   } catch {
