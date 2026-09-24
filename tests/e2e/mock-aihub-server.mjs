@@ -7,13 +7,21 @@ const authRequests = [];
 const organizationRequests = [];
 let organizationConfig = {
   roster: [],
+  apiKeys: [],
   unavailable: false,
   creationLimit: false,
   renameDenied: false,
   createUncertainOnce: false,
+  createKeyUncertainOnce: false,
+  rotateKeyUncertainOnce: false,
+  apiKeyLimitReached: false,
+  apiKeyEntitlementDenied: false,
 };
 const createdOrganizations = new Map();
 let uncertainCreationUsed = false;
+let uncertainApiKeyCreationUsed = false;
+let uncertainApiKeyRotationUsed = false;
+let apiKeySequence = 0;
 const knownForeignOrganizationIds = new Set(["foreign-org-known"]);
 let authMode = {
   refreshUnauthorized: false,
@@ -73,12 +81,20 @@ const server = createServer(async (request, response) => {
     createdOrganizations.clear();
     organizationConfig = {
       roster: [],
+      apiKeys: [],
       unavailable: false,
       creationLimit: false,
       renameDenied: false,
       createUncertainOnce: false,
+      createKeyUncertainOnce: false,
+      rotateKeyUncertainOnce: false,
+      apiKeyLimitReached: false,
+      apiKeyEntitlementDenied: false,
     };
     uncertainCreationUsed = false;
+    uncertainApiKeyCreationUsed = false;
+    uncertainApiKeyRotationUsed = false;
+    apiKeySequence = 0;
     response.writeHead(204).end();
     return;
   }
@@ -118,6 +134,197 @@ const server = createServer(async (request, response) => {
       return;
     }
     sendJson(response, 200, { data: organizationConfig.roster });
+    return;
+  }
+
+  const apiKeyListMatch = pathname.match(
+    /^\/v1\/organizations\/([^/]+)\/api-keys$/
+  );
+  if (
+    (request.method === "GET" || request.method === "POST") &&
+    apiKeyListMatch
+  ) {
+    const organizationId = decodeURIComponent(apiKeyListMatch[1]);
+    const membership = organizationConfig.roster.find(
+      (item) =>
+        (item.organization?.id ?? item.organization_id) === organizationId
+    );
+    const role = membership?.membership_role ?? membership?.role;
+    const status =
+      membership?.organization?.status ?? membership?.organization_status;
+    if (
+      !membership ||
+      !["owner", "admin"].includes(role) ||
+      status !== "active"
+    ) {
+      organizationRequests.push({
+        method: request.method,
+        path: request.method === "GET" ? "list-api-keys" : "create-api-key",
+        organizationId,
+      });
+      sendJson(response, 403, {
+        error: { code: "FORBIDDEN", message: "private detail" },
+      });
+      return;
+    }
+
+    if (request.method === "GET") {
+      organizationRequests.push({ method: "GET", path: "list-api-keys" });
+      sendJson(response, 200, {
+        data: {
+          api_keys: (organizationConfig.apiKeys ?? []).filter(
+            (key) => key.status !== "revoked"
+          ),
+        },
+        meta: { request_id: "local-mock" },
+      });
+      return;
+    }
+
+    const body = await readJson(request);
+    organizationRequests.push({
+      method: "POST",
+      path: "create-api-key",
+      organizationId,
+      scopes: body.scopes,
+      allowed_environments: body.allowed_environments,
+    });
+    if (organizationConfig.apiKeyLimitReached) {
+      sendJson(response, 403, { error: { code: "API_KEY_LIMIT_REACHED" } });
+      return;
+    }
+    if (organizationConfig.apiKeyEntitlementDenied) {
+      sendJson(response, 403, {
+        error: { code: "API_KEY_SCOPE_NOT_ENTITLED" },
+      });
+      return;
+    }
+
+    apiKeySequence += 1;
+    const suffix = String(apiKeySequence).padStart(26, "0");
+    const apiKey = {
+      id: `ak_${suffix}`,
+      name: body.name,
+      key_prefix: "aihub_sk_ABC123",
+      scopes: body.scopes,
+      allowed_environments: body.allowed_environments,
+      status: "active",
+      expires_at: body.expires_at ?? null,
+      last_used_at: null,
+      created_at: new Date().toISOString(),
+    };
+    organizationConfig.apiKeys ??= [];
+    organizationConfig.apiKeys.unshift(apiKey);
+    if (
+      organizationConfig.createKeyUncertainOnce &&
+      !uncertainApiKeyCreationUsed
+    ) {
+      uncertainApiKeyCreationUsed = true;
+      sendJson(response, 503, {
+        error: { code: "LOCAL_MOCK_UNCERTAIN_RESULT" },
+      });
+      return;
+    }
+    sendJson(
+      response,
+      201,
+      {
+        data: {
+          ...apiKey,
+          api_key: `aihub_sk_${"A".repeat(43)}`,
+        },
+        meta: { request_id: "local-mock" },
+      },
+      { "Cache-Control": "no-store" }
+    );
+    return;
+  }
+
+  const apiKeyRotateMatch = pathname.match(
+    /^\/v1\/organizations\/([^/]+)\/api-keys\/([^/]+)\/rotate$/
+  );
+  if (request.method === "POST" && apiKeyRotateMatch) {
+    const organizationId = decodeURIComponent(apiKeyRotateMatch[1]);
+    const apiKeyId = decodeURIComponent(apiKeyRotateMatch[2]);
+    const oldKey = (organizationConfig.apiKeys ?? []).find(
+      (key) => key.id === apiKeyId && key.status === "active"
+    );
+    organizationRequests.push({
+      method: "POST",
+      path: "rotate-api-key",
+      organizationId,
+      apiKeyId,
+      hasIdempotencyKey: Boolean(request.headers["idempotency-key"]),
+    });
+    if (!oldKey) {
+      sendJson(response, 403, { error: { code: "FORBIDDEN" } });
+      return;
+    }
+    apiKeySequence += 1;
+    const suffix = String(apiKeySequence).padStart(26, "0");
+    const replacement = {
+      ...oldKey,
+      id: `ak_${suffix}`,
+      key_prefix: "aihub_sk_ROTATE",
+      status: "active",
+      last_used_at: null,
+      created_at: new Date().toISOString(),
+    };
+    organizationConfig.apiKeys = [
+      replacement,
+      ...(organizationConfig.apiKeys ?? []).filter(
+        (key) => key.id !== apiKeyId
+      ),
+    ];
+    if (
+      organizationConfig.rotateKeyUncertainOnce &&
+      !uncertainApiKeyRotationUsed
+    ) {
+      uncertainApiKeyRotationUsed = true;
+      sendJson(response, 503, {
+        error: { code: "LOCAL_MOCK_UNCERTAIN_RESULT" },
+      });
+      return;
+    }
+    sendJson(
+      response,
+      200,
+      {
+        data: {
+          ...replacement,
+          api_key: `aihub_sk_${"B".repeat(43)}`,
+        },
+        meta: { request_id: "local-mock" },
+      },
+      { "Cache-Control": "no-store" }
+    );
+    return;
+  }
+
+  const apiKeyRevokeMatch = pathname.match(
+    /^\/v1\/organizations\/([^/]+)\/api-keys\/([^/]+)$/
+  );
+  if (request.method === "DELETE" && apiKeyRevokeMatch) {
+    const apiKeyId = decodeURIComponent(apiKeyRevokeMatch[2]);
+    const revoked = (organizationConfig.apiKeys ?? []).find(
+      (key) => key.id === apiKeyId
+    );
+    organizationRequests.push({
+      method: "DELETE",
+      path: "revoke-api-key",
+      apiKeyId,
+    });
+    if (!revoked) {
+      sendJson(response, 404, { error: { code: "NOT_FOUND" } });
+      return;
+    }
+    organizationConfig.apiKeys = (organizationConfig.apiKeys ?? []).filter(
+      (key) => key.id !== apiKeyId
+    );
+    sendJson(response, 200, {
+      data: { ...revoked, status: "revoked" },
+      meta: { request_id: "local-mock" },
+    });
     return;
   }
 

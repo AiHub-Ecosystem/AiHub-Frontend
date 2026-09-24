@@ -5,8 +5,10 @@ import { readOrganizationRoster } from "@/lib/organization-server";
 import { SessionActivity } from "@/components/session-activity";
 import { OrganizationSwitcher } from "@/components/organizations/organization-switcher";
 import { RosterUnavailable } from "@/components/organizations/roster-unavailable";
+import { ApiKeyManager } from "@/components/organizations/api-key-manager";
 import "../../../../aihub.css";
 import "../../../../auth.css";
+import "../../../../api-keys.css";
 
 export const metadata: Metadata = { title: "API keys — AIHub" };
 export const dynamic = "force-dynamic";
@@ -34,11 +36,14 @@ export default async function OrganizationApiKeysPage({
           <p className="aihub-eyebrow">AIHub Console · Organization</p>
           <h1 className="aihub-title">{organization.name} · API keys</h1>
           <p className="aihub-lede">
-            Trang API keys của Organization. Quản lý API keys sẽ có trong phần
-            tiếp theo.
+            Tạo, xoay và thu hồi API keys dùng để kết nối dịch vụ của
+            Organization.
           </p>
-          <p>Membership Role: {organization.membershipRole}</p>
           <OrganizationSwitcher roster={roster} selectedId={organization.id} />
+          <ApiKeyManager
+            entitlements={organization.entitlements ?? []}
+            organizationId={organization.id}
+          />
         </div>
       </main>
     </>

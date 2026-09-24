@@ -3,6 +3,7 @@ export type OrganizationMembership = {
   name: string;
   status: "active" | "suspended";
   membershipRole: "owner" | "admin" | "member";
+  entitlements?: string[];
 };
 
 export function validatedOrganizationName(value: unknown): string | null {
@@ -53,6 +54,7 @@ export function parseOrganizationRoster(
       organization?.status ??
       organization?.organization_status ??
       row?.organization_status;
+    const rawEntitlements = organization?.entitlements;
     const membershipRole = row?.membership_role ?? row?.role;
     if (
       typeof id !== "string" ||
@@ -64,7 +66,21 @@ export function parseOrganizationRoster(
         membershipRole !== "member")
     )
       return null;
-    roster.push({ id, name, status, membershipRole });
+    if (
+      rawEntitlements !== undefined &&
+      (!Array.isArray(rawEntitlements) ||
+        rawEntitlements.some((entitlement) => typeof entitlement !== "string"))
+    )
+      return null;
+    roster.push({
+      id,
+      name,
+      status,
+      membershipRole,
+      ...(Array.isArray(rawEntitlements)
+        ? { entitlements: rawEntitlements as string[] }
+        : {}),
+    });
   }
   return roster;
 }

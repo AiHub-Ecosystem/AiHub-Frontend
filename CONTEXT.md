@@ -15,7 +15,7 @@ The signed-in area of the Customer Web where a User Account manages its Organiza
 _Avoid_: dashboard, admin panel, workspace
 
 **BFF**:
-The Customer Web's own server routes; the only part of the app that talks to AIHUB, holding every token and API key so the browser never sees one.
+The Customer Web's own server routes and the only part of the app that talks to AIHUB. It holds the Web Session credentials and API keys; a newly issued raw API key passes to the browser once for immediate display.
 _Avoid_: proxy, gateway
 
 **Web Session**:
@@ -49,9 +49,15 @@ _Avoid_: Verification Token, recovery link
 The tenant that owns API keys, members, and identity configuration; one User Account may belong to several.
 _Avoid_: team, workspace, tenant, company
 
+**Organization Roster**:
+The Organizations where a User Account has an active membership, including suspended Organizations, with each Membership Role and Organization status.
+
 **Self-serve Organization**:
 An Organization a User Account created in the Console, starting on limited default terms that only AIHUB operators can raise.
 _Avoid_: trial org, free org
+
+**Organization Creation Limit**:
+A User Account may create at most three Self-serve Organizations over its lifetime, regardless of its current Organization memberships.
 
 **Membership Role**:
 A User Account's authority inside one Organization: `owner`, `admin`, or `member`.
@@ -64,7 +70,7 @@ _Avoid_: invite link, join request
 ### Integration
 
 **API key**:
-The Organization's secret credential for calling AIHUB grading APIs from the Organization's own backend; shown once at creation.
+The Organization's secret credential for calling AIHUB grading APIs from the Organization's own backend; its raw value is shown once after creation or rotation and cannot be retrieved again.
 _Avoid_: token, secret, access key
 
 **Identity configuration**:
