@@ -7,16 +7,13 @@ import {
   useState,
   type FormEvent,
 } from "react";
+import {
+  boundedRetry,
+  type AuthError,
+} from "@/components/auth/auth-form-utils";
 
-type AuthError = { code?: unknown; retry_after_seconds?: unknown };
 const RESEND_ACCEPTED =
   "Nếu địa chỉ email này có User Account, chúng tôi sẽ gửi hướng dẫn phù hợp.";
-
-function boundedRetry(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value)
-    ? Math.min(3600, Math.max(1, Math.ceil(value)))
-    : 60;
-}
 
 export function VerifyEmail() {
   const started = useRef(false);

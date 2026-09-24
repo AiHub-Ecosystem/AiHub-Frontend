@@ -6,7 +6,6 @@ const requests = [];
 const authRequests = [];
 let authMode = {
   refreshUnauthorized: false,
-  refreshHold: false,
   logoutDown: false,
   registerDown: false,
   resendDown: false,
@@ -14,7 +13,6 @@ let authMode = {
   forgotDown: false,
   resetDown: false,
 };
-let releaseRefresh;
 
 function sendJson(response, status, body, headers = {}) {
   response.writeHead(status, {
@@ -50,12 +48,9 @@ const server = createServer(async (request, response) => {
   }
 
   if (request.method === "POST" && pathname === "/__test__/auth/reset") {
-    releaseRefresh?.();
-    releaseRefresh = undefined;
     authRequests.length = 0;
     authMode = {
       refreshUnauthorized: false,
-      refreshHold: false,
       logoutDown: false,
       registerDown: false,
       resendDown: false,
@@ -68,12 +63,7 @@ const server = createServer(async (request, response) => {
   }
 
   if (request.method === "POST" && pathname === "/__test__/auth/mode") {
-    const requestedMode = await readJson(request);
-    authMode = { ...authMode, ...requestedMode };
-    if (requestedMode.refreshHold === false) {
-      releaseRefresh?.();
-      releaseRefresh = undefined;
-    }
+    authMode = { ...authMode, ...(await readJson(request)) };
     response.writeHead(204).end();
     return;
   }
@@ -248,11 +238,6 @@ const server = createServer(async (request, response) => {
         error: { code: "AUTH_REFRESH_TOKEN_INVALID" },
       });
       return;
-    }
-    if (authMode.refreshHold) {
-      await new Promise((resolve) => {
-        releaseRefresh = resolve;
-      });
     }
     const refreshNumber = authRequests.filter(
       (entry) => entry.path === "refresh"

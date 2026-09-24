@@ -62,6 +62,15 @@ export function isWebSessionId(value: string | undefined): value is string {
   return !!value && /^[A-Za-z0-9_-]{43}$/.test(value);
 }
 
+export function webSessionIdFromRequest(request: Request) {
+  return request.headers
+    .get("cookie")
+    ?.split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${WEB_SESSION_COOKIE}=`))
+    ?.slice(WEB_SESSION_COOKIE.length + 1);
+}
+
 export async function getWebSession(id: string): Promise<WebSession | null> {
   if (!isWebSessionId(id)) return null;
   const stored = await (await redis()).get(sessionKey(id));
@@ -81,12 +90,7 @@ export async function getWebSession(id: string): Promise<WebSession | null> {
 }
 
 export async function requireWebSession(request: Request) {
-  const sessionId = request.headers
-    .get("cookie")
-    ?.split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${WEB_SESSION_COOKIE}=`))
-    ?.slice(WEB_SESSION_COOKIE.length + 1);
+  const sessionId = webSessionIdFromRequest(request);
   const headers = {
     "Cache-Control": "no-store",
     "Content-Type": "application/json",

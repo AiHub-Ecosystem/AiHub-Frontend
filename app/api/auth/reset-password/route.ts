@@ -7,18 +7,9 @@ import {
   deleteWebSession,
   isWebSessionId,
   originIsAllowed,
-  WEB_SESSION_COOKIE,
+  webSessionIdFromRequest,
   webSessionCookie,
 } from "@/lib/auth-session";
-
-function sessionIdFrom(request: Request) {
-  return request.headers
-    .get("cookie")
-    ?.split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${WEB_SESSION_COOKIE}=`))
-    ?.slice(WEB_SESSION_COOKIE.length + 1);
-}
 
 export async function POST(request: Request) {
   if (!originIsAllowed(request))
@@ -64,7 +55,7 @@ export async function POST(request: Request) {
     );
 
   if (upstream.status === 204) {
-    const sessionId = sessionIdFrom(request);
+    const sessionId = webSessionIdFromRequest(request);
     if (isWebSessionId(sessionId)) {
       try {
         await deleteWebSession(sessionId);

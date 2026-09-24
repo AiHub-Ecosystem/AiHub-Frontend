@@ -2,8 +2,8 @@ import {
   isWebSessionId,
   originIsAllowed,
   touchWebSession,
-  WEB_SESSION_COOKIE,
   WEB_SESSION_TTL_SECONDS,
+  webSessionIdFromRequest,
   webSessionCookie,
 } from "@/lib/auth-session";
 
@@ -13,12 +13,7 @@ export async function POST(request: Request) {
       status: 403,
       headers: { "Cache-Control": "no-store" },
     });
-  const sessionId = request.headers
-    .get("cookie")
-    ?.split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${WEB_SESSION_COOKIE}=`))
-    ?.slice(WEB_SESSION_COOKIE.length + 1);
+  const sessionId = webSessionIdFromRequest(request);
 
   if (!isWebSessionId(sessionId)) {
     return new Response(null, {

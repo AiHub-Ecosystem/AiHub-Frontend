@@ -5,7 +5,7 @@ import {
   logoutFromAihub,
   customerWebOrigin,
   originIsAllowed,
-  WEB_SESSION_COOKIE,
+  webSessionIdFromRequest,
   webSessionCookie,
 } from "@/lib/auth-session";
 
@@ -16,12 +16,7 @@ export async function POST(request: Request) {
       headers: { "Cache-Control": "no-store" },
     });
 
-  const sessionId = request.headers
-    .get("cookie")
-    ?.split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${WEB_SESSION_COOKIE}=`))
-    ?.slice(WEB_SESSION_COOKIE.length + 1);
+  const sessionId = webSessionIdFromRequest(request);
 
   if (isWebSessionId(sessionId)) {
     let refreshToken: string | undefined;

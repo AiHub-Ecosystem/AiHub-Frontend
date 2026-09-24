@@ -567,9 +567,6 @@ test("sign-out during token refresh cannot recreate the Web Session", async ({
   request,
 }) => {
   await resetAuthMock(request);
-  await request.post(`${mockUrl}/__test__/auth/mode`, {
-    data: { refreshHold: true },
-  });
   const cookie = await createSession(request, "expiring@example.test");
   await new Promise((resolve) => setTimeout(resolve, 2_100));
 
@@ -585,17 +582,11 @@ test("sign-out during token refresh cannot recreate the Web Session", async ({
     })
     .toBe(1);
 
-  try {
-    const logout = await request.post(`${appUrl}/api/auth/logout`, {
-      headers: { Origin: appUrl, Cookie: cookie },
-      maxRedirects: 0,
-    });
-    expect(logout.status()).toBe(303);
-  } finally {
-    await request.post(`${mockUrl}/__test__/auth/mode`, {
-      data: { refreshHold: false },
-    });
-  }
+  const logout = await request.post(`${appUrl}/api/auth/logout`, {
+    headers: { Origin: appUrl, Cookie: cookie },
+    maxRedirects: 0,
+  });
+  expect(logout.status()).toBe(303);
   expect(await (await consoleResponse).text()).toContain("Đăng nhập");
 
   const protectedPage = await request.get(`${appUrl}/console`, {
