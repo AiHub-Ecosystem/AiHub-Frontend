@@ -31,8 +31,8 @@ describe("organization routing", () => {
     }
   );
 
-  it("chooses create, one-organization destination, or picker by roster size", () => {
-    expect(organizationLanding([])).toBe("/console/orgs/new");
+  it("chooses the detail page or organization directory by roster size", () => {
+    expect(organizationLanding([])).toBe("/console/orgs");
     expect(organizationLanding([membership("owner")])).toBe(
       "/console/orgs/org-123456789/api-keys"
     );
@@ -41,7 +41,7 @@ describe("organization routing", () => {
         membership("owner"),
         membership("member", "active", "org-another"),
       ])
-    ).toBe("/console");
+    ).toBe("/console/orgs");
   });
 });
 

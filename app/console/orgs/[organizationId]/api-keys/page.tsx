@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { requirePageWebSession } from "@/lib/page-session";
 import { readOrganizationRoster } from "@/lib/organization-server";
 import { SessionActivity } from "@/components/session-activity";
-import { OrganizationSwitcher } from "@/components/organizations/organization-switcher";
 import { RosterUnavailable } from "@/components/organizations/roster-unavailable";
 import { ApiKeyManager } from "@/components/organizations/api-key-manager";
 import "../../../../aihub.css";
@@ -39,7 +39,9 @@ export default async function OrganizationApiKeysPage({
             Tạo, xoay và thu hồi API keys dùng để kết nối dịch vụ của
             Organization.
           </p>
-          <OrganizationSwitcher roster={roster} selectedId={organization.id} />
+          <Link className="organization-back-link" href="/console/orgs">
+            ← Tất cả Organizations
+          </Link>
           <ApiKeyManager
             entitlements={organization.entitlements}
             organizationId={organization.id}

@@ -45,7 +45,11 @@ export default async function OrganizationOverviewPage({
                 name={organization.name}
               />
             )}
-          <OrganizationSwitcher roster={roster} selectedId={organization.id} />
+          <OrganizationSwitcher
+            roster={roster}
+            selectedId={organization.id}
+            showCreate={false}
+          />
         </div>
       </main>
     </>

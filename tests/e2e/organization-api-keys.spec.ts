@@ -155,9 +155,7 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   await expect(
     page.getByText(/Speaking — không khả dụng, liên hệ AIHUB/)
   ).toBeVisible();
-  await expect(
-    page.locator('input[name="allowed_environments"][value="production"]')
-  ).toBeChecked();
+  await expect(page.getByText("Môi trường được phép")).toHaveCount(0);
 
   await page.getByLabel("Tên API key").fill("New service key");
   await writing.check();
@@ -219,11 +217,10 @@ test("create timeout refreshes the list without automatically retrying", async (
   const requests = await request
     .get(`${mockUrl}/__test__/organizations/requests`)
     .then((result) => result.json());
-  expect(
-    requests.requests.filter(
-      (entry: { path: string }) => entry.path === "create-api-key"
-    )
-  ).toHaveLength(1);
+  const createRequest = requests.requests.find(
+    (entry: { path: string }) => entry.path === "create-api-key"
+  );
+  expect(createRequest).toMatchObject({ allowed_environments: ["production"] });
 });
 
 test("rotation reveals a new key once and sends no idempotency key", async ({

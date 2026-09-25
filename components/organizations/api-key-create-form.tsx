@@ -41,7 +41,6 @@ export function ApiKeyCreateForm({
     const values = new FormData(form);
     const name = values.get("name");
     const selectedScopes = values.getAll("scopes");
-    const environments = values.getAll("allowed_environments");
     const expiryInput = values.get("expires_at");
     if (typeof name !== "string" || !name.trim() || name.trim().length > 100) {
       setValidationError("Tên API key phải có từ 1 đến 100 ký tự.");
@@ -54,11 +53,6 @@ export function ApiKeyCreateForm({
       setValidationError("Chọn ít nhất một scope được phép.");
       return;
     }
-    if (environments.length === 0) {
-      setValidationError("Chọn ít nhất một môi trường.");
-      return;
-    }
-
     let expiresAt: string | undefined;
     if (typeof expiryInput === "string" && expiryInput) {
       const expiryTime = new Date(expiryInput).getTime();
@@ -79,7 +73,7 @@ export function ApiKeyCreateForm({
     const succeeded = await onCreate({
       name: name.trim(),
       scopes: selectedScopes as string[],
-      allowed_environments: environments as string[],
+      allowed_environments: ["production"],
       ...(expiresAt ? { expires_at: expiresAt } : {}),
     });
     if (succeeded === true) {
@@ -107,7 +101,7 @@ export function ApiKeyCreateForm({
           <DialogHeader>
             <DialogTitle>Tạo API key</DialogTitle>
             <DialogDescription id="api-key-create-description">
-              Chọn quyền và môi trường đúng với nhu cầu tích hợp.
+              Chọn các quyền API cần cho tích hợp của bạn.
             </DialogDescription>
           </DialogHeader>
           <form className="api-key-form" onSubmit={submit}>
@@ -144,27 +138,6 @@ export function ApiKeyCreateForm({
               <p className="api-key-help">
                 Chỉ chọn scope cần thiết. Chọn ít nhất một scope.
               </p>
-            </fieldset>
-
-            <fieldset className="api-key-options">
-              <legend>Môi trường được phép</legend>
-              <label className="api-key-option">
-                <input
-                  type="checkbox"
-                  name="allowed_environments"
-                  value="production"
-                  defaultChecked
-                />
-                production
-              </label>
-              <label className="api-key-option">
-                <input
-                  type="checkbox"
-                  name="allowed_environments"
-                  value="staging"
-                />
-                staging
-              </label>
             </fieldset>
 
             <label htmlFor="api-key-expires-at">

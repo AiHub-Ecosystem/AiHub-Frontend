@@ -23,9 +23,9 @@ export function organizationDestination(organization: OrganizationMembership) {
 }
 
 export function organizationLanding(roster: OrganizationMembership[]) {
-  if (roster.length === 0) return "/console/orgs/new";
+  if (roster.length === 0) return "/console/orgs";
   if (roster.length === 1) return organizationDestination(roster[0]);
-  return "/console";
+  return "/console/orgs";
 }
 
 function record(value: unknown): Record<string, unknown> | null {

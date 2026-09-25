@@ -55,9 +55,9 @@ test("sign-in routes zero, owner, admin, member, and suspended rosters", async (
 }) => {
   await setup(request);
   await signIn(page);
-  await expect(page).toHaveURL(/\/console\/orgs\/new$/);
+  await expect(page).toHaveURL(/\/console\/orgs$/);
   await expect(
-    page.getByRole("heading", { name: "Tạo Organization" })
+    page.getByRole("heading", { name: "Organizations" })
   ).toBeVisible();
 
   await setup(request, [org("owner-id", "Owner Org")]);
@@ -99,13 +99,17 @@ test("multiple organizations show role, status, and short IDs for duplicate name
     org("org-98765432", "Same name", "member"),
   ]);
   await signIn(page);
-  await expect(page).toHaveURL(/\/console$/);
-  const picker = page.getByRole("navigation", { name: "Organizations" });
-  await expect(picker.getByText("owner · active")).toBeVisible();
-  await expect(picker.getByText("member · active")).toBeVisible();
-  await expect(picker.getByText("12345678", { exact: true })).toBeVisible();
-  await expect(picker.getByText("98765432", { exact: true })).toBeVisible();
-  await picker.getByRole("link", { name: /Same name.*member/ }).click();
+  await expect(page).toHaveURL(/\/console\/orgs$/);
+  const organizations = page.getByRole("list", { name: "Organizations" });
+  await expect(organizations.getByText("owner")).toBeVisible();
+  await expect(organizations.getByText("member")).toBeVisible();
+  await expect(
+    organizations.getByText("12345678", { exact: true })
+  ).toBeVisible();
+  await expect(
+    organizations.getByText("98765432", { exact: true })
+  ).toBeVisible();
+  await organizations.getByRole("link", { name: /Same name.*member/ }).click();
   await expect(page).toHaveURL(/\/console\/orgs\/org-98765432$/);
 });
 
@@ -151,8 +155,11 @@ test("create uses server BFF and ignores a double click", async ({
 }) => {
   await setup(request);
   await signIn(page);
+  await page.getByRole("button", { name: "Tạo Organization" }).click();
   await page.getByLabel("Tên Organization").fill("  New Org  ");
-  const submit = page.getByRole("button", { name: "Tạo Organization" });
+  const submit = page
+    .locator("form.auth-form")
+    .getByRole("button", { name: "Tạo Organization" });
   await submit.dblclick();
   await expect(page).toHaveURL(
     /\/console\/orgs\/org-created-12345678\/api-keys$/
@@ -171,12 +178,19 @@ test("uncertain Organization creation can be retried safely", async ({
 }) => {
   await setup(request, [], { createUncertainOnce: true });
   await signIn(page);
-  await page.getByLabel("Tên Organization").fill("Retry Org");
   await page.getByRole("button", { name: "Tạo Organization" }).click();
+  await page.getByLabel("Tên Organization").fill("Retry Org");
+  await page
+    .locator("form.auth-form")
+    .getByRole("button", { name: "Tạo Organization" })
+    .click();
   await expect(page.locator("form.auth-form").getByRole("alert")).toContainText(
     "thử lại an toàn"
   );
-  await page.getByRole("button", { name: "Tạo Organization" }).click();
+  await page
+    .locator("form.auth-form")
+    .getByRole("button", { name: "Tạo Organization" })
+    .click();
   await expect(page).toHaveURL(
     /\/console\/orgs\/org-created-12345678\/api-keys$/
   );
@@ -189,8 +203,12 @@ test("uncertain Organization creation can be retried safely", async ({
 test("creation limit explains the next step", async ({ page, request }) => {
   await setup(request, [], { creationLimit: true });
   await signIn(page);
-  await page.getByLabel("Tên Organization").fill("Another Org");
   await page.getByRole("button", { name: "Tạo Organization" }).click();
+  await page.getByLabel("Tên Organization").fill("Another Org");
+  await page
+    .locator("form.auth-form")
+    .getByRole("button", { name: "Tạo Organization" })
+    .click();
   await expect(page.locator("form.auth-form").getByRole("alert")).toContainText(
     "Organization Creation Limit"
   );
