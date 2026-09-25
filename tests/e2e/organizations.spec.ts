@@ -240,9 +240,9 @@ test("owner can save a JWKS URL and the readiness reminder clears", async ({
   await page
     .getByRole("button", { name: "Lưu identity configuration" })
     .click();
-  await expect(
-    page.locator(".identity-dialog .identity-safe-notice")
-  ).toContainText("Đã lưu identity configuration");
+  await expect(page.locator(".identity-form [role=status]")).toContainText(
+    "Đã lưu identity configuration"
+  );
   await page.goto("/console/orgs/identity-url");
   await expect(page.getByText("Identity setup chưa hoàn tất")).toHaveCount(0);
   await expect(
@@ -492,8 +492,9 @@ test("a 403 while loading identity settings refreshes the roster and hides all c
           (item: { path: string }) => item.path === "roster"
         ).length
     );
-  await signIn(page, false);
-  await page.goto("/console/orgs/identity-get-forbidden/identity");
+  await signIn(page);
+  await page.goto("/console/orgs/identity-get-forbidden");
+  await page.getByRole("button", { name: "Cấu hình identity" }).click();
   await expect(
     page.locator(".identity-dialog .identity-safe-notice")
   ).toContainText("Không có issuer hoặc JWKS nào được hiển thị");
