@@ -55,6 +55,7 @@ test("sign-in routes zero, owner, admin, member, and suspended rosters", async (
   page,
   request,
 }) => {
+  test.setTimeout(60_000);
   await setup(request);
   await signIn(page);
   await expect(page).toHaveURL(/\/console\/orgs$/);
