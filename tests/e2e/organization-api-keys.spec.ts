@@ -68,12 +68,14 @@ async function setup(
   });
 }
 
-async function signIn(page: Page) {
+async function signIn(page: Page, openApiKeys = true) {
   await page.context().clearCookies();
   await page.goto("/login");
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(password);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+  await expect(page).toHaveURL(/\/console\/orgs\/org-keys-12345678$/);
+  if (openApiKeys) await page.goto("/console/orgs/org-keys-12345678/api-keys");
 }
 
 test("owner sees active and expired API keys with their metadata", async ({
@@ -311,7 +313,7 @@ test("members and suspended Organizations never request the API-key list", async
   request,
 }) => {
   await setup(request, { membershipRole: "member" });
-  await signIn(page);
+  await signIn(page, false);
   await expect(page).toHaveURL(/\/console\/orgs\/org-keys-12345678$/);
   await page.goto("/console/orgs/org-keys-12345678/api-keys");
   await expect(page).toHaveURL(/\/console\/orgs\/denied$/);
@@ -320,7 +322,7 @@ test("members and suspended Organizations never request the API-key list", async
     membershipRole: "owner",
     organizationStatus: "suspended",
   });
-  await signIn(page);
+  await signIn(page, false);
   await expect(page).toHaveURL(/\/console\/orgs\/org-keys-12345678$/);
   await page.goto("/console/orgs/org-keys-12345678/api-keys");
   await expect(page).toHaveURL(/\/console\/orgs\/denied$/);

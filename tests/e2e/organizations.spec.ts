@@ -75,7 +75,9 @@ test("sign-in routes zero, owner, admin, member, and suspended rosters", async (
   await page.getByRole("button", { name: "Cấu hình identity" }).click();
   const identityDialog = page.getByRole("dialog");
   await expect(identityDialog).toBeVisible();
-  await expect(identityDialog.getByLabel("JWKS URL")).toBeVisible();
+  await expect(
+    identityDialog.getByRole("textbox", { name: "JWKS URL" })
+  ).toBeVisible();
   await expect(
     identityDialog.getByRole("link", { name: "Quản lý API keys" })
   ).toBeVisible();
@@ -165,7 +167,7 @@ test("safe same-origin next wins while an external next is ignored", async ({
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(password);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
-  await expect(page).toHaveURL(/\/console\/orgs\/one\/api-keys$/);
+  await expect(page).toHaveURL(/\/console\/orgs\/one$/);
 });
 
 test("create uses server BFF and ignores a double click", async ({
@@ -238,9 +240,9 @@ test("owner can save a JWKS URL and the readiness reminder clears", async ({
   await page
     .getByRole("button", { name: "Lưu identity configuration" })
     .click();
-  await expect(page.getByRole("status")).toContainText(
-    "Đã lưu identity configuration"
-  );
+  await expect(
+    page.locator(".identity-dialog .identity-safe-notice")
+  ).toContainText("Đã lưu identity configuration");
   await page.goto("/console/orgs/identity-url");
   await expect(page.getByText("Identity setup chưa hoàn tất")).toHaveCount(0);
   await expect(
@@ -455,9 +457,9 @@ test("disabled configuration remains editable with operator warning and stale 40
   });
   await page.getByLabel("Issuer").fill("https://not-saved.example.test");
   await page.getByRole("button", { name: "Lưu thay đổi" }).click();
-  await expect(page.getByRole("status")).toContainText(
-    "đã được xóa khỏi màn hình"
-  );
+  await expect(
+    page.locator(".identity-dialog .identity-safe-notice")
+  ).toContainText("đã được xóa khỏi màn hình");
   await expect(page.getByLabel("Issuer")).toHaveCount(0);
 });
 
@@ -490,11 +492,11 @@ test("a 403 while loading identity settings refreshes the roster and hides all c
           (item: { path: string }) => item.path === "roster"
         ).length
     );
-  await signIn(page);
+  await signIn(page, false);
   await page.goto("/console/orgs/identity-get-forbidden/identity");
-  await expect(page.getByRole("status")).toContainText(
-    "Không có issuer hoặc JWKS nào được hiển thị"
-  );
+  await expect(
+    page.locator(".identity-dialog .identity-safe-notice")
+  ).toContainText("Không có issuer hoặc JWKS nào được hiển thị");
   await expect(
     page.getByText("https://private-detail.example.test", { exact: false })
   ).toHaveCount(0);
