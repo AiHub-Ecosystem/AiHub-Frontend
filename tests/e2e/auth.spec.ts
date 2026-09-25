@@ -22,20 +22,20 @@ async function configureConsoleRoster(request: APIRequestContext) {
       data: {
         roster: [
           {
-            organization: {
-              id: "auth-org-1",
-              name: "Auth Org One",
-              status: "active",
-            },
-            membership_role: "owner",
+            organization_id: "auth-org-1",
+            name: "Auth Org One",
+            status: "active",
+            entitlements: ["writing"],
+            membership: { role: "owner" },
+            members: [{ username: "owner", role: "owner" }],
           },
           {
-            organization: {
-              id: "auth-org-2",
-              name: "Auth Org Two",
-              status: "active",
-            },
-            membership_role: "owner",
+            organization_id: "auth-org-2",
+            name: "Auth Org Two",
+            status: "active",
+            entitlements: ["writing"],
+            membership: { role: "owner" },
+            members: [{ username: "owner", role: "owner" }],
           },
         ],
       },

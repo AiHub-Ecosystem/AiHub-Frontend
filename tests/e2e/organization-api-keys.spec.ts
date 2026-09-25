@@ -53,13 +53,12 @@ async function setup(
     data: {
       roster: [
         {
-          organization: {
-            id: "org-keys-12345678",
-            name: "API Keys Org",
-            status: organizationStatus,
-            entitlements,
-          },
-          membership_role: membershipRole,
+          organization_id: "org-keys-12345678",
+          name: "API Keys Org",
+          status: organizationStatus,
+          entitlements,
+          membership: { role: membershipRole },
+          members: [{ username: "owner", role: membershipRole }],
         },
       ],
       apiKeys,
@@ -305,7 +304,7 @@ test("revocation confirms the named key and removes it from the inventory", asyn
   await expect(
     page.getByRole("row", { name: /Expired staging key/ })
   ).toHaveCount(0);
-  await expect(page.getByRole("status")).toContainText("Đã thu hồi API key");
+  await expect(page.getByText("Đã thu hồi API key.")).toBeVisible();
 });
 
 test("members and suspended Organizations never request the API-key list", async ({

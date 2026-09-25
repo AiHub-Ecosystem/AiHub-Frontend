@@ -8,8 +8,12 @@ import {
 const mockUrl = "http://127.0.0.1:3101";
 const password = "correct horse battery staple";
 type RosterItem = {
-  organization: { id: string; name: string; status: string };
-  membership_role: string;
+  organization_id: string;
+  name: string;
+  status: string;
+  entitlements: string[];
+  membership: { role: string };
+  members: { username: string; role: string }[];
 };
 
 async function setup(
@@ -37,8 +41,12 @@ const org = (
   role = "owner",
   status = "active"
 ): RosterItem => ({
-  organization: { id, name, status },
-  membership_role: role,
+  organization_id: id,
+  name,
+  status,
+  entitlements: ["writing"],
+  membership: { role },
+  members: [{ username: "owner", role }],
 });
 
 test("sign-in routes zero, owner, admin, member, and suspended rosters", async ({

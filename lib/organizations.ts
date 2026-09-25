@@ -3,7 +3,7 @@ export type OrganizationMembership = {
   name: string;
   status: "active" | "suspended";
   membershipRole: "owner" | "admin" | "member";
-  entitlements?: string[];
+  entitlements: string[];
 };
 
 export function validatedOrganizationName(value: unknown): string | null {
@@ -38,43 +38,27 @@ export function parseOrganizationRoster(
   value: unknown
 ): OrganizationMembership[] | null {
   const root = record(value);
-  const data = root?.data;
-  const organizations = Array.isArray(data)
-    ? data
-    : record(data)?.organizations;
+  const organizations = record(root?.data)?.organizations;
   if (!Array.isArray(organizations)) return null;
   const roster: OrganizationMembership[] = [];
   for (const item of organizations) {
     const row = record(item);
-    const organization = record(row?.organization) ?? row;
-    const id =
-      organization?.id ?? organization?.organization_id ?? row?.organization_id;
-    const name =
-      organization?.name ??
-      organization?.organization_name ??
-      row?.organization_name;
-    const status =
-      organization?.status ??
-      organization?.organization_status ??
-      row?.organization_status;
-    const rawEntitlements = organization?.entitlements;
     const membership = record(row?.membership);
-    const membershipRole =
-      row?.membership_role ?? row?.role ?? membership?.role;
+    const { organization_id: id, name, status, entitlements } = row ?? {};
+    const membershipRole = membership?.role;
     if (
       typeof id !== "string" ||
       !id ||
       typeof name !== "string" ||
+      !name ||
       (status !== "active" && status !== "suspended") ||
+      !Array.isArray(entitlements) ||
+      entitlements.some(
+        (entitlement) => typeof entitlement !== "string" || !entitlement
+      ) ||
       (membershipRole !== "owner" &&
         membershipRole !== "admin" &&
         membershipRole !== "member")
-    )
-      return null;
-    if (
-      rawEntitlements !== undefined &&
-      (!Array.isArray(rawEntitlements) ||
-        rawEntitlements.some((entitlement) => typeof entitlement !== "string"))
     )
       return null;
     roster.push({
@@ -82,9 +66,7 @@ export function parseOrganizationRoster(
       name,
       status,
       membershipRole,
-      ...(Array.isArray(rawEntitlements)
-        ? { entitlements: rawEntitlements as string[] }
-        : {}),
+      entitlements,
     });
   }
   return roster;

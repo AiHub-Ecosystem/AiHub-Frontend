@@ -15,6 +15,7 @@ const membership = (
   name: "AIHub",
   status,
   membershipRole: role,
+  entitlements: ["writing"],
 });
 
 describe("organization routing", () => {

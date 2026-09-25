@@ -56,8 +56,7 @@ export function OrganizationCreationForm() {
         }
         return;
       }
-      const organization = result.data?.organization ?? result.data;
-      const id = organization?.id ?? organization?.organization_id;
+      const id = result.data?.organization?.organization_id;
       if (typeof id !== "string" || !id) {
         setError("Chưa xác nhận được kết quả. Bạn có thể thử lại an toàn.");
         return;

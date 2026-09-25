@@ -135,7 +135,7 @@ const server = createServer(async (request, response) => {
     }
     sendJson(response, 200, {
       data: { organizations: organizationConfig.roster },
-      meta: { request_id: "local-mock" },
+      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
     });
     return;
   }
@@ -149,12 +149,10 @@ const server = createServer(async (request, response) => {
   ) {
     const organizationId = decodeURIComponent(apiKeyListMatch[1]);
     const membership = organizationConfig.roster.find(
-      (item) =>
-        (item.organization?.id ?? item.organization_id) === organizationId
+      (item) => item.organization_id === organizationId
     );
-    const role = membership?.membership_role ?? membership?.role;
-    const status =
-      membership?.organization?.status ?? membership?.organization_status;
+    const role = membership?.membership?.role;
+    const status = membership?.status;
     if (
       !membership ||
       !["owner", "admin"].includes(role) ||
@@ -179,7 +177,7 @@ const server = createServer(async (request, response) => {
             (key) => key.status !== "revoked"
           ),
         },
-        meta: { request_id: "local-mock" },
+        meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
       });
       return;
     }
@@ -236,7 +234,7 @@ const server = createServer(async (request, response) => {
           ...apiKey,
           api_key: `aihub_sk_${"A".repeat(43)}`,
         },
-        meta: { request_id: "local-mock" },
+        meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
       },
       { "Cache-Control": "no-store" }
     );
@@ -297,7 +295,7 @@ const server = createServer(async (request, response) => {
           ...replacement,
           api_key: `aihub_sk_${"B".repeat(43)}`,
         },
-        meta: { request_id: "local-mock" },
+        meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
       },
       { "Cache-Control": "no-store" }
     );
@@ -326,7 +324,7 @@ const server = createServer(async (request, response) => {
     );
     sendJson(response, 200, {
       data: { ...revoked, status: "revoked" },
-      meta: { request_id: "local-mock" },
+      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
     });
     return;
   }
@@ -348,15 +346,15 @@ const server = createServer(async (request, response) => {
     let organization = createdOrganizations.get(key);
     if (!organization) {
       organization = {
-        id: "org-created-12345678",
+        organization_id: "org-created-12345678",
         name: body.name,
         status: "active",
+        entitlements: ["writing"],
+        membership: { role: "owner" },
+        members: [{ username: "owner", role: "owner" }],
       };
       createdOrganizations.set(key, organization);
-      organizationConfig.roster.push({
-        organization,
-        membership_role: "owner",
-      });
+      organizationConfig.roster.push(organization);
     }
     if (organizationConfig.createUncertainOnce && !uncertainCreationUsed) {
       uncertainCreationUsed = true;
@@ -365,7 +363,17 @@ const server = createServer(async (request, response) => {
       });
       return;
     }
-    sendJson(response, 201, { data: organization });
+    sendJson(response, 201, {
+      data: {
+        organization: {
+          organization_id: organization.organization_id,
+          name: organization.name,
+          status: organization.status,
+        },
+        role: "owner",
+      },
+      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+    });
     return;
   }
 
@@ -382,21 +390,30 @@ const server = createServer(async (request, response) => {
       name: body.name,
     });
     const membership = organizationConfig.roster.find(
-      (item) => (item.organization?.id ?? item.organization_id) === id
+      (item) => item.organization_id === id
     );
     if (
       organizationConfig.renameDenied ||
       knownForeignOrganizationIds.has(id) ||
-      membership?.membership_role !== "owner" ||
-      membership?.organization?.status === "suspended"
+      membership?.membership?.role !== "owner" ||
+      membership?.status === "suspended"
     ) {
       sendJson(response, 403, {
         error: { code: "ORGANIZATION_ACCESS_DENIED" },
       });
       return;
     }
-    membership.organization.name = body.name;
-    sendJson(response, 200, { data: membership.organization });
+    membership.name = body.name;
+    sendJson(response, 200, {
+      data: {
+        organization: {
+          organization_id: membership.organization_id,
+          name: membership.name,
+          status: membership.status,
+        },
+      },
+      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+    });
     return;
   }
 
@@ -444,7 +461,7 @@ const server = createServer(async (request, response) => {
           token_type: "Bearer",
           expires_in: expiresIn,
         },
-        meta: { request_id: "local-mock" },
+        meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
       },
       {
         "Cache-Control": "no-store",
@@ -480,7 +497,7 @@ const server = createServer(async (request, response) => {
         username: body.username,
         status: "pending_verification",
       },
-      meta: { request_id: "local-mock" },
+      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
     });
     return;
   }
@@ -590,7 +607,7 @@ const server = createServer(async (request, response) => {
           token_type: "Bearer",
           expires_in: 900,
         },
-        meta: { request_id: "local-mock" },
+        meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
       },
       {
         "Cache-Control": "no-store",

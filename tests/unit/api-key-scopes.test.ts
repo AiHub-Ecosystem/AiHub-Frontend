@@ -41,17 +41,19 @@ describe("API key scope options", () => {
   it("keeps Organization entitlements from the roster for scope selection", () => {
     expect(
       parseOrganizationRoster({
-        data: [
-          {
-            organization: {
-              id: "org-1",
+        data: {
+          organizations: [
+            {
+              organization_id: "org-1",
               name: "AIHub",
               status: "active",
               entitlements: ["writing", "speaking"],
+              membership: { role: "owner" },
+              members: [{ username: "owner", role: "owner" }],
             },
-            membership_role: "owner",
-          },
-        ],
+          ],
+        },
+        meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
       })
     ).toEqual([
       {
@@ -68,35 +70,8 @@ describe("API key scope options", () => {
     expect(
       parseOrganizationRoster({
         data: { organizations: [] },
-        meta: { request_id: "local-mock" },
+        meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
       })
     ).toEqual([]);
-  });
-
-  it("parses the backend's Organization membership envelope", () => {
-    expect(
-      parseOrganizationRoster({
-        data: {
-          organizations: [
-            {
-              organization_id: "org-1",
-              name: "My Org",
-              status: "active",
-              entitlements: ["writing"],
-              membership: { role: "owner" },
-              members: [{ username: "owner", role: "owner" }],
-            },
-          ],
-        },
-      })
-    ).toEqual([
-      {
-        id: "org-1",
-        name: "My Org",
-        status: "active",
-        membershipRole: "owner",
-        entitlements: ["writing"],
-      },
-    ]);
   });
 });

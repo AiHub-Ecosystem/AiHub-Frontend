@@ -41,7 +41,7 @@ export default async function OrganizationApiKeysPage({
           </p>
           <OrganizationSwitcher roster={roster} selectedId={organization.id} />
           <ApiKeyManager
-            entitlements={organization.entitlements ?? []}
+            entitlements={organization.entitlements}
             organizationId={organization.id}
           />
         </div>
