@@ -62,8 +62,25 @@ test("sign-in routes zero, owner, admin, member, and suspended rosters", async (
     page.getByRole("heading", { name: "Organizations" })
   ).toBeVisible();
 
-  await setup(request, [org("owner-id", "Owner Org")]);
+  const ownerOrg = org("owner-id", "Owner Org");
+  delete ownerOrg.identity_configured;
+  await setup(request, [ownerOrg]);
   await signIn(page);
+  await expect(page).toHaveURL(/\/console\/orgs\/owner-id$/);
+  await expect(page.getByRole("heading", { name: "Owner Org" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Cấu hình identity" })
+  ).toBeVisible();
+  await expect(page.getByText("Identity setup chưa hoàn tất")).toHaveCount(0);
+  await page.getByRole("button", { name: "Cấu hình identity" }).click();
+  const identityDialog = page.getByRole("dialog");
+  await expect(identityDialog).toBeVisible();
+  await expect(identityDialog.getByLabel("JWKS URL")).toBeVisible();
+  await expect(
+    identityDialog.getByRole("link", { name: "Quản lý API keys" })
+  ).toBeVisible();
+  await identityDialog.getByRole("button", { name: "Đóng" }).click();
+  await page.getByRole("link", { name: "Quản lý API keys" }).click();
   await expect(page).toHaveURL(/\/console\/orgs\/owner-id\/api-keys$/);
   await expect(
     page.getByRole("heading", { name: "Owner Org · API keys" })
@@ -71,10 +88,10 @@ test("sign-in routes zero, owner, admin, member, and suspended rosters", async (
 
   await setup(request, [org("admin-id", "Admin Org", "admin")]);
   await signIn(page);
+  await expect(page).toHaveURL(/\/console\/orgs\/admin-id$/);
+  await expect(page.getByRole("heading", { name: "Admin Org" })).toBeVisible();
+  await page.getByRole("link", { name: "Quản lý API keys" }).click();
   await expect(page).toHaveURL(/\/console\/orgs\/admin-id\/api-keys$/);
-  await expect(
-    page.getByRole("heading", { name: "Admin Org · API keys" })
-  ).toBeVisible();
 
   await setup(request, [org("member-id", "Member Org", "member")]);
   await signIn(page);
@@ -164,8 +181,9 @@ test("create uses server BFF and ignores a double click", async ({
     .getByRole("button", { name: "Tạo Organization" });
   await submit.dblclick();
   await expect(page).toHaveURL(
-    /\/console\/orgs\/org-created-12345678\/identity\?onboarding=1$/
+    /\/console\/orgs\/org-created-12345678\?identity=open&onboarding=1$/
   );
+  await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("link", { name: /Thiết lập sau/ }).click();
   await expect(page).toHaveURL(
     /\/console\/orgs\/org-created-12345678\/api-keys$/
@@ -198,7 +216,7 @@ test("uncertain Organization creation can be retried safely", async ({
     .getByRole("button", { name: "Tạo Organization" })
     .click();
   await expect(page).toHaveURL(
-    /\/console\/orgs\/org-created-12345678\/identity\?onboarding=1$/
+    /\/console\/orgs\/org-created-12345678\?identity=open&onboarding=1$/
   );
   const state = await request
     .get(`${mockUrl}/__test__/organizations/state`)
@@ -225,6 +243,9 @@ test("owner can save a JWKS URL and the readiness reminder clears", async ({
   );
   await page.goto("/console/orgs/identity-url");
   await expect(page.getByText("Identity setup chưa hoàn tất")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Cấu hình identity" })
+  ).toBeVisible();
   const requests = await request
     .get(`${mockUrl}/__test__/organizations/requests`)
     .then((r) => r.json());
@@ -249,7 +270,7 @@ test("saving identity during onboarding proceeds directly to API keys", async ({
     .getByRole("button", { name: "Tạo Organization" })
     .click();
   await expect(page).toHaveURL(
-    /\/org-created-12345678\/identity\?onboarding=1$/
+    /\/org-created-12345678\?identity=open&onboarding=1$/
   );
   await page.getByLabel("Issuer").fill("https://onboard.example.test");
   await page

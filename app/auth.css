@@ -416,6 +416,33 @@
   margin-top: 0;
 }
 
+.identity-dialog {
+  width: min(92vw, 760px);
+}
+
+.identity-dialog .identity-panel {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.identity-dialog-api-keys {
+  display: inline-flex;
+  margin-top: 16px;
+  color: #315cf5;
+  font-weight: 600;
+}
+
+.organization-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-block: 18px;
+}
+
 @keyframes ui-dialog-fade-in {
   from {
     opacity: 0;

@@ -20,8 +20,8 @@ const membership = (
 
 describe("organization routing", () => {
   it.each([
-    ["owner", "active", "/console/orgs/org-123456789/api-keys"],
-    ["admin", "active", "/console/orgs/org-123456789/api-keys"],
+    ["owner", "active", "/console/orgs/org-123456789"],
+    ["admin", "active", "/console/orgs/org-123456789"],
     ["member", "active", "/console/orgs/org-123456789"],
     ["owner", "suspended", "/console/orgs/org-123456789"],
   ] as const)(
@@ -34,7 +34,7 @@ describe("organization routing", () => {
   it("chooses the detail page or organization directory by roster size", () => {
     expect(organizationLanding([])).toBe("/console/orgs");
     expect(organizationLanding([membership("owner")])).toBe(
-      "/console/orgs/org-123456789/api-keys"
+      "/console/orgs/org-123456789"
     );
     expect(
       organizationLanding([

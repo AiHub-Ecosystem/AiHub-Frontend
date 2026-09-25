@@ -7,6 +7,7 @@ import { SessionActivity } from "@/components/session-activity";
 import { RosterUnavailable } from "@/components/organizations/roster-unavailable";
 import { ApiKeyManager } from "@/components/organizations/api-key-manager";
 import { IdentityReadinessNotice } from "@/components/organizations/identity-readiness-notice";
+import { OrganizationIdentityDialog } from "@/components/organizations/organization-identity-dialog";
 import "../../../../aihub.css";
 import "../../../../auth.css";
 import "../../../../api-keys.css";
@@ -44,12 +45,10 @@ export default async function OrganizationApiKeysPage({
             ← Tất cả Organizations
           </Link>
           {organization.membershipRole === "owner" && (
-            <Link
-              className="organization-back-link"
-              href={`/console/orgs/${encodeURIComponent(organization.id)}/identity`}
-            >
-              Cấu hình identity
-            </Link>
+            <OrganizationIdentityDialog
+              organizationId={organization.id}
+              organizationName={organization.name}
+            />
           )}
           <IdentityReadinessNotice organization={organization} />
           <ApiKeyManager

@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { OrganizationIdentityForm } from "@/components/organizations/organization-identity-form";
 import { requirePageWebSession } from "@/lib/page-session";
-import { readOrganizationIdentityConfig } from "@/lib/organization-identity-server";
 import { readOrganizationRoster } from "@/lib/organization-server";
 import { RosterUnavailable } from "@/components/organizations/roster-unavailable";
-import { SessionActivity } from "@/components/session-activity";
 import "../../../../aihub.css";
 import "../../../../auth.css";
 
@@ -41,89 +38,26 @@ export default async function OrganizationIdentityPage({
         </div>
       </main>
     );
-  if (organization.membershipRole !== "owner")
-    return (
-      <main className="aihub auth-page console-page">
-        <div className="aihub-shell">
-          <p className="aihub-eyebrow">AIHub Console · Organization</p>
-          <h1 className="aihub-title">User identity</h1>
-          <p className="aihub-lede">
-            {organization.identityConfigured === false
-              ? "Identity setup chưa hoàn tất. Nhờ owner cấu hình để bật user-scoped grading."
-              : organization.identityConfigured === true
-                ? "Organization đã lưu identity configuration đang hoạt động. Chỉ owner mới có thể xem hoặc quản lý chi tiết."
-                : "Chỉ owner mới có thể xem hoặc quản lý identity configuration."}
-          </p>
-          <Link href={`/console/orgs/${encodeURIComponent(organization.id)}`}>
-            Quay lại Organization
-          </Link>
-        </div>
-      </main>
-    );
-
-  const { config, forbidden, unavailable } =
-    await readOrganizationIdentityConfig(sessionId, organization.id);
-  if (forbidden) {
-    const refreshedRoster = await readOrganizationRoster(sessionId);
-    const refreshed = refreshedRoster?.find(
-      (item) => item.id === organizationId
-    );
-    return (
-      <main className="aihub auth-page console-page">
-        <div className="aihub-shell">
-          <h1 className="aihub-title">User identity</h1>
-          <p className="identity-safe-notice" role="status">
-            Quyền truy cập identity configuration đã thay đổi. Không có issuer
-            hoặc JWKS nào được hiển thị.
-          </p>
-          <p>
-            {refreshed?.membershipRole ?? organization.membershipRole} ·{" "}
-            {refreshed?.status ?? organization.status}
-          </p>
-          <Link href={`/console/orgs/${encodeURIComponent(organization.id)}`}>
-            Quay lại Organization
-          </Link>
-        </div>
-      </main>
-    );
-  }
-  if (unavailable || !config)
-    return (
-      <main className="aihub auth-page console-page">
-        <div className="aihub-shell">
-          <h1 className="aihub-title">User identity</h1>
-          <p className="identity-safe-notice" role="alert">
-            Không thể tải identity configuration. Hãy thử tải lại trang.
-          </p>
-          <Link href={`/console/orgs/${encodeURIComponent(organization.id)}`}>
-            Quay lại Organization
-          </Link>
-        </div>
-      </main>
+  if (organization.membershipRole === "owner")
+    redirect(
+      `/console/orgs/${encodeURIComponent(organization.id)}?identity=open${onboarding ? "&onboarding=1" : ""}`
     );
   return (
-    <>
-      <SessionActivity />
-      <main className="aihub auth-page console-page">
-        <div className="aihub-shell">
-          <p className="aihub-eyebrow">AIHub Console · Organization</p>
-          <h1 className="aihub-title">User identity</h1>
-          <p className="aihub-lede">
-            Thiết lập cách AIHUB xác minh User Assertions của Organization.
-          </p>
-          <Link
-            className="organization-back-link"
-            href={`/console/orgs/${encodeURIComponent(organization.id)}`}
-          >
-            ← {organization.name}
-          </Link>
-          <OrganizationIdentityForm
-            organizationId={organization.id}
-            initialConfig={config}
-            onboarding={onboarding}
-          />
-        </div>
-      </main>
-    </>
+    <main className="aihub auth-page console-page">
+      <div className="aihub-shell">
+        <p className="aihub-eyebrow">AIHub Console · Organization</p>
+        <h1 className="aihub-title">User identity</h1>
+        <p className="aihub-lede">
+          {organization.identityConfigured === false
+            ? "Identity setup chưa hoàn tất. Nhờ owner cấu hình để bật user-scoped grading."
+            : organization.identityConfigured === true
+              ? "Organization đã lưu identity configuration đang hoạt động. Chỉ owner mới có thể xem hoặc quản lý chi tiết."
+              : "Chỉ owner mới có thể xem hoặc quản lý identity configuration."}
+        </p>
+        <Link href={`/console/orgs/${encodeURIComponent(organization.id)}`}>
+          Quay lại Organization
+        </Link>
+      </div>
+    </main>
   );
 }

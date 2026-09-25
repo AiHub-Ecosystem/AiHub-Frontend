@@ -8,6 +8,7 @@ import { OrganizationSwitcher } from "@/components/organizations/organization-sw
 import { OrganizationRenameForm } from "@/components/organizations/organization-rename-form";
 import { RosterUnavailable } from "@/components/organizations/roster-unavailable";
 import { IdentityReadinessNotice } from "@/components/organizations/identity-readiness-notice";
+import { OrganizationIdentityDialog } from "@/components/organizations/organization-identity-dialog";
 import "../../../aihub.css";
 import "../../../auth.css";
 
@@ -16,8 +17,10 @@ export const dynamic = "force-dynamic";
 
 export default async function OrganizationOverviewPage({
   params,
+  searchParams,
 }: PageProps<"/console/orgs/[organizationId]">) {
   const { organizationId } = await params;
+  const query = await searchParams;
   const next = `/console/orgs/${encodeURIComponent(organizationId)}`;
   const sessionId = await requirePageWebSession(next);
   const roster = await readOrganizationRoster(sessionId);
@@ -43,11 +46,28 @@ export default async function OrganizationOverviewPage({
           <IdentityReadinessNotice organization={organization} />
           {organization.status === "active" &&
             organization.membershipRole === "owner" && (
+              <div className="organization-actions">
+                <OrganizationIdentityDialog
+                  defaultOpen={query.identity === "open"}
+                  onboarding={query.onboarding === "1"}
+                  organizationId={organization.id}
+                  organizationName={organization.name}
+                />
+                <Link
+                  className="organization-back-link"
+                  href={`/console/orgs/${encodeURIComponent(organization.id)}/api-keys`}
+                >
+                  Quản lý API keys
+                </Link>
+              </div>
+            )}
+          {organization.status === "active" &&
+            organization.membershipRole === "admin" && (
               <Link
                 className="organization-back-link"
-                href={`/console/orgs/${encodeURIComponent(organization.id)}/identity`}
+                href={`/console/orgs/${encodeURIComponent(organization.id)}/api-keys`}
               >
-                Cấu hình identity
+                Quản lý API keys
               </Link>
             )}
           {organization.status === "active" &&

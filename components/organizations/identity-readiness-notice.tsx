@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { OrganizationMembership } from "@/lib/organizations";
 
 export function IdentityReadinessNotice({
@@ -22,11 +21,7 @@ export function IdentityReadinessNotice({
         </p>
       </div>
       {organization.membershipRole === "owner" ? (
-        <Link
-          href={`/console/orgs/${encodeURIComponent(organization.id)}/identity`}
-        >
-          Thiết lập identity
-        </Link>
+        <span>Bạn có thể mở Cấu hình identity để hoàn tất thiết lập.</span>
       ) : (
         <span>Nhờ owner hoàn tất thiết lập này.</span>
       )}

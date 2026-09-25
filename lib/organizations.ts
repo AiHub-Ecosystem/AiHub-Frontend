@@ -15,12 +15,7 @@ export function validatedOrganizationName(value: unknown): string | null {
 }
 
 export function organizationDestination(organization: OrganizationMembership) {
-  const base = `/console/orgs/${encodeURIComponent(organization.id)}`;
-  return organization.status === "active" &&
-    (organization.membershipRole === "owner" ||
-      organization.membershipRole === "admin")
-    ? `${base}/api-keys`
-    : base;
+  return `/console/orgs/${encodeURIComponent(organization.id)}`;
 }
 
 export function organizationLanding(roster: OrganizationMembership[]) {

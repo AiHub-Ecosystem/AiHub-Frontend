@@ -21,16 +21,20 @@ export function OrganizationIdentityForm({
   onboarding?: boolean;
 }) {
   const router = useRouter();
-  const configured = initialConfig.configured;
+  const [configured, setConfigured] = useState(initialConfig.configured);
   const [source, setSource] = useState<Source>(
-    configured && initialConfig.public_keys_jwks ? "inline" : "url"
+    initialConfig.configured && initialConfig.public_keys_jwks
+      ? "inline"
+      : "url"
   );
-  const [issuer, setIssuer] = useState(configured ? initialConfig.issuer : "");
+  const [issuer, setIssuer] = useState(
+    initialConfig.configured ? initialConfig.issuer : ""
+  );
   const [jwksUrl, setJwksUrl] = useState(
-    configured ? (initialConfig.jwks_url ?? "") : ""
+    initialConfig.configured ? (initialConfig.jwks_url ?? "") : ""
   );
   const [jwksText, setJwksText] = useState(
-    configured && initialConfig.public_keys_jwks
+    initialConfig.configured && initialConfig.public_keys_jwks
       ? JSON.stringify(initialConfig.public_keys_jwks, null, 2)
       : ""
   );
@@ -83,6 +87,7 @@ export function OrganizationIdentityForm({
         setError(identityErrorMessage(result.error?.code ?? ""));
         return;
       }
+      setConfigured(true);
       setSaved(true);
       if (onboarding)
         router.push(
@@ -106,7 +111,7 @@ export function OrganizationIdentityForm({
 
   return (
     <section aria-label="Identity configuration" className="identity-panel">
-      {configured && initialConfig.status === "disabled" && (
+      {initialConfig.configured && initialConfig.status === "disabled" && (
         <p className="identity-warning" role="status">
           AIHUB đã tạm vô hiệu hóa identity configuration này. Bạn có thể sửa
           giá trị, nhưng lưu không bật lại grading; chỉ AIHUB có thể kích hoạt
