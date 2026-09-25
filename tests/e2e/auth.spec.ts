@@ -80,10 +80,10 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
   await page.goto("/login?next=https%3A%2F%2Fattacker.test%2Fcollect");
   await expect(
     page.getByRole("link", { name: "Đăng nhập", exact: true })
-  ).toHaveCount(0);
+  ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Đăng ký", exact: true })
-  ).toHaveCount(0);
+  ).toBeVisible();
 
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(validPassword);
@@ -95,6 +95,12 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
   await expect(
     page.getByRole("link", { name: "Console", exact: true })
   ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Đăng nhập", exact: true })
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Đăng ký", exact: true })
+  ).toHaveCount(0);
 
   const cookies = await page.context().cookies();
   const sessionCookie = cookies.find(
@@ -124,7 +130,10 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
   await expect(page).toHaveURL("http://127.0.0.1:3100/");
   await expect(
     page.getByRole("link", { name: "Đăng nhập", exact: true })
-  ).toHaveCount(0);
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Đăng ký", exact: true })
+  ).toBeVisible();
   expect(
     (await page.context().cookies()).some(
       (cookie) => cookie.name === "__Host-aihub_web_session"
