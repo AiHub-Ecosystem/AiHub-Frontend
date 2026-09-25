@@ -145,7 +145,7 @@ test("safe same-origin next wins while an external next is ignored", async ({
   await expect(page).toHaveURL(/\/console\/orgs\/one\/api-keys$/);
 });
 
-test("create uses server BFF, handles double click and creation limit", async ({
+test("create uses server BFF and ignores a double click", async ({
   page,
   request,
 }) => {
@@ -163,7 +163,12 @@ test("create uses server BFF, handles double click and creation limit", async ({
   expect(
     log.requests.filter((entry: { path: string }) => entry.path === "create")
   ).toHaveLength(1);
+});
 
+test("uncertain Organization creation can be retried safely", async ({
+  page,
+  request,
+}) => {
   await setup(request, [], { createUncertainOnce: true });
   await signIn(page);
   await page.getByLabel("Tên Organization").fill("Retry Org");
@@ -179,7 +184,9 @@ test("create uses server BFF, handles double click and creation limit", async ({
     .get(`${mockUrl}/__test__/organizations/state`)
     .then((r) => r.json());
   expect(state.organizations).toHaveLength(1);
+});
 
+test("creation limit explains the next step", async ({ page, request }) => {
   await setup(request, [], { creationLimit: true });
   await signIn(page);
   await page.getByLabel("Tên Organization").fill("Another Org");
