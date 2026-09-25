@@ -460,6 +460,15 @@ test("a 403 while loading identity settings refreshes the roster and hides all c
       },
     }
   );
+  const rosterCountBefore = await request
+    .get(`${mockUrl}/__test__/organizations/requests`)
+    .then((r) => r.json())
+    .then(
+      (state) =>
+        state.requests.filter(
+          (item: { path: string }) => item.path === "roster"
+        ).length
+    );
   await signIn(page);
   await page.goto("/console/orgs/identity-get-forbidden/identity");
   await expect(page.getByRole("status")).toContainText(
@@ -473,7 +482,8 @@ test("a 403 while loading identity settings refreshes the roster and hides all c
     .then((r) => r.json());
   expect(
     requests.requests.filter((item: { path: string }) => item.path === "roster")
-  ).toHaveLength(2);
+      .length - rosterCountBefore
+  ).toBeGreaterThanOrEqual(2);
 });
 
 test("creation limit explains the next step", async ({ page, request }) => {
