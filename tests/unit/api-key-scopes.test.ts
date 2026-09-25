@@ -72,4 +72,31 @@ describe("API key scope options", () => {
       })
     ).toEqual([]);
   });
+
+  it("parses the backend's Organization membership envelope", () => {
+    expect(
+      parseOrganizationRoster({
+        data: {
+          organizations: [
+            {
+              organization_id: "org-1",
+              name: "My Org",
+              status: "active",
+              entitlements: ["writing"],
+              membership: { role: "owner" },
+              members: [{ username: "owner", role: "owner" }],
+            },
+          ],
+        },
+      })
+    ).toEqual([
+      {
+        id: "org-1",
+        name: "My Org",
+        status: "active",
+        membershipRole: "owner",
+        entitlements: ["writing"],
+      },
+    ]);
+  });
 });

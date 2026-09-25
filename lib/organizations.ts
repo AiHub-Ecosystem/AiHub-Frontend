@@ -58,7 +58,9 @@ export function parseOrganizationRoster(
       organization?.organization_status ??
       row?.organization_status;
     const rawEntitlements = organization?.entitlements;
-    const membershipRole = row?.membership_role ?? row?.role;
+    const membership = record(row?.membership);
+    const membershipRole =
+      row?.membership_role ?? row?.role ?? membership?.role;
     if (
       typeof id !== "string" ||
       !id ||
