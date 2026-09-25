@@ -4,6 +4,7 @@ export type OrganizationMembership = {
   status: "active" | "suspended";
   membershipRole: "owner" | "admin" | "member";
   entitlements: string[];
+  identityConfigured?: boolean;
 };
 
 export function validatedOrganizationName(value: unknown): string | null {
@@ -44,7 +45,13 @@ export function parseOrganizationRoster(
   for (const item of organizations) {
     const row = record(item);
     const membership = record(row?.membership);
-    const { organization_id: id, name, status, entitlements } = row ?? {};
+    const {
+      organization_id: id,
+      name,
+      status,
+      entitlements,
+      identity_configured: identityConfigured,
+    } = row ?? {};
     const membershipRole = membership?.role;
     if (
       typeof id !== "string" ||
@@ -58,7 +65,9 @@ export function parseOrganizationRoster(
       ) ||
       (membershipRole !== "owner" &&
         membershipRole !== "admin" &&
-        membershipRole !== "member")
+        membershipRole !== "member") ||
+      (identityConfigured !== undefined &&
+        typeof identityConfigured !== "boolean")
     )
       return null;
     roster.push({
@@ -67,6 +76,9 @@ export function parseOrganizationRoster(
       status,
       membershipRole,
       entitlements,
+      ...(typeof identityConfigured === "boolean"
+        ? { identityConfigured }
+        : {}),
     });
   }
   return roster;

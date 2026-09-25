@@ -85,7 +85,9 @@ export function OrganizationCreationForm({
         return;
       }
       key.current = null;
-      router.push(`/console/orgs/${encodeURIComponent(id)}/api-keys`);
+      router.push(
+        `/console/orgs/${encodeURIComponent(id)}/identity?onboarding=1`
+      );
     } catch {
       setError("Không thể kết nối. Bạn có thể thử lại an toàn.");
     } finally {

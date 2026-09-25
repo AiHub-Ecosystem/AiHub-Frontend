@@ -56,6 +56,7 @@ async function setup(
           organization_id: "org-keys-12345678",
           name: "API Keys Org",
           status: organizationStatus,
+          identity_configured: false,
           entitlements,
           membership: { role: membershipRole },
           members: [{ username: "owner", role: membershipRole }],
@@ -114,7 +115,7 @@ test("empty state and stable create denials explain what to do next", async ({
 }) => {
   await setup(request, { apiKeys: [] });
   await signIn(page);
-  await expect(page.getByRole("status")).toContainText("Chưa có API key");
+  await expect(page.locator(".api-key-empty")).toContainText("Chưa có API key");
 
   await page.getByText("Tạo API key", { exact: true }).click();
   await page.getByLabel("Tên API key").fill("Denied key");
@@ -152,6 +153,7 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   const speaking = page.locator('input[name="scopes"][value="speaking.grade"]');
   await expect(writing).not.toBeChecked();
   await expect(speaking).toBeDisabled();
+  await expect(page.getByText("Identity setup chưa hoàn tất")).toBeVisible();
   await expect(
     page.getByText(/Speaking chưa được bật cho Organization/)
   ).toBeVisible();

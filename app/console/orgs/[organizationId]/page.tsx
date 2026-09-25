@@ -6,6 +6,7 @@ import { SessionActivity } from "@/components/session-activity";
 import { OrganizationSwitcher } from "@/components/organizations/organization-switcher";
 import { OrganizationRenameForm } from "@/components/organizations/organization-rename-form";
 import { RosterUnavailable } from "@/components/organizations/roster-unavailable";
+import { IdentityReadinessNotice } from "@/components/organizations/identity-readiness-notice";
 import "../../../aihub.css";
 import "../../../auth.css";
 
@@ -38,6 +39,7 @@ export default async function OrganizationOverviewPage({
               Organization đang tạm ngưng. Trang này chỉ hiển thị thông tin đọc.
             </p>
           )}
+          <IdentityReadinessNotice organization={organization} />
           {organization.status === "active" &&
             organization.membershipRole === "owner" && (
               <OrganizationRenameForm

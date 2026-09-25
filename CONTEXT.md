@@ -76,3 +76,11 @@ _Avoid_: token, secret, access key
 **Identity configuration**:
 An Organization's issuer plus JWKS URL or public JWKS, which AIHUB uses to verify the User Assertions the Organization signs.
 _Avoid_: JWKS settings, SSO config
+
+**User Assertion**:
+A short-lived signed statement from an Organization-controlled identity provider that identifies an end user to AIHUB for a user-scoped request.
+_Avoid_: AIHUB token, API key
+
+**Identity Readiness**:
+Whether an Organization has a saved active Identity configuration. This reports configuration state, not current JWKS source reachability.
+_Avoid_: configured (when it could include a disabled configuration)

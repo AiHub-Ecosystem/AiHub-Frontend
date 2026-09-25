@@ -6,6 +6,7 @@ import { readOrganizationRoster } from "@/lib/organization-server";
 import { SessionActivity } from "@/components/session-activity";
 import { RosterUnavailable } from "@/components/organizations/roster-unavailable";
 import { ApiKeyManager } from "@/components/organizations/api-key-manager";
+import { IdentityReadinessNotice } from "@/components/organizations/identity-readiness-notice";
 import "../../../../aihub.css";
 import "../../../../auth.css";
 import "../../../../api-keys.css";
@@ -42,6 +43,7 @@ export default async function OrganizationApiKeysPage({
           <Link className="organization-back-link" href="/console/orgs">
             ← Tất cả Organizations
           </Link>
+          <IdentityReadinessNotice organization={organization} />
           <ApiKeyManager
             entitlements={organization.entitlements}
             organizationId={organization.id}

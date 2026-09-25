@@ -16,6 +16,7 @@ let organizationConfig = {
   rotateKeyUncertainOnce: false,
   apiKeyLimitReached: false,
   apiKeyEntitlementDenied: false,
+  identityConfigs: {},
 };
 const createdOrganizations = new Map();
 let uncertainCreationUsed = false;
@@ -90,6 +91,7 @@ const server = createServer(async (request, response) => {
       rotateKeyUncertainOnce: false,
       apiKeyLimitReached: false,
       apiKeyEntitlementDenied: false,
+      identityConfigs: {},
     };
     uncertainCreationUsed = false;
     uncertainApiKeyCreationUsed = false;
@@ -134,9 +136,75 @@ const server = createServer(async (request, response) => {
       return;
     }
     sendJson(response, 200, {
-      data: { organizations: organizationConfig.roster },
+      data: {
+        organizations: organizationConfig.roster.map((item) => ({
+          ...item,
+          ...(item.identity_configured === undefined
+            ? {}
+            : { identity_configured: item.identity_configured }),
+        })),
+      },
       meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
     });
+    return;
+  }
+
+  const identityConfigMatch = pathname.match(
+    /^\/v1\/organizations\/([^/]+)\/identity-config$/
+  );
+  if (identityConfigMatch && ["GET", "PUT"].includes(request.method)) {
+    const organizationId = decodeURIComponent(identityConfigMatch[1]);
+    const membership = organizationConfig.roster.find(
+      (item) => item.organization_id === organizationId
+    );
+    organizationRequests.push({
+      method: request.method,
+      path: "identity-config",
+      organizationId,
+    });
+    if (
+      !membership ||
+      membership.status !== "active" ||
+      membership.membership?.role !== "owner" ||
+      organizationConfig.identityForbiddenOnce
+    ) {
+      organizationConfig.identityForbiddenOnce = false;
+      sendJson(response, 403, { error: { code: "FORBIDDEN" } });
+      return;
+    }
+    if (request.method === "GET") {
+      sendJson(response, 200, {
+        data: organizationConfig.identityConfigs?.[organizationId] ?? {
+          configured: false,
+        },
+      });
+      return;
+    }
+    const input = await readJson(request);
+    if (organizationConfig.identityErrorCode) {
+      const code = organizationConfig.identityErrorCode;
+      sendJson(
+        response,
+        code === "ORGANIZATION_IDENTITY_ISSUER_CONFLICT" ? 409 : 400,
+        { error: { code } }
+      );
+      return;
+    }
+    const existing = organizationConfig.identityConfigs?.[organizationId];
+    const config = {
+      configured: true,
+      issuer: input.issuer,
+      jwks_url: input.jwks_url ?? null,
+      public_keys_jwks: input.public_keys_jwks ?? null,
+      allowed_algorithms: ["RS256", "ES256"],
+      max_assertion_ttl_seconds: 300,
+      status: existing?.status ?? "active",
+      updated_at: new Date().toISOString(),
+    };
+    organizationConfig.identityConfigs ??= {};
+    organizationConfig.identityConfigs[organizationId] = config;
+    membership.identity_configured = config.status === "active";
+    sendJson(response, 200, { data: config });
     return;
   }
 
@@ -350,6 +418,7 @@ const server = createServer(async (request, response) => {
         name: body.name,
         status: "active",
         entitlements: ["writing"],
+        identity_configured: false,
         membership: { role: "owner" },
         members: [{ username: "owner", role: "owner" }],
       };

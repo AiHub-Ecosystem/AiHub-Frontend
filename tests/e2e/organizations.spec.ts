@@ -14,6 +14,7 @@ type RosterItem = {
   entitlements: string[];
   membership: { role: string };
   members: { username: string; role: string }[];
+  identity_configured?: boolean;
 };
 
 async function setup(
@@ -45,6 +46,7 @@ const org = (
   name,
   status,
   entitlements: ["writing"],
+  identity_configured: false,
   membership: { role },
   members: [{ username: "owner", role }],
 });
@@ -162,6 +164,10 @@ test("create uses server BFF and ignores a double click", async ({
     .getByRole("button", { name: "Tạo Organization" });
   await submit.dblclick();
   await expect(page).toHaveURL(
+    /\/console\/orgs\/org-created-12345678\/identity\?onboarding=1$/
+  );
+  await page.getByRole("link", { name: /Thiết lập sau/ }).click();
+  await expect(page).toHaveURL(
     /\/console\/orgs\/org-created-12345678\/api-keys$/
   );
   const log = await request
@@ -192,12 +198,282 @@ test("uncertain Organization creation can be retried safely", async ({
     .getByRole("button", { name: "Tạo Organization" })
     .click();
   await expect(page).toHaveURL(
-    /\/console\/orgs\/org-created-12345678\/api-keys$/
+    /\/console\/orgs\/org-created-12345678\/identity\?onboarding=1$/
   );
   const state = await request
     .get(`${mockUrl}/__test__/organizations/state`)
     .then((r) => r.json());
   expect(state.organizations).toHaveLength(1);
+});
+
+test("owner can save a JWKS URL and the readiness reminder clears", async ({
+  page,
+  request,
+}) => {
+  await setup(request, [org("identity-url", "Identity Org")]);
+  await signIn(page);
+  await page.goto("/console/orgs/identity-url/identity");
+  await page.getByLabel("Issuer").fill("https://id.example.test");
+  await page
+    .getByRole("textbox", { name: "JWKS URL" })
+    .fill("https://id.example.test/keys");
+  await page
+    .getByRole("button", { name: "Lưu identity configuration" })
+    .click();
+  await expect(page.getByRole("status")).toContainText(
+    "Đã lưu identity configuration"
+  );
+  await page.goto("/console/orgs/identity-url");
+  await expect(page.getByText("Identity setup chưa hoàn tất")).toHaveCount(0);
+  const requests = await request
+    .get(`${mockUrl}/__test__/organizations/requests`)
+    .then((r) => r.json());
+  expect(
+    requests.requests.find(
+      (item: { path: string; method?: string }) =>
+        item.path === "identity-config" && item.method === "PUT"
+    )
+  ).toBeTruthy();
+});
+
+test("saving identity during onboarding proceeds directly to API keys", async ({
+  page,
+  request,
+}) => {
+  await setup(request);
+  await signIn(page);
+  await page.getByRole("button", { name: "Tạo Organization" }).click();
+  await page.getByLabel("Tên Organization").fill("Setup during onboarding");
+  await page
+    .locator("form.auth-form")
+    .getByRole("button", { name: "Tạo Organization" })
+    .click();
+  await expect(page).toHaveURL(
+    /\/org-created-12345678\/identity\?onboarding=1$/
+  );
+  await page.getByLabel("Issuer").fill("https://onboard.example.test");
+  await page
+    .getByRole("textbox", { name: "JWKS URL" })
+    .fill("https://onboard.example.test/keys");
+  await page
+    .getByRole("button", { name: "Lưu identity configuration" })
+    .click();
+  await expect(page).toHaveURL(
+    /\/console\/orgs\/org-created-12345678\/api-keys$/
+  );
+});
+
+test("owner can use inline public JWKS and private JWK is blocked before request", async ({
+  page,
+  request,
+}) => {
+  await setup(request, [
+    org("identity-inline", "Identity Inline", "owner", "active"),
+  ]);
+  await signIn(page);
+  await page.goto("/console/orgs/identity-inline/identity");
+  await page.getByRole("radio", { name: "Dán public JWKS" }).check();
+  await page.getByLabel("Issuer").fill("https://inline.example.test");
+  const input = page.getByLabel("Public JWKS (JSON)");
+  await input.fill(
+    JSON.stringify({
+      keys: [{ kty: "RSA", kid: "public-1", n: "AQAB", e: "AQAB" }],
+    })
+  );
+  await page
+    .getByRole("button", { name: "Lưu identity configuration" })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Đã lưu");
+  await input.fill(JSON.stringify({ keys: [{ kty: "RSA", d: "private" }] }));
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.locator(".identity-form [role=alert]")).toContainText(
+    "Không gửi private JWK"
+  );
+  const requests = await request
+    .get(`${mockUrl}/__test__/organizations/requests`)
+    .then((r) => r.json());
+  expect(
+    requests.requests.filter(
+      (item: { path: string; method: string }) =>
+        item.path === "identity-config" && item.method === "PUT"
+    )
+  ).toHaveLength(1);
+
+  const session = (await page.context().cookies()).find(
+    (cookie) => cookie.name === "__Host-aihub_web_session"
+  );
+  const privateJwkResponse = await request.put(
+    `${new URL(page.url()).origin}/api/organizations/identity-inline/identity-config`,
+    {
+      headers: {
+        Origin: new URL(page.url()).origin,
+        Cookie: `${session!.name}=${session!.value}`,
+      },
+      data: {
+        issuer: "https://inline.example.test",
+        public_keys_jwks: { keys: [{ kty: "RSA", d: "must-not-forward" }] },
+      },
+    }
+  );
+  expect(privateJwkResponse.status()).toBe(400);
+  expect(await privateJwkResponse.json()).toEqual({
+    error: { code: "PRIVATE_JWK_NOT_ALLOWED" },
+  });
+  const afterPrivateJwk = await request
+    .get(`${mockUrl}/__test__/organizations/requests`)
+    .then((r) => r.json());
+  expect(
+    afterPrivateJwk.requests.filter(
+      (item: { path: string; method: string }) =>
+        item.path === "identity-config" && item.method === "PUT"
+    )
+  ).toHaveLength(1);
+});
+
+test("identity readiness is role-safe, suspended orgs have no prompt, and validation errors are mapped", async ({
+  page,
+  request,
+}) => {
+  await setup(request, [org("identity-member", "Member Identity", "member")]);
+  await signIn(page);
+  await expect(page.getByText("Identity setup chưa hoàn tất")).toBeVisible();
+  await page.goto("/console/orgs/identity-member/identity");
+  await expect(page.getByText(/Nhờ owner cấu hình/)).toBeVisible();
+  const requests = await request
+    .get(`${mockUrl}/__test__/organizations/requests`)
+    .then((r) => r.json());
+  expect(
+    requests.requests.some(
+      (item: { path: string }) => item.path === "identity-config"
+    )
+  ).toBe(false);
+
+  await setup(request, [
+    org("identity-paused", "Paused", "owner", "suspended"),
+  ]);
+  await page.context().clearCookies();
+  await signIn(page);
+  await expect(page.getByRole("status")).toContainText("tạm ngưng");
+  await expect(page.getByText("Identity setup chưa hoàn tất")).toHaveCount(0);
+
+  await setup(request, [org("identity-errors", "Identity Errors")], {
+    identityErrorCode: "IDENTITY_JWKS_URL_UNSAFE",
+  });
+  await page.context().clearCookies();
+  await signIn(page);
+  await page.goto("/console/orgs/identity-errors/identity");
+  await page.getByLabel("Issuer").fill("https://error.example.test");
+  await page
+    .getByRole("textbox", { name: "JWKS URL" })
+    .fill("https://internal.example.test/keys");
+  await page
+    .getByRole("button", { name: "Lưu identity configuration" })
+    .click();
+  await expect(page.locator(".identity-form [role=alert]")).toContainText(
+    "JWKS URL không an toàn"
+  );
+});
+
+test("stable identity source reason codes have separate safe messages", async ({
+  page,
+  request,
+}) => {
+  await setup(request, [org("identity-reasons", "Identity Reasons")]);
+  await signIn(page);
+  await page.goto("/console/orgs/identity-reasons/identity");
+  await page.getByLabel("Issuer").fill("https://reasons.example.test");
+  await page
+    .getByRole("textbox", { name: "JWKS URL" })
+    .fill("https://reasons.example.test/keys");
+  for (const [code, message] of [
+    ["IDENTITY_JWKS_SOURCE_UNAVAILABLE", "AIHUB không thể truy cập JWKS URL"],
+    ["IDENTITY_JWKS_INVALID", "Public JWKS không hợp lệ"],
+    ["ORGANIZATION_IDENTITY_ISSUER_CONFLICT", "Issuer này đã được dùng"],
+  ]) {
+    await request.post(`${mockUrl}/__test__/organizations/config`, {
+      data: { identityErrorCode: code },
+    });
+    await page
+      .getByRole("button", { name: "Lưu identity configuration" })
+      .click();
+    await expect(page.locator(".identity-form [role=alert]")).toContainText(
+      message
+    );
+  }
+});
+
+test("disabled configuration remains editable with operator warning and stale 403 clears values", async ({
+  page,
+  request,
+}) => {
+  await setup(
+    request,
+    [org("identity-disabled", "Disabled Org", "owner", "active")],
+    {
+      identityConfigs: {
+        "identity-disabled": {
+          configured: true,
+          issuer: "https://saved.example.test",
+          jwks_url: "https://saved.example.test/keys",
+          public_keys_jwks: null,
+          status: "disabled",
+        },
+      },
+    }
+  );
+  await signIn(page);
+  await page.goto("/console/orgs/identity-disabled/identity");
+  await expect(page.getByRole("status")).toContainText(
+    "chỉ AIHUB có thể kích hoạt lại"
+  );
+  await expect(page.getByLabel("Issuer")).toHaveValue(
+    "https://saved.example.test"
+  );
+  await request.post(`${mockUrl}/__test__/organizations/config`, {
+    data: { identityForbiddenOnce: true },
+  });
+  await page.getByLabel("Issuer").fill("https://not-saved.example.test");
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "đã được xóa khỏi màn hình"
+  );
+  await expect(page.getByLabel("Issuer")).toHaveCount(0);
+});
+
+test("a 403 while loading identity settings refreshes the roster and hides all config values", async ({
+  page,
+  request,
+}) => {
+  await setup(
+    request,
+    [org("identity-get-forbidden", "Identity Get Forbidden")],
+    {
+      identityForbiddenOnce: true,
+      identityConfigs: {
+        "identity-get-forbidden": {
+          configured: true,
+          issuer: "https://private-detail.example.test",
+          jwks_url: "https://private-detail.example.test/keys",
+          public_keys_jwks: null,
+          status: "active",
+        },
+      },
+    }
+  );
+  await signIn(page);
+  await page.goto("/console/orgs/identity-get-forbidden/identity");
+  await expect(page.getByRole("status")).toContainText(
+    "Không có issuer hoặc JWKS nào được hiển thị"
+  );
+  await expect(
+    page.getByText("https://private-detail.example.test", { exact: false })
+  ).toHaveCount(0);
+  const requests = await request
+    .get(`${mockUrl}/__test__/organizations/requests`)
+    .then((r) => r.json());
+  expect(
+    requests.requests.filter((item: { path: string }) => item.path === "roster")
+  ).toHaveLength(2);
 });
 
 test("creation limit explains the next step", async ({ page, request }) => {
