@@ -8,7 +8,10 @@ import {
   type MintedOrganizationApiKey,
   type OrganizationApiKey,
 } from "@/lib/api-keys";
-import type { CreateApiKeyPayload } from "@/components/organizations/api-key-create-form";
+import type {
+  CreateApiKeyPayload,
+  CreateApiKeyResult,
+} from "@/components/organizations/api-key-create-form";
 import { ApiKeyCreateForm } from "@/components/organizations/api-key-create-form";
 import { ApiKeyList } from "@/components/organizations/api-key-list";
 import { ApiKeyRevealDialog } from "@/components/organizations/api-key-reveal-dialog";
@@ -110,25 +113,30 @@ export function ApiKeyManager({
     };
   }, []);
 
-  async function handleCreateFailure(status: number, code: string) {
+  async function handleCreateFailure(
+    status: number,
+    code: string
+  ): Promise<CreateApiKeyResult> {
     if (status === 401) {
       router.replace("/login?error=session");
       return false;
     }
-    const message =
-      status >= 500 || code === "API_KEY_CREATE_UNCERTAIN"
-        ? networkErrorMessage("create")
-        : code === "API_KEY_LIMIT_REACHED"
-          ? "Organization đã đạt giới hạn 50 API key. Key hết hạn vẫn chiếm chỗ cho đến khi được thu hồi."
-          : code === "API_KEY_SCOPE_NOT_ENTITLED"
-            ? "Organization không còn entitlement cho scope đã chọn. Hãy tải lại danh sách và kiểm tra quyền dịch vụ."
-            : "Không thể tạo API key do quyền truy cập hoặc trạng thái Organization đã thay đổi. Hãy tải lại trạng thái.";
+    const uncertain = status >= 500 || code === "API_KEY_CREATE_UNCERTAIN";
+    const message = uncertain
+      ? networkErrorMessage("create")
+      : code === "API_KEY_LIMIT_REACHED"
+        ? "Organization đã đạt giới hạn 50 API key. Key hết hạn vẫn chiếm chỗ cho đến khi được thu hồi."
+        : code === "API_KEY_SCOPE_NOT_ENTITLED"
+          ? "Organization không còn entitlement cho scope đã chọn. Hãy tải lại danh sách và kiểm tra quyền dịch vụ."
+          : "Không thể tạo API key do quyền truy cập hoặc trạng thái Organization đã thay đổi. Hãy tải lại trạng thái.";
     setFeedback({ kind: "error", message });
     await loadApiKeys();
-    return false;
+    return uncertain ? "uncertain" : false;
   }
 
-  async function createApiKey(payload: CreateApiKeyPayload) {
+  async function createApiKey(
+    payload: CreateApiKeyPayload
+  ): Promise<CreateApiKeyResult> {
     if (busyAction) return false;
     setBusyAction("create");
     setFeedback(null);
@@ -146,7 +154,7 @@ export function ApiKeyManager({
       if (!parsed) {
         setFeedback({ kind: "error", message: networkErrorMessage("create") });
         await loadApiKeys();
-        return false;
+        return "uncertain";
       }
       setFeedback(null);
       setRevealedKey(parsed);
@@ -155,7 +163,7 @@ export function ApiKeyManager({
     } catch {
       setFeedback({ kind: "error", message: networkErrorMessage("create") });
       await loadApiKeys();
-      return false;
+      return "uncertain";
     } finally {
       setBusyAction(null);
     }

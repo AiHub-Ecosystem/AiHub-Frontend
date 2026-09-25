@@ -18,6 +18,8 @@ export type CreateApiKeyPayload = {
   expires_at?: string;
 };
 
+export type CreateApiKeyResult = boolean | "uncertain";
+
 export function ApiKeyCreateForm({
   entitlements,
   keyCount,
@@ -27,7 +29,7 @@ export function ApiKeyCreateForm({
   entitlements: string[];
   keyCount: number;
   busy: boolean;
-  onCreate: (payload: CreateApiKeyPayload) => Promise<boolean>;
+  onCreate: (payload: CreateApiKeyPayload) => Promise<CreateApiKeyResult>;
 }) {
   const [validationError, setValidationError] = useState("");
   const [open, setOpen] = useState(false);
@@ -80,10 +82,10 @@ export function ApiKeyCreateForm({
       allowed_environments: environments as string[],
       ...(expiresAt ? { expires_at: expiresAt } : {}),
     });
-    if (succeeded) {
+    if (succeeded === true) {
       form.reset();
       setOpen(false);
-    }
+    } else if (succeeded === "uncertain") setOpen(false);
   }
 
   return (
