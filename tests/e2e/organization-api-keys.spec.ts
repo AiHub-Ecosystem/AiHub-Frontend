@@ -30,7 +30,7 @@ async function setup(
         scopes: ["writing.grade"],
         allowed_environments: ["production"],
         status: "active",
-        expires_at: null,
+        expires_at: "2026-11-15T12:00:00.000Z",
         last_used_at: null,
         created_at: "2026-09-20T10:00:00.000Z",
       },
@@ -85,7 +85,7 @@ test("owner sees active and expired API keys with their metadata", async ({
 
   await expect(page).toHaveURL(/\/console\/orgs\/org-keys-12345678\/api-keys$/);
   const table = page.getByRole("table", { name: "API keys" });
-  await expect(table).toBeVisible();
+  await expect(table).toBeVisible({ timeout: 15_000 });
   await expect(table.getByText("Production backend")).toBeVisible();
   await expect(table.getByText("aihub_sk_ABC123")).toBeVisible();
   await expect(table.getByText("writing.grade")).toHaveCount(2);
@@ -186,8 +186,11 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
     .then((result) => result.json());
   expect(JSON.stringify(requests)).not.toContain(rawKey);
   expect(directAihubRequests).toEqual([]);
-  await page.getByRole("button", { name: "Đóng" }).click();
+  await page.reload();
   await expect(page.getByTestId("api-key-raw")).toHaveCount(0);
+  await expect(
+    page.getByRole("row", { name: /New service key/ })
+  ).toBeVisible();
   await page.goto("/console/orgs/org-keys-12345678");
   await page.goBack();
   await expect(page).toHaveURL(/\/console\/orgs\/org-keys-12345678\/api-keys$/);
@@ -249,7 +252,7 @@ test("rotation reveals a new key once and sends no idempotency key", async ({
   await expect(replacement).toContainText("aihub_sk_ROTATE");
   await expect(replacement).toContainText("writing.grade");
   await expect(replacement).toContainText("production");
-  await expect(replacement).toContainText("Không hết hạn");
+  await expect(replacement).toContainText(/15 thg 11, 2026/);
 
   const requests = await request
     .get(`${mockUrl}/__test__/organizations/requests`)

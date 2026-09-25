@@ -12,6 +12,10 @@ import {
   readCreateApiKeyBody,
   validOrganizationId,
 } from "@/lib/organization-api-keys-bff";
+import {
+  parseMintedOrganizationApiKey,
+  parseOrganizationApiKeyList,
+} from "@/lib/api-keys";
 
 type RouteContext = { params: Promise<{ organizationId: string }> };
 
@@ -27,7 +31,10 @@ export async function GET(request: Request, context: RouteContext) {
       webSessionIdFromRequest(request)!,
       `/v1/organizations/${encodeURIComponent(organizationId)}/api-keys`
     );
-    return await forwardApiKeyResponse(upstream);
+    return await forwardApiKeyResponse(upstream, (payload) => {
+      const keys = parseOrganizationApiKeyList(payload);
+      return keys ? { data: { api_keys: keys } } : null;
+    });
   } catch {
     return apiKeyRequestUnavailable("API_KEY_LIST_UNAVAILABLE");
   }
@@ -60,7 +67,10 @@ export async function POST(request: Request, context: RouteContext) {
         body: JSON.stringify(input),
       }
     );
-    return await forwardApiKeyResponse(upstream);
+    return await forwardApiKeyResponse(upstream, (payload) => {
+      const apiKey = parseMintedOrganizationApiKey(payload);
+      return apiKey ? { data: apiKey } : null;
+    });
   } catch {
     return apiKeyRequestUnavailable("API_KEY_CREATE_UNCERTAIN");
   }

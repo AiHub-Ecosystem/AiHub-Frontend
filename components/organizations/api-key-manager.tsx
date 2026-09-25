@@ -110,6 +110,24 @@ export function ApiKeyManager({
     };
   }, []);
 
+  async function handleCreateFailure(status: number, code: string) {
+    if (status === 401) {
+      router.replace("/login?error=session");
+      return false;
+    }
+    const message =
+      status >= 500 || code === "API_KEY_CREATE_UNCERTAIN"
+        ? networkErrorMessage("create")
+        : code === "API_KEY_LIMIT_REACHED"
+          ? "Organization đã đạt giới hạn 50 API key. Key hết hạn vẫn chiếm chỗ cho đến khi được thu hồi."
+          : code === "API_KEY_SCOPE_NOT_ENTITLED"
+            ? "Organization không còn entitlement cho scope đã chọn. Hãy tải lại danh sách và kiểm tra quyền dịch vụ."
+            : "Không thể tạo API key do quyền truy cập hoặc trạng thái Organization đã thay đổi. Hãy tải lại trạng thái.";
+    setFeedback({ kind: "error", message });
+    await loadApiKeys();
+    return false;
+  }
+
   async function createApiKey(payload: CreateApiKeyPayload) {
     if (busyAction) return false;
     setBusyAction("create");
@@ -123,45 +141,7 @@ export function ApiKeyManager({
       });
       const result = await response.json().catch(() => null);
       const code = readErrorCode(result);
-      if (!response.ok) {
-        if (response.status >= 500 || code === "API_KEY_CREATE_UNCERTAIN") {
-          setFeedback({
-            kind: "error",
-            message: networkErrorMessage("create"),
-          });
-          await loadApiKeys();
-          return false;
-        }
-        if (code === "API_KEY_LIMIT_REACHED") {
-          setFeedback({
-            kind: "error",
-            message:
-              "Organization đã đạt giới hạn 50 API key. Key hết hạn vẫn chiếm chỗ cho đến khi được thu hồi.",
-          });
-          await loadApiKeys();
-          return false;
-        }
-        if (code === "API_KEY_SCOPE_NOT_ENTITLED") {
-          setFeedback({
-            kind: "error",
-            message:
-              "Organization không còn entitlement cho scope đã chọn. Hãy tải lại danh sách và kiểm tra quyền dịch vụ.",
-          });
-          await loadApiKeys();
-          return false;
-        }
-        if (response.status === 401) {
-          router.replace("/login?error=session");
-          return false;
-        }
-        setFeedback({
-          kind: "error",
-          message:
-            "Không thể tạo API key do quyền truy cập hoặc trạng thái Organization đã thay đổi. Hãy tải lại trạng thái.",
-        });
-        await loadApiKeys();
-        return false;
-      }
+      if (!response.ok) return await handleCreateFailure(response.status, code);
       const parsed = parseMintedOrganizationApiKey(result);
       if (!parsed) {
         setFeedback({ kind: "error", message: networkErrorMessage("create") });

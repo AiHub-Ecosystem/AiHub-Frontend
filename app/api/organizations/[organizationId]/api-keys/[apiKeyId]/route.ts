@@ -31,7 +31,7 @@ export async function DELETE(request: Request, context: RouteContext) {
       `/v1/organizations/${encodeURIComponent(organizationId)}/api-keys/${encodeURIComponent(apiKeyId)}`,
       { method: "DELETE" }
     );
-    return await forwardApiKeyResponse(upstream);
+    return await forwardApiKeyResponse(upstream, () => undefined);
   } catch {
     return apiKeyRequestUnavailable("API_KEY_REVOKE_UNAVAILABLE");
   }

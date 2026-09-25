@@ -11,6 +11,7 @@ import {
   validApiKeyId,
   validOrganizationId,
 } from "@/lib/organization-api-keys-bff";
+import { parseMintedOrganizationApiKey } from "@/lib/api-keys";
 
 type RouteContext = {
   params: Promise<{ organizationId: string; apiKeyId: string }>;
@@ -31,7 +32,10 @@ export async function POST(request: Request, context: RouteContext) {
       `/v1/organizations/${encodeURIComponent(organizationId)}/api-keys/${encodeURIComponent(apiKeyId)}/rotate`,
       { method: "POST" }
     );
-    return await forwardApiKeyResponse(upstream);
+    return await forwardApiKeyResponse(upstream, (payload) => {
+      const apiKey = parseMintedOrganizationApiKey(payload);
+      return apiKey ? { data: apiKey } : null;
+    });
   } catch {
     return apiKeyRequestUnavailable("API_KEY_ROTATE_UNCERTAIN");
   }

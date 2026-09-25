@@ -8,6 +8,7 @@ const apiKeyScopes = new Set<string>(
 );
 const apiKeyEnvironments = new Set<string>(["production", "staging"]);
 const maxCreateBodyBytes = 16 * 1024;
+const maxApiKeyResponseBytes = 256 * 1024;
 
 export function validOrganizationId(value: string) {
   return /^[A-Za-z0-9_-]{1,128}$/.test(value);
@@ -24,13 +25,16 @@ export type CreateApiKeyInput = {
   expires_at?: string;
 };
 
-export async function readCreateApiKeyBody(request: Request): Promise<unknown> {
-  const contentLength = Number(request.headers.get("content-length"));
-  if (Number.isFinite(contentLength) && contentLength > maxCreateBodyBytes)
-    return null;
+async function readBoundedBytes(
+  stream: ReadableStream<Uint8Array> | null,
+  contentLengthHeader: string | null,
+  limit: number
+) {
+  const contentLength = Number(contentLengthHeader);
+  if (Number.isFinite(contentLength) && contentLength > limit) return null;
+  if (!stream) return new Uint8Array();
 
-  const reader = request.body?.getReader();
-  if (!reader) return null;
+  const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
   try {
@@ -38,7 +42,7 @@ export async function readCreateApiKeyBody(request: Request): Promise<unknown> {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > maxCreateBodyBytes) {
+      if (size > limit) {
         await reader.cancel();
         return null;
       }
@@ -56,6 +60,16 @@ export async function readCreateApiKeyBody(request: Request): Promise<unknown> {
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
+  return bytes;
+}
+
+export async function readCreateApiKeyBody(request: Request): Promise<unknown> {
+  const bytes = await readBoundedBytes(
+    request.body,
+    request.headers.get("content-length"),
+    maxCreateBodyBytes
+  );
+  if (!bytes) return null;
   try {
     return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
   } catch {
@@ -133,21 +147,68 @@ function errorCode(status: number, responseText: string) {
   return "API_KEY_REQUEST_FAILED";
 }
 
-export async function forwardApiKeyResponse(upstream: Response) {
-  const responseText = await upstream.text();
-  const headers = {
-    ...apiKeyNoStore,
-    "Content-Type": "application/json",
-  };
-  if (upstream.ok)
-    return new Response(responseText, { status: upstream.status, headers });
-  return Response.json(
-    { error: { code: errorCode(upstream.status, responseText) } },
-    { status: upstream.status, headers: apiKeyNoStore }
+export async function forwardApiKeyResponse(
+  upstream: Response,
+  mapSuccess?: (payload: unknown) => unknown
+) {
+  const bytes = await readBoundedBytes(
+    upstream.body,
+    upstream.headers.get("content-length"),
+    maxApiKeyResponseBytes
   );
+  if (!bytes) {
+    console.error("[api-keys] upstream response exceeded the size limit");
+    return Response.json(
+      { error: { code: "API_KEY_RESPONSE_INVALID" } },
+      { status: 502, headers: apiKeyNoStore }
+    );
+  }
+  const responseText = new TextDecoder().decode(bytes);
+  if (!upstream.ok) {
+    const code = errorCode(upstream.status, responseText);
+    console.warn("[api-keys] upstream request failed", {
+      status: upstream.status,
+      code,
+    });
+    return Response.json(
+      { error: { code } },
+      { status: upstream.status, headers: apiKeyNoStore }
+    );
+  }
+  if (upstream.status === 204)
+    return new Response(null, { status: 204, headers: apiKeyNoStore });
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(responseText);
+  } catch {
+    console.error("[api-keys] upstream returned invalid JSON");
+    return Response.json(
+      { error: { code: "API_KEY_RESPONSE_INVALID" } },
+      { status: 502, headers: apiKeyNoStore }
+    );
+  }
+  const mappedPayload = mapSuccess ? mapSuccess(payload) : payload;
+  if (mappedPayload === null) {
+    console.error("[api-keys] upstream response failed schema validation");
+    return Response.json(
+      { error: { code: "API_KEY_RESPONSE_INVALID" } },
+      { status: 502, headers: apiKeyNoStore }
+    );
+  }
+  if (mappedPayload === undefined)
+    return new Response(null, {
+      status: upstream.status,
+      headers: apiKeyNoStore,
+    });
+  return Response.json(mappedPayload, {
+    status: upstream.status,
+    headers: apiKeyNoStore,
+  });
 }
 
 export function apiKeyRequestUnavailable(code: string) {
+  console.error("[api-keys] upstream request unavailable", { code });
   return Response.json(
     { error: { code } },
     { status: 503, headers: apiKeyNoStore }
