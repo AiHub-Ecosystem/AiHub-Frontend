@@ -2,11 +2,24 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
-export function OrganizationCreationForm() {
+export function OrganizationCreationForm({
+  openOnMount = false,
+}: {
+  openOnMount?: boolean;
+}) {
   const router = useRouter();
   const inFlight = useRef(false);
   const key = useRef<string | null>(null);
+  const [open, setOpen] = useState(openOnMount);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -82,17 +95,32 @@ export function OrganizationCreationForm() {
   }
 
   return (
-    <form className="auth-form" onSubmit={submit}>
-      <label htmlFor="organization-name">Tên Organization</label>
-      <input id="organization-name" name="name" minLength={1} required />
-      {error && (
-        <p className="auth-error" role="alert">
-          {error}
-        </p>
-      )}
-      <button className="auth-submit" disabled={busy} type="submit">
-        {busy ? "Đang tạo…" : "Tạo Organization"}
-      </button>
-    </form>
+    <Dialog onOpenChange={setOpen} open={open}>
+      <DialogTrigger asChild>
+        <button className="console-primary-action" type="button">
+          {openOnMount ? "Mở lại biểu mẫu" : "Tạo Organization"}
+        </button>
+      </DialogTrigger>
+      <DialogContent aria-describedby="organization-create-description">
+        <DialogHeader>
+          <DialogTitle>Tạo Organization mới</DialogTitle>
+          <DialogDescription id="organization-create-description">
+            Mỗi tài khoản có thể tạo tối đa ba Organization.
+          </DialogDescription>
+        </DialogHeader>
+        <form className="auth-form dialog-form" onSubmit={submit}>
+          <label htmlFor="organization-name">Tên Organization</label>
+          <input id="organization-name" name="name" minLength={1} required />
+          {error && (
+            <p className="auth-error" role="alert">
+              {error}
+            </p>
+          )}
+          <button className="auth-submit" disabled={busy} type="submit">
+            {busy ? "Đang tạo…" : "Tạo Organization"}
+          </button>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

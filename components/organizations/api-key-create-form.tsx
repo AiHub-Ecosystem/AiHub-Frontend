@@ -2,6 +2,14 @@
 
 import { useState } from "react";
 import { apiKeyScopeOptions } from "@/lib/api-key-scopes";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export type CreateApiKeyPayload = {
   name: string;
@@ -22,6 +30,7 @@ export function ApiKeyCreateForm({
   onCreate: (payload: CreateApiKeyPayload) => Promise<boolean>;
 }) {
   const [validationError, setValidationError] = useState("");
+  const [open, setOpen] = useState(false);
   const scopes = apiKeyScopeOptions(entitlements);
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -71,92 +80,119 @@ export function ApiKeyCreateForm({
       allowed_environments: environments as string[],
       ...(expiresAt ? { expires_at: expiresAt } : {}),
     });
-    if (succeeded) form.reset();
+    if (succeeded) {
+      form.reset();
+      setOpen(false);
+    }
   }
 
   return (
-    <details className="api-key-create">
-      <summary>Tạo API key</summary>
+    <div className="api-key-create">
+      <Dialog onOpenChange={setOpen} open={open}>
+        <DialogTrigger asChild>
+          <button
+            className="console-primary-action"
+            disabled={keyCount >= 50 || busy}
+            type="button"
+          >
+            Tạo API key
+          </button>
+        </DialogTrigger>
+        <DialogContent
+          aria-describedby="api-key-create-description"
+          className="api-key-create-dialog"
+        >
+          <DialogHeader>
+            <DialogTitle>Tạo API key</DialogTitle>
+            <DialogDescription id="api-key-create-description">
+              Chọn quyền và môi trường đúng với nhu cầu tích hợp.
+            </DialogDescription>
+          </DialogHeader>
+          <form className="api-key-form" onSubmit={submit}>
+            <label htmlFor="api-key-name">Tên API key</label>
+            <input id="api-key-name" name="name" maxLength={100} required />
+
+            <fieldset className="api-key-options">
+              <legend>Scopes</legend>
+              {scopes.map((option) => (
+                <label className="api-key-option" key={option.scope}>
+                  <input
+                    type="checkbox"
+                    name="scopes"
+                    value={option.scope}
+                    disabled={!option.available}
+                  />
+                  <span>
+                    {option.scope}
+                    {!option.available && (
+                      <span className="api-key-unavailable">
+                        {option.service} — không khả dụng, liên hệ AIHUB
+                        (Organization chưa được cấp entitlement này).
+                      </span>
+                    )}
+                  </span>
+                </label>
+              ))}
+              <p className="api-key-help">
+                Chỉ chọn scope cần thiết. Chọn ít nhất một scope.
+              </p>
+            </fieldset>
+
+            <fieldset className="api-key-options">
+              <legend>Môi trường được phép</legend>
+              <label className="api-key-option">
+                <input
+                  type="checkbox"
+                  name="allowed_environments"
+                  value="production"
+                  defaultChecked
+                />
+                production
+              </label>
+              <label className="api-key-option">
+                <input
+                  type="checkbox"
+                  name="allowed_environments"
+                  value="staging"
+                />
+                staging
+              </label>
+            </fieldset>
+
+            <label htmlFor="api-key-expires-at">
+              Hết hạn lúc (không bắt buộc)
+            </label>
+            <input
+              id="api-key-expires-at"
+              name="expires_at"
+              type="datetime-local"
+              aria-describedby="api-key-expiry-help"
+            />
+            <p className="api-key-help" id="api-key-expiry-help">
+              Múi giờ: {timeZone}. Tối đa 365 ngày tính từ lúc tạo.
+            </p>
+
+            {validationError && (
+              <p className="auth-error" role="alert">
+                {validationError}
+              </p>
+            )}
+            <button
+              className="auth-submit"
+              disabled={busy || keyCount >= 50}
+              type="submit"
+            >
+              {busy ? "Đang tạo…" : "Tạo key"}
+            </button>
+          </form>
+        </DialogContent>
+      </Dialog>
       {keyCount >= 50 && (
         <p className="api-key-notice" role="status">
           Đã đạt giới hạn 50 API key. Key hết hạn vẫn chiếm một chỗ cho đến khi
           được thu hồi; hãy thu hồi key không còn dùng.
         </p>
       )}
-      <form className="api-key-form" onSubmit={submit}>
-        <label htmlFor="api-key-name">Tên API key</label>
-        <input id="api-key-name" name="name" maxLength={100} required />
-
-        <fieldset className="api-key-options">
-          <legend>Scopes</legend>
-          {scopes.map((option) => (
-            <label className="api-key-option" key={option.scope}>
-              <input
-                type="checkbox"
-                name="scopes"
-                value={option.scope}
-                disabled={!option.available}
-              />
-              <span>
-                {option.scope}
-                {!option.available && (
-                  <span className="api-key-unavailable">
-                    {option.service} — không khả dụng, liên hệ AIHUB
-                  </span>
-                )}
-              </span>
-            </label>
-          ))}
-          <p className="api-key-help">
-            Chỉ chọn scope cần thiết. Chọn ít nhất một scope.
-          </p>
-        </fieldset>
-
-        <fieldset className="api-key-options">
-          <legend>Môi trường được phép</legend>
-          <label className="api-key-option">
-            <input
-              type="checkbox"
-              name="allowed_environments"
-              value="production"
-              defaultChecked
-            />
-            production
-          </label>
-          <label className="api-key-option">
-            <input
-              type="checkbox"
-              name="allowed_environments"
-              value="staging"
-            />
-            staging
-          </label>
-        </fieldset>
-
-        <label htmlFor="api-key-expires-at">Hết hạn lúc (không bắt buộc)</label>
-        <input
-          id="api-key-expires-at"
-          name="expires_at"
-          type="datetime-local"
-          aria-describedby="api-key-expiry-help"
-        />
-        <p className="api-key-help" id="api-key-expiry-help">
-          Múi giờ: {timeZone}. Tối đa 365 ngày tính từ lúc tạo.
-        </p>
-
-        {validationError && (
-          <p className="auth-error" role="alert">
-            {validationError}
-          </p>
-        )}
-        <button
-          className="auth-submit"
-          disabled={busy || keyCount >= 50}
-          type="submit"
-        >
-          {busy ? "Đang tạo…" : "Tạo key"}
-        </button>
-      </form>
-    </details>
+    </div>
   );
 }

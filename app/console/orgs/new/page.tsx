@@ -29,8 +29,10 @@ export default async function NewOrganizationPage() {
             Mỗi User Account được tạo tối đa 3 Organization trong suốt thời gian
             sử dụng. Liên hệ AIHUB nếu cần thêm.
           </p>
-          <OrganizationCreationForm />
-          {roster && <OrganizationSwitcher roster={roster} />}
+          <OrganizationCreationForm openOnMount />
+          {roster && (
+            <OrganizationSwitcher roster={roster} showCreate={false} />
+          )}
         </div>
       </main>
     </>

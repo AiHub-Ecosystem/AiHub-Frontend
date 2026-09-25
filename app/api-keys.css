@@ -1,11 +1,23 @@
 .api-key-manager {
-  margin-top: 40px;
+  margin-top: 34px;
+  padding: 26px;
+  border: 1px solid #e4e7ec;
+  border-radius: 16px;
+  background: rgb(255 255 255 / 72%);
 }
 
-.api-key-manager > h2 {
+.api-key-manager h2 {
   margin: 0;
   color: #101828;
   font-size: 22px;
+}
+
+.api-key-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
 }
 
 .api-key-count,
@@ -16,17 +28,7 @@
 }
 
 .api-key-create {
-  margin-block: 20px 28px;
-  padding: 18px;
-  border: 1px solid #d0d5dd;
-  border-radius: 12px;
-  background: #fff;
-}
-
-.api-key-create > summary {
-  color: #254edb;
-  cursor: pointer;
-  font-weight: 700;
+  margin: 0;
 }
 
 .api-key-form {
@@ -55,8 +57,7 @@
 }
 
 .api-key-form input:focus-visible,
-.api-key-action:focus-visible,
-.api-key-create > summary:focus-visible {
+.api-key-action:focus-visible {
   outline: 3px solid rgb(58 100 250 / 35%);
   outline-offset: 2px;
 }
@@ -103,6 +104,19 @@
   background: #f9fafb;
   color: #344054;
   line-height: 1.5;
+}
+
+.api-key-empty {
+  border-style: dashed;
+  padding: 22px;
+}
+
+.api-key-create-dialog {
+  width: min(94vw, 680px);
+}
+
+.api-key-create-dialog .api-key-form {
+  margin-top: 0;
 }
 
 .api-key-table-wrap {
@@ -269,8 +283,17 @@
 }
 
 @media (max-width: 640px) {
-  .api-key-create {
-    padding: 14px;
+  .api-key-manager {
+    padding: 18px;
+  }
+
+  .api-key-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ui-dialog-content {
+    padding: 22px 18px;
   }
 
   .api-key-table {

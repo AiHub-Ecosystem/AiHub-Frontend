@@ -257,18 +257,22 @@ export function ApiKeyManager({
       aria-labelledby="api-key-manager-title"
       className="api-key-manager"
     >
-      <h2 id="api-key-manager-title">API keys</h2>
-      <p className="api-key-count">
-        {apiKeys.length} / 50 key chưa thu hồi
-        {expiredCount > 0 &&
-          ` · ${expiredCount} key hết hạn vẫn chiếm chỗ cho đến khi thu hồi`}
-      </p>
-      <ApiKeyCreateForm
-        busy={busyAction !== null}
-        entitlements={entitlements}
-        keyCount={apiKeys.length}
-        onCreate={createApiKey}
-      />
+      <div className="api-key-heading">
+        <div>
+          <h2 id="api-key-manager-title">API keys</h2>
+          <p className="api-key-count">
+            {apiKeys.length} / 50 key chưa thu hồi
+            {expiredCount > 0 &&
+              ` · ${expiredCount} key hết hạn vẫn chiếm chỗ cho đến khi thu hồi`}
+          </p>
+        </div>
+        <ApiKeyCreateForm
+          busy={busyAction !== null}
+          entitlements={entitlements}
+          keyCount={apiKeys.length}
+          onCreate={createApiKey}
+        />
+      </div>
 
       {feedback && (
         <p

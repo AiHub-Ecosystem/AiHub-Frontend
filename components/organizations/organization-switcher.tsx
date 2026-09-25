@@ -4,13 +4,16 @@ import {
   shortOrganizationId,
   type OrganizationMembership,
 } from "@/lib/organizations";
+import { OrganizationCreationForm } from "@/components/organizations/organization-creation-form";
 
 export function OrganizationSwitcher({
   roster,
   selectedId,
+  showCreate = true,
 }: {
   roster: OrganizationMembership[];
   selectedId?: string;
+  showCreate?: boolean;
 }) {
   const duplicateNames = new Set(
     roster
@@ -45,7 +48,7 @@ export function OrganizationSwitcher({
           </span>
         </Link>
       ))}
-      <Link href="/console/orgs/new">Tạo Organization mới</Link>
+      {showCreate && <OrganizationCreationForm />}
     </nav>
   );
 }
