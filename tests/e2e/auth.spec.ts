@@ -54,7 +54,7 @@ async function signIn(
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Mật khẩu").fill(validPassword);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
-  await expect(page).toHaveURL(/\/console$/);
+  await expect(page).toHaveURL(/\/console\/orgs$/);
 }
 
 async function createSession(request: APIRequestContext, email: string) {
@@ -88,9 +88,9 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(validPassword);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
-  await expect(page).toHaveURL(/\/console$/);
+  await expect(page).toHaveURL(/\/console\/orgs$/);
   await expect(
-    page.getByRole("heading", { name: "Chọn Organization", exact: true })
+    page.getByRole("heading", { name: "Organizations", exact: true })
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Console", exact: true })
@@ -117,7 +117,7 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
 
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "Chọn Organization", exact: true })
+    page.getByRole("heading", { name: "Organizations", exact: true })
   ).toBeVisible();
   await page.getByText("Tài khoản", { exact: true }).click();
   await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
@@ -165,7 +165,7 @@ test("Academic Lab uses Console sign-in and opens for an authenticated session",
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(validPassword);
   await page.getByRole("button", { name: "Đăng nhập AIHub Console" }).click();
-  await expect(page).toHaveURL(/\/console$/);
+  await expect(page).toHaveURL(/\/console\/orgs$/);
   await page.goto("/lab");
   await expect(page).toHaveURL(/\/lab$/);
   await expect(

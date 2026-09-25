@@ -153,7 +153,7 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   await expect(writing).not.toBeChecked();
   await expect(speaking).toBeDisabled();
   await expect(
-    page.getByText(/Speaking — không khả dụng, liên hệ AIHUB/)
+    page.getByText(/Speaking chưa được bật cho Organization/)
   ).toBeVisible();
   await expect(page.getByText("Môi trường được phép")).toHaveCount(0);
 
