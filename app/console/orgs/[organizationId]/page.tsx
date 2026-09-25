@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requirePageWebSession } from "@/lib/page-session";
 import { readOrganizationRoster } from "@/lib/organization-server";
@@ -40,6 +41,15 @@ export default async function OrganizationOverviewPage({
             </p>
           )}
           <IdentityReadinessNotice organization={organization} />
+          {organization.status === "active" &&
+            organization.membershipRole === "owner" && (
+              <Link
+                className="organization-back-link"
+                href={`/console/orgs/${encodeURIComponent(organization.id)}/identity`}
+              >
+                Cấu hình identity
+              </Link>
+            )}
           {organization.status === "active" &&
             organization.membershipRole === "owner" && (
               <OrganizationRenameForm

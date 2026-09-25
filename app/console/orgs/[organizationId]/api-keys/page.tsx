@@ -43,6 +43,14 @@ export default async function OrganizationApiKeysPage({
           <Link className="organization-back-link" href="/console/orgs">
             ← Tất cả Organizations
           </Link>
+          {organization.membershipRole === "owner" && (
+            <Link
+              className="organization-back-link"
+              href={`/console/orgs/${encodeURIComponent(organization.id)}/identity`}
+            >
+              Cấu hình identity
+            </Link>
+          )}
           <IdentityReadinessNotice organization={organization} />
           <ApiKeyManager
             entitlements={organization.entitlements}
