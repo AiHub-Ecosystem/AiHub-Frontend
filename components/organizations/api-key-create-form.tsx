@@ -112,7 +112,13 @@ export function ApiKeyCreateForm({
           </DialogHeader>
           <form className="api-key-form" onSubmit={submit}>
             <label htmlFor="api-key-name">Tên API key</label>
-            <input id="api-key-name" name="name" maxLength={100} required />
+            <input
+              id="api-key-name"
+              name="name"
+              maxLength={100}
+              placeholder="Ví dụ: Backend production"
+              required
+            />
 
             <fieldset className="api-key-options">
               <legend>Scopes</legend>
@@ -128,8 +134,8 @@ export function ApiKeyCreateForm({
                     {option.scope}
                     {!option.available && (
                       <span className="api-key-unavailable">
-                        {option.service} — không khả dụng, liên hệ AIHUB
-                        (Organization chưa được cấp entitlement này).
+                        {option.service} chưa được bật cho Organization. Liên hệ
+                        AIHUB để cấp quyền.
                       </span>
                     )}
                   </span>

@@ -58,7 +58,8 @@
 
 .api-key-form input:focus-visible,
 .api-key-action:focus-visible {
-  outline: 3px solid rgb(58 100 250 / 35%);
+  border-color: #3a64fa;
+  outline: 3px solid rgb(58 100 250 / 28%);
   outline-offset: 2px;
 }
 
@@ -95,6 +96,10 @@
   font-weight: 450;
 }
 
+.api-key-option:has(input:disabled) .api-key-unavailable {
+  color: #667085;
+}
+
 .api-key-notice,
 .api-key-empty,
 .api-key-list-error {
@@ -112,11 +117,51 @@
 }
 
 .api-key-create-dialog {
-  width: min(94vw, 680px);
+  display: flex;
+  width: min(94vw, 640px);
+  max-height: min(88dvh, 820px);
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .api-key-create-dialog .api-key-form {
+  min-height: 0;
   margin-top: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 6px 2px 0;
+}
+
+.api-key-create-dialog .api-key-form .auth-submit {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  box-shadow: 0 -8px 16px #fff;
+}
+
+.api-key-create-dialog .api-key-options {
+  gap: 8px;
+  margin-block: 4px;
+  padding: 14px 16px;
+  border-color: #dce3f2;
+  background: #fbfcff;
+}
+
+.api-key-create-dialog .api-key-option {
+  min-height: 28px;
+  align-items: center;
+}
+
+.api-key-create-dialog .api-key-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.api-key-create-dialog .api-key-unavailable {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .api-key-table-wrap {
@@ -294,6 +339,10 @@
 
   .ui-dialog-content {
     padding: 22px 18px;
+  }
+
+  .api-key-create-dialog {
+    max-height: calc(100dvh - 24px);
   }
 
   .api-key-table {
