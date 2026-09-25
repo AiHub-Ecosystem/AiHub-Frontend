@@ -41,15 +41,17 @@ export default async function OrganizationApiKeysPage({
             Tạo, xoay và thu hồi API keys dùng để kết nối dịch vụ của
             Organization.
           </p>
-          <Link className="organization-back-link" href="/console/orgs">
-            ← Tất cả Organizations
-          </Link>
-          {organization.membershipRole === "owner" && (
-            <OrganizationIdentityDialog
-              organizationId={organization.id}
-              organizationName={organization.name}
-            />
-          )}
+          <div className="api-key-page-actions">
+            <Link className="organization-back-link" href="/console/orgs">
+              ← Tất cả Organizations
+            </Link>
+            {organization.membershipRole === "owner" && (
+              <OrganizationIdentityDialog
+                organizationId={organization.id}
+                organizationName={organization.name}
+              />
+            )}
+          </div>
           <IdentityReadinessNotice organization={organization} />
           <ApiKeyManager
             entitlements={organization.entitlements}

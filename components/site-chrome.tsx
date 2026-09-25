@@ -272,8 +272,15 @@ const FALLBACK_NAV = [
 
 function authActions(signedIn: boolean) {
   return signedIn
-    ? '<div class="auth-actions"><a href="/console">Console</a><details class="account-menu"><summary>Tài khoản</summary><form action="/api/auth/logout" method="post"><button type="submit">Đăng xuất</button></form></details></div>'
-    : "";
+    ? '<div class="auth-actions site-auth-actions"><a href="/console">Console</a><details class="account-menu"><summary>Tài khoản</summary><form action="/api/auth/logout" method="post"><button type="submit">Đăng xuất</button></form></details></div>'
+    : '<div class="site-auth-actions"><a href="/login">Đăng nhập</a><a href="/register">Đăng ký</a></div>';
+}
+
+function replaceMenuExtras(header: string, signedIn: boolean) {
+  const start = header.indexOf('<div class="menu-extras">');
+  const end = header.indexOf("</div>", start);
+  if (start === -1 || end === -1) return header;
+  return `${header.slice(0, start)}${authActions(signedIn)}${header.slice(end + 6)}`;
 }
 
 export async function SiteHeader() {
@@ -288,10 +295,7 @@ export async function SiteHeader() {
     }
   }
   if (chrome) {
-    const header = chrome.header.replace(
-      '<div class="menu-extras">',
-      `${authActions(signedIn)}<div class="menu-extras">`
-    );
+    const header = replaceMenuExtras(chrome.header, signedIn);
     return <div dangerouslySetInnerHTML={{ __html: header }} />;
   }
   return (
@@ -308,17 +312,24 @@ export async function SiteHeader() {
               ))}
             </ul>
           </nav>
-          {signedIn && (
-            <div className="auth-actions">
-              <Link href="/console">Console</Link>
-              <details className="account-menu">
-                <summary>Tài khoản</summary>
-                <form action="/api/auth/logout" method="post">
-                  <button type="submit">Đăng xuất</button>
-                </form>
-              </details>
-            </div>
-          )}
+          <div className="site-auth-actions">
+            {signedIn ? (
+              <>
+                <Link href="/console">Console</Link>
+                <details className="account-menu">
+                  <summary>Tài khoản</summary>
+                  <form action="/api/auth/logout" method="post">
+                    <button type="submit">Đăng xuất</button>
+                  </form>
+                </details>
+              </>
+            ) : (
+              <>
+                <Link href="/login">Đăng nhập</Link>
+                <Link href="/register">Đăng ký</Link>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </header>

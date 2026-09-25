@@ -292,6 +292,14 @@
   text-decoration: underline;
 }
 
+.api-key-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
 @media (max-width: 600px) {
   .organization-directory-heading {
     align-items: flex-start;
