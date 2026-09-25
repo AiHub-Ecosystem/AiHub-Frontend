@@ -15,7 +15,41 @@ async function resetAuthMock(request: APIRequestContext) {
   expect(response.status()).toBe(204);
 }
 
-async function signIn(page: Page, email = "valid@example.test") {
+async function configureConsoleRoster(request: APIRequestContext) {
+  const response = await request.post(
+    `${mockUrl}/__test__/organizations/config`,
+    {
+      data: {
+        roster: [
+          {
+            organization: {
+              id: "auth-org-1",
+              name: "Auth Org One",
+              status: "active",
+            },
+            membership_role: "owner",
+          },
+          {
+            organization: {
+              id: "auth-org-2",
+              name: "Auth Org Two",
+              status: "active",
+            },
+            membership_role: "owner",
+          },
+        ],
+      },
+    }
+  );
+  expect(response.status()).toBe(204);
+}
+
+async function signIn(
+  page: Page,
+  request: APIRequestContext,
+  email = "valid@example.test"
+) {
+  await configureConsoleRoster(request);
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Mật khẩu").fill(validPassword);
@@ -42,6 +76,7 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
   request,
 }) => {
   await resetAuthMock(request);
+  await configureConsoleRoster(request);
   await page.goto("/login?next=https%3A%2F%2Fattacker.test%2Fcollect");
   await expect(
     page.getByRole("link", { name: "Đăng nhập", exact: true })
@@ -55,7 +90,7 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(page).toHaveURL(/\/console$/);
   await expect(
-    page.getByRole("heading", { name: "Console", exact: true })
+    page.getByRole("heading", { name: "Chọn Organization", exact: true })
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Console", exact: true })
@@ -82,7 +117,7 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
 
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "Console", exact: true })
+    page.getByRole("heading", { name: "Chọn Organization", exact: true })
   ).toBeVisible();
   await page.getByText("Tài khoản", { exact: true }).click();
   await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
@@ -103,11 +138,12 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
   ).toHaveCount(0);
 });
 
-test("Academic Lab uses Console sign-in and opens after the Console dashboard", async ({
+test("Academic Lab uses Console sign-in and opens for an authenticated session", async ({
   page,
   request,
 }) => {
   await resetAuthMock(request);
+  await configureConsoleRoster(request);
 
   const anonymousSamples = await request.get(
     `${appUrl}/api/portal/academic/samples`
@@ -130,7 +166,7 @@ test("Academic Lab uses Console sign-in and opens after the Console dashboard", 
   await page.getByLabel("Mật khẩu").fill(validPassword);
   await page.getByRole("button", { name: "Đăng nhập AIHub Console" }).click();
   await expect(page).toHaveURL(/\/console$/);
-  await page.locator('main a[href="/lab"]').click();
+  await page.goto("/lab");
   await expect(page).toHaveURL(/\/lab$/);
   await expect(
     page.getByRole("heading", { name: "Tạo bài tập", exact: true })
@@ -300,7 +336,7 @@ test("password reset removes its token, checks mismatch, and clears the current 
   request,
 }) => {
   await resetAuthMock(request);
-  await signIn(page);
+  await signIn(page, request);
   expect(
     (await page.context().cookies()).some(
       (cookie) => cookie.name === "__Host-aihub_web_session"
@@ -535,7 +571,7 @@ test("a rejected refresh ends the session and logout clears it during an AIHUB o
     .toBe(false);
 
   await resetAuthMock(request);
-  await signIn(page);
+  await signIn(page, request);
   const logoutCookie = (await page.context().cookies()).find(
     (cookie) => cookie.name === "__Host-aihub_web_session"
   );
