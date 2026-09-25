@@ -133,7 +133,10 @@ const server = createServer(async (request, response) => {
       sendJson(response, 503, { error: { code: "LOCAL_MOCK_OUTAGE" } });
       return;
     }
-    sendJson(response, 200, { data: organizationConfig.roster });
+    sendJson(response, 200, {
+      data: { organizations: organizationConfig.roster },
+      meta: { request_id: "local-mock" },
+    });
     return;
   }
 

@@ -39,9 +39,12 @@ export function parseOrganizationRoster(
 ): OrganizationMembership[] | null {
   const root = record(value);
   const data = root?.data;
-  if (!Array.isArray(data)) return null;
+  const organizations = Array.isArray(data)
+    ? data
+    : record(data)?.organizations;
+  if (!Array.isArray(organizations)) return null;
   const roster: OrganizationMembership[] = [];
-  for (const item of data) {
+  for (const item of organizations) {
     const row = record(item);
     const organization = record(row?.organization) ?? row;
     const id =

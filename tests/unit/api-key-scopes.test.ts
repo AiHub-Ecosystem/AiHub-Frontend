@@ -63,4 +63,13 @@ describe("API key scope options", () => {
       },
     ]);
   });
+
+  it("parses the backend's nested empty Organization roster", () => {
+    expect(
+      parseOrganizationRoster({
+        data: { organizations: [] },
+        meta: { request_id: "local-mock" },
+      })
+    ).toEqual([]);
+  });
 });
