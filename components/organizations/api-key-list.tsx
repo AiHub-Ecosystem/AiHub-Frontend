@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { OrganizationApiKey } from "@/lib/api-keys";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 function displayDate(value: string | null) {
   if (!value) return "—";
@@ -27,11 +28,11 @@ export function ApiKeyList({
   );
   const [revoking, setRevoking] = useState(false);
 
-  async function confirmRevoke() {
-    if (!pendingRevoke || revoking) return;
+  async function confirmRevoke(apiKey: OrganizationApiKey) {
+    if (revoking) return;
     setRevoking(true);
     try {
-      if (await onRevoke(pendingRevoke)) setPendingRevoke(null);
+      if (await onRevoke(apiKey)) setPendingRevoke(null);
     } finally {
       setRevoking(false);
     }
@@ -96,56 +97,42 @@ export function ApiKeyList({
                           Xoay key
                         </button>
                       )}
-                      <button
-                        className="api-key-action api-key-action--danger"
-                        disabled={busy}
-                        onClick={() => setPendingRevoke(apiKey)}
-                        type="button"
-                      >
-                        Thu hồi
-                      </button>
+                      <ConfirmationDialog
+                        body={
+                          <p>
+                            Bạn sắp thu hồi <strong>{apiKey.name}</strong> (
+                            <code>{apiKey.key_prefix}</code>). Key sẽ không thể
+                            dùng lại.
+                          </p>
+                        }
+                        cancelLabel="Hủy"
+                        confirmLabel="Xác nhận thu hồi"
+                        destructive
+                        onConfirm={() => confirmRevoke(apiKey)}
+                        onOpenChange={(open) => {
+                          if (revoking && !open) return;
+                          setPendingRevoke(open ? apiKey : null);
+                        }}
+                        open={pendingRevoke?.id === apiKey.id}
+                        pending={revoking}
+                        pendingLabel="Đang thu hồi…"
+                        title="Thu hồi API key?"
+                        trigger={
+                          <button
+                            className="api-key-action api-key-action--danger"
+                            disabled={busy}
+                            type="button"
+                          >
+                            Thu hồi
+                          </button>
+                        }
+                      />
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {pendingRevoke && (
-        <div className="api-key-confirm-backdrop">
-          <section
-            aria-labelledby="api-key-revoke-title"
-            aria-modal="true"
-            className="api-key-confirm"
-            role="alertdialog"
-          >
-            <h2 id="api-key-revoke-title">Thu hồi API key?</h2>
-            <p>
-              Bạn sắp thu hồi <strong>{pendingRevoke.name}</strong> (
-              <code>{pendingRevoke.key_prefix}</code>). Key sẽ không thể dùng
-              lại.
-            </p>
-            <div className="api-key-dialog-actions">
-              <button
-                className="api-key-action"
-                disabled={revoking}
-                onClick={() => setPendingRevoke(null)}
-                type="button"
-              >
-                Hủy
-              </button>
-              <button
-                className="api-key-action api-key-action--danger"
-                disabled={revoking}
-                onClick={confirmRevoke}
-                type="button"
-              >
-                {revoking ? "Đang thu hồi…" : "Xác nhận thu hồi"}
-              </button>
-            </div>
-          </section>
         </div>
       )}
     </>

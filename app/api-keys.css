@@ -207,8 +207,7 @@
   font-weight: 650;
 }
 
-.api-key-table code,
-.api-key-confirm code {
+.api-key-table code {
   overflow-wrap: anywhere;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -231,8 +230,7 @@
   color: #b54708;
 }
 
-.api-key-row-actions,
-.api-key-dialog-actions {
+.api-key-row-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -282,13 +280,11 @@
   box-shadow: 0 24px 60px rgb(16 24 40 / 25%);
 }
 
-.api-key-reveal::backdrop,
-.api-key-confirm-backdrop {
+.api-key-reveal::backdrop {
   background: rgb(16 24 40 / 55%);
 }
 
-.api-key-reveal h2,
-.api-key-confirm h2 {
+.api-key-reveal h2 {
   margin-top: 0;
 }
 
@@ -308,27 +304,6 @@
   min-height: 38px;
   margin: 0;
   padding: 8px 14px;
-}
-
-.api-key-confirm-backdrop {
-  position: fixed;
-  z-index: 20;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 18px;
-}
-
-.api-key-confirm {
-  width: min(100%, 480px);
-  padding: 24px;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 24px 60px rgb(16 24 40 / 25%);
-}
-
-.api-key-confirm p {
-  line-height: 1.6;
 }
 
 @media (max-width: 640px) {

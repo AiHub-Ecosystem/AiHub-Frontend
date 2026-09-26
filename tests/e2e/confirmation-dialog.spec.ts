@@ -1,0 +1,128 @@
+import { expect, test, type Page } from "@playwright/test";
+
+const harnessPath = "/test-harness/confirmation-dialog";
+const secondAppUrl = "http://127.0.0.1:3105";
+
+async function openNestedConfirmation(page: Page, outcome = "success") {
+  await page.goto(harnessPath);
+  await page.getByRole("button", { name: "Open parent dialog" }).click();
+  await page.getByLabel("Confirmation outcome").selectOption(outcome);
+  const trigger = page.getByRole("button", {
+    name: "Open nested confirmation",
+  });
+  await trigger.click();
+
+  return {
+    trigger,
+    confirmation: page.getByRole("alertdialog", { name: "Remove record?" }),
+  };
+}
+
+test("nested confirmation is accessible and restores focus after cancel", async ({
+  page,
+}) => {
+  const { trigger, confirmation } = await openNestedConfirmation(page);
+
+  await expect(confirmation).toContainText(
+    "This will permanently remove the sample record."
+  );
+  await expect(confirmation.getByRole("button", { name: "Delete" })).toHaveCSS(
+    "color",
+    "rgb(180, 35, 24)"
+  );
+  await expect(
+    confirmation.getByRole("button", { name: "Cancel" })
+  ).toBeFocused();
+
+  await page.keyboard.press("Shift+Tab");
+  await expect(
+    confirmation.getByRole("button", { name: "Delete" })
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    confirmation.getByRole("button", { name: "Cancel" })
+  ).toBeFocused();
+
+  await confirmation.getByRole("button", { name: "Cancel" }).click();
+  await expect(confirmation).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog", { name: "Parent dialog" })
+  ).toBeVisible();
+  await expect(trigger).toBeFocused();
+});
+
+test("Escape closes only the idle nested confirmation", async ({ page }) => {
+  const { trigger, confirmation } = await openNestedConfirmation(page);
+
+  await page.keyboard.press("Escape");
+
+  await expect(confirmation).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog", { name: "Parent dialog" })
+  ).toBeVisible();
+  await expect(trigger).toBeFocused();
+});
+
+test("backdrop closes only the idle nested confirmation", async ({ page }) => {
+  const { trigger, confirmation } = await openNestedConfirmation(page);
+
+  await page.mouse.click(8, 8);
+
+  await expect(confirmation).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog", { name: "Parent dialog" })
+  ).toBeVisible();
+  await expect(trigger).toBeFocused();
+});
+
+test("pending confirmation blocks dismissal and repeat submission", async ({
+  page,
+}) => {
+  const { trigger, confirmation } = await openNestedConfirmation(page);
+  const confirm = confirmation.getByRole("button", { name: "Delete" });
+
+  await confirm.click();
+  const pendingConfirm = confirmation.getByRole("button", {
+    name: "Deleting…",
+  });
+  await expect(pendingConfirm).toBeDisabled();
+
+  await page.keyboard.press("Escape");
+  await page.mouse.click(8, 8);
+  await expect(confirmation).toBeVisible();
+
+  await expect(confirmation).toHaveCount(0, { timeout: 5_000 });
+  await expect(
+    page.getByRole("dialog", { name: "Parent dialog" })
+  ).toBeVisible();
+  await expect(trigger).toBeFocused();
+  await expect(page.getByLabel("Confirmation attempts")).toHaveText("1");
+});
+
+for (const outcome of ["false", "reject"]) {
+  test(`confirmation stays open when the caller returns ${outcome}`, async ({
+    page,
+  }) => {
+    const { confirmation } = await openNestedConfirmation(page, outcome);
+
+    await confirmation.getByRole("button", { name: "Delete" }).click();
+
+    await expect(confirmation.getByRole("alert")).toHaveText(
+      outcome === "false"
+        ? "The action was not accepted."
+        : "The action could not be completed."
+    );
+    await expect(confirmation).toBeVisible();
+    await expect(
+      confirmation.getByRole("button", { name: "Cancel" })
+    ).toBeEnabled();
+  });
+}
+
+test("test harness is not available without E2E_TESTING", async ({
+  request,
+}) => {
+  const response = await request.get(`${secondAppUrl}${harnessPath}`);
+
+  expect(response.status()).toBe(404);
+});

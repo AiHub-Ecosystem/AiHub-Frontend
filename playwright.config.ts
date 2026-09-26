@@ -38,6 +38,7 @@ export default defineConfig({
         AIHUB_BASE_URL: mockUrl,
         CUSTOMER_WEB_ORIGIN: appUrl,
         REDIS_URL: "redis://127.0.0.1:3103",
+        E2E_TESTING: "1",
         NEXT_TELEMETRY_DISABLED: "1",
         ...speakingEnv,
       },
