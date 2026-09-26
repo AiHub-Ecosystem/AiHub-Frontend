@@ -383,18 +383,17 @@ const EXERCISE_GENERATION_ERRORS: ErrorResponse[] = [
   },
 ];
 
+export type ProductDocs = {
+  overview: typeof EXERCISE_GENERATION_OVERVIEW;
+  steps: IntegrationStep[];
+  /** Header chung cho mọi endpoint của API product, theo thứ tự hiển thị. */
+  headers: RequestHeader[];
+  reference: Record<string, EndpointReference>;
+  errors: { intro: string; items: ErrorResponse[] };
+};
+
 /** Tra theo slug sản phẩm — mở rộng khi Chấm điểm / Tạo roadmap có tài liệu. */
-export const PRODUCT_DOCS: Record<
-  string,
-  {
-    overview: typeof EXERCISE_GENERATION_OVERVIEW;
-    steps: IntegrationStep[];
-    /** Header chung cho mọi endpoint của API product, theo thứ tự hiển thị. */
-    headers: RequestHeader[];
-    reference: Record<string, EndpointReference>;
-    errors: { intro: string; items: ErrorResponse[] };
-  }
-> = {
+export const PRODUCT_DOCS: Record<string, ProductDocs> = {
   "exercise-generation": {
     overview: EXERCISE_GENERATION_OVERVIEW,
     steps: EXERCISE_GENERATION_STEPS,

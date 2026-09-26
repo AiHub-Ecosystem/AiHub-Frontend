@@ -21,4 +21,10 @@ test("Exercise generation API reference shows its headers and errors", async ({
     "404",
     "500",
   ]);
+  await expect(errors.locator("article strong")).toHaveText([
+    "Graceful fallback",
+    "Sai quy tắc dữ liệu request",
+    "Không đủ reference (chỉ sample-references)",
+    "Lỗi server / LLM",
+  ]);
 });
