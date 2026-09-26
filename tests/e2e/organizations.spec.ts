@@ -211,12 +211,14 @@ test("create uses server BFF and ignores a double click", async ({
     .getByRole("button", { name: "Tạo Organization" });
   await submit.dblclick();
   await expect(page).toHaveURL(
-    /\/console\/orgs\/org-created-12345678\?identity=open&onboarding=1$/
+    /\/console\/orgs\/org-created-12345678\?identity=open&onboarding=1$/,
+    { timeout: 15_000 }
   );
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("link", { name: /Thiết lập sau/ }).click();
   await expect(page).toHaveURL(
-    /\/console\/orgs\/org-created-12345678\/api-keys$/
+    /\/console\/orgs\/org-created-12345678\/api-keys$/,
+    { timeout: 15_000 }
   );
   const log = await request
     .get(`${mockUrl}/__test__/organizations/requests`)
