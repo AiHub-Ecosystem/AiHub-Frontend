@@ -14,6 +14,14 @@ _Avoid_: portal, frontend, sandbox demo
 The signed-in area of the Customer Web where a User Account manages its Organizations.
 _Avoid_: dashboard, admin panel, workspace
 
+**API product**:
+A sellable AIHUB capability listed in the public catalog, such as Writing Scoring, exposing one or more endpoints.
+_Avoid_: service, feature
+
+**API reference**:
+The public documentation page for one endpoint of an API product.
+_Avoid_: specs, spec page
+
 **BFF**:
 The Customer Web's own server routes and the only part of the app that talks to AIHUB. It holds the Web Session credentials and API keys; a newly issued raw API key passes to the browser once for immediate display.
 _Avoid_: proxy, gateway
