@@ -8,9 +8,22 @@ import {
 const MAX_TEXT_BYTES = 64 * 1024;
 const MAX_JSON_BYTES = 256 * 1024;
 const ALLOWED_EXTENSIONS = new Set(["wav", "mp3", "m4a", "webm", "ogg"]);
-const ALLOWED_FIELDS = new Set(["audio", "part", "question_id", "prompt_text", "test_type"]);
-const ALLOWED_JSON_FIELDS = new Set(["audio_url", "part", "question_id", "prompt_text", "test_type"]);
+const ALLOWED_FIELDS = new Set([
+  "audio",
+  "part",
+  "question_id",
+  "prompt_text",
+  "test_type",
+]);
+const ALLOWED_JSON_FIELDS = new Set([
+  "audio_url",
+  "part",
+  "question_id",
+  "prompt_text",
+  "test_type",
+]);
 const SPEAKING_AUDIO_URL_HOST = "s3.wispace.app";
+const SANDBOX_HOST = "sandbox.aihubproduction.com";
 const INTERNAL_USER_ID = `cu_${createHash("sha256")
   .update("aihub-internal\0speaking-demo", "utf8")
   .digest("base64url")}`;
@@ -64,10 +77,22 @@ export function getSandboxBaseUrl() {
     throw new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
   }
 
+  const isPinnedSandbox =
+    baseUrl.protocol === "https:" &&
+    baseUrl.hostname.toLowerCase() === SANDBOX_HOST &&
+    baseUrl.port === "";
+  const e2eMockBaseUrl =
+    process.env.AIHUB_SANDBOX_E2E_MOCK_BASE_URL?.trim().replace(/\/+$/, "");
+  const isConfiguredMock =
+    process.env.NODE_ENV === "development" &&
+    rawBaseUrl === e2eMockBaseUrl &&
+    baseUrl.protocol === "http:" &&
+    baseUrl.hostname === "127.0.0.1" &&
+    !baseUrl.username &&
+    !baseUrl.password;
+
   if (
-    baseUrl.protocol !== "https:" ||
-    baseUrl.hostname.toLowerCase() !== "sandbox.aihubproduction.com" ||
-    baseUrl.port ||
+    (!isPinnedSandbox && !isConfiguredMock) ||
     baseUrl.pathname !== "/" ||
     baseUrl.username ||
     baseUrl.password ||
@@ -87,9 +112,16 @@ function getSandboxConfig() {
   return { baseUrl, apiKey };
 }
 
-function getSingleText(form: FormData, key: string, maxLength = MAX_TEXT_BYTES) {
+function getSingleText(
+  form: FormData,
+  key: string,
+  maxLength = MAX_TEXT_BYTES
+) {
   const values = form.getAll(key);
-  if (values.length > 1 || (values[0] !== undefined && typeof values[0] !== "string")) {
+  if (
+    values.length > 1 ||
+    (values[0] !== undefined && typeof values[0] !== "string")
+  ) {
     throw invalidRequest();
   }
   const value = values[0];
@@ -106,7 +138,10 @@ function assertSameOrigin(request: Request) {
 
   try {
     const requestUrl = new URL(request.url);
-    const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+    const forwardedProto = request.headers
+      .get("x-forwarded-proto")
+      ?.split(",")[0]
+      ?.trim();
     const protocol = forwardedProto || requestUrl.protocol.slice(0, -1);
     const host = request.headers.get("host") || requestUrl.host;
     const effectiveOrigin = new URL(`${protocol}://${host}`).origin;
@@ -122,7 +157,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isApprovedSpeakingAudioUrl(value: string) {
-  if (value.length === 0 || value.length > 2_048 || /\s/.test(value)) return false;
+  if (value.length === 0 || value.length > 2_048 || /\s/.test(value))
+    return false;
   try {
     const url = new URL(value);
     return (
@@ -141,17 +177,23 @@ function isApprovedSpeakingAudioUrl(value: string) {
 function optionalJsonText(
   body: Record<string, unknown>,
   key: string,
-  maxLength = MAX_TEXT_BYTES,
+  maxLength = MAX_TEXT_BYTES
 ): string | null | undefined {
   const value = body[key];
   if (value === undefined || value === null) return value;
-  if (typeof value !== "string" || !value.trim() || new TextEncoder().encode(value).byteLength > maxLength) {
+  if (
+    typeof value !== "string" ||
+    !value.trim() ||
+    new TextEncoder().encode(value).byteLength > maxLength
+  ) {
     throw invalidRequest();
   }
   return value;
 }
 
-export async function parseSpeakingRequest(request: Request): Promise<SpeakingRequest> {
+export async function parseSpeakingRequest(
+  request: Request
+): Promise<SpeakingRequest> {
   assertSameOrigin(request);
   const contentLength = Number(request.headers.get("content-length"));
   if (Number.isFinite(contentLength) && contentLength > MAX_SPEAKING_BYTES) {
@@ -167,7 +209,8 @@ export async function parseSpeakingRequest(request: Request): Promise<SpeakingRe
 
   const counts = new Map<string, number>();
   for (const key of form.keys()) counts.set(key, (counts.get(key) ?? 0) + 1);
-  if ([...counts.keys()].some((key) => !ALLOWED_FIELDS.has(key))) throw invalidRequest();
+  if ([...counts.keys()].some((key) => !ALLOWED_FIELDS.has(key)))
+    throw invalidRequest();
 
   const audioValues = form.getAll("audio");
   const audio = audioValues[0];
@@ -181,14 +224,16 @@ export async function parseSpeakingRequest(request: Request): Promise<SpeakingRe
     throw invalidRequest();
   }
   if (audio.size < 100) throw invalidRequest();
-  if (audio.size > MAX_SPEAKING_BYTES) throw new SpeakingBoundaryError("PAYLOAD_TOO_LARGE");
+  if (audio.size > MAX_SPEAKING_BYTES)
+    throw new SpeakingBoundaryError("PAYLOAD_TOO_LARGE");
 
   const extension = audio.name.toLowerCase().split(".").pop();
   if (!extension || !ALLOWED_EXTENSIONS.has(extension)) throw invalidRequest();
 
   const partValue = getSingleText(form, "part", 8);
   const part = Number(partValue);
-  if (!partValue || !Number.isInteger(part) || part < 1 || part > 3) throw invalidRequest();
+  if (!partValue || !Number.isInteger(part) || part < 1 || part > 3)
+    throw invalidRequest();
 
   const questionId = getSingleText(form, "question_id", 256);
   if (!questionId) throw invalidRequest();
@@ -204,7 +249,9 @@ export async function parseSpeakingRequest(request: Request): Promise<SpeakingRe
   };
 }
 
-export async function parseSpeakingJsonRequest(request: Request): Promise<SpeakingJsonRequest> {
+export async function parseSpeakingJsonRequest(
+  request: Request
+): Promise<SpeakingJsonRequest> {
   assertSameOrigin(request);
   const contentLength = Number(request.headers.get("content-length"));
   if (Number.isFinite(contentLength) && contentLength > MAX_JSON_BYTES) {
@@ -217,7 +264,10 @@ export async function parseSpeakingJsonRequest(request: Request): Promise<Speaki
   } catch {
     throw invalidRequest();
   }
-  if (!isRecord(body) || Object.keys(body).some((key) => !ALLOWED_JSON_FIELDS.has(key))) {
+  if (
+    !isRecord(body) ||
+    Object.keys(body).some((key) => !ALLOWED_JSON_FIELDS.has(key))
+  ) {
     throw invalidRequest();
   }
 
@@ -226,11 +276,20 @@ export async function parseSpeakingJsonRequest(request: Request): Promise<Speaki
     throw invalidRequest();
   }
   const part = body.part;
-  if (typeof part !== "number" || !Number.isInteger(part) || part < 1 || part > 3) {
+  if (
+    typeof part !== "number" ||
+    !Number.isInteger(part) ||
+    part < 1 ||
+    part > 3
+  ) {
     throw invalidRequest();
   }
   const questionId = body.question_id;
-  if (typeof questionId !== "string" || !questionId.trim() || questionId.length > 256) {
+  if (
+    typeof questionId !== "string" ||
+    !questionId.trim() ||
+    questionId.length > 256
+  ) {
     throw invalidRequest();
   }
   const promptText = optionalJsonText(body, "prompt_text");
@@ -250,7 +309,8 @@ function toUpstreamForm(request: SpeakingRequest) {
   form.append("audio", request.audio, request.audio.name);
   form.append("part", String(request.part));
   form.append("question_id", request.questionId);
-  if (request.promptText !== undefined) form.append("prompt_text", request.promptText);
+  if (request.promptText !== undefined)
+    form.append("prompt_text", request.promptText);
   form.append("test_type", "Practice");
   return form;
 }
@@ -296,7 +356,8 @@ async function mintSandboxAssertion(apiKey: string, baseUrl: string) {
 function upstreamError(status: number) {
   if (status === 413) return new SpeakingBoundaryError("PAYLOAD_TOO_LARGE");
   if (status === 429) return new SpeakingBoundaryError("AI_SERVICE_THROTTLED");
-  if (status === 503) return new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
+  if (status === 503)
+    return new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
   if (status === 504) return new SpeakingBoundaryError("AI_SERVICE_TIMEOUT");
   return new SpeakingBoundaryError("AI_SERVICE_ERROR");
 }
@@ -305,30 +366,38 @@ async function callSpeakingGrading(
   request: Request,
   requestId: string,
   operation: "speaking.grading" | "speaking.grading-json",
-  body: FormData | string,
+  body: FormData | string
 ): Promise<SpeakingGradingEnvelope> {
   const { baseUrl, apiKey } = getSandboxConfig();
   const assertion = await mintSandboxAssertion(apiKey, baseUrl);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort("speaking-timeout"), 90_000);
+  const timeout = setTimeout(
+    () => controller.abort("speaking-timeout"),
+    90_000
+  );
   const abortRequest = () => controller.abort("request-aborted");
   request.signal.addEventListener("abort", abortRequest, { once: true });
 
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}/v1/ielts/speaking/${operation === "speaking.grading" ? "grading" : "grading-json"}`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "X-API-Key": apiKey,
-        "X-User-Assertion": assertion,
-        "X-Correlation-Id": requestId,
-        ...(operation === "speaking.grading-json" ? { "Content-Type": "application/json" } : {}),
-      },
-      body,
-      cache: "no-store",
-      signal: controller.signal,
-    });
+    response = await fetch(
+      `${baseUrl}/v1/ielts/speaking/${operation === "speaking.grading" ? "grading" : "grading-json"}`,
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "X-API-Key": apiKey,
+          "X-User-Identity": assertion,
+          "X-Correlation-Id": requestId,
+          ...(operation === "speaking.grading-json"
+            ? { "Content-Type": "application/json" }
+            : {}),
+        },
+        body,
+        cache: "no-store",
+        signal: controller.signal,
+      }
+    );
   } catch (error) {
     if (controller.signal.reason === "speaking-timeout") {
       throw new SpeakingBoundaryError("AI_SERVICE_TIMEOUT");
@@ -363,12 +432,23 @@ async function callSpeakingGrading(
   };
 }
 
-export async function gradeSpeaking(request: Request, requestId = `req_${randomUUID()}`): Promise<SpeakingGradingEnvelope> {
+export async function gradeSpeaking(
+  request: Request,
+  requestId = `req_${randomUUID()}`
+): Promise<SpeakingGradingEnvelope> {
   const input = await parseSpeakingRequest(request);
-  return callSpeakingGrading(request, requestId, "speaking.grading", toUpstreamForm(input));
+  return callSpeakingGrading(
+    request,
+    requestId,
+    "speaking.grading",
+    toUpstreamForm(input)
+  );
 }
 
-export async function gradeSpeakingByUrl(request: Request, requestId = `req_${randomUUID()}`): Promise<SpeakingGradingEnvelope> {
+export async function gradeSpeakingByUrl(
+  request: Request,
+  requestId = `req_${randomUUID()}`
+): Promise<SpeakingGradingEnvelope> {
   const input = await parseSpeakingJsonRequest(request);
   return callSpeakingGrading(
     request,
@@ -378,8 +458,10 @@ export async function gradeSpeakingByUrl(request: Request, requestId = `req_${ra
       audio_url: input.audioUrl,
       part: input.part,
       question_id: input.questionId,
-      ...(input.promptText === undefined ? {} : { prompt_text: input.promptText }),
+      ...(input.promptText === undefined
+        ? {}
+        : { prompt_text: input.promptText }),
       test_type: "Practice",
-    }),
+    })
   );
 }

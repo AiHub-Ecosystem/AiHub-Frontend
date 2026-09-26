@@ -5,6 +5,9 @@ const port = 3101;
 const requests = [];
 const authRequests = [];
 const organizationRequests = [];
+const speakingRequests = [];
+const speakingAssertions = [];
+let assertionSequence = 0;
 let organizationConfig = {
   roster: [],
   apiKeys: [],
@@ -46,6 +49,13 @@ async function readJson(request) {
   const chunks = [];
   for await (const chunk of request) chunks.push(chunk);
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
+// Reads one part's value out of a multipart body, so the mock can report the
+// question it was asked to grade without depending on part ordering.
+function multipartField(body, name) {
+  const pattern = new RegExp(`name="${name}"\\r\\n\\r\\n([^\\r]*)`, "i");
+  return pattern.exec(body)?.[1] ?? null;
 }
 
 const server = createServer(async (request, response) => {
@@ -106,6 +116,21 @@ const server = createServer(async (request, response) => {
     pathname === "/__test__/organizations/requests"
   ) {
     sendJson(response, 200, { requests: organizationRequests });
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/__test__/speaking/requests") {
+    sendJson(response, 200, {
+      requests: speakingRequests,
+      assertions: speakingAssertions,
+    });
+    return;
+  }
+
+  if (request.method === "POST" && pathname === "/__test__/speaking/reset") {
+    speakingRequests.length = 0;
+    speakingAssertions.length = 0;
+    response.writeHead(204).end();
     return;
   }
 
@@ -724,6 +749,150 @@ const server = createServer(async (request, response) => {
           explanation: "E2E_ONLY_REFERENCE_EXPLANATION",
         },
       ],
+    });
+    return;
+  }
+
+  if (request.method === "POST" && pathname === "/v1/sandbox/assertions") {
+    await readJson(request);
+    assertionSequence += 1;
+    const assertion = `e2e-sandbox-assertion-${assertionSequence}`;
+    speakingAssertions.push(assertion);
+    sendJson(response, 201, {
+      data: {
+        assertion,
+        expires_in: 300,
+      },
+      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+    });
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/v1/ielts/speaking/questions") {
+    const part = Number(
+      new URL(request.url, `http://${host}:${port}`).searchParams.get("part")
+    );
+    sendJson(response, 200, {
+      data: {
+        part,
+        questions: [1, 2, 3].flatMap((item) =>
+          item === part
+            ? [
+                {
+                  question_id: `q_part${item}_1`,
+                  part: item,
+                  prompt_text: `E2E_ONLY_QUESTION_${item}`,
+                  audio_url: `https://s3.wispace.app/e2e-only-${item}.mp3`,
+                },
+              ]
+            : []
+        ),
+      },
+      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+    });
+    return;
+  }
+
+  const speakingGradingMatch = pathname.match(
+    /^\/v1\/ielts\/speaking\/(grading|grading-json)$/
+  );
+  if (request.method === "POST" && speakingGradingMatch) {
+    const operation = speakingGradingMatch[1];
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const body = Buffer.concat(chunks).toString("utf8");
+
+    const userIdentity = request.headers["x-user-identity"];
+    speakingRequests.push({
+      operation,
+      userIdentity: typeof userIdentity === "string" ? userIdentity : null,
+      identityHeaderNames: Object.keys(request.headers).filter((key) =>
+        key.startsWith("x-user-")
+      ),
+    });
+
+    if (typeof userIdentity !== "string" || !userIdentity.trim()) {
+      sendJson(response, 401, {
+        error: { code: "USER_IDENTITY_REQUIRED" },
+      });
+      return;
+    }
+
+    const questionId =
+      operation === "grading-json"
+        ? JSON.parse(body).question_id
+        : (multipartField(body, "question_id") ?? "q_part1_1");
+
+    sendJson(response, 200, {
+      data: {
+        test_type: "Practice",
+        question_id: questionId,
+        scorability: {
+          is_scorable: true,
+          confidence: "high",
+          display_band: true,
+          message_vi: "Bài nói đủ thời lượng và rõ ràng.",
+        },
+        estimated_band: {
+          overall: 6.5,
+          fluency_coherence: 6,
+          lexical_resource: 6.5,
+          grammatical_range_accuracy: 6,
+          pronunciation: 7,
+        },
+        transcript: {
+          text: "E2E_ONLY_TRANSCRIPT",
+          word_count: 3,
+          duration_seconds: 5.75,
+        },
+        relevance: {
+          on_topic: true,
+          score: 0.92,
+          feedback_vi: "Câu trả lời bám sát câu hỏi.",
+        },
+        fluency_metrics: {
+          speech_rate_wpm: 118,
+          pause_count: 2,
+          mean_length_run_words: 9,
+        },
+        pronunciation_detail: {
+          summary: { good_count: 1, fair_count: 0, poor_count: 0 },
+          words: [
+            {
+              word: "E2E_ONLY_TRANSCRIPT",
+              quality_score: 88,
+              quality_class: "good",
+              syllables: [],
+              phonemes: [],
+            },
+          ],
+        },
+        language_analysis: {
+          grammar_errors: [
+            {
+              sentence: "E2E_ONLY_TRANSCRIPT",
+              error_segment: "E2E_ONLY_TRANSCRIPT",
+              correction: "E2E_ONLY_TRANSCRIPT",
+              error_type: "spelling",
+              explanation_vi: "Dùng đúng chính tả.",
+            },
+          ],
+          vocabulary_upgrades: [
+            {
+              original_word: "E2E_ONLY_TRANSCRIPT",
+              suggested_word: "E2E_ONLY_TRANSCRIPT",
+              cefr_level: "B2",
+              reason_vi: "Từ này đã phù hợp ngữ cảnh.",
+            },
+          ],
+        },
+        feedback: {
+          summary_vi: "E2E_ONLY_FEEDBACK_SUMMARY",
+          strong_point_vi: "E2E_ONLY_FEEDBACK_STRONG",
+          action_plan_vi: "E2E_ONLY_FEEDBACK_ACTION",
+        },
+      },
+      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
     });
     return;
   }

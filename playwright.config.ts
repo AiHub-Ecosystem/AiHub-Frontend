@@ -3,11 +3,19 @@ import { defineConfig } from "@playwright/test";
 const appUrl = "http://127.0.0.1:3100";
 const secondAppUrl = "http://127.0.0.1:3105";
 const mockUrl = "http://127.0.0.1:3101";
+const speakingEnv = {
+  AIHUB_SANDBOX_BASE_URL: mockUrl,
+  AIHUB_SANDBOX_E2E_MOCK_BASE_URL: mockUrl,
+  AIHUB_SANDBOX_API_KEY: "aihub_sk_e2e_sandbox_key",
+  AIHUB_SANDBOX_ORGANIZATION_ID: "org-e2e-00000000",
+};
 
 export default defineConfig({
   testDir: "./tests/e2e",
   globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: false,
+  // ponytail: mock state is global; add per-worker mock instances before raising workers.
+  workers: 1,
   reporter: "list",
   use: {
     baseURL: appUrl,
@@ -31,6 +39,7 @@ export default defineConfig({
         CUSTOMER_WEB_ORIGIN: appUrl,
         REDIS_URL: "redis://127.0.0.1:3103",
         NEXT_TELEMETRY_DISABLED: "1",
+        ...speakingEnv,
       },
       reuseExistingServer: false,
       timeout: 120_000,
@@ -46,6 +55,7 @@ export default defineConfig({
         REDIS_URL: "redis://127.0.0.1:3103",
         NEXT_DIST_DIR: ".next-e2e-secondary",
         NEXT_TELEMETRY_DISABLED: "1",
+        ...speakingEnv,
       },
       reuseExistingServer: false,
       timeout: 120_000,
