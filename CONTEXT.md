@@ -77,9 +77,21 @@ _Avoid_: token, secret, access key
 An Organization's issuer plus JWKS URL or public JWKS, which AIHUB uses to verify the User Assertions the Organization signs.
 _Avoid_: JWKS settings, SSO config
 
+**User Identity**:
+The value an Organization sends in `X-User-Identity` to name the end user of a user-scoped request. It is either a Signed User Assertion or a Declared User ID, and which one applies is decided by whether the Organization has an active Identity configuration, never by the shape of the value.
+_Avoid_: end-user ID, user ID, user token
+
 **User Assertion**:
-A short-lived signed statement from an Organization-controlled identity provider that identifies an end user to AIHUB for a user-scoped request.
+A short-lived signed statement from an Organization-controlled identity provider that identifies an end user to AIHUB in `X-User-Identity` for a user-scoped request. The signed form of a User Identity, used by an Organization that has an active Identity configuration.
 _Avoid_: AIHUB token, API key
+
+**End-User ID**:
+The identifier naming one end user of an Organization, in either transport: 1–256 visible ASCII characters (0x21–0x7E) with no whitespace. An email address is a valid value and is stored and forwarded as-is. AIHUB meters usage and reports Speaking `user_id` under it.
+_Avoid_: user ID, user, student ID
+
+**Declared User ID**:
+An End-User ID sent unsigned in `X-User-Identity` by an Organization that has no active Identity configuration. AIHUB accepts it as declared, so any holder of the Organization's API key can name any end user within that Organization.
+_Avoid_: unsigned assertion, user ID, user-scoped ID
 
 **Identity Readiness**:
 Whether an Organization has a saved active Identity configuration. This reports configuration state, not current JWKS source reachability.
