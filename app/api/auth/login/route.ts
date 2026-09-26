@@ -1,12 +1,12 @@
 import {
   aihubUrl,
-  createWebSessionFromAihubResponse,
   customerWebOrigin,
   originIsAllowed,
   safeLocalPath,
   WEB_SESSION_TTL_SECONDS,
   webSessionCookie,
 } from "@/lib/auth-session";
+import { createWebSessionFromAihubResponse } from "@/lib/auth-session-from-response";
 
 const noStore = { "Cache-Control": "no-store" };
 

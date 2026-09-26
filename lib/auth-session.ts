@@ -1,36 +1,10 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { createClient } from "redis";
+import { isWebSessionId, webSessionIdFromRequest } from "@/lib/auth-cookies";
 
-export const WEB_SESSION_COOKIE = "__Host-aihub_web_session";
 export const AIHUB_REFRESH_COOKIE = "__Host-aihub_refresh";
-export const SIGNUP_BINDING_COOKIE = "__Host-aihub_signup";
 export const WEB_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
-export const SIGNUP_BINDING_TTL_SECONDS = 24 * 60 * 60;
-
-export function webSessionCookie(value: string, maxAge: number) {
-  return `${WEB_SESSION_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Strict`;
-}
-
-export function newSignupBinding() {
-  return randomBytes(32).toString("base64url");
-}
-
-export function signupBindingFromRequest(request: Request) {
-  const value = request.headers
-    .get("cookie")
-    ?.split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${SIGNUP_BINDING_COOKIE}=`))
-    ?.slice(SIGNUP_BINDING_COOKIE.length + 1);
-  return value && /^[A-Za-z0-9_-]{43}$/.test(value) ? value : null;
-}
-
-export function signupBindingCookie(
-  value: string,
-  maxAge = SIGNUP_BINDING_TTL_SECONDS
-) {
-  return `${SIGNUP_BINDING_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Strict`;
-}
+export * from "@/lib/auth-cookies";
 
 type WebSession = {
   accessToken: string;
@@ -80,19 +54,6 @@ async function redis() {
 
 function sessionKey(id: string) {
   return `${SESSION_PREFIX}${id}`;
-}
-
-export function isWebSessionId(value: string | undefined): value is string {
-  return !!value && /^[A-Za-z0-9_-]{43}$/.test(value);
-}
-
-export function webSessionIdFromRequest(request: Request) {
-  return request.headers
-    .get("cookie")
-    ?.split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${WEB_SESSION_COOKIE}=`))
-    ?.slice(WEB_SESSION_COOKIE.length + 1);
 }
 
 export async function getWebSession(id: string): Promise<WebSession | null> {
@@ -186,36 +147,6 @@ export async function createWebSession(session: WebSession): Promise<string> {
   const id = randomBytes(32).toString("base64url");
   await saveWebSession(id, session);
   return id;
-}
-
-export async function createWebSessionFromAihubResponse(response: Response) {
-  const refreshToken = extractRefreshToken(response.headers);
-  try {
-    const body = (await response.json()) as {
-      data?: { access_token?: unknown; expires_in?: unknown };
-    };
-    if (
-      typeof body.data?.access_token !== "string" ||
-      !body.data.access_token ||
-      typeof body.data.expires_in !== "number" ||
-      !Number.isFinite(body.data.expires_in) ||
-      body.data.expires_in <= 0 ||
-      body.data.expires_in > 900 ||
-      !refreshToken
-    ) {
-      throw new Error("AIHUB returned an invalid authentication response");
-    }
-
-    const sessionId = await createWebSession({
-      accessToken: body.data.access_token,
-      accessTokenExpiresAt: Date.now() + body.data.expires_in * 1000,
-      refreshToken,
-    });
-    return { sessionId, refreshToken };
-  } catch (error) {
-    if (refreshToken) await logoutFromAihubBestEffort(refreshToken);
-    throw error;
-  }
 }
 
 export async function deleteWebSession(id: string) {

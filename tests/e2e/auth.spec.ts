@@ -462,6 +462,90 @@ test("email verification removes its token from the URL and offers generic recov
   ).toEqual([{ path: "resend", hasEmail: true, browserBindingValid: true }]);
 });
 
+test("a mail scanner can verify first without consuming the registration browser's sign-in", async ({
+  browser,
+  page,
+  request,
+}) => {
+  await resetAuthMock(request);
+  await page.goto("/register");
+  await page.getByLabel("Email").fill("scanner@example.test");
+  await page.getByLabel("Username").fill("scanner-user");
+  await page.getByLabel("Mật khẩu").fill(validPassword);
+  await page
+    .getByRole("button", { name: "Tạo tài khoản", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Kiểm tra email", exact: true })
+  ).toBeVisible();
+  expect(
+    (await page.context().cookies()).some(
+      (cookie) => cookie.name === "__Host-aihub_signup"
+    )
+  ).toBe(true);
+
+  const scannerContext = await browser.newContext();
+  const scannerPage = await scannerContext.newPage();
+  await scannerPage.goto(
+    `${appUrl}/verify-email?token=private-verification-token`
+  );
+  await expect(scannerPage).toHaveURL(`${appUrl}/login?verified=1`);
+  await expect(scannerPage.getByRole("status")).toHaveText(
+    "Email đã xác minh. Vui lòng đăng nhập."
+  );
+  expect(
+    (await scannerContext.cookies()).some(
+      (cookie) => cookie.name === "__Host-aihub_web_session"
+    )
+  ).toBe(false);
+  expect(
+    (await page.context().cookies()).some(
+      (cookie) => cookie.name === "__Host-aihub_signup"
+    )
+  ).toBe(true);
+
+  await request.post(`${mockUrl}/__test__/auth/mode`, {
+    data: { verifySignIn: true },
+  });
+  await page.goto(`${appUrl}/verify-email?token=private-verification-token`);
+  await expect(page).toHaveURL(/\/console\/orgs$/);
+  await expect(
+    page.getByRole("heading", { name: "Organizations", exact: true })
+  ).toBeVisible();
+  expect(
+    (await page.context().cookies()).some(
+      (cookie) => cookie.name === "__Host-aihub_web_session"
+    )
+  ).toBe(true);
+  expect(
+    (await page.context().cookies()).some(
+      (cookie) => cookie.name === "__Host-aihub_signup"
+    )
+  ).toBe(false);
+
+  const requests = (
+    await (await request.get(`${mockUrl}/__test__/auth/requests`)).json()
+  ).requests;
+  expect(
+    requests.filter((entry: { path: string }) => entry.path === "verify")
+  ).toEqual([
+    {
+      path: "verify",
+      hasToken: true,
+      browserBindingValid: false,
+      browserBindingMatches: false,
+    },
+    {
+      path: "verify",
+      hasToken: true,
+      browserBindingValid: true,
+      browserBindingMatches: true,
+    },
+  ]);
+
+  await scannerContext.close();
+});
+
 test("a matching verification binding signs in and replaces the existing session", async ({
   page,
   request,

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/auth/login/route";
 import { POST as logout } from "@/app/api/auth/logout/route";
 import * as authSession from "@/lib/auth-session";
+import * as authSessionFromResponse from "@/lib/auth-session-from-response";
 
 const request = (
   values: Record<string, string>,
@@ -115,7 +116,7 @@ describe("Customer Web sign-in BFF", () => {
       process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
       const sessionId = "a".repeat(43);
       vi.spyOn(
-        authSession,
+        authSessionFromResponse,
         "createWebSessionFromAihubResponse"
       ).mockResolvedValue({ sessionId, refreshToken: "refresh-secret" });
       vi.spyOn(globalThis, "fetch").mockResolvedValue(
