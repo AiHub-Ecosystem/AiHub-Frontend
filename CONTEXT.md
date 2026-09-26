@@ -79,6 +79,14 @@ _Avoid_: invite link, join request
 The Organization's secret credential for calling AIHUB grading APIs from the Organization's own backend; its raw value is shown once after creation or rotation and cannot be retrieved again.
 _Avoid_: token, secret, access key
 
+**Environment**:
+The request tier AIHUB derives from the hostname a request is sent to; an API key only works in the Environments it allows. Customers may allow `production` or `staging`; `sandbox` is AIHUB's own tier and never a customer Environment.
+_Avoid_: mode, live/test
+
+**Sample request**:
+A ready-to-run request shown beside a newly issued API key so its holder can make a first call; it exists only while that raw key is on screen.
+_Avoid_: playground, test call, try-it
+
 **Identity configuration**:
 An Organization's issuer plus JWKS URL or public JWKS, which AIHUB uses to verify the User Assertions the Organization signs.
 _Avoid_: JWKS settings, SSO config
