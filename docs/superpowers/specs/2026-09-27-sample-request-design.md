@@ -16,7 +16,7 @@ A **Sample request** (see `CONTEXT.md`) is shown inside `ApiKeyRevealDialog`, af
 
 - **No in-app execution.** The Console never sends the raw key back to the BFF. The Sample request is a copyable `curl` command the holder runs from their own machine. This keeps the raw key on the one-way path ADR-0003 allows (BFF → browser) and needs no new ADR.
 - **Host.** Always `https://api.aihubproduction.com`, the production Environment. Customer keys cannot allow `sandbox` (aihub-be `CustomerEnvironmentSchema`), and the sandbox Environment has its own database that does not contain Console Organizations (aihub-be ADR-0017). No `staging` host exists.
-- **Key without `production`.** When `allowed_environments` does not include `production`, no command is shown; the block states that AIHUB has no public staging host yet.
+- **Key without `production`.** The create form always mints `production` keys, but rotation keeps an existing key's Environments, which may be `staging` for a key issued outside the Console. When `allowed_environments` does not include `production`, no command is shown; the block states that AIHUB has no public staging host yet.
 - **One tab per scope** the key holds, Writing first:
   - `writing.grade` → `POST /v1/ielts/writing/task2/grade`, JSON body with a short sample `question`, `topic`, and `essay`. `Idempotency-Key` is a UUID generated once when the dialog opens, so rerunning the command replays the stored result for 24 hours instead of grading and charging again. The tab says so.
   - `speaking.grade` → `POST /v1/ielts/speaking/grading`, multipart, with `-F audio=@answer.wav` for the holder to point at their own file, plus `part=1`, `question_id=p1_hometown`, `prompt_text`, `test_type=Practice`. No public sample audio exists, so `grading-json` is not used.
@@ -43,7 +43,6 @@ A **Sample request** (see `CONTEXT.md`) is shown inside `ApiKeyRevealDialog`, af
 
 ## Out of scope (separate issues)
 
-- The create-key form still offers `staging`, which has no host.
 - Speaking endpoint links in the catalog 404 because Speaking has no `PRODUCT_DOCS` entry.
 - `app/api/portal/specs/run-curl/route.ts` is an unauthenticated proxy with no caller.
 - A free customer test Environment needs backend work (a staging host or sandbox access for customer keys).
