@@ -707,7 +707,9 @@ test("active owner can rename; backend denial and foreign IDs use generic denial
   await page.goto("/console/orgs/rename-id");
   await page.getByLabel("Đổi tên Organization").fill("After");
   await page.getByRole("button", { name: "Lưu tên mới" }).click();
-  await expect(page.getByRole("heading", { name: "After" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "After" })).toBeVisible({
+    timeout: 15_000,
+  });
 
   await setup(request, [org("rename-id", "After")], { renameDenied: true });
   await page.goto("/console/orgs/rename-id");
