@@ -114,7 +114,10 @@ describe("Customer Web sign-in BFF", () => {
       process.env.CUSTOMER_WEB_ORIGIN = "http://localhost:3100";
       process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
       const sessionId = "a".repeat(43);
-      vi.spyOn(authSession, "createWebSession").mockResolvedValue(sessionId);
+      vi.spyOn(
+        authSession,
+        "createWebSessionFromAihubResponse"
+      ).mockResolvedValue({ sessionId, refreshToken: "refresh-secret" });
       vi.spyOn(globalThis, "fetch").mockResolvedValue(
         new Response(
           JSON.stringify({

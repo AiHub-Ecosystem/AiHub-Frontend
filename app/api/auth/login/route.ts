@@ -1,8 +1,7 @@
 import {
   aihubUrl,
-  createWebSession,
+  createWebSessionFromAihubResponse,
   customerWebOrigin,
-  extractRefreshToken,
   originIsAllowed,
   safeLocalPath,
   WEB_SESSION_TTL_SECONDS,
@@ -96,27 +95,7 @@ export async function POST(request: Request) {
     return redirectToLogin("unavailable", undefined, next, returnTo);
 
   try {
-    const body = (await upstream.json()) as {
-      data?: { access_token?: unknown; expires_in?: unknown };
-    };
-    const refreshToken = extractRefreshToken(upstream.headers);
-    if (
-      typeof body.data?.access_token !== "string" ||
-      !body.data.access_token ||
-      typeof body.data.expires_in !== "number" ||
-      !Number.isFinite(body.data.expires_in) ||
-      body.data.expires_in <= 0 ||
-      body.data.expires_in > 900 ||
-      !refreshToken
-    ) {
-      return redirectToLogin("unavailable", undefined, next, returnTo);
-    }
-
-    const sessionId = await createWebSession({
-      accessToken: body.data.access_token,
-      accessTokenExpiresAt: Date.now() + body.data.expires_in * 1000,
-      refreshToken,
-    });
+    const { sessionId } = await createWebSessionFromAihubResponse(upstream);
     return new Response(null, {
       status: 303,
       headers: {

@@ -3,7 +3,11 @@ import {
   postAihubAuth,
   readAihubAuthError,
 } from "@/lib/auth-bff";
-import { originIsAllowed } from "@/lib/auth-session";
+import {
+  newSignupBinding,
+  originIsAllowed,
+  signupBindingCookie,
+} from "@/lib/auth-session";
 
 export async function POST(request: Request) {
   if (!originIsAllowed(request))
@@ -41,10 +45,12 @@ export async function POST(request: Request) {
     );
   }
 
+  const browserBinding = newSignupBinding();
   const upstream = await postAihubAuth("/v1/auth/register", {
     email,
     username,
     password,
+    browser_binding: browserBinding,
   });
   if (!upstream)
     return Response.json(
@@ -59,11 +65,14 @@ export async function POST(request: Request) {
     } catch {
       responseBody = {};
     }
-    if (responseBody.data?.status === "pending_verification")
+    if (responseBody.data?.status === "pending_verification") {
+      const headers = new Headers(AUTH_NO_STORE);
+      headers.append("Set-Cookie", signupBindingCookie(browserBinding));
       return Response.json(
         { status: "pending_verification" },
-        { status: 201, headers: AUTH_NO_STORE }
+        { status: 201, headers }
       );
+    }
   }
 
   const upstreamError = await readAihubAuthError(upstream);

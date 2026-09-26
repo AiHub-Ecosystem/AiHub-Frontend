@@ -19,6 +19,7 @@ type LoginPageProps = {
     error?: string | string[];
     retry?: string | string[];
     next?: string | string[];
+    verified?: string | string[];
   }>;
 };
 
@@ -45,6 +46,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       ? Math.min(3600, Math.max(1, Number.parseInt(params.retry, 10) || 60))
       : 60;
   const error = typeof params.error === "string" ? params.error : undefined;
+  const verified = params.verified === "1";
 
   return (
     <>
@@ -59,6 +61,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <p className="aihub-lede">
               Đăng nhập bằng tài khoản AIHub của bạn để tiếp tục.
             </p>
+            {verified && (
+              <p className="aihub-lede" role="status">
+                Email đã xác minh. Vui lòng đăng nhập.
+              </p>
+            )}
             <LoginForm next={next} error={error} retry={retry} />
           </section>
         </div>

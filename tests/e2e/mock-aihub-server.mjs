@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { createHash } from "node:crypto";
 
 const host = "127.0.0.1";
 const port = 3101;
@@ -33,9 +34,17 @@ let authMode = {
   registerDown: false,
   resendDown: false,
   verifyDown: false,
+  verifySignIn: false,
   forgotDown: false,
   resetDown: false,
 };
+let latestBrowserBindingHash = null;
+
+function browserBindingHash(value) {
+  if (typeof value !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(value))
+    return null;
+  return createHash("sha256").update(value).digest("hex");
+}
 
 function sendJson(response, status, body, headers = {}) {
   response.writeHead(status, {
@@ -79,12 +88,14 @@ const server = createServer(async (request, response) => {
 
   if (request.method === "POST" && pathname === "/__test__/auth/reset") {
     authRequests.length = 0;
+    latestBrowserBindingHash = null;
     authMode = {
       refreshUnauthorized: false,
       logoutDown: false,
       registerDown: false,
       resendDown: false,
       verifyDown: false,
+      verifySignIn: false,
       forgotDown: false,
       resetDown: false,
     };
@@ -572,6 +583,7 @@ const server = createServer(async (request, response) => {
       hasEmail: typeof body.email === "string",
       hasUsername: typeof body.username === "string",
       hasPassword: typeof body.password === "string",
+      browserBindingValid: browserBindingHash(body.browser_binding) !== null,
     });
     if (authMode.registerDown) {
       sendJson(response, 503, {
@@ -585,6 +597,7 @@ const server = createServer(async (request, response) => {
       });
       return;
     }
+    latestBrowserBindingHash = browserBindingHash(body.browser_binding);
     sendJson(response, 201, {
       data: {
         email: body.email,
@@ -604,11 +617,13 @@ const server = createServer(async (request, response) => {
     authRequests.push({
       path: "resend",
       hasEmail: typeof body.email === "string",
+      browserBindingValid: browserBindingHash(body.browser_binding) !== null,
     });
     if (authMode.resendDown) {
       sendJson(response, 503, { error: { code: "INTERNAL_ERROR" } });
       return;
     }
+    latestBrowserBindingHash = browserBindingHash(body.browser_binding);
     response.writeHead(202, { "Cache-Control": "no-store" }).end();
     return;
   }
@@ -638,9 +653,14 @@ const server = createServer(async (request, response) => {
 
   if (request.method === "POST" && pathname === "/v1/auth/verify-email") {
     const body = await readJson(request);
+    const browserBinding = browserBindingHash(body.browser_binding);
+    const browserBindingMatches =
+      browserBinding !== null && browserBinding === latestBrowserBindingHash;
     authRequests.push({
       path: "verify",
       hasToken: typeof body.token === "string",
+      browserBindingValid: browserBinding !== null,
+      browserBindingMatches,
     });
     if (authMode.verifyDown) {
       sendJson(response, 500, { error: { code: "INTERNAL_ERROR" } });
@@ -650,6 +670,27 @@ const server = createServer(async (request, response) => {
       sendJson(response, 400, {
         error: { code: "AUTH_VERIFICATION_TOKEN_INVALID" },
       });
+      return;
+    }
+    if (authMode.verifySignIn && browserBindingMatches) {
+      latestBrowserBindingHash = null;
+      const verificationNumber = authRequests.filter(
+        (entry) => entry.path === "verify"
+      ).length;
+      sendJson(
+        response,
+        200,
+        {
+          data: {
+            access_token: `access-token-verified-${verificationNumber}`,
+            expires_in: 900,
+          },
+        },
+        {
+          "Cache-Control": "no-store",
+          "Set-Cookie": `__Host-aihub_refresh=verification-refresh-token-${verificationNumber}; Path=/; Secure; HttpOnly; SameSite=Strict`,
+        }
+      );
       return;
     }
     response.writeHead(204, { "Cache-Control": "no-store" }).end();

@@ -19,9 +19,9 @@ export function VerifyEmail() {
   const started = useRef(false);
   const [token, setToken] = useState("");
   const [email, setEmail] = useState("");
-  const [phase, setPhase] = useState<
-    "loading" | "success" | "recovery" | "retry"
-  >("loading");
+  const [phase, setPhase] = useState<"loading" | "recovery" | "retry">(
+    "loading"
+  );
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [retryUntil, setRetryUntil] = useState(0);
@@ -50,9 +50,8 @@ export function VerifyEmail() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: value }),
       });
-      if (response.status === 204) {
-        setToken("");
-        setPhase("success");
+      if (response.redirected) {
+        window.location.assign(response.url);
         return;
       }
       const body = await response.json().catch(() => ({}));
@@ -140,19 +139,12 @@ export function VerifyEmail() {
     <section className="auth-card" aria-labelledby="verify-title">
       <p className="aihub-eyebrow">AIHub Console</p>
       <h1 className="aihub-title" id="verify-title">
-        {phase === "success" ? "Email đã được xác minh" : "Xác minh email"}
+        Xác minh email
       </h1>
       {phase === "loading" ? (
         <p className="aihub-lede" role="status">
           Đang xác minh email…
         </p>
-      ) : phase === "success" ? (
-        <>
-          <p className="aihub-lede">Bạn có thể đăng nhập để tiếp tục.</p>
-          <p className="auth-secondary">
-            <a href="/login">Đăng nhập</a>
-          </p>
-        </>
       ) : (
         <>
           {message && (

@@ -204,6 +204,21 @@ test("a visitor can register and safely request another verification email", asy
   await expect(
     page.getByText("new@example.test", { exact: true })
   ).toBeVisible();
+  const cookieAfterRegistration = (await page.context().cookies()).find(
+    (cookie) => cookie.name === "__Host-aihub_signup"
+  );
+  expect(cookieAfterRegistration).toMatchObject({
+    httpOnly: true,
+    secure: true,
+    sameSite: "Strict",
+    path: "/",
+  });
+  expect(cookieAfterRegistration?.value).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  expect(cookieAfterRegistration?.expires).toBeGreaterThan(Date.now() / 1000);
+  expect(cookieAfterRegistration?.expires).toBeLessThanOrEqual(
+    Date.now() / 1000 + 24 * 60 * 60 + 5
+  );
+
   await page
     .getByRole("button", { name: "Gửi lại email", exact: true })
     .click();
@@ -212,66 +227,315 @@ test("a visitor can register and safely request another verification email", asy
   ).toHaveText(
     "Nếu địa chỉ email này có User Account, chúng tôi sẽ gửi hướng dẫn phù hợp."
   );
+  const cookieAfterResend = (await page.context().cookies()).find(
+    (cookie) => cookie.name === "__Host-aihub_signup"
+  );
+  expect(cookieAfterResend?.value).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  expect(cookieAfterResend?.value).not.toBe(cookieAfterRegistration?.value);
+
+  await request.post(`${mockUrl}/__test__/auth/mode`, {
+    data: { resendDown: true },
+  });
+  await page
+    .getByRole("button", { name: "Gửi lại email", exact: true })
+    .click();
+  await expect(
+    page.getByText("Hiện chưa thể gửi email. Vui lòng thử lại sau.", {
+      exact: true,
+    })
+  ).toBeVisible();
+  const cookieAfterFailure = (await page.context().cookies()).find(
+    (cookie) => cookie.name === "__Host-aihub_signup"
+  );
+  expect(cookieAfterFailure?.value).toBe(cookieAfterResend?.value);
 
   const logged = await request.get(`${mockUrl}/__test__/auth/requests`);
   const authRequests = (await logged.json()).requests;
+  const registerRequest = authRequests.filter(
+    (entry: { path: string }) => entry.path === "register"
+  );
+  expect(registerRequest).toHaveLength(1);
+  expect(registerRequest[0].browserBindingValid).toBe(true);
+  const resendRequests = authRequests.filter(
+    (entry: { path: string }) => entry.path === "resend"
+  );
+  expect(resendRequests).toHaveLength(2);
   expect(
-    authRequests.filter((entry: { path: string }) => entry.path === "register")
-  ).toHaveLength(1);
-  expect(
-    authRequests.filter((entry: { path: string }) => entry.path === "resend")
-  ).toHaveLength(1);
+    resendRequests.every(
+      (entry: { browserBindingValid: boolean }) => entry.browserBindingValid
+    )
+  ).toBe(true);
 });
 
 test("email verification removes its token from the URL and offers generic recovery", async ({
+  browser,
   page,
   request,
 }) => {
   await resetAuthMock(request);
+  await page.goto("/register");
+  await page.getByLabel("Email").fill("verify-only@example.test");
+  await page.getByLabel("Username").fill("verify-only");
+  await page.getByLabel("Mật khẩu").fill(validPassword);
+  await page
+    .getByRole("button", { name: "Tạo tài khoản", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Kiểm tra email", exact: true })
+  ).toBeVisible();
+  const registeredBinding = (await page.context().cookies()).find(
+    (cookie) => cookie.name === "__Host-aihub_signup"
+  )?.value;
+  expect(registeredBinding).toMatch(/^[A-Za-z0-9_-]{43}$/);
+
   const response = await request.get(
     `${appUrl}/verify-email?token=private-verification-token`
   );
   expect(response.headers()["referrer-policy"]).toBe("no-referrer");
 
-  await page.goto(`${appUrl}/verify-email?token=private-verification-token`);
-  await expect(page).toHaveURL(`${appUrl}/verify-email`);
-  await expect(
-    page.getByRole("heading", { name: "Email đã được xác minh", exact: true })
-  ).toBeVisible();
-  expect(await page.locator("body").innerText()).not.toContain(
+  const otherContext = await browser.newContext();
+  const otherPage = await otherContext.newPage();
+  await otherPage.goto(
+    `${appUrl}/verify-email?token=private-verification-token`
+  );
+  await expect(otherPage).toHaveURL(`${appUrl}/login?verified=1`);
+  await expect(otherPage.getByRole("status")).toHaveText(
+    "Email đã xác minh. Vui lòng đăng nhập."
+  );
+  expect(await otherPage.locator("body").innerText()).not.toContain(
     "private-verification-token"
   );
   expect(
-    (await page.context().cookies()).some((cookie) =>
-      cookie.name.includes("session")
+    (await otherContext.cookies()).some(
+      (cookie) => cookie.name === "__Host-aihub_web_session"
     )
   ).toBe(false);
+  expect(
+    (await otherContext.cookies()).some(
+      (cookie) => cookie.name === "__Host-aihub_signup"
+    )
+  ).toBe(false);
+  expect(
+    (await page.context().cookies()).some(
+      (cookie) => cookie.name === "__Host-aihub_signup"
+    )
+  ).toBe(true);
 
-  await page.reload();
-  await expect(page.getByRole("textbox", { name: "Email" })).toBeVisible();
+  const signedInContext = await browser.newContext();
+  const signedInPage = await signedInContext.newPage();
+  await signIn(signedInPage, request);
+  const existingSession = (await signedInContext.cookies()).find(
+    (cookie) => cookie.name === "__Host-aihub_web_session"
+  )?.value;
+  expect(existingSession).toBeTruthy();
+  await signedInPage.goto(
+    `${appUrl}/verify-email?token=private-verification-token`
+  );
+  await expect(signedInPage).toHaveURL(/\/console\/orgs$/);
   await expect(
-    page.getByRole("region", { name: "Xác minh email" }).getByRole("alert")
+    signedInPage.getByRole("heading", { name: "Organizations", exact: true })
+  ).toBeVisible();
+  expect(
+    (await signedInContext.cookies()).find(
+      (cookie) => cookie.name === "__Host-aihub_web_session"
+    )?.value
+  ).toBe(existingSession);
+
+  await otherPage.goto("/verify-email");
+  await otherPage.reload();
+  await expect(otherPage.getByRole("textbox", { name: "Email" })).toBeVisible();
+  await expect(
+    otherPage.getByRole("region", { name: "Xác minh email" }).getByRole("alert")
   ).toContainText("không hợp lệ hoặc đã hết hạn");
-  await page
+  await otherPage
     .getByRole("textbox", { name: "Email" })
     .fill("recovery@example.test");
-  await page
+  await otherPage
     .getByRole("button", { name: "Gửi hướng dẫn xác minh", exact: true })
     .click();
   await expect(
-    page.getByRole("region", { name: "Xác minh email" }).getByRole("alert")
+    otherPage.getByRole("region", { name: "Xác minh email" }).getByRole("alert")
   ).toHaveText(
     "Nếu địa chỉ email này có User Account, chúng tôi sẽ gửi hướng dẫn phù hợp."
   );
+  const resentBinding = (await otherContext.cookies()).find(
+    (cookie) => cookie.name === "__Host-aihub_signup"
+  )?.value;
+  expect(resentBinding).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  expect(resentBinding).not.toBe(registeredBinding);
+
+  await request.post(`${mockUrl}/__test__/auth/mode`, {
+    data: { verifySignIn: true },
+  });
+  await page.goto(`${appUrl}/verify-email?token=resent-verification-token`);
+  await expect(page).toHaveURL(`${appUrl}/login?verified=1`);
+  await expect(page.getByRole("status")).toHaveText(
+    "Email đã xác minh. Vui lòng đăng nhập."
+  );
+  expect(await page.locator("body").innerText()).not.toContain(
+    "resent-verification-token"
+  );
+  expect(
+    (await page.context().cookies()).some(
+      (cookie) => cookie.name === "__Host-aihub_signup"
+    )
+  ).toBe(true);
+
+  await signedInPage.goto(
+    `${appUrl}/verify-email?token=resent-verification-token`
+  );
+  await expect(signedInPage).toHaveURL(/\/console\/orgs$/);
+  expect(
+    (await signedInContext.cookies()).find(
+      (cookie) => cookie.name === "__Host-aihub_web_session"
+    )?.value
+  ).toBe(existingSession);
+
+  await otherPage.goto(
+    `${appUrl}/verify-email?token=resent-verification-token`
+  );
+  await expect(otherPage).toHaveURL(/\/console\/orgs$/);
+  await expect(
+    otherPage.getByRole("heading", { name: "Organizations", exact: true })
+  ).toBeVisible();
+  expect(
+    (await otherContext.cookies()).some(
+      (cookie) => cookie.name === "__Host-aihub_signup"
+    )
+  ).toBe(false);
+  const replay = await otherPage.evaluate(async () => {
+    const response = await fetch("/api/auth/verify-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: "resent-verification-token" }),
+    });
+    return { redirected: response.redirected, url: response.url };
+  });
+  expect(replay.redirected).toBe(true);
+  expect(replay.url).toContain("/console");
+  await expect(otherPage).toHaveURL(/\/console\/orgs$/);
 
   const logged = await request.get(`${mockUrl}/__test__/auth/requests`);
   const authRequests = (await logged.json()).requests;
   expect(
     authRequests.filter((entry: { path: string }) => entry.path === "verify")
-  ).toEqual([{ path: "verify", hasToken: true }]);
+  ).toEqual([
+    {
+      path: "verify",
+      hasToken: true,
+      browserBindingValid: false,
+      browserBindingMatches: false,
+    },
+    {
+      path: "verify",
+      hasToken: true,
+      browserBindingValid: false,
+      browserBindingMatches: false,
+    },
+    {
+      path: "verify",
+      hasToken: true,
+      browserBindingValid: true,
+      browserBindingMatches: false,
+    },
+    {
+      path: "verify",
+      hasToken: true,
+      browserBindingValid: false,
+      browserBindingMatches: false,
+    },
+    {
+      path: "verify",
+      hasToken: true,
+      browserBindingValid: true,
+      browserBindingMatches: true,
+    },
+    {
+      path: "verify",
+      hasToken: true,
+      browserBindingValid: false,
+      browserBindingMatches: false,
+    },
+  ]);
   expect(
     authRequests.filter((entry: { path: string }) => entry.path === "resend")
-  ).toEqual([{ path: "resend", hasEmail: true }]);
+  ).toEqual([{ path: "resend", hasEmail: true, browserBindingValid: true }]);
+});
+
+test("a matching verification binding signs in and replaces the existing session", async ({
+  page,
+  request,
+}) => {
+  await resetAuthMock(request);
+  await signIn(page, request);
+  const oldSessionId = (await page.context().cookies()).find(
+    (cookie) => cookie.name === "__Host-aihub_web_session"
+  )?.value;
+  expect(oldSessionId).toBeTruthy();
+  const oldCookie = `__Host-aihub_web_session=${oldSessionId}`;
+
+  await page.goto("/register");
+  await page.getByLabel("Email").fill("new@example.test");
+  await page.getByLabel("Username").fill("new-user");
+  await page.getByLabel("Mật khẩu").fill(validPassword);
+  await page
+    .getByRole("button", { name: "Tạo tài khoản", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Kiểm tra email", exact: true })
+  ).toBeVisible();
+  await request.post(`${mockUrl}/__test__/auth/mode`, {
+    data: { verifySignIn: true },
+  });
+
+  await page.goto(`${appUrl}/verify-email?token=matching-verification-token`);
+  await expect(page).toHaveURL(/\/console\/orgs$/);
+  await expect(
+    page.getByRole("heading", { name: "Organizations", exact: true })
+  ).toBeVisible();
+  const cookies = await page.context().cookies();
+  const newSessionId = cookies.find(
+    (cookie) => cookie.name === "__Host-aihub_web_session"
+  )?.value;
+  expect(newSessionId).toBeTruthy();
+  expect(newSessionId).not.toBe(oldSessionId);
+  expect(cookies.some((cookie) => cookie.name === "__Host-aihub_signup")).toBe(
+    false
+  );
+
+  const oldSession = await request.post(`${appUrl}/api/auth/session`, {
+    headers: { Origin: appUrl, Cookie: oldCookie },
+    data: {},
+  });
+  expect(oldSession.status()).toBe(401);
+  const authRequests = (
+    await (await request.get(`${mockUrl}/__test__/auth/requests`)).json()
+  ).requests;
+  expect(
+    authRequests.filter((entry: { path: string }) => entry.path === "logout")
+  ).toEqual([{ path: "logout", hasRefreshCookie: true }]);
+  expect(
+    authRequests.filter((entry: { path: string }) => entry.path === "verify")
+  ).toEqual([
+    {
+      path: "verify",
+      hasToken: true,
+      browserBindingValid: true,
+      browserBindingMatches: true,
+    },
+  ]);
+
+  const replay = await page.evaluate(async () => {
+    const response = await fetch("/api/auth/verify-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: "matching-verification-token" }),
+    });
+    return { redirected: response.redirected, url: response.url };
+  });
+  expect(replay.redirected).toBe(true);
+  expect(replay.url).toContain("/console");
+  await expect(page).toHaveURL(/\/console\/orgs$/);
 });
 
 test("an invalid verification link gets the same generic recovery form", async ({

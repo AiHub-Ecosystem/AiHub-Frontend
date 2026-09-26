@@ -45,7 +45,7 @@ describe("Customer Web registration BFF", () => {
 
     expect(response.status).toBe(201);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("set-cookie")).toBeNull();
+    const cookie = response.headers.get("set-cookie");
     expect(await response.json()).toEqual({
       status: "pending_verification",
     });
@@ -53,8 +53,14 @@ describe("Customer Web registration BFF", () => {
     expect(upstreamFetch.mock.calls[0][0]).toBe(
       "http://127.0.0.1:3101/v1/auth/register"
     );
-    expect(JSON.parse(String(upstreamFetch.mock.calls[0][1]?.body))).toEqual(
-      values
+    const forwarded = JSON.parse(String(upstreamFetch.mock.calls[0][1]?.body));
+    expect(forwarded).toMatchObject(values);
+    expect(forwarded.browser_binding).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(cookie).toContain(
+      `__Host-aihub_signup=${forwarded.browser_binding};`
+    );
+    expect(cookie).toContain(
+      "Path=/; Max-Age=86400; HttpOnly; Secure; SameSite=Strict"
     );
   });
 

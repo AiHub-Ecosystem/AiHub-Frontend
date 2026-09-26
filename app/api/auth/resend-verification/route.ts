@@ -3,7 +3,11 @@ import {
   postAihubAuth,
   readAihubAuthError,
 } from "@/lib/auth-bff";
-import { originIsAllowed } from "@/lib/auth-session";
+import {
+  newSignupBinding,
+  originIsAllowed,
+  signupBindingCookie,
+} from "@/lib/auth-session";
 
 export async function POST(request: Request) {
   if (!originIsAllowed(request))
@@ -26,8 +30,10 @@ export async function POST(request: Request) {
       { status: 400, headers: AUTH_NO_STORE }
     );
 
+  const browserBinding = newSignupBinding();
   const upstream = await postAihubAuth("/v1/auth/resend-verification", {
     email,
+    browser_binding: browserBinding,
   });
   if (!upstream)
     return Response.json(
@@ -35,11 +41,11 @@ export async function POST(request: Request) {
       { status: 503, headers: AUTH_NO_STORE }
     );
 
-  if (upstream.status === 202)
-    return Response.json(
-      { status: "accepted" },
-      { status: 202, headers: AUTH_NO_STORE }
-    );
+  if (upstream.status === 202) {
+    const headers = new Headers(AUTH_NO_STORE);
+    headers.append("Set-Cookie", signupBindingCookie(browserBinding));
+    return Response.json({ status: "accepted" }, { status: 202, headers });
+  }
 
   const upstreamError = await readAihubAuthError(upstream);
   if (upstream.status === 429 && upstreamError.code === "RATE_LIMITED")

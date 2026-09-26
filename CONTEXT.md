@@ -37,6 +37,12 @@ Proof that a User Account controls its registered email address; an unverified U
 **Verification Token**:
 An expiring proof used for Email Verification. Resending while an account is pending invalidates earlier tokens; the exact token that activated an active account continues to succeed until it expires.
 
+**Signup Browser Binding**:
+A temporary association between a Verification Token and the browser that requested registration or a resend. It permits Verification Sign-in at most once in that browser.
+
+**Verification Sign-in**:
+The one-time sign-in granted after Email Verification when the request comes from the browser associated with the Verification Token.
+
 **Password Recovery**:
 A request to email password-reset instructions without revealing whether an address belongs to a User Account.
 _Avoid_: forgot-password request
