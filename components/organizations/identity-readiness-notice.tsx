@@ -13,17 +13,18 @@ export function IdentityReadinessNotice({
   return (
     <aside className="identity-readiness" role="status">
       <div>
-        <strong>Identity setup chưa hoàn tất</strong>
+        <strong>Xác thực có chữ ký được khuyến nghị</strong>
         <p>
-          User-scoped grading cần Organization có identity configuration đang
-          hoạt động. Nếu API trả <code>IDENTITY_CONFIG_REQUIRED</code>, owner có
-          thể hoàn tất thiết lập tại đây.
+          Organization hiện dùng Declared User ID: bất kỳ ai có API key của
+          Organization đều có thể gửi yêu cầu dưới ID của bất kỳ End-User nào mà
+          không cần chữ ký. Có thể cấu hình identity để AIHUB xác minh Signed
+          User Assertion.
         </p>
       </div>
       {organization.membershipRole === "owner" ? (
-        <span>Bạn có thể mở Cấu hình identity để hoàn tất thiết lập.</span>
+        <span>Bạn có thể mở Cấu hình identity để bật xác minh có chữ ký.</span>
       ) : (
-        <span>Nhờ owner hoàn tất thiết lập này.</span>
+        <span>Nhờ owner cấu hình identity để bật xác minh có chữ ký.</span>
       )}
     </aside>
   );

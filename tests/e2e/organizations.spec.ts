@@ -9,6 +9,9 @@ const mockUrl = "http://127.0.0.1:3101";
 const password = "correct horse battery staple";
 const disabledIdentityCopy =
   "AIHUB đã tạm vô hiệu hóa identity configuration này. Organization hiện dùng Declared User ID, nghĩa là bất kỳ ai có API key của Organization đều có thể gửi yêu cầu dưới ID của bất kỳ người dùng nào mà không cần chữ ký. Lưu không khôi phục xác minh chữ ký; chỉ AIHUB có thể kích hoạt lại.";
+const identityReadinessTitle = "Xác thực có chữ ký được khuyến nghị";
+const identityReadinessBody =
+  "Organization hiện dùng Declared User ID: bất kỳ ai có API key của Organization đều có thể gửi yêu cầu dưới ID của bất kỳ End-User nào mà không cần chữ ký. Có thể cấu hình identity để AIHUB xác minh Signed User Assertion.";
 type RosterItem = {
   organization_id: string;
   name: string;
@@ -90,7 +93,7 @@ test("an owner can configure identity and manage API keys", async ({
   await expect(
     page.getByRole("button", { name: "Cấu hình identity" })
   ).toBeVisible();
-  await expect(page.getByText("Identity setup chưa hoàn tất")).toHaveCount(0);
+  await expect(page.getByText(identityReadinessTitle)).toHaveCount(0);
   await page.getByRole("button", { name: "Cấu hình identity" }).click();
   const identityDialog = page.getByRole("dialog");
   await expect(identityDialog).toBeVisible();
@@ -274,7 +277,7 @@ test("owner can save a JWKS URL and the readiness reminder clears", async ({
     "Đã lưu identity configuration"
   );
   await page.goto("/console/orgs/identity-url");
-  await expect(page.getByText("Identity setup chưa hoàn tất")).toHaveCount(0);
+  await expect(page.getByText(identityReadinessTitle)).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Cấu hình identity" })
   ).toBeVisible();
@@ -383,13 +386,24 @@ test("owner can use inline public JWKS and private JWK is blocked before request
   ).toHaveLength(1);
 });
 
-test("identity readiness is role-safe, suspended orgs have no prompt, and validation errors are mapped", async ({
+test("identity readiness recommends signed verification, stays role-safe, and suppresses suspended prompts", async ({
   page,
   request,
 }) => {
   await setup(request, [org("identity-member", "Member Identity", "member")]);
   await signIn(page);
-  await expect(page.getByText("Identity setup chưa hoàn tất")).toBeVisible();
+  const readinessNotice = page.getByRole("status");
+  await expect(
+    readinessNotice.getByText(identityReadinessTitle, { exact: true })
+  ).toBeVisible();
+  await expect(
+    readinessNotice.getByText(identityReadinessBody, { exact: true })
+  ).toBeVisible();
+  await expect(
+    readinessNotice.getByText(/Nhờ owner cấu hình identity/)
+  ).toBeVisible();
+  await expect(page.getByText(/setup chưa hoàn tất/i)).toHaveCount(0);
+  await expect(page.getByText("IDENTITY_CONFIG_REQUIRED")).toHaveCount(0);
   await page.goto("/console/orgs/identity-member/identity");
   await expect(page.getByText(/Nhờ owner cấu hình/)).toBeVisible();
   const requests = await request
@@ -407,7 +421,7 @@ test("identity readiness is role-safe, suspended orgs have no prompt, and valida
   await page.context().clearCookies();
   await signIn(page);
   await expect(page.getByRole("status")).toContainText("tạm ngưng");
-  await expect(page.getByText("Identity setup chưa hoàn tất")).toHaveCount(0);
+  await expect(page.getByText(identityReadinessTitle)).toHaveCount(0);
 
   await setup(request, [org("identity-errors", "Identity Errors")], {
     identityErrorCode: "IDENTITY_JWKS_URL_UNSAFE",

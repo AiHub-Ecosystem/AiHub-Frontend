@@ -7,6 +7,9 @@ import {
 
 const mockUrl = "http://127.0.0.1:3101";
 const password = "correct horse battery staple";
+const identityReadinessTitle = "Xác thực có chữ ký được khuyến nghị";
+const identityReadinessBody =
+  "Organization hiện dùng Declared User ID: bất kỳ ai có API key của Organization đều có thể gửi yêu cầu dưới ID của bất kỳ End-User nào mà không cần chữ ký. Có thể cấu hình identity để AIHUB xác minh Signed User Assertion.";
 
 async function setup(
   request: APIRequestContext,
@@ -86,6 +89,19 @@ test("owner sees active and expired API keys with their metadata", async ({
   await signIn(page);
 
   await expect(page).toHaveURL(/\/console\/orgs\/org-keys-12345678\/api-keys$/);
+  const readinessNotice = page.getByRole("status");
+  await expect(
+    readinessNotice.getByText(identityReadinessTitle, { exact: true })
+  ).toBeVisible();
+  await expect(
+    readinessNotice.getByText(identityReadinessBody, { exact: true })
+  ).toBeVisible();
+  await expect(readinessNotice.getByText(/Cấu hình identity/)).toBeVisible();
+  await expect(page.getByText(/setup chưa hoàn tất/i)).toHaveCount(0);
+  await expect(page.getByText("IDENTITY_CONFIG_REQUIRED")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Cấu hình identity" })
+  ).toBeVisible();
   const table = page.getByRole("table", { name: "API keys" });
   await expect(table).toBeVisible({ timeout: 15_000 });
   await expect(table.getByText("Production backend")).toBeVisible();
@@ -155,7 +171,7 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   const speaking = page.locator('input[name="scopes"][value="speaking.grade"]');
   await expect(writing).not.toBeChecked();
   await expect(speaking).toBeDisabled();
-  await expect(page.getByText("Identity setup chưa hoàn tất")).toBeVisible();
+  await expect(page.getByText(identityReadinessTitle)).toBeVisible();
   await expect(
     page.getByText(/Speaking chưa được bật cho Organization/)
   ).toBeVisible();
