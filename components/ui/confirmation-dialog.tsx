@@ -7,6 +7,7 @@ export function ConfirmationDialog({
   open,
   onOpenChange,
   trigger,
+  returnFocusRef,
   title,
   body,
   cancelLabel,
@@ -18,7 +19,8 @@ export function ConfirmationDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  trigger: ReactElement;
+  trigger?: ReactElement;
+  returnFocusRef?: { current: HTMLElement | null };
   title: ReactNode;
   body: ReactNode;
   cancelLabel: string;
@@ -48,7 +50,9 @@ export function ConfirmationDialog({
 
   return (
     <DialogPrimitive.Root onOpenChange={handleOpenChange} open={open}>
-      <DialogPrimitive.Trigger asChild>{trigger}</DialogPrimitive.Trigger>
+      {trigger && (
+        <DialogPrimitive.Trigger asChild>{trigger}</DialogPrimitive.Trigger>
+      )}
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="confirmation-dialog-overlay" />
         <DialogPrimitive.Content
@@ -59,6 +63,11 @@ export function ConfirmationDialog({
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             cancelButton.current?.focus();
+          }}
+          onCloseAutoFocus={(event) => {
+            if (!returnFocusRef?.current) return;
+            event.preventDefault();
+            returnFocusRef.current.focus();
           }}
           onPointerDownOutside={(event) => {
             if (pending) event.preventDefault();

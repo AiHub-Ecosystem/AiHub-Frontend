@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   containsPrivateJwk,
   type OrganizationIdentityConfig,
@@ -10,6 +11,9 @@ import {
 import { identityErrorMessage } from "@/lib/organization-identity-bff";
 
 type Source = "url" | "inline";
+
+const disabledIdentityCopy =
+  "AIHUB đã tạm vô hiệu hóa identity configuration này. Organization hiện dùng Declared User ID, nghĩa là bất kỳ ai có API key của Organization đều có thể gửi yêu cầu dưới ID của bất kỳ người dùng nào mà không cần chữ ký. Lưu không khôi phục xác minh chữ ký; chỉ AIHUB có thể kích hoạt lại.";
 
 export function OrganizationIdentityForm({
   organizationId,
@@ -42,28 +46,16 @@ export function OrganizationIdentityForm({
   const [error, setError] = useState("");
   const [readOnly, setReadOnly] = useState(false);
   const [saved, setSaved] = useState(false);
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [pendingInput, setPendingInput] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
+  const disabled =
+    initialConfig.configured && initialConfig.status === "disabled";
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    let body: Record<string, unknown>;
-    if (source === "inline") {
-      let jwks: unknown;
-      try {
-        jwks = JSON.parse(jwksText);
-      } catch {
-        setError("Public JWKS phải là JSON hợp lệ.");
-        return;
-      }
-      if (containsPrivateJwk(jwks)) {
-        setError(
-          "Không gửi private JWK. Hãy xóa các trường private như d, p, q, dp, dq, qi, oth hoặc k."
-        );
-        return;
-      }
-      body = { issuer, public_keys_jwks: jwks };
-    } else body = { issuer, jwks_url: jwksUrl };
-
+  async function save(body: Record<string, unknown>) {
     setBusy(true);
     try {
       const response = await fetch(
@@ -101,6 +93,48 @@ export function OrganizationIdentityForm({
     }
   }
 
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || confirmationOpen) return;
+    setError("");
+    let body: Record<string, unknown>;
+    if (source === "inline") {
+      let jwks: unknown;
+      try {
+        jwks = JSON.parse(jwksText);
+      } catch {
+        setError("Public JWKS phải là JSON hợp lệ.");
+        return;
+      }
+      if (containsPrivateJwk(jwks)) {
+        setError(
+          "Không gửi private JWK. Hãy xóa các trường private như d, p, q, dp, dq, qi, oth hoặc k."
+        );
+        return;
+      }
+      body = { issuer, public_keys_jwks: jwks };
+    } else body = { issuer, jwks_url: jwksUrl };
+
+    if (disabled) {
+      setPendingInput(body);
+      setConfirmationOpen(true);
+      return;
+    }
+
+    await save(body);
+  }
+
+  async function confirmSave() {
+    if (!pendingInput || busy) return;
+    setError("");
+    try {
+      await save(pendingInput);
+    } finally {
+      setPendingInput(null);
+      setConfirmationOpen(false);
+    }
+  }
+
   if (readOnly)
     return (
       <p className="identity-safe-notice" role="status">
@@ -111,11 +145,9 @@ export function OrganizationIdentityForm({
 
   return (
     <section aria-label="Identity configuration" className="identity-panel">
-      {initialConfig.configured && initialConfig.status === "disabled" && (
+      {disabled && (
         <p className="identity-warning" role="status">
-          AIHUB đã tạm vô hiệu hóa identity configuration này. Bạn có thể sửa
-          giá trị, nhưng lưu không bật lại grading; chỉ AIHUB có thể kích hoạt
-          lại.
+          {disabledIdentityCopy}
         </p>
       )}
       <form className="identity-form" onSubmit={submit}>
@@ -183,7 +215,12 @@ export function OrganizationIdentityForm({
         {saved && !onboarding && (
           <p role="status">Đã lưu identity configuration.</p>
         )}
-        <button className="auth-submit" disabled={busy} type="submit">
+        <button
+          className="auth-submit"
+          disabled={busy}
+          ref={saveButtonRef}
+          type="submit"
+        >
           {busy
             ? "Đang lưu…"
             : configured
@@ -191,6 +228,23 @@ export function OrganizationIdentityForm({
               : "Lưu identity configuration"}
         </button>
       </form>
+      {disabled && (
+        <ConfirmationDialog
+          body={<p>{disabledIdentityCopy}</p>}
+          cancelLabel="Hủy"
+          confirmLabel="Xác nhận"
+          onConfirm={confirmSave}
+          onOpenChange={(open) => {
+            setConfirmationOpen(open);
+            if (!open && !busy) setPendingInput(null);
+          }}
+          open={confirmationOpen}
+          pending={busy}
+          pendingLabel="Đang lưu…"
+          returnFocusRef={saveButtonRef}
+          title="Lưu identity configuration?"
+        />
+      )}
       {onboarding && (
         <Link
           className="identity-skip"

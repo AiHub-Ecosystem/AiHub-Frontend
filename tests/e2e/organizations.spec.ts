@@ -7,6 +7,8 @@ import {
 
 const mockUrl = "http://127.0.0.1:3101";
 const password = "correct horse battery staple";
+const disabledIdentityCopy =
+  "AIHUB đã tạm vô hiệu hóa identity configuration này. Organization hiện dùng Declared User ID, nghĩa là bất kỳ ai có API key của Organization đều có thể gửi yêu cầu dưới ID của bất kỳ người dùng nào mà không cần chữ ký. Lưu không khôi phục xác minh chữ ký; chỉ AIHUB có thể kích hoạt lại.";
 type RosterItem = {
   organization_id: string;
   name: string;
@@ -26,6 +28,16 @@ async function setup(
   await request.post(`${mockUrl}/__test__/organizations/config`, {
     data: { roster, ...options },
   });
+}
+
+async function identityConfigPuts(request: APIRequestContext) {
+  const result = await request
+    .get(`${mockUrl}/__test__/organizations/requests`)
+    .then((response) => response.json());
+  return result.requests.filter(
+    (entry: { method: string; path: string }) =>
+      entry.method === "PUT" && entry.path === "identity-config"
+  );
 }
 
 async function signIn(page: Page) {
@@ -441,6 +453,148 @@ test("stable identity source reason codes have separate safe messages", async ({
   }
 });
 
+test("disabled configuration requires confirmation and saves only identity inputs", async ({
+  page,
+  request,
+}) => {
+  await setup(
+    request,
+    [org("identity-disabled-save", "Disabled Save Org", "owner", "active")],
+    {
+      identityConfigs: {
+        "identity-disabled-save": {
+          configured: true,
+          issuer: "https://saved.example.test",
+          jwks_url: "https://saved.example.test/keys",
+          public_keys_jwks: null,
+          status: "disabled",
+        },
+      },
+      identityErrorCode: "IDENTITY_JWKS_INVALID",
+      identitySaveDelayMs: 500,
+    }
+  );
+  await signIn(page);
+  await page.goto("/console/orgs/identity-disabled-save/identity");
+
+  await expect(page.locator(".identity-warning")).toHaveText(
+    disabledIdentityCopy
+  );
+  await page.getByRole("radio", { name: "Dán public JWKS" }).check();
+  await page.getByRole("textbox", { name: "Public JWKS (JSON)" }).fill("{");
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.getByRole("alert")).toHaveText(
+    "Public JWKS phải là JSON hợp lệ."
+  );
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(await identityConfigPuts(request)).toHaveLength(0);
+
+  await page.getByRole("radio", { name: "JWKS URL (khuyến nghị)" }).check();
+  await page.getByLabel("Issuer").fill("https://edited.example.test");
+  const saveButton = page.getByRole("button", { name: "Lưu thay đổi" });
+  await saveButton.click();
+  let confirmation = page.getByRole("alertdialog");
+  await expect(confirmation).toContainText(disabledIdentityCopy);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(confirmation).toHaveCount(0);
+  await expect(page.getByLabel("Issuer")).toHaveValue(
+    "https://edited.example.test"
+  );
+  await expect(await identityConfigPuts(request)).toHaveLength(0);
+
+  await saveButton.click();
+  confirmation = page.getByRole("alertdialog");
+  await page.mouse.click(8, 8);
+  await expect(confirmation).toHaveCount(0);
+  await expect(page.getByLabel("Issuer")).toHaveValue(
+    "https://edited.example.test"
+  );
+  await expect(await identityConfigPuts(request)).toHaveLength(0);
+
+  await saveButton.click();
+  confirmation = page.getByRole("alertdialog");
+  await expect(confirmation).toContainText(disabledIdentityCopy);
+  await confirmation.getByRole("button", { name: "Hủy" }).click();
+  await expect(confirmation).toHaveCount(0);
+  await expect(page.getByLabel("Issuer")).toHaveValue(
+    "https://edited.example.test"
+  );
+  await expect(saveButton).toBeFocused();
+  await expect(await identityConfigPuts(request)).toHaveLength(0);
+
+  await saveButton.click();
+  confirmation = page.getByRole("alertdialog");
+  await expect(confirmation).toContainText(disabledIdentityCopy);
+  await confirmation.getByRole("button", { name: "Xác nhận" }).click();
+  await expect(confirmation).toHaveCount(0);
+  await expect(page.getByRole("alert")).toHaveText(
+    "Public JWKS không hợp lệ hoặc không có key phù hợp. Hãy kiểm tra nội dung JSON."
+  );
+  await expect(page.getByLabel("Issuer")).toHaveValue(
+    "https://edited.example.test"
+  );
+  await expect(await identityConfigPuts(request)).toHaveLength(1);
+
+  await request.post(`${mockUrl}/__test__/organizations/config`, {
+    data: { identityErrorCode: null },
+  });
+  await saveButton.click();
+  confirmation = page.getByRole("alertdialog");
+  await confirmation.getByRole("button", { name: "Xác nhận" }).click();
+  await expect(
+    confirmation.getByRole("button", { name: "Đang lưu…" })
+  ).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await page.mouse.click(8, 8);
+  await expect(confirmation).toBeVisible();
+  await expect(confirmation).toHaveCount(0, { timeout: 5_000 });
+  await expect(page.getByText("Đã lưu identity configuration.")).toBeVisible();
+
+  const puts = await identityConfigPuts(request);
+  expect(puts).toHaveLength(2);
+  expect(puts[1].body).toEqual({
+    issuer: "https://edited.example.test",
+    jwks_url: "https://saved.example.test/keys",
+  });
+});
+
+test("active identity configuration saves without a declared-mode confirmation", async ({
+  page,
+  request,
+}) => {
+  await setup(
+    request,
+    [org("identity-active-save", "Active Save Org", "owner", "active")],
+    {
+      identityConfigs: {
+        "identity-active-save": {
+          configured: true,
+          issuer: "https://active.example.test",
+          jwks_url: "https://active.example.test/keys",
+          public_keys_jwks: null,
+          status: "active",
+        },
+      },
+    }
+  );
+  await signIn(page);
+  await page.goto("/console/orgs/identity-active-save/identity");
+  await expect(page.locator(".identity-warning")).toHaveCount(0);
+  await expect(page.getByText(/Declared User ID/)).toHaveCount(0);
+  await page.getByLabel("Issuer").fill("https://updated.example.test");
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(page.getByText("Đã lưu identity configuration.")).toBeVisible();
+
+  const puts = await identityConfigPuts(request);
+  expect(puts).toHaveLength(1);
+  expect(puts[0].body).toEqual({
+    issuer: "https://updated.example.test",
+    jwks_url: "https://active.example.test/keys",
+  });
+});
+
 test("disabled configuration remains editable with operator warning and stale 403 clears values", async ({
   page,
   request,
@@ -462,8 +616,8 @@ test("disabled configuration remains editable with operator warning and stale 40
   );
   await signIn(page);
   await page.goto("/console/orgs/identity-disabled/identity");
-  await expect(page.getByRole("status")).toContainText(
-    "chỉ AIHUB có thể kích hoạt lại"
+  await expect(page.locator(".identity-warning")).toHaveText(
+    disabledIdentityCopy
   );
   await expect(page.getByLabel("Issuer")).toHaveValue(
     "https://saved.example.test"
@@ -473,6 +627,10 @@ test("disabled configuration remains editable with operator warning and stale 40
   });
   await page.getByLabel("Issuer").fill("https://not-saved.example.test");
   await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Xác nhận" })
+    .click();
   await expect(
     page.locator(".identity-dialog .identity-safe-notice")
   ).toContainText("đã được xóa khỏi màn hình");

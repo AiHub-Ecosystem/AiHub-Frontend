@@ -193,11 +193,12 @@ const server = createServer(async (request, response) => {
     const membership = organizationConfig.roster.find(
       (item) => item.organization_id === organizationId
     );
-    organizationRequests.push({
+    const requestRecord = {
       method: request.method,
       path: "identity-config",
       organizationId,
-    });
+    };
+    organizationRequests.push(requestRecord);
     if (
       !membership ||
       membership.status !== "active" ||
@@ -217,6 +218,7 @@ const server = createServer(async (request, response) => {
       return;
     }
     const input = await readJson(request);
+    requestRecord.body = input;
     if (organizationConfig.identityErrorCode) {
       const code = organizationConfig.identityErrorCode;
       sendJson(
@@ -226,6 +228,9 @@ const server = createServer(async (request, response) => {
       );
       return;
     }
+    const delayMs = organizationConfig.identitySaveDelayMs;
+    if (Number.isFinite(delayMs) && delayMs > 0)
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     const existing = organizationConfig.identityConfigs?.[organizationId];
     const config = {
       configured: true,
