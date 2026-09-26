@@ -31,6 +31,8 @@ async function setup(
 async function signIn(page: Page) {
   await page.context().clearCookies();
   await page.goto("/login");
+  await expect(page).toHaveURL(/\/login(?:\?.*)?$/);
+  await expect(page.getByLabel("Email")).toBeVisible();
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(password);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
@@ -51,18 +53,22 @@ const org = (
   members: [{ username: "owner", role }],
 });
 
-test("sign-in routes zero, owner, admin, member, and suspended rosters", async ({
+test("an empty roster routes to the organizations list", async ({
   page,
   request,
 }) => {
-  test.setTimeout(60_000);
   await setup(request);
   await signIn(page);
   await expect(page).toHaveURL(/\/console\/orgs$/);
   await expect(
     page.getByRole("heading", { name: "Organizations" })
   ).toBeVisible();
+});
 
+test("an owner can configure identity and manage API keys", async ({
+  page,
+  request,
+}) => {
   const ownerOrg = org("owner-id", "Owner Org");
   delete ownerOrg.identity_configured;
   await setup(request, [ownerOrg]);
@@ -88,14 +94,21 @@ test("sign-in routes zero, owner, admin, member, and suspended rosters", async (
   await expect(
     page.getByRole("heading", { name: "Owner Org · API keys" })
   ).toBeVisible();
+});
 
+test("an admin can open the API-key inventory", async ({ page, request }) => {
   await setup(request, [org("admin-id", "Admin Org", "admin")]);
   await signIn(page);
   await expect(page).toHaveURL(/\/console\/orgs\/admin-id$/);
   await expect(page.getByRole("heading", { name: "Admin Org" })).toBeVisible();
   await page.getByRole("link", { name: "Quản lý API keys" }).click();
   await expect(page).toHaveURL(/\/console\/orgs\/admin-id\/api-keys$/);
+});
 
+test("a member sees the roster without owner actions", async ({
+  page,
+  request,
+}) => {
   await setup(request, [org("member-id", "Member Org", "member")]);
   await signIn(page);
   await expect(page).toHaveURL(/\/console\/orgs\/member-id$/);
@@ -103,7 +116,9 @@ test("sign-in routes zero, owner, admin, member, and suspended rosters", async (
   await expect(page.getByRole("button", { name: "Lưu tên mới" })).toHaveCount(
     0
   );
+});
 
+test("a suspended organization shows its status", async ({ page, request }) => {
   await setup(request, [
     org("suspended-id", "Paused Org", "owner", "suspended"),
   ]);
