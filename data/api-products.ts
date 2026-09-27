@@ -144,7 +144,7 @@ export const API_CATEGORIES: ApiCategory[] = [
             slug: "speaking-questions",
             name: "Lấy câu hỏi theo Part",
             method: "GET",
-            path: "/v1/speaking/questions?part={part}",
+            path: "/v1/ielts/speaking/questions?part={part}",
             summary: "Lấy danh mục câu hỏi Speaking theo Part 1, 2 hoặc 3.",
           },
           {
