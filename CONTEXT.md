@@ -92,7 +92,7 @@ One capability an API key permits, named as a dotted string such as `writing.gra
 _Avoid_: permission, entitlement, feature
 
 **Environment**:
-The request tier AIHUB derives from the hostname a request is sent to; an API key only works in the Environments it allows. Customers may allow `production` or `staging`; `sandbox` is AIHUB's own tier and never a customer Environment.
+The request tier AIHUB derives from the hostname a request is sent to; an API key only works in the Environments it allows. A customer may allow `production`, `staging`, or `sandbox`. The Sandbox Environment is AIHUB's free test tier: its calls do not count against the Organization's paid usage, and a Sandbox key allows that Environment alone and carries only the `writing.grade` scope.
 _Avoid_: mode, live/test
 
 **Sample request**:

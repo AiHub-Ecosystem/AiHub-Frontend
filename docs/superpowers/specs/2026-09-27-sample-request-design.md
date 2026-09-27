@@ -2,7 +2,7 @@
 
 - Date: 2026-09-27
 - Status: Approved in design review, awaiting spec review
-- Related: ADR-0001, ADR-0003, ADR-0004, ADR-0008; aihub-be ADR-0017, `aihub-be/docs/integration-guide.md` §1a, §4, §6, §8
+- Related: ADR-0001, ADR-0003, ADR-0004, ADR-0008, ADR-0009; aihub-be ADR-0017, aihub-be ADR-0056, `aihub-be/docs/integration-guide.md` §1a, §4, §6, §8
 
 ## Problem
 
@@ -15,10 +15,10 @@ After an owner or admin creates or rotates an API key, the Console shows the raw
 A **Sample request** (see `CONTEXT.md`) is shown inside `ApiKeyRevealDialog`, after both create and rotate. The UI label is "Gọi thử".
 
 - **No in-app execution.** The Console never sends the raw key back to the BFF. The Sample request is a copyable `curl` command the holder runs from their own machine. This keeps the raw key on the one-way path ADR-0003 allows (BFF → browser) and needs no new ADR.
-- **Host.** Always `https://api.aihubproduction.com`, the production Environment. Customer keys cannot allow `sandbox` (aihub-be `CustomerEnvironmentSchema`), and the sandbox Environment has its own database that does not contain Console Organizations (aihub-be ADR-0017). No `staging` host exists.
-- **Key without `production`.** The create form always mints `production` keys, but rotation keeps an existing key's Environments, which may be `staging` for a key issued outside the Console. When `allowed_environments` does not include `production`, no command is shown; the block states that AIHUB has no public staging host yet.
+- **Host.** The Sample request targets the host of an Environment the key allows. A `production` key targets `https://api.aihubproduction.com`; a `sandbox` key targets `sandbox.aihubproduction.com`. AIHUB has no public `staging` host. Before [ADR-0009](../../adr/0009-customer-sandbox-environment.md) this design assumed customer keys could not allow `sandbox` (aihub-be `CustomerEnvironmentSchema`) and the sandbox Environment had its own database without Console Organizations (aihub-be ADR-0017); aihub-be #182 removed that boundary.
+- **Key with no runnable Environment.** The create form mints `production` and `sandbox` keys, but rotation keeps an existing key's Environments, which may be `staging` for a key issued outside the Console. When `allowed_environments` names no Environment with a public host, no command is shown; the block states that AIHUB has no public staging host yet.
 - **One tab per scope** the key holds, Writing first:
-  - `writing.grade` → `POST /v1/ielts/writing/task2/grade`, JSON body with a short sample `question`, `topic`, and `essay`. `Idempotency-Key` is a UUID generated once when the dialog opens, so rerunning the command replays the stored result for 24 hours instead of grading and charging again. The tab says so.
+  - `writing.grade` → `POST /v1/ielts/writing/task2/grade`, JSON body with a short sample `question`, `topic`, and `essay`. `Idempotency-Key` is a UUID generated once when the dialog opens, so rerunning the command replays the stored result for 24 hours instead of grading and charging again. The tab says so. A `sandbox` key holds `writing.grade` alone, so it shows this tab and no other.
   - `speaking.grade` → `POST /v1/ielts/speaking/grading`, multipart, with `-F audio=@answer.wav` for the holder to point at their own file, plus `part=1`, `question_id=p1_hometown`, `prompt_text`, `test_type=Practice`. No public sample audio exists, so `grading-json` is not used.
   - A scope with no known endpoint gets no tab.
 - **`X-User-Identity`** follows the roster's `identity_configured`:
@@ -30,7 +30,7 @@ A **Sample request** (see `CONTEXT.md`) is shown inside `ApiKeyRevealDialog`, af
   3. Body table (field, sample value, required, meaning).
   4. Expected outcome: `200` with a trimmed response (`overall_band`, `criteria`, `summary` for Writing), and the common failures `401 UNAUTHORIZED`, `401 INVALID_USER_IDENTITY`, `403 FORBIDDEN`, `403 ENVIRONMENT_NOT_ALLOWED`, `429 RATE_LIMITED` / `QUOTA_EXCEEDED`.
   5. The `curl` command with the full raw key inline, and a "Sao chép lệnh" button. The command is for a bash-compatible shell, stated next to the button.
-- **Usage warning**, one line: the command makes a real call counted against the Organization's usage.
+- **Usage warning**, one line, chosen by the Environment. For a `production` key, the command makes a real call counted against the Organization's usage. For a `sandbox` key, the call is free and is not counted against the Organization's paid usage, and it is bounded by a monthly allowance. The Sandbox allowance is static copy: the backend does not expose it (ADR-0009).
 - **Lifetime.** The Sample request is derived from the in-memory minted key and discarded with it when the dialog closes. Nothing is written to storage, logs, analytics, or URLs.
 
 ### Writing Scoring catalog
@@ -48,10 +48,10 @@ A **Sample request** (see `CONTEXT.md`) is shown inside `ApiKeyRevealDialog`, af
 
 - Speaking endpoint links in the catalog 404 because Speaking has no `PRODUCT_DOCS` entry.
 - `app/api/portal/specs/run-curl/route.ts` is an unauthenticated proxy with no caller.
-- A free customer test Environment needs backend work (a staging host or sandbox access for customer keys).
+- Customer sandbox access, which aihub-be #182 delivered and ADR-0009 records; a public `staging` host is still missing.
 
 ## Testing
 
-- Unit: the Sample request builder — tabs from scopes, host gating on `production`, identity value per `identity_configured`, header masking, and a command containing the full key and the pinned `Idempotency-Key`.
-- E2E (`tests/e2e/organization-api-keys.spec.ts`): after create, the dialog shows the Sample request with the raw key in the command and only the prefix in the headers table; after close and reopen of another key, the previous command is gone; a staging-only key shows the note instead of a command.
+- Unit: the Sample request builder — tabs from scopes, host selection by Environment, identity value per `identity_configured`, header masking, and a command containing the full key and the pinned `Idempotency-Key`.
+- E2E (`tests/e2e/organization-api-keys.spec.ts`): after create, the dialog shows the Sample request with the raw key in the command and only the prefix in the headers table; after close and reopen of another key, the previous command is gone; a staging-only key shows the note instead of a command; a sandbox key targets the sandbox host, shows only the Writing tab, and states that the call is free and bounded.
 - E2E: `/product/scoring` lists both endpoints and `/product/scoring/api/grade-task2` renders headers and the Scoring error list; exercise-generation pages are unchanged.
