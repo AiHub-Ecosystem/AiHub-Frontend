@@ -240,5 +240,28 @@ test("Writing Scoring shows all nineteen gateway errors grouped by status", asyn
   await expect(
     errors.locator("article", { hasText: "RATE_LIMITED" }).locator("pre")
   ).toContainText('"retry_after_ms": 2000');
+  const quota = errors.locator("article", { hasText: "QUOTA_EXCEEDED" });
+  await expect(quota.locator("pre")).toContainText('"retryable": true');
+  await expect(quota.locator("pre")).toContainText('"retry_after_ms":');
+  const conflict = errors.locator("article", {
+    hasText: "IDEMPOTENCY_CONFLICT",
+  });
+  await expect(conflict.locator("pre")).toContainText('"retryable": false');
+  await expect(conflict).toContainText("chờ nó xong");
+  const aiServiceError = errors.locator("article", {
+    hasText: "AI_SERVICE_ERROR",
+  });
+  await expect(aiServiceError).toContainText("4xx");
+  await expect(aiServiceError).toContainText("5xx");
+  await expect(
+    errors
+      .locator("article", { hasText: "AI_SERVICE_THROTTLED" })
+      .locator("pre")
+  ).not.toContainText('"retry_after_ms"');
+  await expect(
+    errors.locator("article", {
+      hasText: "IDENTITY_PROVIDER_UNAVAILABLE",
+    })
+  ).toContainText("Identity configuration");
   await expect(errors).toContainText("JWKS");
 });

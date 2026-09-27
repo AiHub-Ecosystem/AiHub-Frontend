@@ -341,7 +341,7 @@ export const WRITING_SCORING_STEPS: IntegrationStep[] = [
   {
     title: "Lấy API key có scope writing.grade",
     description:
-      "AIHUB cấp API key cho Organization, mỗi key gắn với một Environment và chỉ chạy trên server của bạn. Key hiển thị đúng một lần lúc tạo hoặc xoay vòng — lưu vào secret manager ngay. Key thiếu scope writing.grade sẽ bị từ chối với 403 FORBIDDEN.",
+      "AIHUB cấp API key cho Organization, mỗi key chỉ dùng được trong các Environment được phép và nên được gọi từ server của bạn. Key hiển thị đúng một lần lúc tạo hoặc xoay vòng — lưu vào secret manager ngay. Key thiếu scope writing.grade sẽ bị từ chối với 403 FORBIDDEN.",
   },
   {
     title: "Chọn đúng dạng User Identity của Organization",
@@ -416,13 +416,13 @@ const WRITING_TASK1_RESPONSE = {
         name: "Task Achievement",
         band: 6.5,
         band_reason:
-          "Bài mô tả đúng dạng biểu đồ và so sánh được giữa các nước, nhưng chưa nêu xu hướng của toàn bộ khoảng thời gian.",
+          "Bài có overview và so sánh các nước, nhưng dùng từ chỉ mức tăng cho biểu đồ chỉ có một năm và chưa nêu số của Russia.",
         strengths: [
-          "Mở bài nêu đúng đơn vị và khoảng thời gian của biểu đồ.",
-          "So sánh Saudi Arabia với các nước còn lại bằng con số cụ thể.",
+          "Mở bài nêu đúng đại lượng và năm 2010.",
+          "Có câu Overall nêu đặc điểm chính của biểu đồ.",
         ],
         improvements: [
-          "Thêm một câu tổng kết xu hướng chung thay vì dừng ở nhóm nước đầu.",
+          "Nêu số của Russia và mô tả chênh lệch thay cho xu hướng tăng.",
         ],
       },
       {
@@ -430,26 +430,21 @@ const WRITING_TASK1_RESPONSE = {
         name: "Coherence and Cohesion",
         band: 6.5,
         band_reason:
-          "Bài chia thành bốn đoạn theo trục so sánh rõ ràng, từ nối dùng đúng chỗ nhưng hơi lặp.",
-        strengths: [
-          "Mỗi đoạn có một chức năng: mở bài, dẫn số chính, chi tiết, kết.",
-          "Dùng However và In comparison đúng chỗ chuyển ý.",
-        ],
-        improvements: [
-          "Bỏ các cụm liên kết lặp lại như It is clear that ở đầu câu.",
-        ],
+          "Ý đi từ số lớn đến số nhỏ và có câu Overall, nhưng toàn bài dồn vào một đoạn.",
+        strengths: ["Câu Overall tóm tắt đặc điểm chính."],
+        improvements: ["Tách mở bài và overview khỏi phần số liệu."],
       },
       {
         id: "lexical_resource",
         name: "Lexical Resource",
         band: 6.0,
         band_reason:
-          "Từ vựng đúng ngữ cảnh biểu đồ nhưng còn nhiều cụm chung chung, thiếu từ chuyên ngành.",
+          "Dùng đúng production capacity nhưng big increase of production vừa sai ngữ cảnh vừa thiếu chính xác.",
         strengths: [
           "Dùng đúng estimated production capacity thay cho số lượng dài dòng.",
         ],
         improvements: [
-          "Thay increase mạnh bằng từ chỉ biến động có hướng như surge hoặc decline.",
+          "Dùng a large gap in production capacity để nói về chênh lệch giữa các nước.",
         ],
       },
       {
@@ -457,22 +452,22 @@ const WRITING_TASK1_RESPONSE = {
         name: "Grammatical Range and Accuracy",
         band: 6.5,
         band_reason:
-          "Câu ngắn và câu ghép xen kẽ, lỗi ít và không ảnh hưởng nghĩa.",
+          "Các câu so sánh phần lớn dễ hiểu, nhưng một câu thừa động từ were sau produced.",
         strengths: [
-          "So sánh bằng mệnh đề quan hệ và cấu trúc as ... as chính xác.",
+          "Cụm almost three times the figure for Russia diễn đạt so sánh rõ.",
         ],
-        improvements: ["Rà lại chủ ngữ số nhiều đi cùng động từ số ít."],
+        improvements: ["Bỏ were sau produced trong câu về Norway và Mexico."],
       },
     ],
     summary:
-      "Bài đạt band 6.5, mô tả và so sánh đúng dữ liệu nhưng thiếu câu tổng kết xu hướng chung. Điểm yếu rõ nhất nằm ở từ vựng chuyên ngành và cụm từ liên kết lặp lại.",
+      "Bài đạt band 6.5 và có overview, nhưng nói về mức tăng dù biểu đồ chỉ có năm 2010, bỏ số của Russia và có một câu sai cấu trúc.",
     suggestions: [
-      "Thêm một câu tổng kết xu hướng chung của cả biểu đồ trước khi kết bài.",
-      "Dùng từ chuyên ngành cho biến động thay cho các động từ chung.",
+      "Bổ sung số ước tính của Russia và tách phần overview thành đoạn riêng.",
+      "Dùng từ chỉ chênh lệch thay cho increase ở biểu đồ một năm.",
     ],
     next_steps: [
-      "Luyện 3 bài Task 1 có biểu đồ cột và soạn lại phần tổng kết xu hướng.",
-      "Đọc lại bài và gạch chân mọi cụm liên kết lặp lại.",
+      "Luyện mô tả biểu đồ cột chỉ có một mốc thời gian.",
+      "Rà lại các câu so sánh để tránh thừa động từ.",
     ],
     annotations: [
       {
@@ -480,14 +475,14 @@ const WRITING_TASK1_RESPONSE = {
         issue: "collocation_error",
         quote: "a big increase of production",
         explanation:
-          "Increase đi với in, không đi với of. Đúng là an increase in production.",
+          "Biểu đồ chỉ có năm 2010 nên không thể kết luận sản lượng tăng; dùng a large gap in production capacity để nói về chênh lệch.",
       },
       {
         criterion: "grammatical_range_accuracy",
         issue: "inappropriate_structure",
         quote: "Norway and Mexico produced were considerably less",
         explanation:
-          "Hai nước này là chủ ngữ số nhiều nhưng were không đi với chúng. Đúng là Norway and Mexico produced considerably less.",
+          "Thừa were sau produced. Viết Norway and Mexico produced considerably less.",
       },
     ],
   },
@@ -504,13 +499,13 @@ const WRITING_TASK2_RESPONSE = {
         name: "Task Response",
         band: 7.0,
         band_reason:
-          "Bài trả lời đúng hai quan điểm và có nêu ý riêng, nhưng chưa nói rõ điều kiện để theo phía nào.",
+          "Bài bàn cả hai quan điểm và kết luận ủng hộ đào tạo nghề với điều kiện được coi trọng ngang các môn học thuật; ví dụ minh họa còn khái quát.",
         strengths: [
           "Nêu quan điểm cá nhân ở câu cuối thay vì để ngỏ.",
-          "Phản biện lập luận đối diện bằng một ví dụ cụ thể.",
+          "Câu kết nêu rõ điều kiện same status and the same faculty.",
         ],
         improvements: [
-          "Nêu rõ điều kiện áp dụng quan điểm cá nhân, nếu không người đọc vẫn chưa biết bạn chọn phía nào.",
+          "Thêm ví dụ cụ thể về một chương trình đào tạo nghề trong đại học.",
         ],
       },
       {
@@ -518,58 +513,63 @@ const WRITING_TASK2_RESPONSE = {
         name: "Coherence and Cohesion",
         band: 7.0,
         band_reason:
-          "Mạch lập luận đi từ phân đôi vấn đề tới hòa giải, liên kết mềm và đúng.",
-        strengths: ["Mỗi đoạn có một ý chính và kết thúc nối sang đoạn sau."],
-        improvements: ["Hai mệnh đề dài ở nửa sau làm nhịp đọc chậm lại."],
+          "Các ý nối theo trình tự rõ, nhưng toàn bài dồn vào một đoạn và câu Neither path is complete alone quá dài.",
+        strengths: [
+          "Các câu nối trực tiếp từ lợi ích học thuật sang đào tạo nghề.",
+        ],
+        improvements: [
+          "Tách phần học thuật và phần đào tạo nghề thành hai đoạn.",
+        ],
       },
       {
         id: "lexical_resource",
         name: "Lexical Resource",
         band: 7.0,
         band_reason:
-          "Từ vựng học thuật đa dạng, chính tả ổn, lỗi còn lại ở cụm collocation.",
+          "Từ vựng học thuật phù hợp, nhưng turns that analysis into a specific craft là phép diễn đạt trừu tượng.",
         strengths: [
           "Dùng chính xác vocational training và academic subject theo nghĩa của đề.",
         ],
-        improvements: [
-          "Sửa cụm a trained technician who cannot reason để tránh lặp cannot.",
-        ],
+        improvements: ["Nêu kỹ năng thực hành cụ thể thay cho specific craft."],
       },
       {
         id: "grammatical_range_accuracy",
         name: "Grammatical Range and Accuracy",
         band: 7.0,
         band_reason:
-          "Câu ghép và mệnh đề quan hệ dùng linh hoạt, lỗi nhỏ không cản trôi chảy.",
+          "Câu ghép và mệnh đề điều kiện dùng đúng, nhưng câu Neither path is complete alone chứa quá nhiều ý.",
         strengths: [
           "Cấu trúc provided it carries the same status là câu chủ động phức đúng ngữ pháp.",
         ],
-        improvements: ["Một mệnh đề dài ở đoạn cuối nên tách thành hai câu."],
+        improvements: [
+          "Tách câu Neither path is complete alone thành hai câu.",
+        ],
       },
     ],
     summary:
-      "Bài đạt band 7.0, lập luận rõ và có ví dụ cho cả hai phía. Điểm cần nâng là quan điểm cá nhân chưa kèm điều kiện, và có hai mệnh đề quá dài.",
+      "Bài đạt band 7.0, nêu rõ quan điểm và điều kiện trong kết luận. Cần ví dụ cụ thể hơn, chia đoạn và rút ngắn một câu dài.",
     suggestions: [
-      "Nêu điều kiện áp dụng quan điểm cá nhân ở câu kết.",
-      "Tách hai mệnh đề dài thành bốn câu ngắn.",
+      "Thêm ví dụ về chương trình đào tạo nghề trong đại học.",
+      "Tách phần học thuật và đào tạo nghề thành các đoạn riêng.",
     ],
     next_steps: [
-      "Luyện 2 bài Task 2 dạng discuss both views và thêm một ví dụ cho cả hai phía.",
+      "Viết lại bài với các đoạn riêng và một ví dụ thực tế cho quan điểm cá nhân.",
     ],
     annotations: [
       {
         criterion: "lexical_resource",
-        issue: "collocation_error",
-        quote: "will repeat the same mistake",
+        issue: "imprecise_word_choice",
+        quote: "turns that analysis into a specific craft",
         explanation:
-          "Repeat a mistake không phải collocation tiếng Anh. Đúng là make the same mistake.",
+          "Cách diễn đạt trừu tượng; nêu rõ đào tạo nghề giúp người học phát triển kỹ năng thực hành cụ thể.",
       },
       {
         criterion: "task_response",
-        issue: "unclear_stance",
-        quote: "I therefore consider vocational training a subject",
+        issue: "underdeveloped_example",
+        quote:
+          "provided it carries the same status and the same faculty as academic study",
         explanation:
-          "Ý kiến cá nhân đã có nhưng chưa nêu điều kiện áp dụng, nên lập luận còn đứng giữa hai quan điểm.",
+          "Điều kiện đã rõ nhưng cần một ví dụ về cách đại học trao vị thế tương đương cho đào tạo nghề.",
       },
     ],
   },
@@ -743,7 +743,7 @@ const WRITING_GATEWAY_ERRORS: GatewayError[] = [
     tone: "warn",
     title: "Xung đột Idempotency-Key",
     description:
-      "Dùng lại một key với body khác, hoặc một request giống hệt đang chạy. Body khác thì lấy key mới; request đang chạy thì chờ nó xong rồi gửi lại cùng key và cùng body.",
+      "Dùng lại một key với body khác, hoặc một request giống hệt đang chạy. retryable là false nên không gửi lại ngay; body khác thì lấy key mới, còn request đang chạy thì chờ nó xong rồi gửi lại cùng key và cùng body.",
   },
   {
     status: "413",
@@ -778,7 +778,9 @@ const WRITING_GATEWAY_ERRORS: GatewayError[] = [
     tone: "error",
     title: "Hết hạn mức",
     description:
-      "Đã dùng hết hạn mức request trong tháng. Chờ kỳ reset hoặc nâng hạn mức.",
+      "Đã dùng hết hạn mức request trong tháng. retryable là true và retry_after_ms cho biết thời gian còn lại đến đầu tháng UTC tới; chờ kỳ reset hoặc nâng hạn mức.",
+    retryable: true,
+    retry_after_ms: 86_400_000,
   },
   {
     status: "500",
@@ -793,8 +795,8 @@ const WRITING_GATEWAY_ERRORS: GatewayError[] = [
     code: "AI_SERVICE_ERROR",
     tone: "error",
     title: "Dịch vụ AI lỗi",
-    description: "Dịch vụ AI trả về lỗi. Thử lại sau nếu retryable là true.",
-    retryable: true,
+    description:
+      "Dịch vụ AI trả về lỗi. retryable là false với lỗi 4xx từ dịch vụ AI (như ví dụ), true với lỗi 5xx; chỉ thử lại khi response thực tế cho phép.",
   },
   {
     status: "502",
@@ -809,9 +811,9 @@ const WRITING_GATEWAY_ERRORS: GatewayError[] = [
     code: "AI_SERVICE_THROTTLED",
     tone: "error",
     title: "Dịch vụ AI đang giới hạn",
-    description: "Dịch vụ AI đang throttle. Lùi rồi thử lại.",
+    description:
+      "Dịch vụ AI đang giới hạn. Lùi rồi thử lại; mã này không có retry_after_ms nên chọn thời gian lùi phù hợp.",
     retryable: true,
-    retry_after_ms: 2000,
   },
   {
     status: "503",
@@ -825,9 +827,9 @@ const WRITING_GATEWAY_ERRORS: GatewayError[] = [
     status: "503",
     code: "IDENTITY_PROVIDER_UNAVAILABLE",
     tone: "error",
-    title: "JWKS endpoint của bạn không truy cập được",
+    title: "Nguồn xác minh User Identity không khả dụng",
     description:
-      "Chỉ xảy ra khi bạn gửi Signed User Assertion và AIHUB không lấy được JWKS endpoint của bạn. API key của bạn vẫn tốt — kiểm tra JWKS endpoint, đổi mới key sẽ không giúp ích.",
+      "AIHUB không đọc được Identity configuration của Organization, hoặc không lấy được JWKS khi xác minh Signed User Assertion. Lỗi đọc cấu hình có thể xảy ra cả khi bạn dùng Declared User ID; không tự chuyển sang chế độ khác. API key vẫn hợp lệ.",
     retryable: true,
   },
   {
@@ -957,7 +959,7 @@ export const PRODUCT_DOCS: Record<string, ProductDocs> = {
     reference: WRITING_SCORING_REFERENCE,
     errors: {
       intro:
-        "19 mã dưới đây áp dụng cho cả hai endpoint chấm. Mọi lỗi trả về cùng một envelope { error: { code, message, request_id, retryable, retry_after_ms? } }. Rẽ nhánh theo code chứ không theo message, vì message có thể đổi câu chữ; chỉ retry khi retryable là true, và luôn gửi lại cùng một Idempotency-Key khi retry chấm Writing.",
+        "19 mã dưới đây áp dụng cho cả hai endpoint chấm. Mọi lỗi trả về cùng một envelope { error: { code, message, request_id, retryable, retry_after_ms? } }. Giá trị retry_after_ms trong ví dụ chỉ minh họa; hãy dùng giá trị response thực tế. Rẽ nhánh theo code chứ không theo message, vì message có thể đổi câu chữ. Chỉ tự động retry khi retryable là true và luôn giữ cùng Idempotency-Key; riêng 409 do request giống hệt đang chạy thì chờ request đầu hoàn tất rồi gửi lại cùng key và body.",
       items: WRITING_SCORING_ERRORS,
     },
   },
