@@ -9,8 +9,7 @@ const writingUrl =
   "https://api.aihubproduction.com/v1/ielts/writing/task2/grade";
 const speakingUrl = "https://api.aihubproduction.com/v1/ielts/speaking/grading";
 
-const speakingPromptText =
-  "Describe your hometown and say what you like most about it.";
+const speakingPromptText = "Do you enjoy living in your hometown?";
 
 type SampleHeader = {
   name: string;
@@ -44,7 +43,13 @@ export type WritingSampleRequest = SampleRequestBase & {
 };
 
 type SpeakingField =
-  "audio" | "part" | "question_id" | "prompt_text" | "test_type";
+  | "audio"
+  | "part"
+  | "question_id"
+  | "prompt_text"
+  | "test_type"
+  | "test_code"
+  | "transcript";
 
 type SpeakingFormField = {
   field: SpeakingField;
@@ -53,6 +58,8 @@ type SpeakingFormField = {
   /** Shown in the body table, so it differs from the form for audio. */
   sampleValue: string;
   required: boolean;
+  /** Whether the sample command sends it; the rest are documented only. */
+  sendsInSample: boolean;
   meaning: string;
 };
 
@@ -68,19 +75,23 @@ export type SpeakingSampleRequest = SampleRequestBase & {
 
 export type SampleRequest = WritingSampleRequest | SpeakingSampleRequest;
 
+/** Required flags follow the AIHUB Speaking grading contract, not the demo client. */
 const SPEAKING_FORM_FIELDS: SpeakingFormField[] = [
   {
     field: "audio",
     formValue: "@${AUDIO_FILE}",
     sampleValue: "./answer.wav",
     required: true,
-    meaning: "File âm thanh bạn trả lời; thay bằng file của bạn.",
+    sendsInSample: true,
+    meaning:
+      "File âm thanh bạn trả lời; thay bằng file của bạn. wav, mp3, m4a, webm hoặc ogg; tối đa 25 MiB.",
   },
   {
     field: "part",
     formValue: "1",
     sampleValue: "1",
     required: true,
+    sendsInSample: true,
     meaning: "Phần của bài Speaking: 1, 2 hoặc 3.",
   },
   {
@@ -88,6 +99,7 @@ const SPEAKING_FORM_FIELDS: SpeakingFormField[] = [
     formValue: "p1_hometown",
     sampleValue: "p1_hometown",
     required: true,
+    sendsInSample: true,
     meaning: "Giá trị mẫu; thay bằng câu hỏi bạn trả lời.",
   },
   {
@@ -95,14 +107,34 @@ const SPEAKING_FORM_FIELDS: SpeakingFormField[] = [
     formValue: speakingPromptText,
     sampleValue: speakingPromptText,
     required: false,
-    meaning: "Tuỳ chọn; chỉ gửi khi câu hỏi cần nội dung riêng.",
+    sendsInSample: true,
+    meaning: "Tuỳ chọn; prompt dùng để đánh giá độ liên quan.",
   },
   {
     field: "test_type",
     formValue: "Practice",
     sampleValue: "Practice",
-    required: true,
-    meaning: "Loại bài kiểm tra.",
+    required: false,
+    sendsInSample: true,
+    meaning: "Tuỳ chọn; ví dụ Practice hoặc Full-test.",
+  },
+  {
+    field: "test_code",
+    formValue: "ielts-practice-01",
+    sampleValue: "ielts-practice-01",
+    required: false,
+    sendsInSample: false,
+    meaning:
+      "Tuỳ chọn; mã chung cho các câu hỏi thuộc cùng một bài kiểm tra đầy đủ.",
+  },
+  {
+    field: "transcript",
+    formValue: "",
+    sampleValue: "",
+    required: false,
+    sendsInSample: false,
+    meaning:
+      "Tuỳ chọn; transcript có sẵn, dùng khi nhà cung cấp hỗ trợ bỏ qua STT.",
   },
 ];
 
@@ -239,9 +271,9 @@ function buildSpeaking({
       meaning,
     })
   );
-  const formArgs = SPEAKING_FORM_FIELDS.map(
-    ({ field, formValue }) => `-F "${field}=${formValue}"`
-  );
+  const formArgs = SPEAKING_FORM_FIELDS.filter(
+    (field) => field.sendsInSample
+  ).map(({ field, formValue }) => `-F "${field}=${formValue}"`);
   const command = allowsProduction(apiKey)
     ? [
         `API_KEY='${apiKey.api_key}'`,

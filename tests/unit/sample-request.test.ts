@@ -224,7 +224,7 @@ describe("Speaking Sample request", () => {
     expect(command).toContain('-F "part=1"');
     expect(command).toContain('-F "question_id=p1_hometown"');
     expect(command).toContain(
-      '-F "prompt_text=Describe your hometown and say what you like most about it."'
+      '-F "prompt_text=Do you enjoy living in your hometown?"'
     );
     expect(command).toContain('-F "test_type=Practice"');
   });
@@ -243,7 +243,7 @@ describe("Speaking Sample request", () => {
     expect(question?.meaning).toMatch(/thay bằng/);
   });
 
-  it("marks prompt text optional and the other fields required", () => {
+  it("marks the fields the grading contract requires, not the demo's", () => {
     const body =
       sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
         ?.body ?? [];
@@ -253,8 +253,21 @@ describe("Speaking Sample request", () => {
       ["part", true],
       ["question_id", true],
       ["prompt_text", false],
-      ["test_type", true],
+      ["test_type", false],
+      ["test_code", false],
+      ["transcript", false],
     ]);
+  });
+
+  it("documents the fields the sample command does not send", () => {
+    const command = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    )?.command;
+
+    expect(command).not.toContain("test_code");
+    expect(command).not.toContain('-F "transcript=');
   });
 
   it("omits a hand-written content type so the boundary survives", () => {
