@@ -637,6 +637,29 @@ test("creating a Sandbox key restricts the scopes and targets the Sandbox host",
   });
 });
 
+test("closing the create form discards the Environment and the scopes", async ({
+  page,
+  request,
+}) => {
+  await setup(request, { apiKeys: [], entitlements: ["writing", "speaking"] });
+  await signIn(page);
+  await page.getByText("Tạo API key", { exact: true }).click();
+  await page.locator('input[name="environment"][value="sandbox"]').check();
+  await page.locator('input[name="scopes"][value="writing.grade"]').check();
+  await page.getByRole("button", { name: "Đóng" }).click();
+
+  await page.getByText("Tạo API key", { exact: true }).click();
+  await expect(
+    page.locator('input[name="environment"][value="production"]')
+  ).toBeChecked();
+  await expect(
+    page.locator('input[name="scopes"][value="writing.grade"]')
+  ).not.toBeChecked();
+  await expect(
+    page.locator('input[name="scopes"][value="speaking.grade"]')
+  ).toBeEnabled();
+});
+
 test("rotating a Sandbox key keeps the Sandbox Sample request", async ({
   page,
   request,

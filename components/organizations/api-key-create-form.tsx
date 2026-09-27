@@ -57,6 +57,19 @@ export function ApiKeyCreateForm({
     setValidationError("");
   }
 
+  /**
+   * Dialog content unmounts on close, which discards the uncontrolled name and
+   * expiry fields. The controlled fields would otherwise outlive the dialog and
+   * greet the holder with scopes they thought they had cleared.
+   */
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (next) return;
+    setEnvironment("production");
+    setSelectedScopes([]);
+    setValidationError("");
+  }
+
   function selectEnvironment(next: CreatableEnvironment) {
     setEnvironment(next);
     if (next === "sandbox")
@@ -127,7 +140,7 @@ export function ApiKeyCreateForm({
 
   return (
     <div className="api-key-create">
-      <Dialog onOpenChange={setOpen} open={open}>
+      <Dialog onOpenChange={handleOpenChange} open={open}>
         <DialogTrigger asChild>
           <button
             className="console-primary-action"
