@@ -96,7 +96,7 @@ The request tier AIHUB derives from the hostname a request is sent to; an API ke
 _Avoid_: mode, live/test
 
 **Sample request**:
-A request shown beside a newly issued API key so its holder can make a first call, one for each API key scope that has a known endpoint; it exists only while that raw key is on screen. A Sample request may depend on several things only its holder has, such as an audio file or the question being answered.
+A request shown beside a newly issued API key so its holder can make a first call, one for each operation the key's API key scopes permit that has a known endpoint. An API key scope may permit more than one operation, so an Organization's key may be offered several Sample requests; it exists only while that raw key is on screen. A Sample request may depend on several things only its holder has, such as an audio file or the question being answered.
 _Avoid_: playground, test call, try-it
 
 **Identity configuration**:

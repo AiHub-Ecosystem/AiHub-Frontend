@@ -156,6 +156,11 @@ test("Writing Task 1 reference shows the request contract and image placeholder"
   await expect(request).toContainText(`AIHUB_IDEMPOTENCY_KEY="$(uuidgen)"`);
   await expect(request).toContainText("https://api.aihubproduction.com");
   await expect(request).toContainText(`"chart_type": "Bar Chart"`);
+  // The example is shared with the Console, so its key order is contract:
+  // it decides the order the fields are rendered and sent in.
+  await expect(request).toContainText(
+    /"question":[\s\S]*"chart_type":[\s\S]*"image_url":[\s\S]*"essay":/
+  );
 
   await expect(requestFields(page)).toHaveText([
     "question",

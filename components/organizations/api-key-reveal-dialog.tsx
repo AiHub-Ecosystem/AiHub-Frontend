@@ -7,7 +7,6 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import type { ApiKeyScope } from "@/lib/api-key-scopes";
 import type { MintedOrganizationApiKey } from "@/lib/api-keys";
 import { buildSampleRequests, needsIdempotencyKey } from "@/lib/sample-request";
 
@@ -31,7 +30,7 @@ export function ApiKeyRevealDialog({
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const [copied, setCopied] = useState<"key" | "command" | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
-  const [activeScope, setActiveScope] = useState<ApiKeyScope | null>(null);
+  const [activeKind, setActiveKind] = useState<string | null>(null);
 
   useEffect(() => {
     if (apiKey && dialog.current && !dialog.current.open) {
@@ -43,7 +42,7 @@ export function ApiKeyRevealDialog({
     }
     if (!apiKey && dialog.current?.open) {
       setIdempotencyKey(null);
-      setActiveScope(null);
+      setActiveKind(null);
       setCopied(null);
       dialog.current.close();
     }
@@ -61,12 +60,12 @@ export function ApiKeyRevealDialog({
 
   const activeIndex = Math.max(
     0,
-    samples.findIndex((sample) => sample.scope === activeScope)
+    samples.findIndex((sample) => sample.kind === activeKind)
   );
   const activeSample = samples[activeIndex];
 
-  function selectTab(scope: ApiKeyScope, index: number) {
-    setActiveScope(scope);
+  function selectTab(kind: string, index: number) {
+    setActiveKind(kind);
     setCopied(null);
     tabs.current[index]?.focus();
   }
@@ -80,7 +79,7 @@ export function ApiKeyRevealDialog({
       nextIndex = (activeIndex + offset + samples.length) % samples.length;
     else return;
     event.preventDefault();
-    selectTab(samples[nextIndex].scope, nextIndex);
+    selectTab(samples[nextIndex].kind, nextIndex);
   }
 
   async function copy(text: string, item: "key" | "command") {
@@ -144,16 +143,16 @@ export function ApiKeyRevealDialog({
                 {samples.map((sample, index) => (
                   <button
                     aria-controls={`sample-panel-${sample.kind}`}
-                    aria-selected={sample.scope === activeSample.scope}
+                    aria-selected={sample.kind === activeSample.kind}
                     className="api-key-sample-tab"
                     id={`sample-tab-${sample.kind}`}
-                    key={sample.scope}
-                    onClick={() => selectTab(sample.scope, index)}
+                    key={sample.kind}
+                    onClick={() => selectTab(sample.kind, index)}
                     ref={(node) => {
                       tabs.current[index] = node;
                     }}
                     role="tab"
-                    tabIndex={sample.scope === activeSample.scope ? 0 : -1}
+                    tabIndex={sample.kind === activeSample.kind ? 0 : -1}
                     type="button"
                   >
                     {sample.label}

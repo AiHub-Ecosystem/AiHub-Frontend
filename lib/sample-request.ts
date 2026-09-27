@@ -1,5 +1,5 @@
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
-import { API_KEY_SCOPE_CATALOG, type ApiKeyScope } from "@/lib/api-key-scopes";
+import type { ApiKeyScope } from "@/lib/api-key-scopes";
 import {
   SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE,
   type ApiKeyEnvironment,
@@ -57,30 +57,32 @@ type SampleHeader = {
   meaning: string;
 };
 
-type SampleRequestBase = {
-  scope: ApiKeyScope;
+/** One row of a request body, whichever request it describes. */
+export type SampleBodyField = {
+  field: string;
+  sampleValue: string;
+  required: boolean;
+  meaning: string;
+};
+
+export type SampleRequest = {
+  /**
+   * Identifies this request, and is the only thing the tab list derives its
+   * selected tab, its key, and every element id from. Not the scope: one scope
+   * covers more than one operation and will yield more than one request here.
+   */
+  kind: string;
   label: string;
   method: "POST";
   url: string;
   headers: SampleHeader[];
+  body: SampleBodyField[];
   identityNote: string;
   expectedOutcomeFields: string[];
   note: string;
   usageNote: string;
   contentTypeNote?: string;
   command: string | null;
-};
-
-type WritingBodyField = {
-  field: keyof typeof WRITING_TASK2_REQUEST;
-  sampleValue: string;
-  required: true;
-  meaning: string;
-};
-
-export type WritingSampleRequest = SampleRequestBase & {
-  kind: "writing";
-  body: WritingBodyField[];
 };
 
 type SpeakingField =
@@ -103,18 +105,6 @@ type SpeakingFormField = {
   sendsInSample: boolean;
   meaning: string;
 };
-
-type SpeakingBodyField = Pick<
-  SpeakingFormField,
-  "field" | "sampleValue" | "required" | "meaning"
->;
-
-export type SpeakingSampleRequest = SampleRequestBase & {
-  kind: "speaking";
-  body: SpeakingBodyField[];
-};
-
-export type SampleRequest = WritingSampleRequest | SpeakingSampleRequest;
 
 /** Required flags follow the AIHUB Speaking grading contract, not the demo client. */
 const SPEAKING_FORM_FIELDS: SpeakingFormField[] = [
@@ -207,18 +197,13 @@ function apiKeyHeader(apiKey: MintedOrganizationApiKey): SampleHeader {
   };
 }
 
-function serviceLabel(scope: ApiKeyScope): string {
-  const option = API_KEY_SCOPE_CATALOG.find((entry) => entry.scope === scope);
-  return option?.service ?? scope;
-}
-
 function buildWriting({
   apiKey,
   host,
   identity,
   idempotencyKey,
-}: BuildContext): WritingSampleRequest {
-  const body: WritingBodyField[] = [
+}: BuildContext): SampleRequest {
+  const body: SampleBodyField[] = [
     {
       field: "question",
       sampleValue: WRITING_TASK2_REQUEST.question,
@@ -276,8 +261,7 @@ function buildWriting({
 
   return {
     kind: "writing",
-    scope: WRITING_SCOPE,
-    label: serviceLabel(WRITING_SCOPE),
+    label: "Writing",
     method: "POST",
     url: endpoint(host, writingPath),
     headers,
@@ -294,7 +278,7 @@ function buildSpeaking({
   apiKey,
   host,
   identity,
-}: BuildContext): SpeakingSampleRequest {
+}: BuildContext): SampleRequest {
   const headers: SampleHeader[] = [
     apiKeyHeader(apiKey),
     {
@@ -303,7 +287,7 @@ function buildSpeaking({
       meaning: identity.meaning,
     },
   ];
-  const body: SpeakingBodyField[] = SPEAKING_FORM_FIELDS.map(
+  const body: SampleBodyField[] = SPEAKING_FORM_FIELDS.map(
     ({ field, sampleValue, required, meaning }) => ({
       field,
       sampleValue,
@@ -332,8 +316,7 @@ function buildSpeaking({
 
   return {
     kind: "speaking",
-    scope: SPEAKING_SCOPE,
-    label: serviceLabel(SPEAKING_SCOPE),
+    label: "Speaking",
     method: "POST",
     url: endpoint(host, speakingPath),
     headers,
@@ -355,11 +338,13 @@ type BuildContext = {
   idempotencyKey: string;
 };
 
-/** Fixed display order, not the order the key's scopes arrive in. */
-const SAMPLE_REQUESTS: {
+export type SampleRequestEntry = {
   scope: ApiKeyScope;
   build: (context: BuildContext) => SampleRequest;
-}[] = [
+};
+
+/** Fixed display order, not the order the key's scopes arrive in. */
+const SAMPLE_REQUESTS: SampleRequestEntry[] = [
   { scope: WRITING_SCOPE, build: buildWriting },
   { scope: SPEAKING_SCOPE, build: buildSpeaking },
 ];

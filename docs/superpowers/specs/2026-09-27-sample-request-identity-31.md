@@ -55,10 +55,10 @@ A holder sees exactly what they see today: the same tabs, in the same order, und
 - [ ] The display name attached to a scope in the scope catalog is left in place, because the create form still uses it to explain an unavailable entitlement.
 - [ ] The selected tab, the list key, and every tab and panel element id are derived from the request's own identity rather than from its scope. This is the condition that makes the tab attributes unique; the rendered proof that exactly one tab is selected is covered by #32, where a key with two requests for one scope exists.
 - [ ] The body field type no longer names the fields of one specific request, so a second Writing request is not rejected by the type system.
-- [ ] The Writing Task 1 request example has a single source of truth shared by the API reference and the Sample request, in the same way the Task 2 example already does.
+- [ ] The Writing Task 1 request example has a single source of truth shared with the API reference, in the same way the Task 2 example already is, so that #32 can build its request from it. Nothing in this issue reads it yet; the Sample request has no Task 1 request to build.
 - [ ] The Writing Task 1 API reference page renders byte-for-byte as it does today. The existing end-to-end coverage of that page pins the example and the field order, and is the proof.
 - [ ] No Writing Task 1 builder, tab, or label is added here. Nothing a key holder sees changes.
-- [ ] Unit coverage proves that one scope producing several requests yields distinct identities in a fixed order. This test fails if the refactor is done halfway, and does not depend on #32 existing.
+- [ ] Unit coverage proves that the requests a key produces carry distinct identities, on the built requests rather than on a fixture. Whether one scope yields several requests is not asserted: that needs a second request, which is #32's, and asserting it today would mean either a test-only seam in production code, which this specification does not add, or a test that asserts its own fixture back to itself.
 - [ ] Unit coverage proves the identities a single key produces are unique, which is what keeps the tab attributes unique.
 - [ ] Assertions that identify a tab or a panel by API key scope are updated to the new identity rather than deleted.
 - [ ] The design documentation no longer states that there is one tab per scope, and records that a request's identity and its scope are different things.
@@ -77,7 +77,7 @@ A holder sees exactly what they see today: the same tabs, in the same order, und
 
 - **A flat registry, one entry per request.** The existing registry is a flat list whose order is already declared rather than derived, and filtering it by scope already works. Making the list a map of scope to several builders would add a flattening step and change nothing about the ordering guarantee.
 
-- **The Task 1 example is extracted here, and not used here.** The Task 2 example exists as a single source of truth because two surfaces need it. Task 1 needs exactly the same thing, and the API reference page has end-to-end coverage that already pins its example and field order — that coverage is the safety net for the extraction, and it is worth taking now rather than later. The module is not dead on arrival: #32 is the next issue and its stated purpose is to consume it.
+- **The Task 1 example is extracted here, and not used here.** The Task 2 example exists as a single source of truth because two surfaces need it. Task 1 needs exactly the same thing, and the API reference page has end-to-end coverage that pins its example, its field order, and its key order — that coverage is the safety net for the extraction, and it is worth taking now rather than later. The module is not dead on arrival: #32 is the next issue and its stated purpose is to build a request from it.
 
 - **The body field type stops naming one request's fields.** This is a type change with no runtime effect, and it is a precondition for #32 rather than part of this issue's user-facing work. Leaving it locked to one request would mean the refactor created the blockage the next issue has to undo.
 
@@ -97,7 +97,7 @@ A holder sees exactly what they see today: the same tabs, in the same order, und
 
 - **End-to-end, through the public API reference page.** Its coverage already pins the Writing Task 1 example, the request field names and their order, and the response shape. That coverage is what proves the extraction of the example changed nothing, so no new test is written for it — the existing test is the test.
 
-- **What is deliberately not covered here, and why.** The rendered proof that exactly one tab carries the selected state, and only one tab sits in the tab order, needs a key with two requests for one scope. No such key exists and the Console cannot create one yet, so asserting it here would mean either testing unreachable code at a new component-test seam the repository does not have, or asserting something weaker than the claim. The unique identity that makes those attributes unique is proven at the unit seam instead, and #32 adds the rendered assertion when the key exists.
+- **Two things are deliberately not proven here, and why.** The rendered proof that exactly one tab carries the selected state, and that only one tab sits in the tab order, needs a key with two requests for one scope. So does any proof that one scope yields several requests at all: no such key exists, the Console cannot create one, and the repository has no component-test seam to assert against without adding a dependency. Both are #32's to prove, when the first such key exists. This is the honest limit of the seam, and it is the price of separating the refactor from the request that needs it.
 
 ## Out of Scope
 
