@@ -1,4 +1,8 @@
-import { WRITING_TASK1_REQUEST } from "@/data/writing-task1-request";
+import {
+  WRITING_TASK1_CHART_TYPES,
+  WRITING_TASK1_IMAGE_PLACEHOLDER_NOTE,
+  WRITING_TASK1_REQUEST,
+} from "@/data/writing-task1-request";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 
 export { WRITING_TASK2_REQUEST };
@@ -604,8 +608,7 @@ export const WRITING_SCORING_REFERENCE: Record<string, EndpointReference> = {
         name: "chart_type",
         type: "string",
         required: true,
-        description:
-          "Loại biểu đồ, phân biệt HOA THƯỜNG, đúng một trong: Bar Chart | Line Graph | Pie Chart | Table | Map | Process Diagram | Multiple Graphs.",
+        description: `Loại biểu đồ, phân biệt HOA THƯỜNG, đúng một trong: ${WRITING_TASK1_CHART_TYPES.join(" | ")}.`,
       },
       {
         name: "essay",
@@ -632,7 +635,7 @@ export const WRITING_SCORING_REFERENCE: Record<string, EndpointReference> = {
     responseDescription: writingResponseDescription("task_achievement"),
     responseExample: WRITING_TASK1_RESPONSE,
     notes: [
-      "image_url trong ví dụ là URL giữ chỗ — thay bằng ảnh biểu đồ thật mà dịch vụ chấm truy cập được, nếu không kết quả sẽ sai.",
+      `${WRITING_TASK1_IMAGE_PLACEHOLDER_NOTE}, nếu không kết quả sẽ sai.`,
       'chart_type phân biệt HOA THƯỜNG và chỉ nhận 7 giá trị đã liệt kê; gửi "bar chart" hoặc một chủ đề như "environment" đều bị 400 INVALID_REQUEST.',
       ...WRITING_SHARED_NOTES,
     ],

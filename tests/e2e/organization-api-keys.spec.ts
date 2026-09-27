@@ -1,4 +1,8 @@
 import {
+  WRITING_TASK1_CHART_TYPES,
+  WRITING_TASK1_REQUEST,
+} from "@/data/writing-task1-request";
+import {
   expect,
   test,
   type APIRequestContext,
@@ -70,6 +74,14 @@ async function setup(
       ...mockOptions,
     },
   });
+}
+
+/** The reveal dialog opens on the first request; Task 2 is not first. */
+async function showWritingTask2(page: Page) {
+  await page
+    .getByRole("tablist", { name: "Sample requests" })
+    .getByRole("tab", { name: "Writing Task 2" })
+    .click();
 }
 
 async function signIn(page: Page, openApiKeys = true) {
@@ -206,11 +218,12 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   const rawKey = await page.getByTestId("api-key-raw").textContent();
   expect(rawKey).toMatch(/^aihub_sk_[A-Za-z0-9]{43}$/);
   rawKeyToWatch = rawKey ?? "";
-  const sample = dialog.getByRole("tabpanel", { name: "Writing" });
+  await showWritingTask2(page);
+  const sample = dialog.getByRole("tabpanel", { name: "Writing Task 2" });
   await expect(sample).toBeVisible();
   await expect(sample.getByText("test-user-1", { exact: true })).toBeVisible();
   const headers = sample.getByRole("table", {
-    name: "Writing request headers",
+    name: "Writing Task 2 request headers",
   });
   const apiKeyHeader = headers.getByRole("row", { name: /X-API-Key/ });
   await expect(apiKeyHeader).toContainText("aihub_sk_ABC123…");
@@ -258,9 +271,14 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
     .click();
   const rotatedRawKey = `aihub_sk_${"B".repeat(43)}`;
   await expect(page.getByTestId("api-key-raw")).toHaveText(rotatedRawKey);
+  // The dialog reopens on the first request, which is now Task 1.
+  await expect(
+    page.getByRole("tabpanel", { name: "Writing Task 1" })
+  ).toBeVisible();
   const rotatedCommand = await page
     .getByTestId("sample-request-command")
     .textContent();
+  expect(rotatedCommand).toContain("task1/grade");
   expect(rotatedCommand).toContain(rotatedRawKey);
   expect(rotatedCommand).not.toContain(rawKey);
   await page.getByRole("button", { name: "Đóng" }).click();
@@ -279,7 +297,86 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   expect(browserStorage).not.toContain(rawKey);
 });
 
-test("a key holding both scopes shows one tab per scope, Writing first", async ({
+test("a key holding writing.grade shows a Task 1 request beside Task 2", async ({
+  page,
+  request,
+}) => {
+  await setup(request, {
+    apiKeys: [
+      {
+        id: "ak_01J00000000000000000000006",
+        name: "Writing backend",
+        key_prefix: "aihub_sk_WRITING",
+        scopes: ["writing.grade"],
+        allowed_environments: ["production"],
+        status: "active",
+        expires_at: null,
+        last_used_at: null,
+        created_at: "2026-09-20T10:00:00.000Z",
+      },
+    ],
+  });
+  await signIn(page);
+  await page
+    .getByRole("row", { name: /Writing backend/ })
+    .getByRole("button", { name: "Xoay key" })
+    .click();
+
+  const tablist = page.getByRole("tablist", { name: "Sample requests" });
+  await expect(tablist.getByRole("tab")).toHaveText([
+    "Writing Task 1",
+    "Writing Task 2",
+  ]);
+
+  const task1 = page.getByRole("tabpanel", { name: "Writing Task 1" });
+  await expect(task1).toBeVisible();
+  await expect(
+    task1.getByText(
+      "https://api.aihubproduction.com/v1/ielts/writing/task1/grade",
+      { exact: true }
+    )
+  ).toBeVisible();
+  await expect(
+    task1
+      .getByRole("table", { name: "Writing Task 1 request body" })
+      .locator("tbody th")
+  ).toHaveText(Object.keys(WRITING_TASK1_REQUEST));
+  const chartTypeRow = task1
+    .getByRole("table", { name: "Writing Task 1 request body" })
+    .getByRole("row", { name: "chart_type" });
+  for (const chartType of WRITING_TASK1_CHART_TYPES)
+    await expect(chartTypeRow).toContainText(chartType);
+  await expect(chartTypeRow).toContainText("HOA THƯỜNG");
+  await expect(chartTypeRow).toContainText("environment");
+  await expect(task1.getByText(/URL giữ chỗ/)).toBeVisible();
+  await expect(task1.getByText(/thay bằng/)).toBeVisible();
+  await expect(
+    task1.getByText(/không trả lỗi khi không tải được ảnh/)
+  ).toBeVisible();
+  await expect(task1.getByText(/kết quả sẽ sai/)).toBeVisible();
+  await expect(
+    task1
+      .getByRole("table", { name: "Writing Task 1 request headers" })
+      .getByRole("row", { name: /Idempotency-Key/ })
+  ).toBeVisible();
+  await expect(
+    task1.getByText("task_achievement", { exact: true })
+  ).toBeVisible();
+  await expect(task1.getByTestId("sample-request-command")).toContainText(
+    "task1/grade"
+  );
+  await expect(task1.getByTestId("sample-request-command")).toContainText(
+    `IDEMPOTENCY_KEY='`
+  );
+
+  const task2 = page.getByRole("tabpanel", { name: "Writing Task 2" });
+  await expect(task2).toHaveCount(0);
+  await tablist.getByRole("tab", { name: "Writing Task 2" }).click();
+  await expect(task2).toBeVisible();
+  await expect(task2.getByText(/URL giữ chỗ/)).toHaveCount(0);
+});
+
+test("a key holding both scopes shows one tab per request, Writing first", async ({
   page,
   request,
 }) => {
@@ -292,17 +389,46 @@ test("a key holding both scopes shows one tab per scope, Writing first", async (
   await page.getByRole("button", { name: "Tạo key" }).click();
 
   const tablist = page.getByRole("tablist", { name: "Sample requests" });
-  await expect(tablist.getByRole("tab")).toHaveText(["Writing", "Speaking"]);
-  await expect(tablist.getByRole("tab", { name: "Writing" })).toHaveAttribute(
-    "aria-selected",
-    "true"
+  await expect(tablist.getByRole("tab")).toHaveText([
+    "Writing Task 1",
+    "Writing Task 2",
+    "Speaking",
+  ]);
+  await expect(
+    tablist.getByRole("tab", { name: "Writing Task 1" })
+  ).toHaveAttribute("aria-selected", "true");
+
+  // One scope now yields two requests. Exactly one tab may be current, exactly
+  // one may sit in the tab order, and the tabs may not share an element id.
+  const tabs = tablist.getByRole("tab");
+  await expect(tabs).toHaveCount(3);
+  for (let index = 0; index < 3; index += 1) {
+    await expect(tabs.nth(index)).toHaveAttribute(
+      "aria-selected",
+      index === 0 ? "true" : "false"
+    );
+    await expect(tabs.nth(index)).toHaveAttribute(
+      "tabindex",
+      index === 0 ? "0" : "-1"
+    );
+  }
+  const tabIds = await tabs.evaluateAll((nodes) =>
+    nodes.map((node) => node.id)
   );
-  const writing = page.getByRole("tabpanel", { name: "Writing" });
+  expect(new Set(tabIds).size).toBe(3);
+  const controlledPanels = await tabs.evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute("aria-controls"))
+  );
+  expect(new Set(controlledPanels).size).toBe(3);
+
+  const writing = page.getByRole("tabpanel", { name: "Writing Task 2" });
+  await expect(writing).toHaveCount(0);
+  await tablist.getByRole("tab", { name: "Writing Task 2" }).click();
   await expect(writing).toBeVisible();
   await expect(page.getByRole("tabpanel", { name: "Speaking" })).toHaveCount(0);
   await expect(
     writing
-      .getByRole("table", { name: "Writing request headers" })
+      .getByRole("table", { name: "Writing Task 2 request headers" })
       .getByRole("row", {
         name: /Idempotency-Key/,
       })
@@ -319,7 +445,8 @@ test("a key holding both scopes shows one tab per scope, Writing first", async (
         (node.textContent ?? "").includes("Bài nộp mới cần một UUID mới")
       ),
       body: at(
-        (node) => node.getAttribute("aria-label") === "Writing request body"
+        (node) =>
+          node.getAttribute("aria-label") === "Writing Task 2 request body"
       ),
       outcome: at((node) =>
         (node.textContent ?? "").includes("Kết quả dự kiến")
@@ -329,21 +456,27 @@ test("a key holding both scopes shows one tab per scope, Writing first", async (
   expect(writingNotePosition.note).toBeGreaterThan(writingNotePosition.body);
   expect(writingNotePosition.note).toBeLessThan(writingNotePosition.outcome);
 
-  const writingTab = tablist.getByRole("tab", { name: "Writing" });
+  const task1Tab = tablist.getByRole("tab", { name: "Writing Task 1" });
+  const writingTab = tablist.getByRole("tab", { name: "Writing Task 2" });
   const speakingTab = tablist.getByRole("tab", { name: "Speaking" });
-  const writingPanel = page.getByRole("tabpanel", { name: "Writing" });
+  const task1Panel = page.getByRole("tabpanel", { name: "Writing Task 1" });
+  const writingPanel = page.getByRole("tabpanel", { name: "Writing Task 2" });
   const speakingPanel = page.getByRole("tabpanel", { name: "Speaking" });
 
-  await writingTab.press("ArrowLeft");
-  await expect(speakingPanel).toBeVisible();
-  await speakingTab.press("Home");
-  await expect(writingPanel).toBeVisible();
+  // Three tabs now. Every step starts from the selected tab, so the arrow keys
+  // are exercised from the origin a user would actually see.
   await writingTab.press("End");
   await expect(speakingPanel).toBeVisible();
   await speakingTab.press("ArrowRight");
+  await expect(task1Panel).toBeVisible();
+  await task1Tab.press("ArrowRight");
   await expect(writingPanel).toBeVisible();
-
-  await speakingTab.press("ArrowRight");
+  await writingTab.press("ArrowLeft");
+  await expect(task1Panel).toBeVisible();
+  await task1Tab.press("Home");
+  await expect(task1Panel).toBeVisible();
+  await writingTab.press("End");
+  await expect(speakingPanel).toBeVisible();
 
   const speaking = speakingPanel;
   await expect(speakingTab).toHaveAttribute("aria-selected", "true");
@@ -478,7 +611,11 @@ test("active identity configuration uses a signed User Assertion in the sample",
   await page.locator('input[name="scopes"][value="writing.grade"]').check();
   await page.getByRole("button", { name: "Tạo key" }).click();
 
-  const sample = page.getByRole("tabpanel", { name: "Writing" });
+  await page
+    .getByRole("tablist", { name: "Sample requests" })
+    .getByRole("tab", { name: "Writing Task 2" })
+    .click();
+  const sample = page.getByRole("tabpanel", { name: "Writing Task 2" });
   await expect(sample).toBeVisible();
   await expect(
     sample.getByText("<user-assertion>", { exact: true })
@@ -511,10 +648,11 @@ test("rotation reveals a new key once and sends no idempotency key", async ({
   await expect(page.getByTestId("api-key-raw")).toHaveText(
     `aihub_sk_${"B".repeat(43)}`
   );
-  const sample = page.getByRole("tabpanel", { name: "Writing" });
+  await showWritingTask2(page);
+  const sample = page.getByRole("tabpanel", { name: "Writing Task 2" });
   await expect(sample).toBeVisible();
   const headers = sample.getByRole("table", {
-    name: "Writing request headers",
+    name: "Writing Task 2 request headers",
   });
   await expect(
     headers.getByRole("row", { name: /X-User-Identity/ })
@@ -566,7 +704,10 @@ test("staging-only rotation shows a note instead of a command", async ({
     .getByRole("button", { name: "Xoay key" })
     .click();
 
-  await expect(page.getByRole("tabpanel", { name: "Writing" })).toBeVisible();
+  await showWritingTask2(page);
+  await expect(
+    page.getByRole("tabpanel", { name: "Writing Task 2" })
+  ).toBeVisible();
   await expect(
     page.getByText(/AIHUB chưa có staging host công khai/)
   ).toBeVisible();
@@ -602,7 +743,27 @@ test("creating a Sandbox key restricts the scopes and targets the Sandbox host",
 
   const dialog = page.getByRole("dialog", { name: "API key mới" });
   await expect(dialog).toBeVisible();
-  const sample = dialog.getByRole("tabpanel", { name: "Writing" });
+  await expect(
+    dialog.getByRole("tablist", { name: "Sample requests" }).getByRole("tab")
+  ).toHaveText(["Writing Task 1", "Writing Task 2"]);
+
+  const sandboxTask1 = dialog.getByRole("tabpanel", { name: "Writing Task 1" });
+  await expect(sandboxTask1).toBeVisible();
+  await expect(
+    sandboxTask1.getByText(
+      "https://sandbox.aihubproduction.com/v1/ielts/writing/task1/grade",
+      { exact: true }
+    )
+  ).toBeVisible();
+  await expect(
+    sandboxTask1.getByTestId("sample-request-command")
+  ).toContainText("sandbox.aihubproduction.com");
+  await expect(
+    sandboxTask1.getByText(/miễn phí và không tính vào hạn mức trả phí/)
+  ).toBeVisible();
+
+  await showWritingTask2(page);
+  const sample = dialog.getByRole("tabpanel", { name: "Writing Task 2" });
   await expect(sample).toBeVisible();
   await expect(
     sample.getByText(
@@ -613,12 +774,6 @@ test("creating a Sandbox key restricts the scopes and targets the Sandbox host",
   await expect(sample.getByTestId("sample-request-command")).toContainText(
     "sandbox.aihubproduction.com"
   );
-  await expect(
-    dialog.getByRole("tablist", { name: "Sample requests" }).getByRole("tab")
-  ).toHaveText(["Writing"]);
-  await expect(
-    sample.getByText(/miễn phí và không tính vào hạn mức trả phí/)
-  ).toBeVisible();
   await expect(sample.getByText(/25 lần chấm mỗi tháng/)).toBeVisible();
   await expect(
     sample.getByText(/tính theo Organization, không tính theo key/)
@@ -684,7 +839,8 @@ test("rotating a Sandbox key keeps the Sandbox Sample request", async ({
   await expect(row).toContainText("Sandbox (miễn phí)");
   await row.getByRole("button", { name: "Xoay key" }).click();
 
-  const sample = page.getByRole("tabpanel", { name: "Writing" });
+  await showWritingTask2(page);
+  const sample = page.getByRole("tabpanel", { name: "Writing Task 2" });
   await expect(sample).toBeVisible();
   await expect(sample.getByTestId("sample-request-command")).toContainText(
     "sandbox.aihubproduction.com"
@@ -692,6 +848,15 @@ test("rotating a Sandbox key keeps the Sandbox Sample request", async ({
   await expect(
     sample.getByText(/miễn phí và không tính vào hạn mức trả phí/)
   ).toBeVisible();
+  const task1 = page.getByRole("tabpanel", { name: "Writing Task 1" });
+  await expect(task1).toHaveCount(0);
+  await page
+    .getByRole("tablist", { name: "Sample requests" })
+    .getByRole("tab", { name: "Writing Task 1" })
+    .click();
+  await expect(task1.getByTestId("sample-request-command")).toContainText(
+    "sandbox.aihubproduction.com"
+  );
 });
 
 test("rotation timeout lists its replacement so it can be rotated again", async ({

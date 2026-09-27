@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
+import {
+  WRITING_TASK1_CHART_TYPES,
+  WRITING_TASK1_REQUEST,
+} from "@/data/writing-task1-request";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
-import { buildSampleRequests, needsIdempotencyKey } from "@/lib/sample-request";
+import {
+  buildSampleRequests,
+  needsIdempotencyKey,
+  type SampleRequestKind,
+} from "@/lib/sample-request";
 import type { MintedOrganizationApiKey } from "@/lib/api-keys";
 
 const idempotencyKey = "6f1ed729-8d92-4fa6-8e87-0fe6e71e9a17";
@@ -25,7 +33,7 @@ function mintedKey(
 
 function sampleFor(
   apiKey: MintedOrganizationApiKey,
-  kind: "writing" | "speaking",
+  kind: SampleRequestKind,
   identityConfigured?: boolean
 ) {
   return buildSampleRequests({
@@ -56,7 +64,7 @@ describe("Request identity", () => {
       mintedKey({ scopes: ["speaking.grade", "writing.grade"] })
     );
 
-    expect(kinds).toEqual(["writing", "speaking"]);
+    expect(kinds).toEqual(["writing-task1", "writing-task2", "speaking"]);
     expect(new Set(kinds).size).toBe(kinds.length);
   });
 
@@ -68,7 +76,8 @@ describe("Request identity", () => {
     });
 
     expect(requests.map((request) => [request.kind, request.label])).toEqual([
-      ["writing", "Writing"],
+      ["writing-task1", "Writing Task 1"],
+      ["writing-task2", "Writing Task 2"],
       ["speaking", "Speaking"],
     ]);
     for (const request of requests)
@@ -87,7 +96,8 @@ describe("Sample request tabs", () => {
     });
 
     expect(samples.map((sample) => [sample.kind, sample.label])).toEqual([
-      ["writing", "Writing"],
+      ["writing-task1", "Writing Task 1"],
+      ["writing-task2", "Writing Task 2"],
       ["speaking", "Speaking"],
     ]);
   });
@@ -110,7 +120,10 @@ describe("Sample request tabs", () => {
       idempotencyKey,
     });
 
-    expect(samples.map((sample) => sample.kind)).toEqual(["writing"]);
+    expect(samples.map((sample) => sample.kind)).toEqual([
+      "writing-task1",
+      "writing-task2",
+    ]);
   });
 
   it("shows no tab for a scope with no known endpoint", () => {
@@ -134,10 +147,116 @@ describe("Sample request tabs", () => {
   });
 });
 
+describe("Writing Task 1 Sample request", () => {
+  const task1 = () => sampleFor(mintedKey(), "writing-task1", false);
+
+  it("targets the Task 1 grading endpoint", () => {
+    expect(task1()?.url).toBe(
+      "https://api.aihubproduction.com/v1/ielts/writing/task1/grade"
+    );
+    expect(task1()?.command).toContain("/v1/ielts/writing/task1/grade");
+  });
+
+  it("orders the body rows exactly as the command sends the fields", () => {
+    expect(task1()?.body.map((field) => field.field)).toEqual(
+      Object.keys(WRITING_TASK1_REQUEST)
+    );
+    for (const field of task1()?.body ?? []) expect(field.required).toBe(true);
+  });
+
+  it("sends no field Task 1 rejects", () => {
+    const sent = Object.keys(WRITING_TASK1_REQUEST);
+
+    expect(sent).not.toContain("topic");
+    expect(sent).toEqual(["question", "chart_type", "image_url", "essay"]);
+  });
+
+  it("lists the seven chart types and says how they are matched", () => {
+    const meaning =
+      task1()?.body.find((field) => field.field === "chart_type")?.meaning ??
+      "";
+
+    for (const chartType of WRITING_TASK1_CHART_TYPES)
+      expect(meaning).toContain(chartType);
+    expect(meaning).toMatch(/HOA THƯỜNG/);
+    expect(meaning).toMatch(/environment/);
+  });
+
+  it("names the criterion Task 1 leads with, not Task 2's", () => {
+    expect(task1()?.firstCriterion).toBe("task_achievement");
+    expect(sampleFor(mintedKey(), "writing-task2", false)?.firstCriterion).toBe(
+      "task_response"
+    );
+  });
+
+  it("says the image is a placeholder and that an unreachable one is not an error", () => {
+    const note = task1()?.note ?? "";
+
+    expect(note).toMatch(/URL giữ chỗ/);
+    expect(note).toMatch(/thay bằng/);
+    expect(note).toMatch(/không trả lỗi/);
+    expect(note).toMatch(/kết quả sẽ sai/);
+  });
+
+  it("keeps the placeholder note off the Task 2 request", () => {
+    expect(sampleFor(mintedKey(), "writing-task2", false)?.note).not.toMatch(
+      /URL giữ chỗ/
+    );
+  });
+
+  it("shares the dialog's one idempotency key with Task 2", () => {
+    const requests = buildSampleRequests({
+      apiKey: mintedKey(),
+      identityConfigured: false,
+      idempotencyKey,
+    });
+    const keyOf = (kind: string) =>
+      requests
+        .find((request) => request.kind === kind)
+        ?.headers.find((header) => header.name === "Idempotency-Key")?.value;
+
+    expect(keyOf("writing-task1")).toBe(idempotencyKey);
+    expect(keyOf("writing-task1")).toBe(keyOf("writing-task2"));
+  });
+
+  it.each([true, undefined])(
+    "handles identity readiness %s the same way Task 2 does",
+    (identityConfigured) => {
+      const requests = buildSampleRequests({
+        apiKey: mintedKey(),
+        identityConfigured,
+        idempotencyKey,
+      });
+      const identityOf = (kind: string) =>
+        requests
+          .find((request) => request.kind === kind)
+          ?.headers.find((header) => header.name === "X-User-Identity")?.value;
+
+      expect(identityOf("writing-task1")).toBe(identityOf("writing-task2"));
+      expect(identityOf("writing-task1")).toBe(
+        identityConfigured === false ? "test-user-1" : "<user-assertion>"
+      );
+    }
+  );
+
+  it("targets the Sandbox host for a Sandbox key", () => {
+    const sandbox = sampleFor(
+      mintedKey({ allowed_environments: ["sandbox"] }),
+      "writing-task1",
+      false
+    );
+
+    expect(sandbox?.url).toBe(
+      "https://sandbox.aihubproduction.com/v1/ielts/writing/task1/grade"
+    );
+    expect(sandbox?.usageNote).toMatch(/miễn phí/);
+  });
+});
+
 describe("Writing Sample request", () => {
   it("builds a copyable request from the shared Task 2 example", () => {
     const apiKey = mintedKey();
-    const sample = sampleFor(apiKey, "writing", false);
+    const sample = sampleFor(apiKey, "writing-task2", false);
 
     expect(sample).toMatchObject({
       method: "POST",
@@ -174,7 +293,7 @@ describe("Writing Sample request", () => {
   });
 
   it("tells a rerun replays the stored result", () => {
-    expect(sampleFor(mintedKey(), "writing", false)?.note).toMatch(
+    expect(sampleFor(mintedKey(), "writing-task2", false)?.note).toMatch(
       /phát lại kết quả.*24 giờ/
     );
   });
@@ -182,7 +301,7 @@ describe("Writing Sample request", () => {
   it("keeps the request details but omits the command without production", () => {
     const sample = sampleFor(
       mintedKey({ allowed_environments: ["staging"] }),
-      "writing",
+      "writing-task2",
       false
     );
 
@@ -193,7 +312,11 @@ describe("Writing Sample request", () => {
   it.each([true, undefined])(
     "uses a User Assertion placeholder when identity readiness is %s",
     (identityConfigured) => {
-      const sample = sampleFor(mintedKey(), "writing", identityConfigured);
+      const sample = sampleFor(
+        mintedKey(),
+        "writing-task2",
+        identityConfigured
+      );
 
       expect(sample?.headers[1]).toMatchObject({
         name: "X-User-Identity",
@@ -332,7 +455,7 @@ describe("Speaking Sample request", () => {
 
     expect(speaking?.command?.endsWith("\\")).toBe(false);
     expect(
-      sampleFor(mintedKey(), "writing", false)?.command?.endsWith("\\")
+      sampleFor(mintedKey(), "writing-task2", false)?.command?.endsWith("\\")
     ).toBe(false);
   });
 
@@ -400,7 +523,7 @@ describe("Sandbox Environment", () => {
   const sandboxKey = mintedKey({ allowed_environments: ["sandbox"] });
 
   it("targets the Sandbox host and keeps a runnable command", () => {
-    const sample = sampleFor(sandboxKey, "writing", false);
+    const sample = sampleFor(sandboxKey, "writing-task2", false);
 
     expect(sample?.url).toBe(
       "https://sandbox.aihubproduction.com/v1/ielts/writing/task2/grade"
@@ -417,11 +540,15 @@ describe("Sandbox Environment", () => {
       idempotencyKey,
     });
 
-    expect(samples.map((sample) => sample.kind)).toEqual(["writing"]);
+    expect(samples.map((sample) => sample.kind)).toEqual([
+      "writing-task1",
+      "writing-task2",
+    ]);
   });
 
   it("warns that the call is free, bounded, and counted per Organization", () => {
-    const usageNote = sampleFor(sandboxKey, "writing", false)?.usageNote ?? "";
+    const usageNote =
+      sampleFor(sandboxKey, "writing-task2", false)?.usageNote ?? "";
 
     expect(usageNote).toMatch(/miễn phí/);
     expect(usageNote).toMatch(/không tính vào hạn mức trả phí/);
@@ -432,7 +559,7 @@ describe("Sandbox Environment", () => {
   });
 
   it("keeps the paid usage warning for a production key", () => {
-    expect(sampleFor(mintedKey(), "writing", false)?.usageNote).toBe(
+    expect(sampleFor(mintedKey(), "writing-task2", false)?.usageNote).toBe(
       "Lệnh gửi request thật và tính vào hạn mức sử dụng của Organization."
     );
   });
@@ -441,7 +568,7 @@ describe("Sandbox Environment", () => {
     expect(
       sampleFor(
         mintedKey({ allowed_environments: ["staging"] }),
-        "writing",
+        "writing-task2",
         false
       )?.usageNote
     ).toBe("");
@@ -450,7 +577,7 @@ describe("Sandbox Environment", () => {
   it("prefers Sandbox when a key allows both tiers, so the first call is free", () => {
     const sample = sampleFor(
       mintedKey({ allowed_environments: ["production", "sandbox"] }),
-      "writing",
+      "writing-task2",
       false
     );
 
@@ -470,7 +597,7 @@ describe("Sandbox Environment", () => {
     (_case, allowedEnvironments) => {
       const sample = sampleFor(
         mintedKey({ allowed_environments: allowedEnvironments }),
-        "writing",
+        "writing-task2",
         false
       );
 

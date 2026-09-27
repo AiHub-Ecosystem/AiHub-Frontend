@@ -238,6 +238,9 @@ export function ApiKeyRevealDialog({
                   ))}
                   .
                 </p>
+                <p>
+                  Tiêu chí đầu tiên: <code>{activeSample.firstCriterion}</code>
+                </p>
                 <p>Lỗi thường gặp:</p>
                 <ul className="api-key-sample-errors">
                   <li>
