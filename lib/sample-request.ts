@@ -1,3 +1,8 @@
+import {
+  WRITING_TASK1_CHART_TYPES,
+  WRITING_TASK1_IMAGE_PLACEHOLDER_NOTE,
+  WRITING_TASK1_REQUEST,
+} from "@/data/writing-task1-request";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 import type { ApiKeyScope } from "@/lib/api-key-scopes";
 import {
@@ -9,6 +14,7 @@ import {
 const WRITING_SCOPE = "writing.grade";
 const SPEAKING_SCOPE = "speaking.grade";
 
+const writingTask1Path = "/v1/ielts/writing/task1/grade";
 const writingPath = "/v1/ielts/writing/task2/grade";
 const speakingPath = "/v1/ielts/speaking/grading";
 
@@ -65,13 +71,15 @@ export type SampleBodyField = {
   meaning: string;
 };
 
+export type SampleRequestKind = "writing-task1" | "writing-task2" | "speaking";
+
 export type SampleRequest = {
   /**
    * Identifies this request, and is the only thing the tab list derives its
    * selected tab, its key, and every element id from. Not the scope: one scope
    * covers more than one operation and will yield more than one request here.
    */
-  kind: string;
+  kind: SampleRequestKind;
   label: string;
   method: "POST";
   url: string;
@@ -79,6 +87,8 @@ export type SampleRequest = {
   body: SampleBodyField[];
   identityNote: string;
   expectedOutcomeFields: string[];
+  /** The criterion the response leads with; it differs per Writing request. */
+  firstCriterion: string;
   note: string;
   usageNote: string;
   contentTypeNote?: string;
@@ -197,6 +207,92 @@ function apiKeyHeader(apiKey: MintedOrganizationApiKey): SampleHeader {
   };
 }
 
+/** The image is the holder's: AIHUB does not host one, and cannot report a bad one. */
+const writingTask1Note = `${WRITING_TASK1_IMAGE_PLACEHOLDER_NOTE}. Dịch vụ chấm không trả lỗi khi không tải được ảnh, nó vẫn chấm và trả kết quả, nên kết quả sẽ sai.`;
+
+/**
+ * What each field means to a holder reading the Sample request. The row order
+ * comes from the request object, so the table and the command can never teach
+ * two different orders.
+ */
+const WRITING_TASK1_MEANINGS: Record<
+  keyof typeof WRITING_TASK1_REQUEST,
+  string
+> = {
+  question: "Đề bài mô tả biểu đồ Task 1 cần trả lời.",
+  chart_type: `Loại biểu đồ, phân biệt HOA THƯỜNG, đúng một trong: ${WRITING_TASK1_CHART_TYPES.join(
+    " | "
+  )}. Gửi một chủ đề như "environment" sẽ bị 400.`,
+  image_url: "Ảnh biểu đồ dạng HTTP(S); bắt buộc và phải tải được.",
+  essay: "Bài viết mô tả biểu đồ.",
+};
+
+function buildWritingTask1({
+  apiKey,
+  host,
+  identity,
+  idempotencyKey,
+}: BuildContext): SampleRequest {
+  const body: SampleBodyField[] = (
+    Object.keys(WRITING_TASK1_REQUEST) as (keyof typeof WRITING_TASK1_REQUEST)[]
+  ).map((field) => ({
+    field,
+    sampleValue: WRITING_TASK1_REQUEST[field],
+    required: true,
+    meaning: WRITING_TASK1_MEANINGS[field],
+  }));
+  const headers: SampleHeader[] = [
+    apiKeyHeader(apiKey),
+    {
+      name: "X-User-Identity",
+      value: identity.value,
+      meaning: identity.meaning,
+    },
+    {
+      name: "Content-Type",
+      value: "application/json",
+      meaning: "Body của request có định dạng JSON.",
+    },
+    {
+      name: "Idempotency-Key",
+      value: idempotencyKey,
+      meaning: "Chạy lại cùng body trong 24 giờ sẽ phát lại kết quả đã lưu.",
+    },
+  ];
+  const command = host
+    ? [
+        `API_KEY='${apiKey.api_key}'`,
+        `USER_IDENTITY='${identity.value}'`,
+        `IDEMPOTENCY_KEY='${idempotencyKey}'`,
+        "",
+        "curl --request POST \\",
+        `  '${endpoint(host, writingTask1Path)}' \\`,
+        `  --header "X-API-Key: \${API_KEY}" \\`,
+        `  --header "X-User-Identity: \${USER_IDENTITY}" \\`,
+        `  --header "Content-Type: application/json" \\`,
+        `  --header "Idempotency-Key: \${IDEMPOTENCY_KEY}" \\`,
+        "  --data-binary @- <<'JSON'",
+        JSON.stringify(WRITING_TASK1_REQUEST, null, 2),
+        "JSON",
+      ].join("\n")
+    : null;
+
+  return {
+    kind: "writing-task1",
+    label: "Writing Task 1",
+    method: "POST",
+    url: endpoint(host, writingTask1Path),
+    headers,
+    body,
+    identityNote: identity.note,
+    expectedOutcomeFields: ["overall_band", "criteria", "summary"],
+    firstCriterion: "task_achievement",
+    note: writingTask1Note,
+    usageNote: usageNote(host),
+    command,
+  };
+}
+
 function buildWriting({
   apiKey,
   host,
@@ -260,14 +356,15 @@ function buildWriting({
     : null;
 
   return {
-    kind: "writing",
-    label: "Writing",
+    kind: "writing-task2",
+    label: "Writing Task 2",
     method: "POST",
     url: endpoint(host, writingPath),
     headers,
     body,
     identityNote: identity.note,
     expectedOutcomeFields: ["overall_band", "criteria", "summary"],
+    firstCriterion: "task_response",
     note: "Chạy lại cùng body với Idempotency-Key này sẽ phát lại kết quả đã lưu trong 24 giờ. Bài nộp mới cần một UUID mới.",
     usageNote: usageNote(host),
     command,
@@ -323,6 +420,7 @@ function buildSpeaking({
     body,
     identityNote: identity.note,
     expectedOutcomeFields: ["scorability", "estimated_band", "transcript"],
+    firstCriterion: "scorability",
     note: "AIHUB chưa hỗ trợ Idempotency-Key cho Speaking. Chạy lại lệnh này sẽ chấm bài và tính phí thêm một lần nữa.",
     usageNote: usageNote(host),
     contentTypeNote:
@@ -345,6 +443,7 @@ export type SampleRequestEntry = {
 
 /** Fixed display order, not the order the key's scopes arrive in. */
 const SAMPLE_REQUESTS: SampleRequestEntry[] = [
+  { scope: WRITING_SCOPE, build: buildWritingTask1 },
   { scope: WRITING_SCOPE, build: buildWriting },
   { scope: SPEAKING_SCOPE, build: buildSpeaking },
 ];
