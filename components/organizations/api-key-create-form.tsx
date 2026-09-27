@@ -20,6 +20,19 @@ export type CreateApiKeyPayload = {
 
 export type CreateApiKeyResult = boolean | "uncertain";
 
+/** Mirrors the backend: a Sandbox key allows that Environment and Writing only. */
+const SANDBOX_SCOPE = "writing.grade";
+
+const CREATABLE_ENVIRONMENTS = ["production", "sandbox"] as const;
+type CreatableEnvironment = (typeof CREATABLE_ENVIRONMENTS)[number];
+
+const ENVIRONMENT_HELP: Record<CreatableEnvironment, string> = {
+  production:
+    "Key gọi được host production và tính vào hạn mức sử dụng của Organization.",
+  sandbox:
+    "Key Sandbox chỉ chạy được Writing, miễn phí và không tính vào hạn mức trả phí. Sandbox giới hạn 25 lần chấm mỗi tháng theo Organization.",
+};
+
 export function ApiKeyCreateForm({
   entitlements,
   keyCount,
@@ -33,24 +46,52 @@ export function ApiKeyCreateForm({
 }) {
   const [validationError, setValidationError] = useState("");
   const [open, setOpen] = useState(false);
+  const [environment, setEnvironment] =
+    useState<CreatableEnvironment>("production");
+  const [selectedScopes, setSelectedScopes] = useState<string[]>([]);
   const scopes = apiKeyScopeOptions(entitlements);
+  const isSandbox = environment === "sandbox";
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+  function clearError() {
+    setValidationError("");
+  }
+
+  function selectEnvironment(next: CreatableEnvironment) {
+    setEnvironment(next);
+    if (next === "sandbox")
+      setSelectedScopes((current) =>
+        current.filter((s) => s === SANDBOX_SCOPE)
+      );
+    clearError();
+  }
+
+  function toggleScope(scope: string, checked: boolean) {
+    setSelectedScopes((current) =>
+      checked ? [...current, scope] : current.filter((s) => s !== scope)
+    );
+    clearError();
+  }
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const values = new FormData(form);
     const name = values.get("name");
-    const selectedScopes = values.getAll("scopes");
     const expiryInput = values.get("expires_at");
     if (typeof name !== "string" || !name.trim() || name.trim().length > 100) {
       setValidationError("Tên API key phải có từ 1 đến 100 ký tự.");
       return;
     }
-    if (
-      selectedScopes.length === 0 ||
-      selectedScopes.some((scope) => typeof scope !== "string")
-    ) {
+    if (selectedScopes.length === 0) {
       setValidationError("Chọn ít nhất một scope được phép.");
+      return;
+    }
+    if (
+      isSandbox &&
+      (selectedScopes.length !== 1 || selectedScopes[0] !== SANDBOX_SCOPE)
+    ) {
+      setValidationError("API key Sandbox chỉ hỗ trợ scope writing.grade.");
       return;
     }
     let expiresAt: string | undefined;
@@ -72,12 +113,14 @@ export function ApiKeyCreateForm({
     setValidationError("");
     const succeeded = await onCreate({
       name: name.trim(),
-      scopes: selectedScopes as string[],
-      allowed_environments: ["production"],
+      scopes: selectedScopes,
+      allowed_environments: [environment],
       ...(expiresAt ? { expires_at: expiresAt } : {}),
     });
     if (succeeded === true) {
       form.reset();
+      setSelectedScopes([]);
+      setEnvironment("production");
       setOpen(false);
     } else if (succeeded === "uncertain") setOpen(false);
   }
@@ -115,26 +158,57 @@ export function ApiKeyCreateForm({
             />
 
             <fieldset className="api-key-options">
-              <legend>Scopes</legend>
-              {scopes.map((option) => (
-                <label className="api-key-option" key={option.scope}>
+              <legend>Môi trường</legend>
+              {CREATABLE_ENVIRONMENTS.map((option) => (
+                <label className="api-key-option" key={option}>
                   <input
-                    type="checkbox"
-                    name="scopes"
-                    value={option.scope}
-                    disabled={!option.available}
+                    type="radio"
+                    name="environment"
+                    value={option}
+                    checked={environment === option}
+                    onChange={() => selectEnvironment(option)}
                   />
-                  <span>
-                    {option.scope}
-                    {!option.available && (
-                      <span className="api-key-unavailable">
-                        {option.service} chưa được bật cho Organization. Liên hệ
-                        AIHUB để cấp quyền.
-                      </span>
-                    )}
-                  </span>
+                  <span>{option}</span>
                 </label>
               ))}
+              <p className="api-key-help">{ENVIRONMENT_HELP[environment]}</p>
+            </fieldset>
+
+            <fieldset className="api-key-options">
+              <legend>Scopes</legend>
+              {scopes.map((option) => {
+                const blockedByEnvironment =
+                  isSandbox && option.scope !== SANDBOX_SCOPE;
+                return (
+                  <label className="api-key-option" key={option.scope}>
+                    <input
+                      type="checkbox"
+                      name="scopes"
+                      value={option.scope}
+                      checked={selectedScopes.includes(option.scope)}
+                      disabled={!option.available || blockedByEnvironment}
+                      onChange={(event) =>
+                        toggleScope(option.scope, event.target.checked)
+                      }
+                    />
+                    <span>
+                      {option.scope}
+                      {blockedByEnvironment && (
+                        <span className="api-key-unavailable">
+                          Sandbox key chỉ chạy được Writing; Speaking cần key
+                          production.
+                        </span>
+                      )}
+                      {!option.available && (
+                        <span className="api-key-unavailable">
+                          {option.service} chưa được bật cho Organization. Liên
+                          hệ AIHUB để cấp quyền.
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
               <p className="api-key-help">
                 Chỉ chọn scope cần thiết. Chọn ít nhất một scope.
               </p>

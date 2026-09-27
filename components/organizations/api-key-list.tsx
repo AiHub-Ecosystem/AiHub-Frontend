@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { OrganizationApiKey } from "@/lib/api-keys";
+import {
+  apiKeyEnvironmentLabel,
+  type OrganizationApiKey,
+} from "@/lib/api-keys";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 function displayDate(value: string | null) {
@@ -68,7 +71,11 @@ export function ApiKeyList({
                     <code>{apiKey.key_prefix}</code>
                   </td>
                   <td>{apiKey.scopes.join(", ")}</td>
-                  <td>{apiKey.allowed_environments.join(", ")}</td>
+                  <td>
+                    {apiKey.allowed_environments
+                      .map(apiKeyEnvironmentLabel)
+                      .join(", ")}
+                  </td>
                   <td>
                     <span
                       className={`api-key-status api-key-status--${apiKey.status}`}

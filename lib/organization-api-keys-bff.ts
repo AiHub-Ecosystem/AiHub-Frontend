@@ -6,7 +6,11 @@ export const apiKeyNoStore = { "Cache-Control": "no-store" };
 const apiKeyScopes = new Set<string>(
   API_KEY_SCOPE_CATALOG.map((item) => item.scope)
 );
-const apiKeyEnvironments = new Set<string>(["production", "staging"]);
+const apiKeyEnvironments = new Set<string>([
+  "production",
+  "sandbox",
+  "staging",
+]);
 const maxCreateBodyBytes = 16 * 1024;
 const maxApiKeyResponseBytes = 256 * 1024;
 
