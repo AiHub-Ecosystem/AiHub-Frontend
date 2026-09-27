@@ -3,8 +3,9 @@ import { UniversalSpecView } from "./universal-spec-view";
 import "../aihub.css";
 
 export const metadata: Metadata = {
-  title: "Universal AI Specs & Live cURL Sandbox — AIHub",
-  description: "Trang web quy chuẩn kết nối giữa Team Dev và Team AI. Định nghĩa đặc tả API đa lĩnh vực (EdTech, Legal, Fintech, Healthcare) và kiểm thử cURL trực tiếp trên trình duyệt.",
+  title: "Universal AI Specs & cURL Builder — AIHub",
+  description:
+    "Tra cứu tài liệu API đa lĩnh vực, chỉnh sửa request mẫu và tạo lệnh cURL để chạy bên ngoài Customer Web. Trang này không thực thi request.",
 };
 
 export default function Page() {

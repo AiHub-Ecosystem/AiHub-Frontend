@@ -14,6 +14,14 @@ _Avoid_: portal, frontend, sandbox demo
 The signed-in area of the Customer Web where a User Account manages its Organizations.
 _Avoid_: dashboard, admin panel, workspace
 
+**API product**:
+A sellable AIHUB capability listed in the public catalog, such as Writing Scoring, exposing one or more endpoints.
+_Avoid_: service, feature
+
+**API reference**:
+The public documentation page for one endpoint of an API product.
+_Avoid_: specs, spec page
+
 **BFF**:
 The Customer Web's own server routes and the only part of the app that talks to AIHUB. It holds the Web Session credentials and API keys; a newly issued raw API key passes to the browser once for immediate display.
 _Avoid_: proxy, gateway
@@ -79,9 +87,25 @@ _Avoid_: invite link, join request
 The Organization's secret credential for calling AIHUB grading APIs from the Organization's own backend; its raw value is shown once after creation or rotation and cannot be retrieved again.
 _Avoid_: token, secret, access key
 
+**API key scope**:
+One capability an API key permits, named as a dotted string such as `writing.grade` or `speaking.grade`; a key holds zero or more, and may call only the endpoints its scopes permit.
+_Avoid_: permission, entitlement, feature
+
+**Environment**:
+The request tier AIHUB derives from the hostname a request is sent to; an API key only works in the Environments it allows. Customers may allow `production` or `staging`; `sandbox` is AIHUB's own tier and never a customer Environment.
+_Avoid_: mode, live/test
+
+**Sample request**:
+A request shown beside a newly issued API key so its holder can make a first call, one for each API key scope that has a known endpoint; it exists only while that raw key is on screen. A Sample request may depend on several things only its holder has, such as an audio file or the question being answered.
+_Avoid_: playground, test call, try-it
+
 **Identity configuration**:
 An Organization's issuer plus JWKS URL or public JWKS, which AIHUB uses to verify the User Assertions the Organization signs.
 _Avoid_: JWKS settings, SSO config
+
+**User-scoped request**:
+A request that names one end user of an Organization, so AIHUB meters and reports it under that user. A user-scoped request carries `X-User-Identity`; an API product may also expose endpoints that are not user-scoped, such as reading a public question catalog, which carry no such header.
+_Avoid_: authenticated request, per-user call
 
 **User Identity**:
 The value an Organization sends in `X-User-Identity` to name the end user of a user-scoped request. It is either a Signed User Assertion or a Declared User ID, and which one applies is decided by whether the Organization has an active Identity configuration, never by the shape of the value.

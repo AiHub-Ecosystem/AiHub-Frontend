@@ -1,0 +1,360 @@
+import { describe, expect, it } from "vitest";
+import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
+import { buildSampleRequests, needsIdempotencyKey } from "@/lib/sample-request";
+import type { MintedOrganizationApiKey } from "@/lib/api-keys";
+
+const idempotencyKey = "6f1ed729-8d92-4fa6-8e87-0fe6e71e9a17";
+
+function mintedKey(
+  overrides: Partial<MintedOrganizationApiKey> = {}
+): MintedOrganizationApiKey {
+  return {
+    id: "ak_01J00000000000000000000000",
+    name: "Production backend",
+    key_prefix: "aihub_sk_ABC123",
+    scopes: ["writing.grade"],
+    allowed_environments: ["production"],
+    status: "active",
+    expires_at: null,
+    last_used_at: null,
+    created_at: "2026-09-27T10:00:00.000Z",
+    api_key: `aihub_sk_${"A".repeat(43)}`,
+    ...overrides,
+  };
+}
+
+function sampleFor(
+  apiKey: MintedOrganizationApiKey,
+  kind: "writing" | "speaking",
+  identityConfigured?: boolean
+) {
+  return buildSampleRequests({
+    apiKey,
+    identityConfigured,
+    idempotencyKey,
+  }).find((request) => request.kind === kind);
+}
+
+describe("Sample request tabs", () => {
+  it("gives a key one tab per scope it holds, Writing first", () => {
+    const apiKey = mintedKey({ scopes: ["speaking.grade", "writing.grade"] });
+
+    const samples = buildSampleRequests({
+      apiKey,
+      identityConfigured: false,
+      idempotencyKey,
+    });
+
+    expect(samples.map((sample) => [sample.kind, sample.label])).toEqual([
+      ["writing", "Writing"],
+      ["speaking", "Speaking"],
+    ]);
+  });
+
+  it("shows only the Speaking tab for a key without writing.grade", () => {
+    const samples = buildSampleRequests({
+      apiKey: mintedKey({ scopes: ["speaking.grade"] }),
+      identityConfigured: false,
+      idempotencyKey,
+    });
+
+    expect(samples).toHaveLength(1);
+    expect(samples[0]).toMatchObject({ kind: "speaking", label: "Speaking" });
+  });
+
+  it("shows only the Writing tab for a key without speaking.grade", () => {
+    const samples = buildSampleRequests({
+      apiKey: mintedKey({ scopes: ["writing.grade"] }),
+      identityConfigured: false,
+      idempotencyKey,
+    });
+
+    expect(samples.map((sample) => sample.kind)).toEqual(["writing"]);
+  });
+
+  it("shows no tab for a scope with no known endpoint", () => {
+    expect(
+      buildSampleRequests({
+        apiKey: mintedKey({ scopes: ["speech.toText"] }),
+        identityConfigured: false,
+        idempotencyKey,
+      })
+    ).toEqual([]);
+  });
+
+  it("keeps the known tabs and skips unknown scopes", () => {
+    const samples = buildSampleRequests({
+      apiKey: mintedKey({ scopes: ["speech.toText", "speaking.grade"] }),
+      identityConfigured: false,
+      idempotencyKey,
+    });
+
+    expect(samples.map((sample) => sample.kind)).toEqual(["speaking"]);
+  });
+});
+
+describe("Writing Sample request", () => {
+  it("builds a copyable request from the shared Task 2 example", () => {
+    const apiKey = mintedKey();
+    const sample = sampleFor(apiKey, "writing", false);
+
+    expect(sample).toMatchObject({
+      method: "POST",
+      url: "https://api.aihubproduction.com/v1/ielts/writing/task2/grade",
+      headers: [
+        { name: "X-API-Key", value: "aihub_sk_ABC123…" },
+        { name: "X-User-Identity", value: "test-user-1" },
+        { name: "Content-Type", value: "application/json" },
+        { name: "Idempotency-Key", value: idempotencyKey },
+      ],
+      body: [
+        {
+          field: "question",
+          sampleValue: WRITING_TASK2_REQUEST.question,
+          required: true,
+        },
+        {
+          field: "topic",
+          sampleValue: WRITING_TASK2_REQUEST.topic,
+          required: true,
+        },
+        {
+          field: "essay",
+          sampleValue: WRITING_TASK2_REQUEST.essay,
+          required: true,
+        },
+      ],
+    });
+    expect(sample?.command).toContain(`API_KEY='${apiKey.api_key}'`);
+    expect(sample?.command).toContain(`Idempotency-Key: \${IDEMPOTENCY_KEY}`);
+    expect(sample?.command).toContain(
+      JSON.stringify(WRITING_TASK2_REQUEST, null, 2)
+    );
+  });
+
+  it("tells a rerun replays the stored result", () => {
+    expect(sampleFor(mintedKey(), "writing", false)?.note).toMatch(
+      /phát lại kết quả.*24 giờ/
+    );
+  });
+
+  it("keeps the request details but omits the command without production", () => {
+    const sample = sampleFor(
+      mintedKey({ allowed_environments: ["staging"] }),
+      "writing",
+      false
+    );
+
+    expect(sample?.url).toBe(
+      "https://api.aihubproduction.com/v1/ielts/writing/task2/grade"
+    );
+    expect(sample?.command).toBeNull();
+  });
+
+  it.each([true, undefined])(
+    "uses a User Assertion placeholder when identity readiness is %s",
+    (identityConfigured) => {
+      const sample = sampleFor(mintedKey(), "writing", identityConfigured);
+
+      expect(sample?.headers[1]).toMatchObject({
+        name: "X-User-Identity",
+        value: "<user-assertion>",
+      });
+      expect(sample?.command).toContain("USER_IDENTITY='<user-assertion>'");
+    }
+  );
+});
+
+describe("Speaking Sample request", () => {
+  it("presents the grading endpoint as multipart with masked key", () => {
+    const sample = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    );
+
+    expect(sample).toMatchObject({
+      method: "POST",
+      url: "https://api.aihubproduction.com/v1/ielts/speaking/grading",
+      headers: [
+        { name: "X-API-Key", value: "aihub_sk_ABC123…" },
+        { name: "X-User-Identity", value: "test-user-1" },
+      ],
+    });
+  });
+
+  it("carries no Idempotency-Key and warns that a rerun grades again", () => {
+    const sample = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    );
+
+    expect(
+      sample?.headers.some((header) => header.name === "Idempotency-Key")
+    ).toBe(false);
+    expect(sample?.command).not.toContain("Idempotency-Key");
+    expect(sample?.note).toMatch(/chưa hỗ trợ Idempotency-Key/);
+    expect(sample?.note).toMatch(/chấm.*(lần nữa|lại)/);
+  });
+
+  it("points the audio at a file the holder supplies", () => {
+    const sample = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    );
+
+    expect(sample?.body[0]).toMatchObject({
+      field: "audio",
+      required: true,
+    });
+    expect(sample?.body[0]?.meaning).toMatch(/file.*của bạn/);
+    expect(sample?.command).toContain("AUDIO_FILE='./answer.wav'");
+    expect(sample?.command).toContain('-F "audio=@${AUDIO_FILE}"');
+  });
+
+  it("sends every form field the grading endpoint requires", () => {
+    const command = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    )?.command;
+
+    expect(command).toContain('-F "part=1"');
+    expect(command).toContain('-F "question_id=p1_hometown"');
+    expect(command).toContain(
+      '-F "prompt_text=Do you enjoy living in your hometown?"'
+    );
+    expect(command).toContain('-F "test_type=Practice"');
+  });
+
+  it("marks the question id as a value the holder replaces", () => {
+    const sample = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    );
+    const question = sample?.body.find(
+      (field) => field.field === "question_id"
+    );
+
+    expect(question).toMatchObject({ sampleValue: "p1_hometown" });
+    expect(question?.meaning).toMatch(/thay bằng/);
+  });
+
+  it("marks the fields the grading contract requires, not the demo's", () => {
+    const body =
+      sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
+        ?.body ?? [];
+
+    expect(body.map((field) => [field.field, field.required])).toEqual([
+      ["audio", true],
+      ["part", true],
+      ["question_id", true],
+      ["prompt_text", false],
+      ["test_type", false],
+      ["test_code", false],
+      ["transcript", false],
+    ]);
+  });
+
+  it("documents the fields the sample command does not send", () => {
+    const command = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    )?.command;
+
+    expect(command).not.toContain("test_code");
+    expect(command).not.toContain('-F "transcript=');
+  });
+
+  it("omits a hand-written content type so the boundary survives", () => {
+    const sample = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    );
+
+    expect(
+      sample?.headers.some((header) => header.name === "Content-Type")
+    ).toBe(false);
+    expect(sample?.command).not.toContain("Content-Type");
+    expect(sample?.contentTypeNote).toMatch(/boundary/);
+  });
+
+  it("ends both commands without a dangling line continuation", () => {
+    const speaking = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    );
+
+    expect(speaking?.command?.endsWith("\\")).toBe(false);
+    expect(
+      sampleFor(mintedKey(), "writing", false)?.command?.endsWith("\\")
+    ).toBe(false);
+  });
+
+  it("shows the fields a successful response carries", () => {
+    const sample = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    );
+
+    expect(sample?.expectedOutcomeFields).toEqual([
+      "scorability",
+      "estimated_band",
+      "transcript",
+    ]);
+  });
+
+  it("keeps the request details but omits the command without production", () => {
+    const sample = sampleFor(
+      mintedKey({
+        scopes: ["speaking.grade"],
+        allowed_environments: ["staging"],
+      }),
+      "speaking",
+      false
+    );
+
+    expect(sample?.url).toBe(
+      "https://api.aihubproduction.com/v1/ielts/speaking/grading"
+    );
+    expect(sample?.command).toBeNull();
+  });
+
+  it.each([true, undefined])(
+    "uses a User Assertion placeholder when identity readiness is %s",
+    (identityConfigured) => {
+      const sample = sampleFor(
+        mintedKey({ scopes: ["speaking.grade"] }),
+        "speaking",
+        identityConfigured
+      );
+
+      expect(sample?.headers[1]).toMatchObject({
+        name: "X-User-Identity",
+        value: "<user-assertion>",
+      });
+      expect(sample?.command).toContain("USER_IDENTITY='<user-assertion>'");
+    }
+  );
+});
+
+describe("Idempotency key", () => {
+  it("is needed only when a Writing Sample request exists", () => {
+    expect(needsIdempotencyKey(mintedKey({ scopes: ["writing.grade"] }))).toBe(
+      true
+    );
+    expect(needsIdempotencyKey(mintedKey({ scopes: ["speaking.grade"] }))).toBe(
+      false
+    );
+    expect(needsIdempotencyKey(mintedKey({ scopes: ["speech.toText"] }))).toBe(
+      false
+    );
+  });
+});

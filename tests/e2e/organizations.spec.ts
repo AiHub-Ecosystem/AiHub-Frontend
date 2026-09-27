@@ -521,8 +521,13 @@ test("disabled configuration requires confirmation and saves only identity input
 
   await saveButton.click();
   confirmation = page.getByRole("alertdialog");
-  await page.mouse.click(8, 8);
-  await expect(confirmation).toHaveCount(0);
+  await expect(confirmation).toContainText(disabledIdentityCopy);
+  // Radix attaches its outside-pointer listener a tick after the dialog is
+  // visible, so an immediate click can land before it exists.
+  await expect(async () => {
+    await page.mouse.click(8, 8);
+    await expect(confirmation).toHaveCount(0, { timeout: 500 });
+  }).toPass();
   await expect(page.getByLabel("Issuer")).toHaveValue(
     "https://edited.example.test"
   );
@@ -581,7 +586,12 @@ test("active identity configuration saves without a declared-mode confirmation",
 }) => {
   await setup(
     request,
-    [org("identity-active-save", "Active Save Org", "owner", "active")],
+    [
+      {
+        ...org("identity-active-save", "Active Save Org", "owner", "active"),
+        identity_configured: true,
+      },
+    ],
     {
       identityConfigs: {
         "identity-active-save": {

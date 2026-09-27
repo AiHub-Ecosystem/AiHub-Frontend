@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
+import { useState, useEffect, useMemo, useSyncExternalStore } from "react";
+
+const subscribeToHostname = () => () => {};
+const getHostname = () => window.location.hostname;
+const getServerHostname = () => "localhost";
 
 interface SpecParam {
   name: string;
@@ -297,14 +300,17 @@ const STATIC_SPECS: SpecItem[] = [
 ];
 
 export function UniversalSpecView() {
+  const hostname = useSyncExternalStore(
+    subscribeToHostname,
+    getHostname,
+    getServerHostname,
+  );
   const [selectedDomain, setSelectedDomain] = useState<string>("all");
   const [selectedSpecId, setSelectedSpecId] = useState<string>("legal_contract_risk_analyzer");
   const [activeTab, setActiveTab] = useState<"spec" | "markdown" | "db">("spec");
   
-  // Sandbox form state
+  // Client-side cURL builder state
   const [formInputs, setFormInputs] = useState<Record<string, any>>({});
-  const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [testResult, setTestResult] = useState<any>(null);
   const [copiedCurl, setCopiedCurl] = useState<boolean>(false);
   const [copiedMarkdown, setCopiedMarkdown] = useState<boolean>(false);
   const [showAgentModal, setShowAgentModal] = useState<boolean>(false);
@@ -322,14 +328,13 @@ export function UniversalSpecView() {
   useEffect(() => {
     if (selectedSpec) {
       setFormInputs(selectedSpec.sampleRequestBody || {});
-      setTestResult(null);
     }
   }, [selectedSpec]);
 
   // Generate real-time cURL command
   const generatedCurl = useMemo(() => {
     if (!selectedSpec) return "";
-    const baseUrl = typeof window !== "undefined" && window.location.hostname !== "localhost"
+    const baseUrl = hostname !== "localhost"
       ? "https://api.aihubproduction.com"
       : "http://localhost:3020";
     const bodyString = JSON.stringify(formInputs, null, 2);
@@ -337,7 +342,7 @@ export function UniversalSpecView() {
   -H "Content-Type: application/json" \\
   -H "x-client-id: demo-sandbox" \\
   -d '${bodyString}'`;
-  }, [selectedSpec, formInputs]);
+  }, [selectedSpec, formInputs, hostname]);
 
   const handleInputChange = (key: string, val: any) => {
     setFormInputs((prev) => ({ ...prev, [key]: val }));
@@ -355,66 +360,6 @@ export function UniversalSpecView() {
     navigator.clipboard.writeText(content);
     setCopiedMarkdown(true);
     setTimeout(() => setCopiedMarkdown(false), 2000);
-  };
-
-  const handleRunTest = async () => {
-    setIsRunning(true);
-    setTestResult(null);
-    const startTime = Date.now();
-
-    try {
-      // Call backend API via Next.js proxy route /api/portal/specs/run-curl
-      const res = await fetch("/api/portal/specs/run-curl", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          specId: selectedSpec.id,
-          requestBody: formInputs,
-        }),
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        setTestResult(json);
-      } else {
-        const errJson = await res.json().catch(() => ({}));
-        setTestResult({
-          success: false,
-          statusCode: res.status,
-          durationMs: Date.now() - startTime,
-          schemaValid: false,
-          schemaErrors: [errJson.error || "Server returned non-200 status."],
-          responseBody: errJson,
-          meta: {
-            service: selectedSpec.serviceId,
-            domain: selectedSpec.domain,
-            provider: "aihub-gateway",
-            tokensUsed: 0,
-            executedAt: new Date().toISOString(),
-          },
-        });
-      }
-    } catch (err: any) {
-      // Fallback if backend server is not running on 3020 locally
-      const duration = Date.now() - startTime + 420;
-      setTestResult({
-        success: true,
-        statusCode: 200,
-        durationMs: duration,
-        schemaValid: true,
-        schemaErrors: [],
-        responseBody: selectedSpec.sampleResponseBody,
-        meta: {
-          service: selectedSpec.serviceId,
-          domain: selectedSpec.domain,
-          provider: `${selectedSpec.domain}-engine (Sandbox Fallback)`,
-          tokensUsed: 780,
-          executedAt: new Date().toISOString(),
-        },
-      });
-    } finally {
-      setIsRunning(false);
-    }
   };
 
   const domainIcon = (domain: string) => {
@@ -437,10 +382,10 @@ export function UniversalSpecView() {
               <span>⚡ AI-DEV BRIDGE CONTROL PLANE</span>
             </div>
             <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">
-              Universal Spec Hub & Live cURL Sandbox
+              Universal Spec Hub & cURL Builder
             </h1>
             <p className="text-sm sm:text-base text-[var(--soft)] mt-1 max-w-3xl">
-              Cầu nối quy chuẩn giữa <strong>Team AI</strong> và <strong>Team Dev</strong>. Định nghĩa Markdown Spec đa lĩnh vực, kiểm thử cURL trực tiếp trên Web và chuyển giao cho AI Agent tích hợp với độ chuẩn xác 100%.
+              Tài liệu API đa lĩnh vực để tra cứu, chỉnh sửa request mẫu và tạo lệnh cURL. Sao chép lệnh để chạy bên ngoài Customer Web; trang này không thực thi request.
             </p>
           </div>
 
@@ -699,15 +644,12 @@ export function UniversalSpecView() {
             )}
           </div>
 
-          {/* Right Column: Live Interactive cURL Sandbox (4 cols) */}
+          {/* Client-side cURL Builder */}
           <div className="lg:col-span-4 rounded-3xl border border-[var(--line)] bg-[var(--card)] p-6 shadow-sm space-y-5">
-            <div className="flex items-center justify-between border-b border-[var(--line)] pb-3">
+            <div className="border-b border-[var(--line)] pb-3">
               <h3 className="text-sm font-extrabold flex items-center gap-2">
-                <span>⚡ Live cURL Sandbox</span>
+                <span>⚡ cURL Builder</span>
               </h3>
-              <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 font-bold text-[10px]">
-                GATEWAY READY
-              </span>
             </div>
 
             {/* Dynamic Form Inputs */}
@@ -756,6 +698,9 @@ export function UniversalSpecView() {
 
             {/* Generated cURL Box */}
             <div>
+              <p className="text-xs text-[var(--soft)] mb-2">
+                Sao chép lệnh cURL để chạy bên ngoài Customer Web.
+              </p>
               <div className="flex items-center justify-between text-[11px] font-bold text-[var(--soft)] mb-1">
                 <span>Lệnh cURL Tự Sinh:</span>
                 <button
@@ -770,67 +715,6 @@ export function UniversalSpecView() {
               </pre>
             </div>
 
-            {/* Run Test Button */}
-            <button
-              disabled={isRunning}
-              onClick={handleRunTest}
-              className="w-full btn-gradient py-3 rounded-2xl text-xs font-extrabold text-white flex items-center justify-center gap-2 shadow-lg hover:shadow-brand-blue/30 transition-all cursor-pointer disabled:opacity-50"
-            >
-              {isRunning ? (
-                <>
-                  <div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                  <span>Đang Gọi Model AI...</span>
-                </>
-              ) : (
-                <>
-                  <span>▶ BẤM CHẠY TEST cURL LIVE</span>
-                </>
-              )}
-            </button>
-
-            {/* Execution Result Terminal */}
-            {testResult && (
-              <div className="space-y-2.5 pt-2 border-t border-[var(--line)]">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span
-                    className={`px-2 py-0.5 rounded font-bold ${
-                      testResult.statusCode === 200
-                        ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                        : "bg-red-500/20 text-red-400 border border-red-500/30"
-                    }`}
-                  >
-                    HTTP {testResult.statusCode} OK
-                  </span>
-                  <span className="text-cyan-400 font-bold">
-                    ⏱ {testResult.durationMs} ms
-                  </span>
-                  <span className="text-[var(--soft)]">
-                    🎫 {testResult.meta?.tokensUsed || 0} tokens
-                  </span>
-                </div>
-
-                {/* Schema Validation Badge */}
-                <div
-                  className={`p-2.5 rounded-xl text-xs flex items-center gap-2 ${
-                    testResult.schemaValid
-                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                      : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                  }`}
-                >
-                  <span>{testResult.schemaValid ? "✔" : "⚠️"}</span>
-                  <span className="font-bold">
-                    {testResult.schemaValid
-                      ? "SCHEMA VALIDATED 100% (Khớp đúng Hợp Đồng Output)"
-                      : "SCHEMA MISMATCH: Thiếu một số trường trong response."}
-                  </span>
-                </div>
-
-                {/* Response JSON */}
-                <pre className="p-3 rounded-xl bg-slate-950 text-slate-200 font-mono text-[10px] overflow-x-auto max-h-52 border border-slate-800">
-                  {JSON.stringify(testResult.responseBody, null, 2)}
-                </pre>
-              </div>
-            )}
           </div>
         </div>
       </div>
