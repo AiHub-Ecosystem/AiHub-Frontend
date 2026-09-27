@@ -103,6 +103,10 @@ _Avoid_: playground, test call, try-it
 An Organization's issuer plus JWKS URL or public JWKS, which AIHUB uses to verify the User Assertions the Organization signs.
 _Avoid_: JWKS settings, SSO config
 
+**User-scoped request**:
+A request that names one end user of an Organization, so AIHUB meters and reports it under that user. A user-scoped request carries `X-User-Identity`; an API product may also expose endpoints that are not user-scoped, such as reading a public question catalog, which carry no such header.
+_Avoid_: authenticated request, per-user call
+
 **User Identity**:
 The value an Organization sends in `X-User-Identity` to name the end user of a user-scoped request. It is either a Signed User Assertion or a Declared User ID, and which one applies is decided by whether the Organization has an active Identity configuration, never by the shape of the value.
 _Avoid_: end-user ID, user ID, user token
