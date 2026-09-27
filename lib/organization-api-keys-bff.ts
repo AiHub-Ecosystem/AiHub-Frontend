@@ -1,4 +1,5 @@
 import { API_KEY_SCOPE_CATALOG } from "@/lib/api-key-scopes";
+import { API_KEY_ENVIRONMENTS } from "@/lib/api-keys";
 import { validatedOrganizationName } from "@/lib/organizations";
 
 export const apiKeyNoStore = { "Cache-Control": "no-store" };
@@ -6,7 +7,7 @@ export const apiKeyNoStore = { "Cache-Control": "no-store" };
 const apiKeyScopes = new Set<string>(
   API_KEY_SCOPE_CATALOG.map((item) => item.scope)
 );
-const apiKeyEnvironments = new Set<string>(["production", "staging"]);
+const apiKeyEnvironments = new Set<string>(API_KEY_ENVIRONMENTS);
 const maxCreateBodyBytes = 16 * 1024;
 const maxApiKeyResponseBytes = 256 * 1024;
 

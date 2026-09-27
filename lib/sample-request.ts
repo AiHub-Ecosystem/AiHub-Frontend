@@ -1,13 +1,53 @@
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 import { API_KEY_SCOPE_CATALOG, type ApiKeyScope } from "@/lib/api-key-scopes";
-import type { MintedOrganizationApiKey } from "@/lib/api-keys";
+import {
+  SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE,
+  type ApiKeyEnvironment,
+  type MintedOrganizationApiKey,
+} from "@/lib/api-keys";
 
 const WRITING_SCOPE = "writing.grade";
 const SPEAKING_SCOPE = "speaking.grade";
 
-const writingUrl =
-  "https://api.aihubproduction.com/v1/ielts/writing/task2/grade";
-const speakingUrl = "https://api.aihubproduction.com/v1/ielts/speaking/grading";
+const writingPath = "/v1/ielts/writing/task2/grade";
+const speakingPath = "/v1/ielts/speaking/grading";
+
+/**
+ * Public host per Environment. An Environment absent here has no runnable
+ * command, because AIHUB publishes no host for it. The backend keeps these as
+ * deployment configuration and the Console keeps them here as a constant; see
+ * ADR-0009 for that trade-off and the coupling it accepts.
+ */
+const ENVIRONMENT_HOSTS: Partial<Record<ApiKeyEnvironment, string>> = {
+  production: "https://api.aihubproduction.com",
+  sandbox: "https://sandbox.aihubproduction.com",
+};
+
+/**
+ * Consulted in order for a key that allows more than one Environment. Sandbox
+ * comes first so a first call still costs the Organization nothing.
+ */
+const HOST_PREFERENCE: ApiKeyEnvironment[] = ["sandbox", "production"];
+
+function resolveHost(apiKey: MintedOrganizationApiKey): string | null {
+  for (const environment of HOST_PREFERENCE) {
+    const host = ENVIRONMENT_HOSTS[environment];
+    if (host && apiKey.allowed_environments.includes(environment)) return host;
+  }
+  return null;
+}
+
+function endpoint(host: string | null, path: string): string {
+  return host ? `${host}${path}` : path;
+}
+
+/** Empty when there is no runnable command, so the dialog renders it nowhere. */
+function usageNote(host: string | null): string {
+  if (host === ENVIRONMENT_HOSTS.sandbox)
+    return `Lệnh này miễn phí và không tính vào hạn mức trả phí của Organization. Sandbox cho phép ${SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE} lần chấm mỗi tháng tính theo Organization, không tính theo key, nên thu hồi rồi tạo key mới không làm hồi lại hạn mức. Hết hạn mức thì request trả về 429 QUOTA_EXCEEDED, và hạn mức hồi lại lúc 00:00 UTC ngày 1 của tháng sau.`;
+  if (host === null) return "";
+  return "Lệnh gửi request thật và tính vào hạn mức sử dụng của Organization.";
+}
 
 const speakingPromptText = "Do you enjoy living in your hometown?";
 
@@ -26,6 +66,7 @@ type SampleRequestBase = {
   identityNote: string;
   expectedOutcomeFields: string[];
   note: string;
+  usageNote: string;
   contentTypeNote?: string;
   command: string | null;
 };
@@ -166,10 +207,6 @@ function apiKeyHeader(apiKey: MintedOrganizationApiKey): SampleHeader {
   };
 }
 
-function allowsProduction(apiKey: MintedOrganizationApiKey): boolean {
-  return apiKey.allowed_environments.includes("production");
-}
-
 function serviceLabel(scope: ApiKeyScope): string {
   const option = API_KEY_SCOPE_CATALOG.find((entry) => entry.scope === scope);
   return option?.service ?? scope;
@@ -177,6 +214,7 @@ function serviceLabel(scope: ApiKeyScope): string {
 
 function buildWriting({
   apiKey,
+  host,
   identity,
   idempotencyKey,
 }: BuildContext): WritingSampleRequest {
@@ -218,14 +256,14 @@ function buildWriting({
       meaning: "Chạy lại cùng body trong 24 giờ sẽ phát lại kết quả đã lưu.",
     },
   ];
-  const command = allowsProduction(apiKey)
+  const command = host
     ? [
         `API_KEY='${apiKey.api_key}'`,
         `USER_IDENTITY='${identity.value}'`,
         `IDEMPOTENCY_KEY='${idempotencyKey}'`,
         "",
         "curl --request POST \\",
-        `  '${writingUrl}' \\`,
+        `  '${endpoint(host, writingPath)}' \\`,
         `  --header "X-API-Key: \${API_KEY}" \\`,
         `  --header "X-User-Identity: \${USER_IDENTITY}" \\`,
         `  --header "Content-Type: application/json" \\`,
@@ -241,18 +279,20 @@ function buildWriting({
     scope: WRITING_SCOPE,
     label: serviceLabel(WRITING_SCOPE),
     method: "POST",
-    url: writingUrl,
+    url: endpoint(host, writingPath),
     headers,
     body,
     identityNote: identity.note,
     expectedOutcomeFields: ["overall_band", "criteria", "summary"],
     note: "Chạy lại cùng body với Idempotency-Key này sẽ phát lại kết quả đã lưu trong 24 giờ. Bài nộp mới cần một UUID mới.",
+    usageNote: usageNote(host),
     command,
   };
 }
 
 function buildSpeaking({
   apiKey,
+  host,
   identity,
 }: BuildContext): SpeakingSampleRequest {
   const headers: SampleHeader[] = [
@@ -274,14 +314,14 @@ function buildSpeaking({
   const formArgs = SPEAKING_FORM_FIELDS.filter(
     (field) => field.sendsInSample
   ).map(({ field, formValue }) => `-F "${field}=${formValue}"`);
-  const command = allowsProduction(apiKey)
+  const command = host
     ? [
         `API_KEY='${apiKey.api_key}'`,
         `USER_IDENTITY='${identity.value}'`,
         "AUDIO_FILE='./answer.wav'",
         "",
         "curl --request POST \\",
-        `  '${speakingUrl}' \\`,
+        `  '${endpoint(host, speakingPath)}' \\`,
         `  --header "X-API-Key: \${API_KEY}" \\`,
         `  --header "X-User-Identity: \${USER_IDENTITY}" \\`,
         ...formArgs.map(
@@ -295,12 +335,13 @@ function buildSpeaking({
     scope: SPEAKING_SCOPE,
     label: serviceLabel(SPEAKING_SCOPE),
     method: "POST",
-    url: speakingUrl,
+    url: endpoint(host, speakingPath),
     headers,
     body,
     identityNote: identity.note,
     expectedOutcomeFields: ["scorability", "estimated_band", "transcript"],
     note: "AIHUB chưa hỗ trợ Idempotency-Key cho Speaking. Chạy lại lệnh này sẽ chấm bài và tính phí thêm một lần nữa.",
+    usageNote: usageNote(host),
     contentTypeNote:
       "Lệnh dùng -F nên curl tự sinh Content-Type multipart kèm boundary; không cần và không nên đặt header này.",
     command,
@@ -309,6 +350,7 @@ function buildSpeaking({
 
 type BuildContext = {
   apiKey: MintedOrganizationApiKey;
+  host: string | null;
   identity: ResolvedIdentity;
   idempotencyKey: string;
 };
@@ -332,7 +374,12 @@ export function buildSampleRequests({
   idempotencyKey: string;
 }): SampleRequest[] {
   const identity = resolveIdentity(identityConfigured);
-  const context = { apiKey, identity, idempotencyKey };
+  const context = {
+    apiKey,
+    host: resolveHost(apiKey),
+    identity,
+    idempotencyKey,
+  };
   return SAMPLE_REQUESTS.filter((entry) =>
     apiKey.scopes.includes(entry.scope)
   ).map((entry) => entry.build(context));

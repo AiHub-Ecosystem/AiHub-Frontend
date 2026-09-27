@@ -1,5 +1,34 @@
 export type ApiKeyStatus = "active" | "expired";
 
+/** Every Environment the backend accepts on a customer API key. */
+export const API_KEY_ENVIRONMENTS = [
+  "production",
+  "sandbox",
+  "staging",
+] as const;
+
+export type ApiKeyEnvironment = (typeof API_KEY_ENVIRONMENTS)[number];
+
+const API_KEY_ENVIRONMENT_LABELS: Record<ApiKeyEnvironment, string> = {
+  production: "Production (tính phí)",
+  sandbox: "Sandbox (miễn phí)",
+  staging: "Staging",
+};
+
+/** Falls back to the raw value for an Environment the Console does not name. */
+export function apiKeyEnvironmentLabel(environment: string): string {
+  return (
+    API_KEY_ENVIRONMENT_LABELS[environment as ApiKeyEnvironment] ?? environment
+  );
+}
+
+/**
+ * The only place the Sandbox allowance is written down. Static copy: the backend
+ * exposes it through no endpoint, response body, or header, so a change there
+ * leaves this stale and no test catches it. See ADR-0009 and aihub-be ADR-0056.
+ */
+export const SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE = 25;
+
 export type OrganizationApiKey = {
   id: string;
   name: string;

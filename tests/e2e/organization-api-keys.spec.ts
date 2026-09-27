@@ -526,7 +526,7 @@ test("rotation reveals a new key once and sends no idempotency key", async ({
   const replacement = page.getByRole("row", { name: /Production backend/ });
   await expect(replacement).toContainText("aihub_sk_ROTATE");
   await expect(replacement).toContainText("writing.grade");
-  await expect(replacement).toContainText("production");
+  await expect(replacement).toContainText("Production (tính phí)");
   await expect(replacement).toContainText(/15 thg 11, 2026/);
 
   const requests = await request
@@ -571,6 +571,127 @@ test("staging-only rotation shows a note instead of a command", async ({
     page.getByText(/AIHUB chưa có staging host công khai/)
   ).toBeVisible();
   await expect(page.getByTestId("sample-request-command")).toHaveCount(0);
+  // A key with no runnable command must not be warned about a cost.
+  await expect(page.getByText(/tính vào hạn mức sử dụng/)).toHaveCount(0);
+});
+
+test("creating a Sandbox key restricts the scopes and targets the Sandbox host", async ({
+  page,
+  request,
+}) => {
+  await setup(request, { apiKeys: [], entitlements: ["writing", "speaking"] });
+  await signIn(page);
+  await page.getByText("Tạo API key", { exact: true }).click();
+
+  const speaking = page.locator('input[name="scopes"][value="speaking.grade"]');
+  await speaking.check();
+  await page.locator('input[name="environment"][value="sandbox"]').check();
+
+  await expect(speaking).toBeDisabled();
+  await expect(speaking).not.toBeChecked();
+  await expect(
+    page.getByText(/Sandbox key chỉ chạy được Writing/)
+  ).toBeVisible();
+  await expect(
+    page.getByText(/miễn phí và không tính vào hạn mức trả phí/)
+  ).toBeVisible();
+
+  await page.getByLabel("Tên API key").fill("Sandbox test key");
+  await page.locator('input[name="scopes"][value="writing.grade"]').check();
+  await page.getByRole("button", { name: "Tạo key" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "API key mới" });
+  await expect(dialog).toBeVisible();
+  const sample = dialog.getByRole("tabpanel", { name: "Writing" });
+  await expect(sample).toBeVisible();
+  await expect(
+    sample.getByText(
+      "https://sandbox.aihubproduction.com/v1/ielts/writing/task2/grade",
+      { exact: true }
+    )
+  ).toBeVisible();
+  await expect(sample.getByTestId("sample-request-command")).toContainText(
+    "sandbox.aihubproduction.com"
+  );
+  await expect(
+    dialog.getByRole("tablist", { name: "Sample requests" }).getByRole("tab")
+  ).toHaveText(["Writing"]);
+  await expect(
+    sample.getByText(/miễn phí và không tính vào hạn mức trả phí/)
+  ).toBeVisible();
+  await expect(sample.getByText(/25 lần chấm mỗi tháng/)).toBeVisible();
+  await expect(
+    sample.getByText(/tính theo Organization, không tính theo key/)
+  ).toBeVisible();
+
+  const requests = await request
+    .get(`${mockUrl}/__test__/organizations/requests`)
+    .then((result) => result.json());
+  expect(
+    requests.requests.find(
+      (entry: { path: string }) => entry.path === "create-api-key"
+    )
+  ).toMatchObject({
+    allowed_environments: ["sandbox"],
+    scopes: ["writing.grade"],
+  });
+});
+
+test("closing the create form discards the Environment and the scopes", async ({
+  page,
+  request,
+}) => {
+  await setup(request, { apiKeys: [], entitlements: ["writing", "speaking"] });
+  await signIn(page);
+  await page.getByText("Tạo API key", { exact: true }).click();
+  await page.locator('input[name="environment"][value="sandbox"]').check();
+  await page.locator('input[name="scopes"][value="writing.grade"]').check();
+  await page.getByRole("button", { name: "Đóng" }).click();
+
+  await page.getByText("Tạo API key", { exact: true }).click();
+  await expect(
+    page.locator('input[name="environment"][value="production"]')
+  ).toBeChecked();
+  await expect(
+    page.locator('input[name="scopes"][value="writing.grade"]')
+  ).not.toBeChecked();
+  await expect(
+    page.locator('input[name="scopes"][value="speaking.grade"]')
+  ).toBeEnabled();
+});
+
+test("rotating a Sandbox key keeps the Sandbox Sample request", async ({
+  page,
+  request,
+}) => {
+  await setup(request, {
+    apiKeys: [
+      {
+        id: "ak_01J00000000000000000000005",
+        name: "Sandbox backend",
+        key_prefix: "aihub_sk_SANDBX",
+        scopes: ["writing.grade"],
+        allowed_environments: ["sandbox"],
+        status: "active",
+        expires_at: null,
+        last_used_at: null,
+        created_at: "2026-09-20T10:00:00.000Z",
+      },
+    ],
+  });
+  await signIn(page);
+  const row = page.getByRole("row", { name: /Sandbox backend/ });
+  await expect(row).toContainText("Sandbox (miễn phí)");
+  await row.getByRole("button", { name: "Xoay key" }).click();
+
+  const sample = page.getByRole("tabpanel", { name: "Writing" });
+  await expect(sample).toBeVisible();
+  await expect(sample.getByTestId("sample-request-command")).toContainText(
+    "sandbox.aihubproduction.com"
+  );
+  await expect(
+    sample.getByText(/miễn phí và không tính vào hạn mức trả phí/)
+  ).toBeVisible();
 });
 
 test("rotation timeout lists its replacement so it can be rotated again", async ({

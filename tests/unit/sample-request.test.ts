@@ -145,9 +145,7 @@ describe("Writing Sample request", () => {
       false
     );
 
-    expect(sample?.url).toBe(
-      "https://api.aihubproduction.com/v1/ielts/writing/task2/grade"
-    );
+    expect(sample?.url).toBe("/v1/ielts/writing/task2/grade");
     expect(sample?.command).toBeNull();
   });
 
@@ -321,9 +319,7 @@ describe("Speaking Sample request", () => {
       false
     );
 
-    expect(sample?.url).toBe(
-      "https://api.aihubproduction.com/v1/ielts/speaking/grading"
-    );
+    expect(sample?.url).toBe("/v1/ielts/speaking/grading");
     expect(sample?.command).toBeNull();
   });
 
@@ -357,4 +353,88 @@ describe("Idempotency key", () => {
       false
     );
   });
+});
+
+describe("Sandbox Environment", () => {
+  const sandboxKey = mintedKey({ allowed_environments: ["sandbox"] });
+
+  it("targets the Sandbox host and keeps a runnable command", () => {
+    const sample = sampleFor(sandboxKey, "writing", false);
+
+    expect(sample?.url).toBe(
+      "https://sandbox.aihubproduction.com/v1/ielts/writing/task2/grade"
+    );
+    expect(sample?.command).toContain(
+      "https://sandbox.aihubproduction.com/v1/ielts/writing/task2/grade"
+    );
+  });
+
+  it("shows only the Writing tab, because a Sandbox key carries only writing.grade", () => {
+    const samples = buildSampleRequests({
+      apiKey: sandboxKey,
+      identityConfigured: false,
+      idempotencyKey,
+    });
+
+    expect(samples.map((sample) => sample.kind)).toEqual(["writing"]);
+  });
+
+  it("warns that the call is free, bounded, and counted per Organization", () => {
+    const usageNote = sampleFor(sandboxKey, "writing", false)?.usageNote ?? "";
+
+    expect(usageNote).toMatch(/miễn phí/);
+    expect(usageNote).toMatch(/không tính vào hạn mức trả phí/);
+    expect(usageNote).toMatch(/25 lần chấm mỗi tháng/);
+    expect(usageNote).toMatch(/tính theo Organization, không tính theo key/);
+    expect(usageNote).toMatch(/429 QUOTA_EXCEEDED/);
+    expect(usageNote).toMatch(/00:00 UTC/);
+  });
+
+  it("keeps the paid usage warning for a production key", () => {
+    expect(sampleFor(mintedKey(), "writing", false)?.usageNote).toBe(
+      "Lệnh gửi request thật và tính vào hạn mức sử dụng của Organization."
+    );
+  });
+
+  it("carries no usage warning when no Environment has a public host", () => {
+    expect(
+      sampleFor(
+        mintedKey({ allowed_environments: ["staging"] }),
+        "writing",
+        false
+      )?.usageNote
+    ).toBe("");
+  });
+
+  it("prefers Sandbox when a key allows both tiers, so the first call is free", () => {
+    const sample = sampleFor(
+      mintedKey({ allowed_environments: ["production", "sandbox"] }),
+      "writing",
+      false
+    );
+
+    expect(sample?.url).toBe(
+      "https://sandbox.aihubproduction.com/v1/ielts/writing/task2/grade"
+    );
+  });
+
+  const casesWithoutAPublicHost: [string, string[]][] = [
+    ["an empty list", []],
+    ["an Environment the Console does not name", ["eu-west"]],
+    ["only staging", ["staging"]],
+  ];
+
+  it.each(casesWithoutAPublicHost)(
+    "yields no command and no warning for %s",
+    (_case, allowedEnvironments) => {
+      const sample = sampleFor(
+        mintedKey({ allowed_environments: allowedEnvironments }),
+        "writing",
+        false
+      );
+
+      expect(sample?.command).toBeNull();
+      expect(sample?.usageNote).toBe("");
+    }
+  );
 });

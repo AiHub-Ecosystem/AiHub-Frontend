@@ -260,12 +260,11 @@ export function ApiKeyRevealDialog({
                     <code>429 QUOTA_EXCEEDED</code>
                   </li>
                 </ul>
-                <p className="api-key-sample-warning">
-                  Lệnh gửi request thật và tính vào hạn mức sử dụng của
-                  Organization.
-                </p>
                 {activeSample.command ? (
                   <>
+                    <p className="api-key-sample-warning">
+                      {activeSample.usageNote}
+                    </p>
                     <div className="api-key-sample-command-heading">
                       <h4>Lệnh cho Bash-compatible shell</h4>
                       <button
@@ -290,8 +289,9 @@ export function ApiKeyRevealDialog({
                   </>
                 ) : (
                   <p className="api-key-sample-note" role="status">
-                    AIHUB chưa có staging host công khai; API key này không có
-                    quyền production nên chưa thể chạy lệnh mẫu.
+                    AIHUB chưa có staging host công khai; API key này không cho
+                    phép Environment nào có host công khai nên chưa thể chạy
+                    lệnh mẫu.
                   </p>
                 )}
               </div>
