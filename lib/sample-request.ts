@@ -1,6 +1,10 @@
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 import { API_KEY_SCOPE_CATALOG, type ApiKeyScope } from "@/lib/api-key-scopes";
-import type { MintedOrganizationApiKey } from "@/lib/api-keys";
+import {
+  SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE,
+  type ApiKeyEnvironment,
+  type MintedOrganizationApiKey,
+} from "@/lib/api-keys";
 
 const WRITING_SCOPE = "writing.grade";
 const SPEAKING_SCOPE = "speaking.grade";
@@ -14,25 +18,17 @@ const speakingPath = "/v1/ielts/speaking/grading";
  * deployment configuration and the Console keeps them here as a constant; see
  * ADR-0009 for that trade-off and the coupling it accepts.
  */
-const ENVIRONMENT_HOSTS: Record<string, string> = {
+const ENVIRONMENT_HOSTS: Partial<Record<ApiKeyEnvironment, string>> = {
   production: "https://api.aihubproduction.com",
   sandbox: "https://sandbox.aihubproduction.com",
 };
 
-/** Consulted in order for a key that allows more than one Environment. */
-const HOST_PREFERENCE = ["sandbox", "production", "staging"] as const;
-
 /**
- * Static copy. The backend exposes the Sandbox allowance through no endpoint,
- * response body, or header, so a change there leaves this stale. See ADR-0009
- * and aihub-be ADR-0056.
+ * Consulted in order for a key that allows more than one Environment. Sandbox
+ * comes first so a first call still costs the Organization nothing.
  */
-const SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE = 25;
+const HOST_PREFERENCE: ApiKeyEnvironment[] = ["sandbox", "production"];
 
-/**
- * Prefers Sandbox so that a key allowing both tiers still gets a first call
- * that costs the Organization nothing.
- */
 function resolveHost(apiKey: MintedOrganizationApiKey): string | null {
   for (const environment of HOST_PREFERENCE) {
     const host = ENVIRONMENT_HOSTS[environment];

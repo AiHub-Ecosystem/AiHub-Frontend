@@ -299,6 +299,22 @@ const server = createServer(async (request, response) => {
       scopes: body.scopes,
       allowed_environments: body.allowed_environments,
     });
+    // Mirrors the backend: a Sandbox key allows that Environment and Writing
+    // only, so an E2E run fails when the form sends anything else.
+    if (
+      body.allowed_environments?.includes("sandbox") &&
+      (body.allowed_environments.length !== 1 ||
+        body.scopes.length !== 1 ||
+        body.scopes[0] !== "writing.grade")
+    ) {
+      sendJson(response, 400, {
+        error: {
+          code: "INVALID_REQUEST",
+          message: "Request failed validation",
+        },
+      });
+      return;
+    }
     if (organizationConfig.apiKeyLimitReached) {
       sendJson(response, 403, { error: { code: "API_KEY_LIMIT_REACHED" } });
       return;

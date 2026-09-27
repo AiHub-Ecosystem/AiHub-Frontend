@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { apiKeyScopeOptions } from "@/lib/api-key-scopes";
 import {
+  apiKeyEnvironmentLabel,
+  SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE,
+} from "@/lib/api-keys";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -29,8 +33,7 @@ type CreatableEnvironment = (typeof CREATABLE_ENVIRONMENTS)[number];
 const ENVIRONMENT_HELP: Record<CreatableEnvironment, string> = {
   production:
     "Key gọi được host production và tính vào hạn mức sử dụng của Organization.",
-  sandbox:
-    "Key Sandbox chỉ chạy được Writing, miễn phí và không tính vào hạn mức trả phí. Sandbox giới hạn 25 lần chấm mỗi tháng theo Organization.",
+  sandbox: `Key Sandbox chỉ chạy được Writing, miễn phí và không tính vào hạn mức trả phí. Sandbox giới hạn ${SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE} lần chấm mỗi tháng theo Organization. Chọn Sandbox sẽ bỏ các scope khác đã chọn.`,
 };
 
 export function ApiKeyCreateForm({
@@ -181,7 +184,7 @@ export function ApiKeyCreateForm({
                     checked={environment === option}
                     onChange={() => selectEnvironment(option)}
                   />
-                  <span>{option}</span>
+                  <span>{apiKeyEnvironmentLabel(option)}</span>
                 </label>
               ))}
               <p className="api-key-help">{ENVIRONMENT_HELP[environment]}</p>

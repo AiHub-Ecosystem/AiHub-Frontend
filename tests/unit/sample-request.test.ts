@@ -417,4 +417,24 @@ describe("Sandbox Environment", () => {
       "https://sandbox.aihubproduction.com/v1/ielts/writing/task2/grade"
     );
   });
+
+  const casesWithoutAPublicHost: [string, string[]][] = [
+    ["an empty list", []],
+    ["an Environment the Console does not name", ["eu-west"]],
+    ["only staging", ["staging"]],
+  ];
+
+  it.each(casesWithoutAPublicHost)(
+    "yields no command and no warning for %s",
+    (_case, allowedEnvironments) => {
+      const sample = sampleFor(
+        mintedKey({ allowed_environments: allowedEnvironments }),
+        "writing",
+        false
+      );
+
+      expect(sample?.command).toBeNull();
+      expect(sample?.usageNote).toBe("");
+    }
+  );
 });

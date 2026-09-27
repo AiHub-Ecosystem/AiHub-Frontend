@@ -22,6 +22,13 @@ export function apiKeyEnvironmentLabel(environment: string): string {
   );
 }
 
+/**
+ * The only place the Sandbox allowance is written down. Static copy: the backend
+ * exposes it through no endpoint, response body, or header, so a change there
+ * leaves this stale and no test catches it. See ADR-0009 and aihub-be ADR-0056.
+ */
+export const SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE = 25;
+
 export type OrganizationApiKey = {
   id: string;
   name: string;
