@@ -1,3 +1,7 @@
+import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
+
+export { WRITING_TASK2_REQUEST };
+
 /**
  * Nội dung tài liệu (trang Document) cho từng endpoint — trích nguyên văn từ
  * docs/briefapiinput.md và docs/doc-api-micro.md, KHÔNG chỉnh sửa lại cho
@@ -364,18 +368,6 @@ export const WRITING_SCORING_STEPS: IntegrationStep[] = [
       "criteria luôn có đúng 4 phần tử theo thứ tự cố định; Task 1 bắt đầu bằng task_achievement, Task 2 bắt đầu bằng task_response. annotations trích nguyên văn câu trong bài kèm criterion và issue, dùng để ghim nhận xét vào đúng chỗ.",
   },
 ];
-
-/**
- * Body Task 2 dùng chung. Trang API reference và Sample request trong Console
- * cùng đọc từ đây, nên request mẫu không thể lệch khỏi hợp đồng.
- */
-export const WRITING_TASK2_REQUEST = {
-  question:
-    "Some people believe that universities should only offer academic subjects, while others think vocational training is equally important. Discuss both views and give your own opinion.",
-  topic: "education",
-  essay:
-    "Universities have traditionally focused on academic subjects, yet the value of vocational training is increasingly recognised. An academic education develops the ability to analyse and argue, which serves a society that needs a critical mass of researchers and policy makers. Vocational training, by contrast, turns that analysis into a specific craft, and a society also needs people who can build, repair and maintain. Neither path is complete alone: a trained technician who cannot reason about a problem will repeat the same mistake, and a graduate who cannot make anything will theorise about work they have never done. I therefore consider vocational training a subject a university should offer, provided it carries the same status and the same faculty as academic study.",
-};
 
 /** Cùng áp dụng cho cả hai endpoint chấm, nên chỉ viết một lần. */
 const WRITING_SHARED_NOTES = [

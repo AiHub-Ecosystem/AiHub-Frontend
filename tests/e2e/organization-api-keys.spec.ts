@@ -24,6 +24,7 @@ async function setup(
   const {
     membershipRole = "owner",
     organizationStatus = "active",
+    identityConfigured = false,
     entitlements = ["writing"],
     apiKeys = [
       {
@@ -59,7 +60,7 @@ async function setup(
           organization_id: "org-keys-12345678",
           name: "API Keys Org",
           status: organizationStatus,
-          identity_configured: false,
+          identity_configured: identityConfigured,
           entitlements,
           membership: { role: membershipRole },
           members: [{ username: "owner", role: membershipRole }],
@@ -158,11 +159,21 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   page,
   request,
 }) => {
-  const directAihubRequests: string[] = [];
+  let rawKeyToWatch = "";
+  let requestContainsRawKey = false;
+  let apiRequestCount = 0;
   page.on("request", (browserRequest) => {
-    if (new URL(browserRequest.url()).origin === mockUrl)
-      directAihubRequests.push(browserRequest.url());
+    if (new URL(browserRequest.url()).pathname.startsWith("/api/"))
+      apiRequestCount += 1;
+    if (
+      rawKeyToWatch &&
+      `${browserRequest.url()}\n${browserRequest.postData() ?? ""}`.includes(
+        rawKeyToWatch
+      )
+    )
+      requestContainsRawKey = true;
   });
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await setup(request, { apiKeys: [] });
   await signIn(page);
   await page.getByText("Tạo API key", { exact: true }).click();
@@ -194,6 +205,38 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   await expect(dialog).toBeVisible();
   const rawKey = await page.getByTestId("api-key-raw").textContent();
   expect(rawKey).toMatch(/^aihub_sk_[A-Za-z0-9]{43}$/);
+  rawKeyToWatch = rawKey ?? "";
+  const sample = dialog.getByRole("tabpanel", { name: "Writing" });
+  await expect(sample).toBeVisible();
+  await expect(sample.getByText("test-user-1", { exact: true })).toBeVisible();
+  const headers = sample.getByRole("table", {
+    name: "Writing request headers",
+  });
+  const apiKeyHeader = headers.getByRole("row", { name: /X-API-Key/ });
+  await expect(apiKeyHeader).toContainText("aihub_sk_ABC123…");
+  await expect(apiKeyHeader).not.toContainText(rawKey ?? "");
+  const idempotencyKey = await headers
+    .getByRole("row", { name: /Idempotency-Key/ })
+    .locator("td")
+    .first()
+    .textContent();
+  expect(idempotencyKey).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  );
+  const command = await sample
+    .getByTestId("writing-sample-command")
+    .textContent();
+  expect(command).toContain(rawKey);
+  expect(command).toContain(`IDEMPOTENCY_KEY='${idempotencyKey}'`);
+  await expect(sample.getByText(/tính vào hạn mức sử dụng/)).toBeVisible();
+  const requestsBeforeCopy = apiRequestCount;
+  await sample.getByRole("button", { name: "Sao chép lệnh" }).click();
+  const clipboard = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clipboard.replaceAll("\r\n", "\n")).toBe(
+    command?.replaceAll("\r\n", "\n")
+  );
+  expect(apiRequestCount).toBe(requestsBeforeCopy);
+  expect(requestContainsRawKey).toBe(false);
   await expect(
     page.getByRole("row", { name: /New service key/ })
   ).toBeVisible();
@@ -202,7 +245,25 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
     .get(`${mockUrl}/__test__/organizations/requests`)
     .then((result) => result.json());
   expect(JSON.stringify(requests)).not.toContain(rawKey);
-  expect(directAihubRequests).toEqual([]);
+  await page.getByRole("button", { name: "Đóng" }).click();
+  await expect(page.getByTestId("writing-sample-command")).toHaveCount(0);
+  await expect(page.getByTestId("api-key-raw")).toHaveCount(0);
+  const browserStorageAfterClose = await page.evaluate(() =>
+    JSON.stringify({ local: localStorage, session: sessionStorage })
+  );
+  expect(browserStorageAfterClose).not.toContain(rawKey);
+  await page
+    .getByRole("row", { name: /New service key/ })
+    .getByRole("button", { name: "Xoay key" })
+    .click();
+  const rotatedRawKey = `aihub_sk_${"B".repeat(43)}`;
+  await expect(page.getByTestId("api-key-raw")).toHaveText(rotatedRawKey);
+  const rotatedCommand = await page
+    .getByTestId("writing-sample-command")
+    .textContent();
+  expect(rotatedCommand).toContain(rotatedRawKey);
+  expect(rotatedCommand).not.toContain(rawKey);
+  await page.getByRole("button", { name: "Đóng" }).click();
   await page.reload();
   await expect(page.getByTestId("api-key-raw")).toHaveCount(0);
   await expect(
@@ -243,6 +304,30 @@ test("create timeout refreshes the list without automatically retrying", async (
   expect(createRequest).toMatchObject({ allowed_environments: ["production"] });
 });
 
+test("active identity configuration uses a signed User Assertion in the sample", async ({
+  page,
+  request,
+}) => {
+  await setup(request, { apiKeys: [], identityConfigured: true });
+  await signIn(page);
+  await page.getByText("Tạo API key", { exact: true }).click();
+  await page.getByLabel("Tên API key").fill("Signed identity key");
+  await page.locator('input[name="scopes"][value="writing.grade"]').check();
+  await page.getByRole("button", { name: "Tạo key" }).click();
+
+  const sample = page.getByRole("tabpanel", { name: "Writing" });
+  await expect(sample).toBeVisible();
+  await expect(
+    sample.getByText("<user-assertion>", { exact: true })
+  ).toBeVisible();
+  await expect(
+    sample.getByText(/User Assertion có chữ ký.*vô hiệu hóa cấu hình/)
+  ).toBeVisible();
+  await expect(sample.getByTestId("writing-sample-command")).toContainText(
+    "USER_IDENTITY='<user-assertion>'"
+  );
+});
+
 test("rotation reveals a new key once and sends no idempotency key", async ({
   page,
   request,
@@ -263,6 +348,17 @@ test("rotation reveals a new key once and sends no idempotency key", async ({
   await expect(page.getByTestId("api-key-raw")).toHaveText(
     `aihub_sk_${"B".repeat(43)}`
   );
+  const sample = page.getByRole("tabpanel", { name: "Writing" });
+  await expect(sample).toBeVisible();
+  const headers = sample.getByRole("table", {
+    name: "Writing request headers",
+  });
+  await expect(
+    headers.getByRole("row", { name: /X-User-Identity/ })
+  ).toContainText("test-user-1");
+  await expect(sample.getByTestId("writing-sample-command")).toContainText(
+    `aihub_sk_${"B".repeat(43)}`
+  );
   await expect(oldKeyRow).toHaveCount(0);
   const replacement = page.getByRole("row", { name: /Production backend/ });
   await expect(replacement).toContainText("aihub_sk_ROTATE");
@@ -280,6 +376,38 @@ test("rotation reveals a new key once and sends no idempotency key", async ({
   await page.getByRole("button", { name: "Đóng" }).click();
   await expect(page.getByTestId("api-key-raw")).toHaveCount(0);
   await expect(replacement).toBeVisible();
+});
+
+test("staging-only rotation shows a note instead of a command", async ({
+  page,
+  request,
+}) => {
+  await setup(request, {
+    apiKeys: [
+      {
+        id: "ak_01J00000000000000000000002",
+        name: "Staging backend",
+        key_prefix: "aihub_sk_STAGING",
+        scopes: ["writing.grade"],
+        allowed_environments: ["staging"],
+        status: "active",
+        expires_at: null,
+        last_used_at: null,
+        created_at: "2026-09-20T10:00:00.000Z",
+      },
+    ],
+  });
+  await signIn(page);
+  await page
+    .getByRole("row", { name: /Staging backend/ })
+    .getByRole("button", { name: "Xoay key" })
+    .click();
+
+  await expect(page.getByRole("tabpanel", { name: "Writing" })).toBeVisible();
+  await expect(
+    page.getByText(/AIHUB chưa có staging host công khai/)
+  ).toBeVisible();
+  await expect(page.getByTestId("writing-sample-command")).toHaveCount(0);
 });
 
 test("rotation timeout lists its replacement so it can be rotated again", async ({

@@ -33,9 +33,11 @@ function networkErrorMessage(action: "create" | "rotate") {
 export function ApiKeyManager({
   organizationId,
   entitlements,
+  identityConfigured,
 }: {
   organizationId: string;
   entitlements: string[];
+  identityConfigured?: boolean;
 }) {
   const router = useRouter();
   const [apiKeys, setApiKeys] = useState<OrganizationApiKey[]>([]);
@@ -330,13 +332,14 @@ export function ApiKeyManager({
 
       <ApiKeyRevealDialog
         apiKey={revealedKey}
+        identityConfigured={identityConfigured}
         key={revealedKey?.id ?? "closed"}
         onClose={() => setRevealedKey(null)}
         onCopyError={() =>
           setFeedback({
             kind: "error",
             message:
-              "Không thể sao chép tự động. Hãy chọn và sao chép key trong hộp thoại.",
+              "Không thể sao chép tự động. Hãy chọn và sao chép nội dung trong hộp thoại.",
           })
         }
       />
