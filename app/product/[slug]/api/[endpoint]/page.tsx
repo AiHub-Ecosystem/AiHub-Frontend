@@ -57,12 +57,10 @@ export default async function Page({ params }: Props) {
   const fullUrl = meta.path.startsWith("/internal")
     ? meta.path
     : `https://${baseUrlFact}${meta.path}`;
-  const requestCode = curl(
-    meta.method,
-    fullUrl,
-    docs.headers,
-    ref.requestExample
-  );
+  const requestCode = [
+    ...(ref.requestPreamble ?? []),
+    curl(meta.method, fullUrl, docs.headers, ref.requestExample),
+  ].join("\n");
   const responseCode = JSON.stringify(ref.responseExample, null, 2);
 
   return (
