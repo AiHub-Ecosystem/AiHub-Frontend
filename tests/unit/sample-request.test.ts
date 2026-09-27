@@ -35,6 +35,47 @@ function sampleFor(
   }).find((request) => request.kind === kind);
 }
 
+describe("Request identity", () => {
+  function kindsFor(apiKey: MintedOrganizationApiKey) {
+    return buildSampleRequests({
+      apiKey,
+      identityConfigured: false,
+      idempotencyKey,
+    }).map((request) => request.kind);
+  }
+
+  /**
+   * The tab list keys and identifies every request by its identity, so a second
+   * request arriving under a scope already in use must not reuse the first one's
+   * identity. Asserted on the real output, which is what the tab reads. The
+   * second Writing request itself is #32, and the collision this guards against
+   * can only be observed once it exists.
+   */
+  it("gives every request of a key a distinct identity", () => {
+    const kinds = kindsFor(
+      mintedKey({ scopes: ["speaking.grade", "writing.grade"] })
+    );
+
+    expect(kinds).toEqual(["writing", "speaking"]);
+    expect(new Set(kinds).size).toBe(kinds.length);
+  });
+
+  it("names each request from the request, not from its scope", () => {
+    const requests = buildSampleRequests({
+      apiKey: mintedKey({ scopes: ["speaking.grade", "writing.grade"] }),
+      identityConfigured: false,
+      idempotencyKey,
+    });
+
+    expect(requests.map((request) => [request.kind, request.label])).toEqual([
+      ["writing", "Writing"],
+      ["speaking", "Speaking"],
+    ]);
+    for (const request of requests)
+      expect(request.label).not.toBe(request.kind);
+  });
+});
+
 describe("Sample request tabs", () => {
   it("gives a key one tab per scope it holds, Writing first", () => {
     const apiKey = mintedKey({ scopes: ["speaking.grade", "writing.grade"] });
