@@ -323,16 +323,28 @@
   margin-top: 0;
 }
 
+.api-key-sample-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .api-key-sample-tab {
   min-height: 36px;
   padding: 6px 12px;
   border: 1px solid #d0d5dd;
-  border-bottom-color: #315efb;
+  border-bottom: 2px solid transparent;
   border-radius: 8px 8px 0 0;
-  background: #f9fafb;
-  color: #1d2838;
+  background: #f2f4f7;
+  color: #475467;
   font: inherit;
   font-weight: 650;
+}
+
+.api-key-sample-tab[aria-selected="true"] {
+  background: #fff;
+  border-bottom-color: #315efb;
+  color: #0b1324;
 }
 
 .api-key-sample-tab:focus-visible,

@@ -87,12 +87,16 @@ _Avoid_: invite link, join request
 The Organization's secret credential for calling AIHUB grading APIs from the Organization's own backend; its raw value is shown once after creation or rotation and cannot be retrieved again.
 _Avoid_: token, secret, access key
 
+**API key scope**:
+One capability an API key permits, named as a dotted string such as `writing.grade` or `speaking.grade`; a key holds zero or more, and may call only the endpoints its scopes permit.
+_Avoid_: permission, entitlement, feature
+
 **Environment**:
 The request tier AIHUB derives from the hostname a request is sent to; an API key only works in the Environments it allows. Customers may allow `production` or `staging`; `sandbox` is AIHUB's own tier and never a customer Environment.
 _Avoid_: mode, live/test
 
 **Sample request**:
-A ready-to-run request shown beside a newly issued API key so its holder can make a first call; it exists only while that raw key is on screen.
+A request shown beside a newly issued API key so its holder can make a first call, one for each API key scope that has a known endpoint; it exists only while that raw key is on screen. A Sample request may depend on several things only its holder has, such as an audio file or the question being answered.
 _Avoid_: playground, test call, try-it
 
 **Identity configuration**:
