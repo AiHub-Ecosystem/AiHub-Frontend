@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ALL_PRODUCTS, findProduct } from "@/data/api-products";
-import { PRODUCT_DOCS, type RequestHeader } from "@/data/api-reference";
+import {
+  PRODUCT_DOCS,
+  type RequestHeader,
+  type SchemaField,
+} from "@/data/api-reference";
 import { ReferenceTabs } from "../reference-tabs";
 import "../../../../aihub.css";
 
@@ -32,16 +36,35 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/** Giá trị mẫu do tác giả viết, nên ký tự shell phải được vô hiệu hoá. */
+function escapeSampleValue(value: string) {
+  return value.replace(/([\\"$`])/g, "\\$1");
+}
+
 function curl(
   method: string,
   url: string,
   headers: RequestHeader[],
-  body: unknown
+  body: unknown,
+  formFields: SchemaField[]
 ) {
-  const headerLines = headers
-    .map((h) => `  -H "${h.name}: ${h.value}" \\\n`)
-    .join("");
-  return `curl -X ${method} '${url}' \\\n${headerLines}  -d '${JSON.stringify(body, null, 2)}'`;
+  const lines = [`curl -X ${method} '${url}'`];
+  for (const header of headers) {
+    lines.push(`  -H "${header.name}: ${header.value}"`);
+  }
+  for (const field of formFields) {
+    // `formValue` is written to reference a shell variable, so it is left
+    // alone; a `sampleValue` is copied verbatim and must be quoted literally.
+    const value =
+      field.formValue ??
+      (field.sampleValue && escapeSampleValue(field.sampleValue));
+    if (value === undefined) continue;
+    lines.push(`  -F "${field.name}=${value}"`);
+  }
+  if (formFields.length === 0 && body !== null && body !== undefined) {
+    lines.push(`  -d '${JSON.stringify(body, null, 2)}'`);
+  }
+  return lines.join(" \\\n");
 }
 
 export default async function Page({ params }: Props) {
@@ -52,16 +75,34 @@ export default async function Page({ params }: Props) {
   const meta = product?.endpoints.find((e) => e.slug === endpoint);
   if (!product || !docs || !ref || !meta) notFound();
 
-  const baseUrlFact =
-    docs.overview.facts.find((f) => f.label === "Base URL")?.value ?? "";
+  // The catalog documents a query parameter as `{name}`; the generated example
+  // substitutes the field's sample value so the command is runnable as written.
+  const examplePath = meta.path.replace(/\{(\w+)\}/g, (placeholder, name) => {
+    const field = ref.requestFields.find(
+      (candidate) => candidate.name === name
+    );
+    return field?.sampleValue ?? placeholder;
+  });
   const fullUrl = meta.path.startsWith("/internal")
     ? meta.path
-    : `https://${baseUrlFact}${meta.path}`;
+    : `https://${docs.overview.baseUrl}${examplePath}`;
+  const headers = ref.headers ?? docs.headers;
+  const multipartFields = ref.requestBody === "form" ? ref.requestFields : [];
+  // An endpoint that declares its own failures replaces the product's
+  // wholesale — including dropping the retry policy, which otherwise leaks
+  // through the shallow merge and would describe grading runs this operation
+  // cannot have.
+  const errors = ref.errors
+    ? { ...docs.errors, ...ref.errors, retryPolicy: ref.errors.retryPolicy }
+    : docs.errors;
   const requestCode = [
     ...(ref.requestPreamble ?? []),
-    curl(meta.method, fullUrl, docs.headers, ref.requestExample),
+    curl(meta.method, fullUrl, headers, ref.requestExample, multipartFields),
   ].join("\n");
   const responseCode = JSON.stringify(ref.responseExample, null, 2);
+  const showsSampleValues = ref.requestFields.some(
+    (field) => field.sampleValue !== undefined
+  );
 
   return (
     <div className="aihub">
@@ -96,6 +137,7 @@ export default async function Page({ params }: Props) {
                 <tr>
                   <th>Field</th>
                   <th>Type</th>
+                  {showsSampleValues && <th>Giá trị mẫu</th>}
                   <th>Bắt buộc</th>
                   <th>Mô tả</th>
                 </tr>
@@ -105,6 +147,11 @@ export default async function Page({ params }: Props) {
                   <tr key={f.name}>
                     <td>{f.name}</td>
                     <td>{f.type}</td>
+                    {showsSampleValues && (
+                      <td>
+                        <code>{f.sampleValue ?? ""}</code>
+                      </td>
+                    )}
                     <td>
                       {f.required ? (
                         <span className="aihub-required">BẮT BUỘC</span>
@@ -148,9 +195,19 @@ export default async function Page({ params }: Props) {
         <section className="aihub-category">
           <div className="aihub-category-head">
             <h2 className="aihub-category-name">Lỗi thường gặp</h2>
-            <p className="aihub-category-desc">{docs.errors.intro}</p>
+            <p className="aihub-category-desc">{errors.intro}</p>
           </div>
-          {docs.errors.items.map((err) => (
+          {errors.retryPolicy && (
+            <div className="aihub-endpoint">
+              <strong>Chính sách retry</strong>
+              <ul className="aihub-notes">
+                {errors.retryPolicy.map((rule) => (
+                  <li key={rule}>{rule}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {errors.items.map((err) => (
             <article
               className="aihub-endpoint"
               key={`${err.status}:${err.code ?? ""}`}

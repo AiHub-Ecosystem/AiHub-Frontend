@@ -68,6 +68,12 @@ export default async function Page({ params }: Props) {
               <p className="aihub-category-desc">{docs.overview.summary}</p>
             </div>
             <ul className="aihub-facts">
+              <li>
+                <span className="aihub-facts-label">Base URL</span>
+                <span className="aihub-facts-value">
+                  {docs.overview.baseUrl}
+                </span>
+              </li>
               {docs.overview.facts.map((fact) => (
                 <li key={fact.label}>
                   <span className="aihub-facts-label">{fact.label}</span>

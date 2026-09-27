@@ -18,6 +18,20 @@ export type SchemaField = {
   type: string;
   required: boolean;
   description: string;
+  /** Giá trị mẫu hiện trong bảng; cũng là giá trị dùng cho tham số form. */
+  sampleValue?: string;
+  /**
+   * Giá trị gửi trong tham số form, khác `sampleValue` khi cần biến shell —
+   * ví dụ đường dẫn tới file của người gọi. Không có thì dùng `sampleValue`.
+   */
+  formValue?: string;
+};
+
+export type ProductOverview = {
+  summary: string;
+  /** Host mà trang endpoint ghép với path để tạo URL đầy đủ. */
+  baseUrl: string;
+  facts: { label: string; value: string }[];
 };
 
 export type IntegrationStep = {
@@ -27,11 +41,17 @@ export type IntegrationStep = {
 
 export type EndpointReference = {
   slug: string;
+  /** Header riêng của endpoint; khi có thì thay thế header chung của product. */
+  headers?: RequestHeader[];
   requestFields: SchemaField[];
+  /** `form` sinh tham số `-F` cho mọi field; mặc định là `json` như trước. */
+  requestBody?: "json" | "form";
   requestExample: unknown;
   responseDescription: string;
   responseExample: unknown;
   notes: string[];
+  /** Lỗi riêng của endpoint; khi có thì thay thế danh sách của product. */
+  errors?: Partial<ProductDocs["errors"]>;
   /** Dong shell chen truoc lenh curl, vi du gan bien moi truoc khi goi. */
   requestPreamble?: string[];
 };
@@ -39,8 +59,8 @@ export type EndpointReference = {
 export const EXERCISE_GENERATION_OVERVIEW = {
   summary:
     "Sinh bài tập luyện viết bám đúng lỗi sai của học viên, dựa trên bài làm thật đã được gán nhãn lỗi trong hệ thống WISPACE.",
+  baseUrl: "test-api-ielts-writing.aihubproduction.com",
   facts: [
-    { label: "Base URL", value: "test-api-ielts-writing.aihubproduction.com" },
     { label: "Định dạng", value: "application/json" },
     {
       label: "Xác thực",
@@ -329,8 +349,8 @@ export const EXERCISE_GENERATION_REFERENCE: Record<string, EndpointReference> =
 export const WRITING_SCORING_OVERVIEW = {
   summary:
     "Chấm bài viết IELTS Writing theo 4 tiêu chí, trả về band từng tiêu chí kèm lý do, góp ý và trích dẫn đúng câu cần sửa trong bài.",
+  baseUrl: "api.aihubproduction.com",
   facts: [
-    { label: "Base URL", value: "api.aihubproduction.com" },
     { label: "Định dạng", value: "application/json" },
     {
       label: "Xác thực",
@@ -917,13 +937,576 @@ const EXERCISE_GENERATION_ERRORS: ErrorResponse[] = [
   },
 ];
 
+export const SPEAKING_OVERVIEW: ProductOverview = {
+  summary:
+    "Chấm phần nói IELTS Speaking từ file âm thanh, trả về transcript, band ước tính theo 5 tiêu chí phát âm và độ trôi chảy, cùng gợi ý sửa lỗi ngữ pháp và từ vựng.",
+  baseUrl: "api.aihubproduction.com",
+  facts: [
+    {
+      label: "Định dạng",
+      value: "multipart/form-data, hoặc application/json cho dạng URL",
+    },
+    {
+      label: "Xác thực",
+      value:
+        "API key (scope speaking.grade) + X-User-Identity cho endpoint chấm",
+    },
+    {
+      label: "Lấy câu hỏi",
+      value: "GET không cần xác thực, không user-scoped",
+    },
+    { label: "Idempotency-Key", value: "Endpoint chấm không hỗ trợ" },
+    { label: "Trạng thái", value: "Stable" },
+  ],
+};
+
+export const SPEAKING_STEPS: IntegrationStep[] = [
+  {
+    title: "Lấy API key có scope speaking.grade",
+    description:
+      "AIHUB cấp API key cho Organization, mỗi key chỉ dùng được trong các Environment được phép và nên được gọi từ server của bạn. Key hiển thị đúng một lần lúc tạo hoặc xoay vòng — lưu vào secret manager ngay. Key thiếu scope speaking.grade sẽ bị từ chối với 403 FORBIDDEN.",
+  },
+  {
+    title: "Chọn đúng dạng User Identity của Organization",
+    description:
+      "Hai endpoint chấm đều là user-scoped nên X-User-Identity không được thiếu. Organization có Identity configuration đang hoạt động thì gửi Signed User Assertion — một JWT ngắn hạn do backend của bạn ký; Organization chưa có cấu hình nào đang hoạt động (kể cả cấu hình bị tắt) thì gửi Declared User ID dạng văn bản thuần, 1–256 ký tự ASCII hiển thị, không có khoảng trắng. Cấu hình của Organization quyết định dạng, không phải hình dạng giá trị. Endpoint lấy câu hỏi không user-scoped nên không cần header này.",
+  },
+  {
+    title: "Lấy câu hỏi trước khi chấm",
+    description:
+      "Gọi GET /v1/ielts/speaking/questions?part=1 (hoặc part=2, part=3) để lấy question_id và prompt_text thật. Gửi question_id từ danh mục này, đừng tự đặt — mỗi Part có bộ câu hỏi riêng.",
+  },
+  {
+    title: "Gửi file âm thanh",
+    description:
+      "Dạng chính nhận một tệp wav, mp3, m4a, webm hoặc ogg, tối đa 25 MiB. Dạng dự phòng nhận audio_url trỏ tới một đối tượng trên s3.wispace.app, dùng khi bạn không thể tải tệp lên. Cả hai cùng nhận part, question_id và các trường tuỳ chọn.",
+  },
+  {
+    title: "Đọc kết quả theo đúng thứ tự",
+    description:
+      "Kiểm tra scorability trước: is_scorable false nghĩa là lượt nói không đủ để chấm, và message_vi giải thích vì sao. Khi chấm được, estimated_band.overall cho band tổng, còn transcript cho nội dung đã nghe và pronunciation_detail cho chi tiết từng âm.",
+  },
+];
+
+const SPEAKING_CURL_PREAMBLE = [
+  "# Hai biến dưới là ví dụ — thay bằng giá trị thật, và chỉ chạy trên server của bạn.",
+  'AIHUB_API_KEY="aihub_sk_..."            # API key của Organization, có scope speaking.grade',
+  'AIHUB_USER_IDENTITY="$SIGNED_USER_ASSERTION"   # Organization có Identity configuration đang hoạt động',
+  '# AIHUB_USER_IDENTITY="student_456"     # thay bằng Declared User ID nếu Organization chưa có Identity configuration đang hoạt động',
+  "",
+];
+
+const SPEAKING_AUDIO_PREAMBLE = [
+  ...SPEAKING_CURL_PREAMBLE,
+  'AIHUB_AUDIO_FILE="./answer.wav"         # đường dẫn tới tệp trên máy bạn; chỉ sửa biến này',
+  "",
+];
+
+/** Ghi một lần, áp dụng cho cả hai endpoint chấm. */
+const SPEAKING_SHARED_NOTES = [
+  "Body vượt 26 MiB trả về 413 PAYLOAD_TOO_LARGE. Trường lạ trong request bị từ chối chứ không bị bỏ qua.",
+  "Đặt timeout phía client tối thiểu 60 giây cho Speaking; ngân sách của gateway là trần của phía server.",
+];
+
+const SPEAKING_NO_IDEMPOTENCY_NOTE =
+  "Endpoint này không có idempotent replay — không có header Idempotency-Key nào được chấp nhận. Chạy lại cùng một lệnh sẽ tạo một lần chấm mới và tính phí thêm.";
+
+/** Ví dụ trong các endpoint này là giá trị minh hoạ, không phải traffic thật. */
+const SPEAKING_ILLUSTRATIVE_NOTE =
+  "Các giá trị trong ví dụ request và response là minh hoạ để bạn thấy hình dạng dữ liệu, không phải traffic thật của AIHUB — đặc biệt là band và điểm phát âm.";
+
+const SPEAKING_RESPONSE_DESCRIPTION =
+  "Envelope { data, meta } của AIHUB. data khớp hợp đồng chấm Speaking: scorability cho biết lượt nói có chấm được không, estimated_band gồm 5 tiêu chí mỗi tiêu chí là số chẵn hoặc nửa từ 0 đến 9, transcript cho nội dung đã nghe kèm số từ và thời lượng, relevance cho mức độ đúng chủ đề, fluency_metrics cho nhịp nói và ngừng, pronunciation_detail cho chất lượng từng từ và âm, language_analysis cho lỗi ngữ pháp cùng nâng cấp từ vựng, và feedback cho tóm tắt cùng kế hoạch cải thiện. meta cho request_id để báo hỗ trợ, service và operation.";
+
+const SPEAKING_GRADING_RESPONSE = {
+  data: {
+    test_type: "Practice",
+    question_id: "p1_hometown",
+    scorability: {
+      is_scorable: true,
+      confidence: "high",
+      display_band: true,
+      message_vi: null,
+    },
+    estimated_band: {
+      overall: 6.0,
+      fluency_coherence: 6.0,
+      lexical_resource: 6.5,
+      grammatical_range_accuracy: 5.5,
+      pronunciation: 6.0,
+    },
+    transcript: {
+      text: "I live in a small town about thirty kilometres from the city.",
+      word_count: 12,
+      duration_seconds: 6.4,
+    },
+    relevance: {
+      on_topic: true,
+      score: 0.93,
+      feedback_vi: "Câu trả lời đi thẳng vào đề hỏi về quê hương.",
+    },
+    fluency_metrics: {
+      speech_rate_wpm: 112,
+      pause_count: 2,
+      mean_length_run_words: 6.1,
+    },
+    pronunciation_detail: {
+      summary: { good_count: 9, fair_count: 2, poor_count: 1 },
+      words: [],
+    },
+    language_analysis: { grammar_errors: [], vocabulary_upgrades: [] },
+    feedback: {
+      summary_vi: "Lượt nói rõ ràng, tốc độ hơi nhanh ở câu cuối.",
+      strong_point_vi: "Nói đủ ý và tự nhiên.",
+      action_plan_vi: "Luyện ngắt hơi giữa các ý để tăng điểm trôi chảy.",
+    },
+  },
+  meta: {
+    request_id: "req_01M23NT8MJW22AYX6FVT17F5XF",
+    service: "speaking",
+    operation: "speaking.grading",
+    timing: { downstream_ms: 22140, gateway_overhead_ms: 163, total_ms: 22303 },
+  },
+};
+
+const SPEAKING_QUESTIONS_RESPONSE = {
+  data: {
+    part: 1,
+    questions: [
+      {
+        question_id: "p1_hometown",
+        part: 1,
+        prompt_text: "Do you enjoy living in your hometown?",
+        audio_url: "https://s3.wispace.app/ielts/speaking/p1_hometown.mp3",
+      },
+      {
+        question_id: "p1_favourite_place",
+        part: 1,
+        prompt_text: "Describe a place you like to visit.",
+        audio_url:
+          "https://s3.wispace.app/ielts/speaking/p1_favourite_place.mp3",
+      },
+    ],
+  },
+  meta: {
+    request_id: "req_01M23NT8MJW22AYX6FVT17F5XF",
+    service: "speaking",
+    operation: "speaking.questions",
+  },
+};
+
+const SPEAKING_HEADERS: RequestHeader[] = [
+  { name: "X-API-Key", value: "$AIHUB_API_KEY" },
+  { name: "X-User-Identity", value: "$AIHUB_USER_IDENTITY" },
+];
+
+/** Thứ tự field dùng chung cho hai endpoint chấm, nên chỉ viết một lần. */
+function speakingGradingFields(audioField: SchemaField): SchemaField[] {
+  return [
+    audioField,
+    {
+      name: "part",
+      type: "integer",
+      required: true,
+      sampleValue: "1",
+      formValue: "1",
+      description: "Part của bài Speaking: 1, 2 hoặc 3.",
+    },
+    {
+      name: "question_id",
+      type: "string",
+      required: true,
+      sampleValue: "p1_hometown",
+      formValue: "p1_hometown",
+      description:
+        "Mã câu hỏi lấy từ endpoint lấy câu hỏi. Giá trị này là ví dụ minh hoạ — hãy thay bằng câu hỏi bạn sắp trả lời.",
+    },
+    {
+      name: "prompt_text",
+      type: "string",
+      required: false,
+      sampleValue: "Do you enjoy living in your hometown?",
+      formValue: "Do you enjoy living in your hometown?",
+      description: "Nội dung câu hỏi, dùng để đánh giá độ liên quan.",
+    },
+    {
+      name: "test_type",
+      type: "string",
+      required: false,
+      sampleValue: "Practice",
+      formValue: "Practice",
+      description:
+        "Chỉ nhận Practice hoặc Full-test. Bỏ trống thì AIHUB dùng Practice.",
+    },
+    {
+      name: "test_code",
+      type: "string",
+      required: false,
+      sampleValue: "ielts-practice-01",
+      formValue: "ielts-practice-01",
+      description:
+        "Mã chung cho các câu hỏi thuộc cùng một bài kiểm tra đầy đủ.",
+    },
+    {
+      name: "transcript",
+      type: "string",
+      required: false,
+      sampleValue: "I live in a small town.",
+      formValue: "I live in a small town.",
+      description:
+        "Transcript có sẵn, dùng khi nhà cung cấp hỗ trợ bỏ qua bước chuyển giọng nói thành chữ.",
+    },
+  ];
+}
+
+const AUDIO_FIELD: SchemaField = {
+  name: "audio",
+  type: "file",
+  required: true,
+  sampleValue: "./answer.wav",
+  formValue: "@${AIHUB_AUDIO_FILE}",
+  description:
+    "Một tệp wav, mp3, m4a, webm hoặc ogg; tối thiểu 100 byte, tối đa 25 MiB. AIHUB không cung cấp tệp mẫu — bạn phải tự trỏ tới tệp của mình.",
+};
+
+const AUDIO_URL_FIELD: SchemaField = {
+  name: "audio_url",
+  type: "string",
+  required: true,
+  sampleValue:
+    "https://s3.wispace.app/ielts/speaking/answer.mp3?signature=demo",
+  description:
+    "URL HTTPS trên đúng host s3.wispace.app, dài tối đa 2.048 ký tự, có thể kèm query cho signed object URL. AIHUB kiểm tra URL nhưng không tải — nhà cung cấp tự tải và không theo redirect.",
+};
+
+/** Body ví dụ sinh từ cùng danh sách field, nên không thể lệch với bảng. */
+const SPEAKING_GRADING_JSON_BODY = Object.fromEntries(
+  speakingGradingFields(AUDIO_URL_FIELD).map((field) => [
+    field.name,
+    field.formValue ?? field.sampleValue ?? "",
+  ])
+);
+
+const SPEAKING_QUESTIONS_ERRORS: ErrorResponse[] = [
+  {
+    status: "400",
+    code: "INVALID_REQUEST",
+    tone: "error",
+    title: "Part không hợp lệ",
+    description: "Tham số part chỉ nhận 1, 2 hoặc 3.",
+    example: {
+      error: {
+        code: "INVALID_REQUEST",
+        message: "…",
+        request_id: "req_01M23NT8MJW22AYX6FVT17F5XF",
+        retryable: false,
+      },
+    },
+  },
+  {
+    status: "404",
+    code: "NOT_FOUND",
+    tone: "error",
+    title: "Không có route",
+    description: "Sai path hoặc sai method.",
+    example: {
+      error: {
+        code: "NOT_FOUND",
+        message: "…",
+        request_id: "req_01M23NT8MJW22AYX6FVT17F5XF",
+        retryable: false,
+      },
+    },
+  },
+  {
+    status: "429",
+    code: "RATE_LIMITED",
+    tone: "warn",
+    title: "Vượt rate limit",
+    description:
+      "Quá nhiều request mỗi phút. Nghỉ đúng retry_after_ms rồi thử lại.",
+    example: {
+      error: {
+        code: "RATE_LIMITED",
+        message: "…",
+        request_id: "req_01M23NT8MJW22AYX6FVT17F5XF",
+        retryable: true,
+        retry_after_ms: 2000,
+      },
+    },
+  },
+  {
+    status: "500",
+    code: "INTERNAL_ERROR",
+    tone: "error",
+    title: "Lỗi phía AIHUB",
+    description:
+      "Lỗi ngoài dự kiến. Thử lại sau và báo kèm request_id nếu vẫn lỗi.",
+    example: {
+      error: {
+        code: "INTERNAL_ERROR",
+        message: "…",
+        request_id: "req_01M23NT8MJW22AYX6FVT17F5XF",
+        retryable: true,
+      },
+    },
+  },
+];
+
+export const SPEAKING_REFERENCE: Record<string, EndpointReference> = {
+  "speaking-questions": {
+    slug: "speaking-questions",
+    // No header: this operation is neither guarded nor user-scoped.
+    headers: [],
+    requestFields: [
+      {
+        name: "part",
+        type: "query parameter",
+        required: false,
+        sampleValue: "1",
+        description:
+          "Lọc theo Part. Bỏ trống thì trả về toàn bộ câu hỏi. Lệnh ví dụ dùng sẵn part=1; đổi sang 2 hoặc 3 nếu bạn cần Part khác.",
+      },
+    ],
+    requestExample: null,
+    responseDescription:
+      "Envelope { data, meta } của AIHUB. data.part là Part đã lọc, data.questions là danh sách câu hỏi, mỗi câu có question_id, part, prompt_text và audio_url mẫu nghe trên s3.wispace.app. Lấy question_id từ đây để gửi kèm lúc chấm.",
+    responseExample: SPEAKING_QUESTIONS_RESPONSE,
+    notes: [
+      SPEAKING_ILLUSTRATIVE_NOTE,
+      "Endpoint này không phải là user-scoped: không cần X-User-Identity, và lượt gọi không được báo cáo dưới bất kỳ End-User ID nào.",
+      "Endpoint này không yêu cầu X-API-Key và không giới hạn theo API key scope.",
+    ],
+    errors: {
+      intro:
+        "Endpoint lấy câu hỏi không có guard xác thực nên không thể trả về 401 hay 403. Dưới đây là các mã thực sự có thể xảy ra; phần lớn danh sách lỗi của hai endpoint chấm không áp dụng.",
+      items: SPEAKING_QUESTIONS_ERRORS,
+    },
+  },
+
+  "speaking-grading": {
+    slug: "speaking-grading",
+    headers: SPEAKING_HEADERS,
+    requestBody: "form",
+    requestPreamble: SPEAKING_AUDIO_PREAMBLE,
+    requestFields: speakingGradingFields(AUDIO_FIELD),
+    requestExample: null,
+    responseDescription: SPEAKING_RESPONSE_DESCRIPTION,
+    responseExample: SPEAKING_GRADING_RESPONSE,
+    notes: [
+      SPEAKING_NO_IDEMPOTENCY_NOTE,
+      "Lệnh dùng -F nên curl tự sinh Content-Type multipart kèm boundary; không cần và không nên đặt header này.",
+      SPEAKING_ILLUSTRATIVE_NOTE,
+      ...SPEAKING_SHARED_NOTES,
+    ],
+  },
+
+  "speaking-grading-json": {
+    slug: "speaking-grading-json",
+    // A JSON body needs its content type. The multipart operation must not set
+    // one, because curl generates the multipart type and its boundary.
+    headers: [
+      ...SPEAKING_HEADERS,
+      { name: "Content-Type", value: "application/json" },
+    ],
+    requestPreamble: SPEAKING_CURL_PREAMBLE,
+    requestFields: speakingGradingFields(AUDIO_URL_FIELD),
+    requestExample: SPEAKING_GRADING_JSON_BODY,
+    responseDescription: SPEAKING_RESPONSE_DESCRIPTION,
+    responseExample: SPEAKING_GRADING_RESPONSE,
+    notes: [
+      SPEAKING_NO_IDEMPOTENCY_NOTE,
+      "audio_url chỉ được trỏ tới đúng host s3.wispace.app và scheme https. AIHUB từ chối thông tin đăng nhập nhúng trong URL, fragment, host hoặc cổng khác trước khi gọi dịch vụ.",
+      "AIHUB không theo redirect. Nếu object URL hết hạn giữa chừng, lượt chấm sẽ thất bại ở phía dịch vụ.",
+      SPEAKING_ILLUSTRATIVE_NOTE,
+      ...SPEAKING_SHARED_NOTES,
+    ],
+  },
+};
+
+const SPEAKING_GATEWAY_ERRORS: GatewayError[] = [
+  {
+    status: "400",
+    code: "INVALID_REQUEST",
+    tone: "error",
+    title: "Request không hợp lệ",
+    description:
+      "Field vượt quy tắc, hoặc có field lạ trong request. Trường lạ bị từ chối chứ không bị bỏ qua.",
+  },
+  {
+    status: "401",
+    code: "UNAUTHORIZED",
+    tone: "error",
+    title: "API key không hợp lệ",
+    description: "Thiếu key, key không tồn tại, đã thu hồi, hoặc đã hết hạn.",
+  },
+  {
+    status: "401",
+    code: "USER_IDENTITY_REQUIRED",
+    tone: "error",
+    title: "Thiếu User Identity",
+    description: "Gọi endpoint user-scoped mà không gửi X-User-Identity.",
+  },
+  {
+    status: "401",
+    code: "INVALID_USER_IDENTITY",
+    tone: "error",
+    title: "User Identity không hợp lệ",
+    description:
+      "Declared User ID vi phạm quy tắc, hoặc Signed User Assertion không vượt qua kiểm chữ ký.",
+  },
+  {
+    status: "403",
+    code: "FORBIDDEN",
+    tone: "error",
+    title: "Key thiếu scope",
+    description: "API key không có scope speaking.grade cho thao tác này.",
+  },
+  {
+    status: "403",
+    code: "ENVIRONMENT_NOT_ALLOWED",
+    tone: "error",
+    title: "Sai Environment",
+    description: "API key không hợp lệ cho Environment của request này.",
+  },
+  {
+    status: "404",
+    code: "NOT_FOUND",
+    tone: "error",
+    title: "Không có route",
+    description:
+      "Sai path hoặc sai method. Lưu ý dạng chấm có hai path khác nhau.",
+  },
+  {
+    status: "413",
+    code: "PAYLOAD_TOO_LARGE",
+    tone: "error",
+    title: "Request quá lớn",
+    description:
+      "Body vượt trần của thao tác. Giới hạn là 26 MiB cho request multipart.",
+  },
+  {
+    status: "429",
+    code: "RATE_LIMITED",
+    tone: "warn",
+    title: "Vượt rate limit",
+    description:
+      "Quá nhiều request mỗi phút. Nghỉ đúng retry_after_ms rồi thử lại.",
+    retryable: true,
+    retry_after_ms: 2000,
+  },
+  {
+    status: "429",
+    code: "CONCURRENCY_LIMIT",
+    tone: "warn",
+    title: "Vượt giới hạn chạy song song",
+    description:
+      "Quá nhiều request đang chạy cùng lúc. Giảm số request song song; thử lại sau khoảng 500 ms.",
+    retryable: true,
+    retry_after_ms: 500,
+  },
+  {
+    status: "429",
+    code: "QUOTA_EXCEEDED",
+    tone: "warn",
+    title: "Hết hạn mức tháng",
+    description: "Đã dùng hết quota tháng. Chờ kỳ reset hoặc nâng cấp.",
+    retryable: true,
+  },
+  {
+    status: "500",
+    code: "INTERNAL_ERROR",
+    tone: "error",
+    title: "Lỗi phía AIHUB",
+    description:
+      "Lỗi ngoài dự kiến. Thử lại sau và báo kèm request_id nếu vẫn lỗi.",
+    retryable: true,
+  },
+  {
+    status: "502",
+    code: "AI_SERVICE_ERROR",
+    tone: "error",
+    title: "Dịch vụ AI trả về lỗi",
+    description: "Phía dịch vụ AI báo lỗi. Thử lại sau nếu retryable là true.",
+    retryable: true,
+  },
+  {
+    status: "502",
+    code: "AI_SERVICE_CONTRACT_VIOLATION",
+    tone: "error",
+    title: "Dịch vụ AI trả về sai hình dạng",
+    description:
+      "Không retry. Báo lại kèm request_id — đây là lỗi phía chúng tôi, không phải phía bạn.",
+  },
+  {
+    status: "503",
+    code: "AI_SERVICE_THROTTLED",
+    tone: "warn",
+    title: "Dịch vụ AI đang giới hạn tải",
+    description:
+      "Dịch vụ đang throttle. Lùi rồi thử lại; lỗi này không kèm retry_after_ms.",
+    retryable: true,
+  },
+  {
+    status: "503",
+    code: "AI_SERVICE_UNAVAILABLE",
+    tone: "error",
+    title: "Không tới được dịch vụ AI",
+    description: "Thử lại với backoff.",
+    retryable: true,
+  },
+  {
+    status: "503",
+    code: "IDENTITY_PROVIDER_UNAVAILABLE",
+    tone: "error",
+    title: "Không đọc được JWKS của bạn",
+    description:
+      "AIHUB không tải được endpoint JWKS của Organization bạn. Đây là lỗi 503 chứ không phải 401 — API key của bạn vẫn ổn, nên đừng đổi key.",
+    retryable: true,
+  },
+  {
+    status: "504",
+    code: "AI_SERVICE_TIMEOUT",
+    tone: "error",
+    title: "Quá thời gian chấm",
+    description:
+      "Chấm vượt ngân sách thời gian. Riêng Speaking, chỉ retry nếu một lần chấm thêm là chấp nhận được.",
+  },
+];
+
+const SPEAKING_ERRORS: ErrorResponse[] = SPEAKING_GATEWAY_ERRORS.map(
+  ({ status, code, tone, title, description, retryable, retry_after_ms }) => ({
+    status,
+    code,
+    tone,
+    title,
+    description,
+    example: {
+      error: {
+        code,
+        message: "…",
+        request_id: "req_01M23NT8MJW22AYX6FVT17F5XF",
+        retryable: retryable ?? false,
+        ...(retry_after_ms === undefined ? {} : { retry_after_ms }),
+      },
+    },
+  })
+);
+
+const SPEAKING_RETRY_POLICY = [
+  "Chỉ tự động retry khi retryable là true. Không retry theo mặc định chỉ vì gặp 5xx.",
+  "Dùng exponential backoff có jitter — ngẫu nhiên từ 0 tới trần, không dùng độ trễ cố định, vì nhiều client retry đúng nhịp sẽ làm dịch vụ lại sập ngay khi nó vừa hồi phục.",
+  "Giới hạn 2–3 lần thử.",
+  "Riêng Speaking: không retry mù quáng. Vì endpoint chấm không có idempotent replay, mỗi lần thử lại là một lần chấm mới bị tính phí.",
+];
+
 export type ProductDocs = {
-  overview: typeof EXERCISE_GENERATION_OVERVIEW;
+  overview: ProductOverview;
   steps: IntegrationStep[];
   /** Header chung cho mọi endpoint của API product, theo thứ tự hiển thị. */
   headers: RequestHeader[];
   reference: Record<string, EndpointReference>;
-  errors: { intro: string; items: ErrorResponse[] };
+  errors: { intro: string; retryPolicy?: string[]; items: ErrorResponse[] };
 };
 
 /** Tra theo slug sản phẩm — mở rộng khi Tạo roadmap có tài liệu. */
@@ -953,6 +1536,18 @@ export const PRODUCT_DOCS: Record<string, ProductDocs> = {
       intro:
         "19 mã dưới đây áp dụng cho cả hai endpoint chấm. Mọi lỗi trả về cùng một envelope { error: { code, message, request_id, retryable, retry_after_ms? } }. Giá trị retry_after_ms trong ví dụ chỉ minh họa; hãy dùng giá trị response thực tế. Rẽ nhánh theo code chứ không theo message, vì message có thể đổi câu chữ. Chỉ tự động retry khi retryable là true và luôn giữ cùng Idempotency-Key; riêng 409 do request giống hệt đang chạy thì chờ request đầu hoàn tất rồi gửi lại cùng key và body.",
       items: WRITING_SCORING_ERRORS,
+    },
+  },
+  speaking: {
+    overview: SPEAKING_OVERVIEW,
+    steps: SPEAKING_STEPS,
+    headers: SPEAKING_HEADERS,
+    reference: SPEAKING_REFERENCE,
+    errors: {
+      intro:
+        "18 mã dưới đây áp dụng cho hai endpoint chấm Speaking. Mã IDEMPOTENCY_CONFLICT của Writing không có ở đây vì endpoint chấm không có idempotent replay. Mọi lỗi trả về cùng một envelope { error: { code, message, request_id, retryable, retry_after_ms? } }. Rẽ nhánh theo code chứ không theo message, vì message có thể đổi câu chữ.",
+      retryPolicy: SPEAKING_RETRY_POLICY,
+      items: SPEAKING_ERRORS,
     },
   },
 };

@@ -14,6 +14,8 @@ const ALLOWED_FIELDS = new Set([
   "question_id",
   "prompt_text",
   "test_type",
+  "test_code",
+  "transcript",
 ]);
 const ALLOWED_JSON_FIELDS = new Set([
   "audio_url",
@@ -21,6 +23,8 @@ const ALLOWED_JSON_FIELDS = new Set([
   "question_id",
   "prompt_text",
   "test_type",
+  "test_code",
+  "transcript",
 ]);
 const SPEAKING_AUDIO_URL_HOST = "s3.wispace.app";
 const SANDBOX_HOST = "sandbox.aihubproduction.com";
@@ -44,11 +48,17 @@ export class SpeakingBoundaryError extends Error {
   }
 }
 
+/** The contract fixes the test type to these two values; it defaults to Practice. */
+const TEST_TYPES = new Set(["Practice", "Full-test"]);
+
 type SpeakingRequest = {
   audio: File;
   part: number;
   questionId: string;
   promptText?: string;
+  testType?: string;
+  testCode?: string;
+  transcript?: string;
 };
 
 type SpeakingJsonRequest = {
@@ -56,6 +66,9 @@ type SpeakingJsonRequest = {
   part: number;
   questionId: string;
   promptText?: string | null;
+  testType?: string | null;
+  testCode?: string | null;
+  transcript?: string | null;
 };
 
 function invalidRequest() {
@@ -235,17 +248,26 @@ export async function parseSpeakingRequest(
   if (!partValue || !Number.isInteger(part) || part < 1 || part > 3)
     throw invalidRequest();
 
-  const questionId = getSingleText(form, "question_id", 256);
+  // The contract fixes no upper length on the question id, only a non-empty
+  // one. The demo keeps the general text bound so a long id is still bounded
+  // before dispatch; that bound is ours, not the contract's.
+  const questionId = getSingleText(form, "question_id");
   if (!questionId) throw invalidRequest();
   const promptText = getSingleText(form, "prompt_text");
-  const testType = getSingleText(form, "test_type", 32);
-  if (testType !== undefined && testType !== "Practice") throw invalidRequest();
+  const testType = getSingleText(form, "test_type");
+  if (testType !== undefined && !TEST_TYPES.has(testType))
+    throw invalidRequest();
+  const testCode = getSingleText(form, "test_code");
+  const transcript = getSingleText(form, "transcript");
 
   return {
     audio,
     part,
     questionId,
     ...(promptText === undefined ? {} : { promptText }),
+    ...(testType === undefined ? {} : { testType }),
+    ...(testCode === undefined ? {} : { testCode }),
+    ...(transcript === undefined ? {} : { transcript }),
   };
 }
 
@@ -288,19 +310,25 @@ export async function parseSpeakingJsonRequest(
   if (
     typeof questionId !== "string" ||
     !questionId.trim() ||
-    questionId.length > 256
+    questionId.length > MAX_TEXT_BYTES
   ) {
     throw invalidRequest();
   }
   const promptText = optionalJsonText(body, "prompt_text");
-  const testType = body.test_type;
-  if (testType !== undefined && testType !== "Practice") throw invalidRequest();
+  const testType = optionalJsonText(body, "test_type");
+  if (testType !== undefined && testType !== null && !TEST_TYPES.has(testType))
+    throw invalidRequest();
+  const testCode = optionalJsonText(body, "test_code");
+  const transcript = optionalJsonText(body, "transcript");
 
   return {
     audioUrl,
     part,
     questionId,
     ...(promptText === undefined ? {} : { promptText }),
+    ...(testType === undefined ? {} : { testType }),
+    ...(testCode === undefined ? {} : { testCode }),
+    ...(transcript === undefined ? {} : { transcript }),
   };
 }
 
@@ -311,7 +339,11 @@ function toUpstreamForm(request: SpeakingRequest) {
   form.append("question_id", request.questionId);
   if (request.promptText !== undefined)
     form.append("prompt_text", request.promptText);
-  form.append("test_type", "Practice");
+  form.append("test_type", request.testType ?? "Practice");
+  if (request.testCode !== undefined)
+    form.append("test_code", request.testCode);
+  if (request.transcript !== undefined)
+    form.append("transcript", request.transcript);
   return form;
 }
 
@@ -461,7 +493,13 @@ export async function gradeSpeakingByUrl(
       ...(input.promptText === undefined
         ? {}
         : { prompt_text: input.promptText }),
-      test_type: "Practice",
+      test_type: input.testType ?? "Practice",
+      ...(input.testCode === undefined || input.testCode === null
+        ? {}
+        : { test_code: input.testCode }),
+      ...(input.transcript === undefined || input.transcript === null
+        ? {}
+        : { transcript: input.transcript }),
     })
   );
 }

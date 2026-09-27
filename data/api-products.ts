@@ -155,6 +155,14 @@ export const API_CATEGORIES: ApiCategory[] = [
             summary:
               "Nhận audio và trả về transcript, band ước tính cùng feedback theo rubric.",
           },
+          {
+            slug: "speaking-grading-json",
+            name: "Chấm câu trả lời bằng URL audio",
+            method: "POST",
+            path: "/v1/ielts/speaking/grading-json",
+            summary:
+              "Dạng dự phòng khi không thể tải audio lên: nhận URL audio đã ký thay vì tệp tải lên.",
+          },
         ],
       },
     ],
