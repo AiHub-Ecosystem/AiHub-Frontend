@@ -6,7 +6,6 @@ import {
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 import {
   buildSampleRequests,
-  needsIdempotencyKey,
   type SampleRequestKind,
 } from "@/lib/sample-request";
 import type { MintedOrganizationApiKey } from "@/lib/api-keys";
@@ -505,20 +504,6 @@ describe("Speaking Sample request", () => {
   );
 });
 
-describe("Idempotency key", () => {
-  it("is needed only when a Writing Sample request exists", () => {
-    expect(needsIdempotencyKey(mintedKey({ scopes: ["writing.grade"] }))).toBe(
-      true
-    );
-    expect(needsIdempotencyKey(mintedKey({ scopes: ["speaking.grade"] }))).toBe(
-      false
-    );
-    expect(needsIdempotencyKey(mintedKey({ scopes: ["speech.toText"] }))).toBe(
-      false
-    );
-  });
-});
-
 describe("Sandbox Environment", () => {
   const sandboxKey = mintedKey({ allowed_environments: ["sandbox"] });
 
@@ -605,4 +590,30 @@ describe("Sandbox Environment", () => {
       expect(sample?.usageNote).toBe("");
     }
   );
+});
+
+describe("Quickstart", () => {
+  it("builds every Sample request from a listed key, without its raw key", () => {
+    const { api_key: rawKey, ...listedKey } = mintedKey({
+      scopes: ["writing.grade", "speaking.grade"],
+    });
+    const samples = buildSampleRequests({
+      apiKey: listedKey,
+      identityConfigured: false,
+      idempotencyKey,
+    });
+
+    expect(samples.map((sample) => sample.kind)).toEqual([
+      "writing-task1",
+      "writing-task2",
+      "speaking",
+    ]);
+    for (const sample of samples) {
+      expect(sample.command).toContain(
+        `API_KEY="\${API_KEY:?Chạy export API_KEY=<API key của bạn> trước}"`
+      );
+      expect(sample.command).not.toContain(rawKey);
+      expect(sample.command).not.toContain("undefined");
+    }
+  });
 });

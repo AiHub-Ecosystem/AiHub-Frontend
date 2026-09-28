@@ -248,6 +248,29 @@
   font-weight: 650;
 }
 
+a.api-key-action {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.api-key-quickstart-meta {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 16px;
+  margin: 0 0 16px;
+}
+
+.api-key-quickstart-meta dt {
+  color: #475467;
+  font-weight: 650;
+}
+
+.api-key-quickstart-meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .api-key-action--danger {
   border-color: #fda29b;
   color: #b42318;
@@ -313,14 +336,21 @@
   border-top: 1px solid #e4e7ec;
 }
 
-.api-key-sample h3,
-.api-key-sample h4 {
+.api-key-sample h2,
+.api-key-sample h3 {
   margin: 16px 0 8px;
   color: #101828;
 }
 
-.api-key-sample h3 {
+.api-key-sample h2 {
   margin-top: 0;
+  font-size: 22px;
+  text-align: left;
+}
+
+.api-key-sample h3 {
+  font-size: 17px;
+  text-align: left;
 }
 
 .api-key-sample-tabs {
@@ -415,7 +445,7 @@
   gap: 12px;
 }
 
-.api-key-sample-command-heading h4 {
+.api-key-sample-command-heading h3 {
   margin-block: 12px 8px;
 }
 

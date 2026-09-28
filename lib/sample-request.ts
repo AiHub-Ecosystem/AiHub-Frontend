@@ -9,6 +9,7 @@ import {
   SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE,
   type ApiKeyEnvironment,
   type MintedOrganizationApiKey,
+  type OrganizationApiKey,
 } from "@/lib/api-keys";
 
 const WRITING_SCOPE = "writing.grade";
@@ -35,7 +36,18 @@ const ENVIRONMENT_HOSTS: Partial<Record<ApiKeyEnvironment, string>> = {
  */
 const HOST_PREFERENCE: ApiKeyEnvironment[] = ["sandbox", "production"];
 
-function resolveHost(apiKey: MintedOrganizationApiKey): string | null {
+/**
+ * A listed key, or a freshly minted one whose raw key the command can carry.
+ * A Quickstart has only the listed key, so its command reads the raw key from
+ * the holder's environment and stops with a message when it is not set.
+ */
+export type SampleRequestKey = OrganizationApiKey &
+  Partial<Pick<MintedOrganizationApiKey, "api_key">>;
+
+const RAW_KEY_FROM_ENVIRONMENT =
+  'API_KEY="${API_KEY:?Chạy export API_KEY=<API key của bạn> trước}"';
+
+function resolveHost(apiKey: SampleRequestKey): string | null {
   for (const environment of HOST_PREFERENCE) {
     const host = ENVIRONMENT_HOSTS[environment];
     if (host && apiKey.allowed_environments.includes(environment)) return host;
@@ -199,7 +211,7 @@ function resolveIdentity(
       };
 }
 
-function apiKeyHeader(apiKey: MintedOrganizationApiKey): SampleHeader {
+function apiKeyHeader(apiKey: SampleRequestKey): SampleHeader {
   return {
     name: "X-API-Key",
     value: `${apiKey.key_prefix}…`,
@@ -261,7 +273,9 @@ function buildWritingTask1({
   ];
   const command = host
     ? [
-        `API_KEY='${apiKey.api_key}'`,
+        apiKey.api_key
+          ? `API_KEY='${apiKey.api_key}'`
+          : RAW_KEY_FROM_ENVIRONMENT,
         `USER_IDENTITY='${identity.value}'`,
         `IDEMPOTENCY_KEY='${idempotencyKey}'`,
         "",
@@ -339,7 +353,9 @@ function buildWriting({
   ];
   const command = host
     ? [
-        `API_KEY='${apiKey.api_key}'`,
+        apiKey.api_key
+          ? `API_KEY='${apiKey.api_key}'`
+          : RAW_KEY_FROM_ENVIRONMENT,
         `USER_IDENTITY='${identity.value}'`,
         `IDEMPOTENCY_KEY='${idempotencyKey}'`,
         "",
@@ -397,7 +413,9 @@ function buildSpeaking({
   ).map(({ field, formValue }) => `-F "${field}=${formValue}"`);
   const command = host
     ? [
-        `API_KEY='${apiKey.api_key}'`,
+        apiKey.api_key
+          ? `API_KEY='${apiKey.api_key}'`
+          : RAW_KEY_FROM_ENVIRONMENT,
         `USER_IDENTITY='${identity.value}'`,
         "AUDIO_FILE='./answer.wav'",
         "",
@@ -430,7 +448,7 @@ function buildSpeaking({
 }
 
 type BuildContext = {
-  apiKey: MintedOrganizationApiKey;
+  apiKey: SampleRequestKey;
   host: string | null;
   identity: ResolvedIdentity;
   idempotencyKey: string;
@@ -453,7 +471,7 @@ export function buildSampleRequests({
   identityConfigured,
   idempotencyKey,
 }: {
-  apiKey: MintedOrganizationApiKey;
+  apiKey: SampleRequestKey;
   identityConfigured?: boolean;
   idempotencyKey: string;
 }): SampleRequest[] {
@@ -469,7 +487,10 @@ export function buildSampleRequests({
   ).map((entry) => entry.build(context));
 }
 
-/** Only the Writing Sample request carries an Idempotency-Key. */
-export function needsIdempotencyKey(apiKey: MintedOrganizationApiKey): boolean {
-  return apiKey.scopes.includes(WRITING_SCOPE);
+/** An active key with at least one Sample request; see Quickstart in CONTEXT.md. */
+export function hasQuickstart(apiKey: SampleRequestKey): boolean {
+  return (
+    apiKey.status === "active" &&
+    SAMPLE_REQUESTS.some((entry) => apiKey.scopes.includes(entry.scope))
+  );
 }

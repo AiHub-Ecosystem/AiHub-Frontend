@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   apiKeyEnvironmentLabel,
   type OrganizationApiKey,
 } from "@/lib/api-keys";
+import { hasQuickstart } from "@/lib/sample-request";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 function displayDate(value: string | null) {
@@ -18,11 +20,13 @@ function displayDate(value: string | null) {
 export function ApiKeyList({
   apiKeys,
   busy,
+  organizationId,
   onRotate,
   onRevoke,
 }: {
   apiKeys: OrganizationApiKey[];
   busy: boolean;
+  organizationId: string;
   onRotate: (apiKey: OrganizationApiKey) => void;
   onRevoke: (apiKey: OrganizationApiKey) => Promise<boolean>;
 }) {
@@ -94,6 +98,14 @@ export function ApiKeyList({
                   <td>{displayDate(apiKey.created_at)}</td>
                   <td>
                     <div className="api-key-row-actions">
+                      {hasQuickstart(apiKey) && (
+                        <Link
+                          className="api-key-action"
+                          href={`/console/orgs/${encodeURIComponent(organizationId)}/api-keys/${encodeURIComponent(apiKey.id)}/quickstart`}
+                        >
+                          Gọi thử
+                        </Link>
+                      )}
                       {apiKey.status === "active" && (
                         <button
                           className="api-key-action"

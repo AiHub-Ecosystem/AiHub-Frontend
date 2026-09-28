@@ -20,6 +20,7 @@ let organizationConfig = {
   rotateKeyUncertainOnce: false,
   apiKeyLimitReached: false,
   apiKeyEntitlementDenied: false,
+  apiKeyListUnavailable: false,
   identityConfigs: {},
 };
 const createdOrganizations = new Map();
@@ -112,6 +113,7 @@ const server = createServer(async (request, response) => {
       rotateKeyUncertainOnce: false,
       apiKeyLimitReached: false,
       apiKeyEntitlementDenied: false,
+      apiKeyListUnavailable: false,
       identityConfigs: {},
     };
     uncertainCreationUsed = false;
@@ -280,6 +282,12 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "GET") {
       organizationRequests.push({ method: "GET", path: "list-api-keys" });
+      if (organizationConfig.apiKeyListUnavailable) {
+        sendJson(response, 503, {
+          error: { code: "SERVICE_UNAVAILABLE", message: "private detail" },
+        });
+        return;
+      }
       sendJson(response, 200, {
         data: {
           api_keys: (organizationConfig.apiKeys ?? []).filter(

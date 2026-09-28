@@ -857,3 +857,230 @@ test("members and suspended Organizations never request the API-key list", async
     )
   ).toHaveLength(0);
 });
+
+test("a key's Quickstart lists its Sample requests without its raw key", async ({
+  page,
+  request,
+}) => {
+  await setup(request);
+  await signIn(page);
+  await page
+    .getByRole("row", { name: /Production backend/ })
+    .getByRole("link", { name: "Gọi thử" })
+    .click();
+
+  await expect(page).toHaveURL(
+    /\/console\/orgs\/org-keys-12345678\/api-keys\/ak_01J00000000000000000000000\/quickstart$/
+  );
+  await expect(
+    page.getByRole("heading", { name: "Production backend · Quickstart" })
+  ).toBeVisible();
+  await expect(
+    page.getByText("aihub_sk_ABC123", { exact: true })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("tablist", { name: "Sample requests" }).getByRole("tab")
+  ).toHaveText(["Writing Task 1", "Writing Task 2"]);
+  const task1 = page.getByRole("tabpanel", { name: "Writing Task 1" });
+  await expect(task1.getByTestId("sample-request-command")).toContainText(
+    `API_KEY="\${API_KEY:?Chạy export API_KEY=<API key của bạn> trước}"`
+  );
+  await expect(task1.getByTestId("sample-request-command")).toContainText(
+    "https://api.aihubproduction.com/v1/ielts/writing/task1/grade"
+  );
+
+  await page.getByRole("link", { name: "← API keys" }).click();
+  await expect(page).toHaveURL(/\/console\/orgs\/org-keys-12345678\/api-keys$/);
+});
+
+const quickstartKeys = [
+  {
+    id: "ak_01J00000000000000000000000",
+    name: "Production backend",
+    key_prefix: "aihub_sk_ABC123",
+    scopes: ["writing.grade"],
+    allowed_environments: ["production"],
+    status: "active",
+    expires_at: null,
+    last_used_at: null,
+    created_at: "2026-09-20T10:00:00.000Z",
+  },
+  {
+    id: "ak_01J00000000000000000000001",
+    name: "Expired writing key",
+    key_prefix: "aihub_sk_DEF456",
+    scopes: ["writing.grade"],
+    allowed_environments: ["production"],
+    status: "expired",
+    expires_at: "2026-09-21T10:00:00.000Z",
+    last_used_at: null,
+    created_at: "2026-08-20T10:00:00.000Z",
+  },
+  {
+    id: "ak_01J00000000000000000000004",
+    name: "Unknown scope key",
+    key_prefix: "aihub_sk_UNKNWN",
+    scopes: ["speech.toText"],
+    allowed_environments: ["production"],
+    status: "active",
+    expires_at: null,
+    last_used_at: null,
+    created_at: "2026-09-20T10:00:00.000Z",
+  },
+  {
+    id: "ak_01J00000000000000000000003",
+    name: "Staging backend",
+    key_prefix: "aihub_sk_STAGE1",
+    scopes: ["writing.grade"],
+    allowed_environments: ["staging"],
+    status: "active",
+    expires_at: null,
+    last_used_at: null,
+    created_at: "2026-09-20T10:00:00.000Z",
+  },
+  {
+    id: "ak_01J00000000000000000000009",
+    name: "Revoked backend",
+    key_prefix: "aihub_sk_REVOKD",
+    scopes: ["writing.grade"],
+    allowed_environments: ["production"],
+    status: "revoked",
+    expires_at: null,
+    last_used_at: null,
+    created_at: "2026-09-20T10:00:00.000Z",
+  },
+];
+
+function quickstartPath(apiKeyId: string) {
+  return `/console/orgs/org-keys-12345678/api-keys/${apiKeyId}/quickstart`;
+}
+
+test("only an active key with a Sample request offers a Quickstart", async ({
+  page,
+  request,
+}) => {
+  await setup(request, { apiKeys: quickstartKeys });
+  await signIn(page);
+
+  const table = page.getByRole("table", { name: "API keys" });
+  await expect(table.getByRole("link", { name: "Gọi thử" })).toHaveCount(2);
+  for (const name of ["Production backend", "Staging backend"])
+    await expect(
+      table
+        .getByRole("row", { name: new RegExp(name) })
+        .getByRole("link", { name: "Gọi thử" })
+    ).toBeVisible();
+
+  for (const apiKeyId of [
+    "ak_01J00000000000000000000001", // expired
+    "ak_01J00000000000000000000004", // no Sample request
+    "ak_01J00000000000000000000009", // revoked
+    "ak_01J0000000000000000000ZZZZ", // unknown, or another Organization's
+  ]) {
+    const response = await page.goto(quickstartPath(apiKeyId));
+    expect(response?.status(), apiKeyId).toBe(404);
+    await expect(page.getByTestId("sample-request-command")).toHaveCount(0);
+  }
+});
+
+test("an unreadable key inventory is not mistaken for a missing key", async ({
+  page,
+  request,
+}) => {
+  await setup(request, {
+    apiKeys: quickstartKeys,
+    apiKeyListUnavailable: true,
+  });
+  await signIn(page, false);
+
+  const response = await page.goto(
+    quickstartPath("ak_01J00000000000000000000000")
+  );
+  expect(response?.status()).toBe(200);
+  await expect(
+    page.getByRole("heading", { name: "Không thể tải API keys" })
+  ).toBeVisible();
+  await expect(page.getByTestId("sample-request-command")).toHaveCount(0);
+});
+
+test("members and suspended Organizations are denied a Quickstart", async ({
+  page,
+  request,
+}) => {
+  for (const options of [
+    { membershipRole: "member" },
+    { membershipRole: "owner", organizationStatus: "suspended" },
+  ]) {
+    await setup(request, { ...options, apiKeys: quickstartKeys });
+    await signIn(page, false);
+    await page.goto(quickstartPath("ak_01J00000000000000000000000"));
+    await expect(page).toHaveURL(/\/console\/orgs\/denied$/);
+  }
+  const requests = await request
+    .get(`${mockUrl}/__test__/organizations/requests`)
+    .then((result) => result.json());
+  expect(
+    requests.requests.filter(
+      (entry: { path: string }) => entry.path === "list-api-keys"
+    )
+  ).toHaveLength(0);
+});
+
+test("a Sandbox key's Quickstart targets the Sandbox host", async ({
+  page,
+  request,
+}) => {
+  await setup(request, {
+    apiKeys: [
+      {
+        ...quickstartKeys[0],
+        name: "Sandbox backend",
+        allowed_environments: ["sandbox"],
+      },
+    ],
+  });
+  await signIn(page, false);
+  await page.goto(quickstartPath("ak_01J00000000000000000000000"));
+
+  await expect(page.getByText("Sandbox (miễn phí)")).toBeVisible();
+  const task1 = page.getByRole("tabpanel", { name: "Writing Task 1" });
+  await expect(task1.getByTestId("sample-request-command")).toContainText(
+    "https://sandbox.aihubproduction.com/v1/ielts/writing/task1/grade"
+  );
+  await expect(task1.getByText(/25 lần chấm mỗi tháng/)).toBeVisible();
+});
+
+test("a staging-only key's Quickstart explains there is no host to call", async ({
+  page,
+  request,
+}) => {
+  await setup(request, { apiKeys: quickstartKeys });
+  await signIn(page);
+  await page
+    .getByRole("row", { name: /Staging backend/ })
+    .getByRole("link", { name: "Gọi thử" })
+    .click();
+
+  const task1 = page.getByRole("tabpanel", { name: "Writing Task 1" });
+  await expect(
+    task1.getByText(/AIHUB chưa có staging host công khai/)
+  ).toBeVisible();
+  await expect(page.getByTestId("sample-request-command")).toHaveCount(0);
+  await expect(page.getByText(/tính vào hạn mức sử dụng/)).toHaveCount(0);
+});
+
+test("a Quickstart fits a phone without horizontal page scroll", async ({
+  page,
+  request,
+}) => {
+  await setup(request, { apiKeys: quickstartKeys });
+  await signIn(page, false);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(quickstartPath("ak_01J00000000000000000000000"));
+
+  await expect(page.getByTestId("sample-request-command")).toBeVisible();
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+});

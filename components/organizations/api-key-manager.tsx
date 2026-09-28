@@ -324,6 +324,7 @@ export function ApiKeyManager({
       ) : (
         <ApiKeyList
           apiKeys={apiKeys}
+          organizationId={organizationId}
           busy={busyAction !== null}
           onRevoke={revokeApiKey}
           onRotate={rotateApiKey}

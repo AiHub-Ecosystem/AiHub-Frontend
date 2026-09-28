@@ -31,7 +31,7 @@ A **Sample request** (see `CONTEXT.md`) is shown inside `ApiKeyRevealDialog`, af
   4. Expected outcome: `200` with a trimmed response (`overall_band`, `criteria`, `summary` for Writing), and the common failures `401 UNAUTHORIZED`, `401 INVALID_USER_IDENTITY`, `403 FORBIDDEN`, `403 ENVIRONMENT_NOT_ALLOWED`, `429 RATE_LIMITED` / `QUOTA_EXCEEDED`.
   5. The `curl` command with the full raw key inline, and a "Sao chép lệnh" button. The command is for a bash-compatible shell, stated next to the button.
 - **Usage warning**, one line, chosen by the Environment. For a `production` key, the command makes a real call counted against the Organization's usage. For a `sandbox` key, the call is free and is not counted against the Organization's paid usage, and it is bounded by a monthly allowance. The Sandbox allowance is static copy: the backend does not expose it (ADR-0009).
-- **Lifetime.** The Sample request is derived from the in-memory minted key and discarded with it when the dialog closes. Nothing is written to storage, logs, analytics, or URLs.
+- **Lifetime.** The Sample request is derived from the in-memory minted key and discarded with it when the dialog closes. Nothing is written to storage, logs, analytics, or URLs. Since #39 the same Sample requests are also served, without the raw key, on the key's Quickstart page for as long as the key is active.
 
 ### Writing Scoring catalog
 
