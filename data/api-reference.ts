@@ -3,7 +3,11 @@ import {
   WRITING_TASK1_IMAGE_NOTE,
   WRITING_TASK1_REQUEST,
 } from "@/data/writing-task1-request";
-import { SPEAKING_SAMPLE_QUESTION } from "@/data/speaking-question";
+import {
+  SPEAKING_CATALOG_EXAMPLE,
+  SPEAKING_SAMPLE_QUESTION,
+  speakingQuestionAudioUrlExample,
+} from "@/data/speaking-question";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 
 export { WRITING_TASK2_REQUEST };
@@ -1070,22 +1074,10 @@ const SPEAKING_GRADING_RESPONSE = {
 const SPEAKING_QUESTIONS_RESPONSE = {
   data: {
     part: 1,
-    questions: [
-      {
-        question_id: SPEAKING_SAMPLE_QUESTION.question_id,
-        part: 1,
-        prompt_text: SPEAKING_SAMPLE_QUESTION.prompt_text,
-        audio_url:
-          "https://s3.wispace.app/aihub-speaking-samples/speaking-samples/part-1/do-you-enjoy-living-in-your-city-or-hometown.webm?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-Signature=…",
-      },
-      {
-        question_id: "p1_how-often-do-you-use-public-transport",
-        part: 1,
-        prompt_text: "How often do you use public transport?",
-        audio_url:
-          "https://s3.wispace.app/aihub-speaking-samples/speaking-samples/part-1/how-often-do-you-use-public-transport.webm?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-Signature=…",
-      },
-    ],
+    questions: SPEAKING_CATALOG_EXAMPLE.map((question) => ({
+      ...question,
+      audio_url: speakingQuestionAudioUrlExample(question),
+    })),
   },
   meta: {
     request_id: "req_01M23NT8MJW22AYX6FVT17F5XF",
@@ -1107,8 +1099,8 @@ function speakingGradingFields(audioField: SchemaField): SchemaField[] {
       name: "part",
       type: "integer",
       required: true,
-      sampleValue: "1",
-      formValue: "1",
+      sampleValue: String(SPEAKING_SAMPLE_QUESTION.part),
+      formValue: String(SPEAKING_SAMPLE_QUESTION.part),
       description: "Part của bài Speaking: 1, 2 hoặc 3.",
     },
     {
@@ -1269,11 +1261,11 @@ export const SPEAKING_REFERENCE: Record<string, EndpointReference> = {
     ],
     requestExample: null,
     responseDescription:
-      "Envelope { data, meta } của AIHUB. data.part là Part đã lọc, data.questions là danh sách câu hỏi, mỗi câu có question_id, part, prompt_text và audio_url mẫu nghe trên s3.wispace.app. Lấy question_id từ đây để gửi kèm lúc chấm. Ví dụ rút gọn: audio_url thật còn nhiều tham số ký nữa.",
+      "Envelope { data, meta } của AIHUB. data.part là Part đã lọc, data.questions là danh sách câu hỏi, mỗi câu có question_id, part, prompt_text và audio_url là giọng giám khảo đọc câu hỏi trên s3.wispace.app. Lấy question_id từ đây để gửi kèm lúc chấm. Ví dụ rút gọn: audio_url thật còn nhiều tham số ký nữa.",
     responseExample: SPEAKING_QUESTIONS_RESPONSE,
     notes: [
-      SPEAKING_ILLUSTRATIVE_NOTE,
-      "audio_url là giọng giáo viên đọc câu hỏi, không phải câu trả lời. Đừng gửi nó đi chấm. URL này được ký và hết hạn sau 15 phút, nên lấy lại danh mục thay vì lưu URL.",
+      "question_id và prompt_text trong ví dụ là câu hỏi thật trong danh mục; audio_url được rút gọn.",
+      "audio_url là giọng giám khảo đọc câu hỏi, không phải câu trả lời. Đừng gửi nó đi chấm. URL này được ký và hết hạn sau 15 phút, nên lấy lại danh mục thay vì lưu URL.",
       "Endpoint này không phải là user-scoped: không cần X-User-Identity, và lượt gọi không được báo cáo dưới bất kỳ End-User ID nào.",
       "Endpoint này không yêu cầu X-API-Key và không giới hạn theo API key scope.",
     ],

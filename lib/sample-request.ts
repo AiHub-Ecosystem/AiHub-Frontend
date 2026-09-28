@@ -265,8 +265,8 @@ const SPEAKING_FORM_FIELDS: SpeakingFormField[] = [
   },
   {
     field: "part",
-    formValue: "1",
-    sampleValue: "1",
+    formValue: String(SPEAKING_SAMPLE_QUESTION.part),
+    sampleValue: String(SPEAKING_SAMPLE_QUESTION.part),
     required: true,
     sendsInSample: true,
     meaning: "Phần của bài Speaking: 1, 2 hoặc 3.",

@@ -512,7 +512,7 @@ test("Speaking questions reference carries no User Identity header", async ({
   await expect(endpointNotes(page)).toContainText("không phải");
 });
 
-test("Speaking questions response example shows the real catalog", async ({
+test("Speaking questions response example names real Speaking questions with signed examiner audio", async ({
   page,
 }) => {
   await page.goto("/product/speaking/api/speaking-questions");
@@ -538,10 +538,12 @@ test("Speaking questions warns the question audio is not an answer to grade", as
   await page.goto("/product/speaking/api/speaking-questions");
 
   const notes = endpointNotes(page);
-  await expect(notes).toContainText("giáo viên đọc câu hỏi");
-  await expect(notes).toContainText("15 phút");
+  await expect(notes).toContainText("giám khảo đọc câu hỏi");
   await expect(notes).toContainText("không phải câu trả lời");
-  await expect(notes).toContainText("Đừng gửi nó đi chấm");
+  await expect(notes).toContainText("15 phút");
+  // The catalog example is real data, so the grading pages' "illustrative"
+  // note does not belong here.
+  await expect(notes).not.toContainText("minh hoạ");
 });
 
 test("Speaking URL fallback states the host AIHUB will accept", async ({
