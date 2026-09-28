@@ -8,7 +8,7 @@ import {
   readOrganizationRoster,
 } from "@/lib/organization-server";
 import { apiKeyEnvironmentLabel } from "@/lib/api-keys";
-import { hasQuickstart } from "@/lib/sample-request";
+import { hasQuickstart, quickstartPath } from "@/lib/sample-request";
 import { SessionActivity } from "@/components/session-activity";
 import { RosterUnavailable } from "@/components/organizations/roster-unavailable";
 import { SampleRequests } from "@/components/organizations/sample-requests";
@@ -25,7 +25,7 @@ export default async function ApiKeyQuickstartPage({
   const { organizationId, apiKeyId } = await params;
   const apiKeysPath = `/console/orgs/${encodeURIComponent(organizationId)}/api-keys`;
   const sessionId = await requirePageWebSession(
-    `${apiKeysPath}/${encodeURIComponent(apiKeyId)}/quickstart`
+    quickstartPath(organizationId, apiKeyId)
   );
   const roster = await readOrganizationRoster(sessionId);
   if (!roster) return <RosterUnavailable />;

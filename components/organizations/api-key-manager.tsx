@@ -33,11 +33,9 @@ function networkErrorMessage(action: "create" | "rotate") {
 export function ApiKeyManager({
   organizationId,
   entitlements,
-  identityConfigured,
 }: {
   organizationId: string;
   entitlements: string[];
-  identityConfigured?: boolean;
 }) {
   const router = useRouter();
   const [apiKeys, setApiKeys] = useState<OrganizationApiKey[]>([]);
@@ -96,6 +94,8 @@ export function ApiKeyManager({
       if (!(target instanceof Element)) return;
       const anchor = target.closest("a[href]");
       if (!(anchor instanceof HTMLAnchorElement)) return;
+      // A new tab leaves this page, and the raw key on it, where it is.
+      if (anchor.target === "_blank") return;
       const destination = new URL(anchor.href, window.location.href);
       if (
         destination.origin === window.location.origin &&
@@ -333,7 +333,7 @@ export function ApiKeyManager({
 
       <ApiKeyRevealDialog
         apiKey={revealedKey}
-        identityConfigured={identityConfigured}
+        organizationId={organizationId}
         key={revealedKey?.id ?? "closed"}
         onClose={() => setRevealedKey(null)}
         onCopyError={() =>

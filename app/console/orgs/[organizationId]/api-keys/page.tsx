@@ -55,7 +55,6 @@ export default async function OrganizationApiKeysPage({
           <IdentityReadinessNotice organization={organization} />
           <ApiKeyManager
             entitlements={organization.entitlements}
-            identityConfigured={organization.identityConfigured}
             organizationId={organization.id}
           />
         </div>

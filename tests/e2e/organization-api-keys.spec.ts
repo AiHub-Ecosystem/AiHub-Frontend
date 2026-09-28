@@ -76,12 +76,17 @@ async function setup(
   });
 }
 
-/** The reveal dialog opens on the first request; Task 2 is not first. */
-async function showWritingTask2(page: Page) {
-  await page
-    .getByRole("tablist", { name: "Sample requests" })
-    .getByRole("tab", { name: "Writing Task 2" })
-    .click();
+/** Follows the reveal dialog's link, which opens the Quickstart in a new tab. */
+async function openQuickstartFromDialog(page: Page) {
+  const [quickstart] = await Promise.all([
+    page.waitForEvent("popup"),
+    page
+      .getByRole("dialog", { name: "API key mới" })
+      .getByRole("link", { name: /Gọi thử key này/ })
+      .click(),
+  ]);
+  await quickstart.waitForLoadState();
+  return quickstart;
 }
 
 async function signIn(page: Page, openApiKeys = true) {
@@ -218,37 +223,29 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   const rawKey = await page.getByTestId("api-key-raw").textContent();
   expect(rawKey).toMatch(/^aihub_sk_[A-Za-z0-9]{43}$/);
   rawKeyToWatch = rawKey ?? "";
-  await showWritingTask2(page);
-  const sample = dialog.getByRole("tabpanel", { name: "Writing Task 2" });
-  await expect(sample).toBeVisible();
-  await expect(sample.getByText("test-user-1", { exact: true })).toBeVisible();
-  const headers = sample.getByRole("table", {
-    name: "Writing Task 2 request headers",
-  });
-  const apiKeyHeader = headers.getByRole("row", { name: /X-API-Key/ });
-  await expect(apiKeyHeader).toContainText("aihub_sk_ABC123…");
-  await expect(apiKeyHeader).not.toContainText(rawKey ?? "");
-  const idempotencyKey = await headers
-    .getByRole("row", { name: /Idempotency-Key/ })
-    .locator("td")
-    .first()
-    .textContent();
-  expect(idempotencyKey).toMatch(
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-  );
-  const command = await sample
-    .getByTestId("sample-request-command")
-    .textContent();
-  expect(command).toContain(rawKey);
-  expect(command).toContain(`IDEMPOTENCY_KEY='${idempotencyKey}'`);
-  await expect(sample.getByText(/tính vào hạn mức sử dụng/)).toBeVisible();
+  await expect(dialog.getByText(/chỉ hiển thị lần này/)).toBeVisible();
+  await expect(
+    dialog.getByRole("tablist", { name: "Sample requests" })
+  ).toHaveCount(0);
   const requestsBeforeCopy = apiRequestCount;
-  await sample.getByRole("button", { name: "Sao chép lệnh" }).click();
+  await dialog.getByRole("button", { name: "Sao chép key" }).click();
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
-  expect(clipboard.replaceAll("\r\n", "\n")).toBe(
-    command?.replaceAll("\r\n", "\n")
-  );
+  expect(clipboard).toBe(rawKey);
   expect(apiRequestCount).toBe(requestsBeforeCopy);
+
+  const quickstart = await openQuickstartFromDialog(page);
+  await expect(quickstart).toHaveURL(
+    /\/console\/orgs\/org-keys-12345678\/api-keys\/ak_[0-9]+\/quickstart$/
+  );
+  await expect(
+    quickstart.getByRole("heading", { name: "New service key · Quickstart" })
+  ).toBeVisible();
+  expect(quickstart.url()).not.toContain(rawKey);
+  expect(await quickstart.content()).not.toContain(rawKey);
+  await quickstart.close();
+  // Following the link never costs the holder their key.
+  await expect(dialog).toBeVisible();
+  await expect(page.getByTestId("api-key-raw")).toHaveText(rawKey ?? "");
   expect(requestContainsRawKey).toBe(false);
   await expect(
     page.getByRole("row", { name: /New service key/ })
@@ -259,7 +256,6 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
     .then((result) => result.json());
   expect(JSON.stringify(requests)).not.toContain(rawKey);
   await page.getByRole("button", { name: "Đóng" }).click();
-  await expect(page.getByTestId("sample-request-command")).toHaveCount(0);
   await expect(page.getByTestId("api-key-raw")).toHaveCount(0);
   const browserStorageAfterClose = await page.evaluate(() =>
     JSON.stringify({ local: localStorage, session: sessionStorage })
@@ -271,16 +267,6 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
     .click();
   const rotatedRawKey = `aihub_sk_${"B".repeat(43)}`;
   await expect(page.getByTestId("api-key-raw")).toHaveText(rotatedRawKey);
-  // The dialog reopens on the first request, which is now Task 1.
-  await expect(
-    page.getByRole("tabpanel", { name: "Writing Task 1" })
-  ).toBeVisible();
-  const rotatedCommand = await page
-    .getByTestId("sample-request-command")
-    .textContent();
-  expect(rotatedCommand).toContain("task1/grade");
-  expect(rotatedCommand).toContain(rotatedRawKey);
-  expect(rotatedCommand).not.toContain(rawKey);
   await page.getByRole("button", { name: "Đóng" }).click();
   await page.reload();
   await expect(page.getByTestId("api-key-raw")).toHaveCount(0);
@@ -319,7 +305,7 @@ test("a key holding writing.grade shows a Task 1 request beside Task 2", async (
   await signIn(page);
   await page
     .getByRole("row", { name: /Writing backend/ })
-    .getByRole("button", { name: "Xoay key" })
+    .getByRole("link", { name: "Gọi thử" })
     .click();
 
   const tablist = page.getByRole("tablist", { name: "Sample requests" });
@@ -380,13 +366,24 @@ test("a key holding both scopes shows one tab per request, Writing first", async
   page,
   request,
 }) => {
-  await setup(request, { apiKeys: [], entitlements: ["writing", "speaking"] });
-  await signIn(page);
-  await page.getByText("Tạo API key", { exact: true }).click();
-  await page.getByLabel("Tên API key").fill("Both scopes key");
-  await page.locator('input[name="scopes"][value="writing.grade"]').check();
-  await page.locator('input[name="scopes"][value="speaking.grade"]').check();
-  await page.getByRole("button", { name: "Tạo key" }).click();
+  await setup(request, {
+    apiKeys: [
+      {
+        id: "ak_01J00000000000000000000007",
+        name: "Both scopes key",
+        key_prefix: "aihub_sk_BOTH12",
+        scopes: ["writing.grade", "speaking.grade"],
+        allowed_environments: ["production"],
+        status: "active",
+        expires_at: null,
+        last_used_at: null,
+        created_at: "2026-09-20T10:00:00.000Z",
+      },
+    ],
+    entitlements: ["writing", "speaking"],
+  });
+  await signIn(page, false);
+  await page.goto(quickstartPath("ak_01J00000000000000000000007"));
 
   const tablist = page.getByRole("tablist", { name: "Sample requests" });
   await expect(tablist.getByRole("tab")).toHaveText([
@@ -531,7 +528,7 @@ test("a key holding only speaking.grade shows only the Speaking tab", async ({
   await signIn(page);
   await page
     .getByRole("row", { name: /Speaking backend/ })
-    .getByRole("button", { name: "Xoay key" })
+    .getByRole("link", { name: "Gọi thử" })
     .click();
 
   const tablist = page.getByRole("tablist", { name: "Sample requests" });
@@ -543,7 +540,7 @@ test("a key holding only speaking.grade shows only the Speaking tab", async ({
   ).toContainText("question_id");
 });
 
-test("a key with no scope that has a known endpoint shows no Sample request", async ({
+test("a revealed key with no Sample request offers no Quickstart", async ({
   page,
   request,
 }) => {
@@ -572,7 +569,7 @@ test("a key with no scope that has a known endpoint shows no Sample request", as
   await expect(
     page.getByRole("tablist", { name: "Sample requests" })
   ).toHaveCount(0);
-  await expect(page.getByText("Gọi thử", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Gọi thử/ })).toHaveCount(0);
 });
 
 test("create timeout refreshes the list without automatically retrying", async ({
@@ -604,12 +601,9 @@ test("active identity configuration uses a signed User Assertion in the sample",
   page,
   request,
 }) => {
-  await setup(request, { apiKeys: [], identityConfigured: true });
-  await signIn(page);
-  await page.getByText("Tạo API key", { exact: true }).click();
-  await page.getByLabel("Tên API key").fill("Signed identity key");
-  await page.locator('input[name="scopes"][value="writing.grade"]').check();
-  await page.getByRole("button", { name: "Tạo key" }).click();
+  await setup(request, { identityConfigured: true });
+  await signIn(page, false);
+  await page.goto(quickstartPath("ak_01J00000000000000000000000"));
 
   await page
     .getByRole("tablist", { name: "Sample requests" })
@@ -648,18 +642,17 @@ test("rotation reveals a new key once and sends no idempotency key", async ({
   await expect(page.getByTestId("api-key-raw")).toHaveText(
     `aihub_sk_${"B".repeat(43)}`
   );
-  await showWritingTask2(page);
-  const sample = page.getByRole("tabpanel", { name: "Writing Task 2" });
-  await expect(sample).toBeVisible();
-  const headers = sample.getByRole("table", {
-    name: "Writing Task 2 request headers",
-  });
+  const quickstart = await openQuickstartFromDialog(page);
+  // The replacement's Quickstart, not the revoked key's not-found.
   await expect(
-    headers.getByRole("row", { name: /X-User-Identity/ })
-  ).toContainText("test-user-1");
-  await expect(sample.getByTestId("sample-request-command")).toContainText(
-    `aihub_sk_${"B".repeat(43)}`
-  );
+    quickstart.getByRole("heading", { name: "Production backend · Quickstart" })
+  ).toBeVisible();
+  await expect(
+    quickstart.getByText("aihub_sk_ROTATE", { exact: true })
+  ).toBeVisible();
+  expect(quickstart.url()).not.toContain("ak_01J00000000000000000000000");
+  await quickstart.close();
+  await expect(page.getByTestId("api-key-raw")).toBeVisible();
   await expect(oldKeyRow).toHaveCount(0);
   const replacement = page.getByRole("row", { name: /Production backend/ });
   await expect(replacement).toContainText("aihub_sk_ROTATE");
@@ -677,43 +670,6 @@ test("rotation reveals a new key once and sends no idempotency key", async ({
   await page.getByRole("button", { name: "Đóng" }).click();
   await expect(page.getByTestId("api-key-raw")).toHaveCount(0);
   await expect(replacement).toBeVisible();
-});
-
-test("staging-only rotation shows a note instead of a command", async ({
-  page,
-  request,
-}) => {
-  await setup(request, {
-    apiKeys: [
-      {
-        id: "ak_01J00000000000000000000002",
-        name: "Staging backend",
-        key_prefix: "aihub_sk_STAGING",
-        scopes: ["writing.grade"],
-        allowed_environments: ["staging"],
-        status: "active",
-        expires_at: null,
-        last_used_at: null,
-        created_at: "2026-09-20T10:00:00.000Z",
-      },
-    ],
-  });
-  await signIn(page);
-  await page
-    .getByRole("row", { name: /Staging backend/ })
-    .getByRole("button", { name: "Xoay key" })
-    .click();
-
-  await showWritingTask2(page);
-  await expect(
-    page.getByRole("tabpanel", { name: "Writing Task 2" })
-  ).toBeVisible();
-  await expect(
-    page.getByText(/AIHUB chưa có staging host công khai/)
-  ).toBeVisible();
-  await expect(page.getByTestId("sample-request-command")).toHaveCount(0);
-  // A key with no runnable command must not be warned about a cost.
-  await expect(page.getByText(/tính vào hạn mức sử dụng/)).toHaveCount(0);
 });
 
 test("the create form offers no Environment and warns every call is billed", async ({
@@ -744,7 +700,7 @@ test("closing the create form discards the scopes", async ({
   ).not.toBeChecked();
 });
 
-test("rotating a Sandbox key keeps the Sandbox Sample request", async ({
+test("rotating a Sandbox key keeps a Sandbox Quickstart", async ({
   page,
   request,
 }) => {
@@ -768,24 +724,14 @@ test("rotating a Sandbox key keeps the Sandbox Sample request", async ({
   await expect(row).toContainText("Sandbox (miễn phí)");
   await row.getByRole("button", { name: "Xoay key" }).click();
 
-  await showWritingTask2(page);
-  const sample = page.getByRole("tabpanel", { name: "Writing Task 2" });
-  await expect(sample).toBeVisible();
-  await expect(sample.getByTestId("sample-request-command")).toContainText(
-    "sandbox.aihubproduction.com"
-  );
-  await expect(
-    sample.getByText(/miễn phí và không tính vào hạn mức trả phí/)
-  ).toBeVisible();
-  const task1 = page.getByRole("tabpanel", { name: "Writing Task 1" });
-  await expect(task1).toHaveCount(0);
-  await page
-    .getByRole("tablist", { name: "Sample requests" })
-    .getByRole("tab", { name: "Writing Task 1" })
-    .click();
+  const quickstart = await openQuickstartFromDialog(page);
+  const task1 = quickstart.getByRole("tabpanel", { name: "Writing Task 1" });
   await expect(task1.getByTestId("sample-request-command")).toContainText(
     "sandbox.aihubproduction.com"
   );
+  await expect(
+    task1.getByText(/miễn phí và không tính vào hạn mức trả phí/)
+  ).toBeVisible();
 });
 
 test("rotation timeout lists its replacement so it can be rotated again", async ({

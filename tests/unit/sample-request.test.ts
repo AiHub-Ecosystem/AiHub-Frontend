@@ -284,7 +284,9 @@ describe("Writing Sample request", () => {
         },
       ],
     });
-    expect(sample?.command).toContain(`API_KEY='${apiKey.api_key}'`);
+    expect(sample?.command).toContain(
+      `API_KEY="\${API_KEY:?Chạy export API_KEY=<API key của bạn> trước}"`
+    );
     expect(sample?.command).toContain(`Idempotency-Key: \${IDEMPOTENCY_KEY}`);
     expect(sample?.command).toContain(
       JSON.stringify(WRITING_TASK2_REQUEST, null, 2)
@@ -592,13 +594,11 @@ describe("Sandbox Environment", () => {
   );
 });
 
-describe("Quickstart", () => {
-  it("builds every Sample request from a listed key, without its raw key", () => {
-    const { api_key: rawKey, ...listedKey } = mintedKey({
-      scopes: ["writing.grade", "speaking.grade"],
-    });
+describe("Raw key", () => {
+  it("never appears in a Sample request, even one built from a freshly minted key", () => {
+    const apiKey = mintedKey({ scopes: ["writing.grade", "speaking.grade"] });
     const samples = buildSampleRequests({
-      apiKey: listedKey,
+      apiKey,
       identityConfigured: false,
       idempotencyKey,
     });
@@ -609,11 +609,11 @@ describe("Quickstart", () => {
       "speaking",
     ]);
     for (const sample of samples) {
+      expect(JSON.stringify(sample)).not.toContain(apiKey.api_key);
+      expect(sample.command).not.toContain("undefined");
       expect(sample.command).toContain(
         `API_KEY="\${API_KEY:?Chạy export API_KEY=<API key của bạn> trước}"`
       );
-      expect(sample.command).not.toContain(rawKey);
-      expect(sample.command).not.toContain("undefined");
     }
   });
 });

@@ -2,16 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MintedOrganizationApiKey } from "@/lib/api-keys";
-import { SampleRequests } from "@/components/organizations/sample-requests";
+import { hasQuickstart, quickstartPath } from "@/lib/sample-request";
 
 export function ApiKeyRevealDialog({
   apiKey,
-  identityConfigured,
+  organizationId,
   onClose,
   onCopyError,
 }: {
   apiKey: MintedOrganizationApiKey | null;
-  identityConfigured?: boolean;
+  organizationId: string;
   onClose: () => void;
   onCopyError: () => void;
 }) {
@@ -67,19 +67,22 @@ export function ApiKeyRevealDialog({
             >
               {copied ? "Đã sao chép" : "Sao chép key"}
             </button>
-            <button
-              className="auth-submit api-key-dialog-close"
-              onClick={onClose}
-              type="button"
-            >
+            {hasQuickstart(apiKey) && (
+              // A new tab keeps this dialog, and the raw key, on screen.
+              <a
+                aria-label="Gọi thử key này (mở tab mới)"
+                className="auth-submit api-key-dialog-primary"
+                href={quickstartPath(organizationId, apiKey.id)}
+                rel="noopener"
+                target="_blank"
+              >
+                Gọi thử key này →
+              </a>
+            )}
+            <button className="api-key-action" onClick={onClose} type="button">
               Đóng
             </button>
           </div>
-          <SampleRequests
-            apiKey={apiKey}
-            identityConfigured={identityConfigured}
-            onCopyError={onCopyError}
-          />
         </>
       )}
     </dialog>

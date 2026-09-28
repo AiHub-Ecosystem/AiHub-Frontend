@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import type { OrganizationApiKey } from "@/lib/api-keys";
 import {
   buildSampleRequests,
-  type SampleRequestKey,
   type SampleRequestKind,
 } from "@/lib/sample-request";
 
@@ -16,23 +16,16 @@ const TAB_OFFSETS = new Map<string, number>([
 export function SampleRequests({
   apiKey,
   identityConfigured,
-  idempotencyKey: initialIdempotencyKey,
-  onCopyError,
+  idempotencyKey,
 }: {
-  apiKey: SampleRequestKey;
+  apiKey: OrganizationApiKey;
   identityConfigured?: boolean;
-  /** Required when rendered on the server; one per page load. */
-  idempotencyKey?: string;
-  /** Without one, the copy failure is reported beside the command. */
-  onCopyError?: () => void;
+  /** One per page load, made by the server so its render and the browser agree. */
+  idempotencyKey: string;
 }) {
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
-  // A server render passes its own, so the server and the browser agree.
-  const [idempotencyKey] = useState(
-    () => initialIdempotencyKey ?? crypto.randomUUID()
-  );
   const [activeKind, setActiveKind] = useState<SampleRequestKind | null>(null);
 
   const samples = useMemo(
@@ -69,8 +62,7 @@ export function SampleRequests({
       setCopied(true);
       setCopyFailed(false);
     } catch {
-      if (onCopyError) onCopyError();
-      else setCopyFailed(true);
+      setCopyFailed(true);
     }
   }
 

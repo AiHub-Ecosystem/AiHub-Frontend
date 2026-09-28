@@ -323,11 +323,19 @@ a.api-key-action {
   user-select: all;
 }
 
-.api-key-dialog-close {
+.api-key-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.api-key-dialog-primary {
   width: auto;
   min-height: 38px;
   margin: 0;
   padding: 8px 14px;
+  text-decoration: none;
 }
 
 .api-key-sample {

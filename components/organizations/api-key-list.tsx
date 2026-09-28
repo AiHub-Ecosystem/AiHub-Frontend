@@ -6,7 +6,7 @@ import {
   apiKeyEnvironmentLabel,
   type OrganizationApiKey,
 } from "@/lib/api-keys";
-import { hasQuickstart } from "@/lib/sample-request";
+import { hasQuickstart, quickstartPath } from "@/lib/sample-request";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 function displayDate(value: string | null) {
@@ -101,7 +101,7 @@ export function ApiKeyList({
                       {hasQuickstart(apiKey) && (
                         <Link
                           className="api-key-action"
-                          href={`/console/orgs/${encodeURIComponent(organizationId)}/api-keys/${encodeURIComponent(apiKey.id)}/quickstart`}
+                          href={quickstartPath(organizationId, apiKey.id)}
                         >
                           Gọi thử
                         </Link>

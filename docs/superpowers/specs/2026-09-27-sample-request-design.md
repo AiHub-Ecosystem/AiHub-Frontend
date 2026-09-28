@@ -1,7 +1,7 @@
 # Sample request and Writing Scoring catalog
 
 - Date: 2026-09-27
-- Status: Approved in design review, awaiting spec review
+- Status: Approved in design review, awaiting spec review. Where it places the Sample request, superseded by [ADR-0012](../../adr/0012-sample-requests-live-on-the-quickstart.md): Sample requests live on each key's Quickstart and never contain the raw key.
 - Related: ADR-0001, ADR-0003, ADR-0004, ADR-0008, ADR-0009; aihub-be ADR-0017, aihub-be ADR-0056, `aihub-be/docs/integration-guide.md` §1a, §4, §6, §8
 
 ## Problem
@@ -12,7 +12,7 @@ After an owner or admin creates or rotates an API key, the Console shows the raw
 
 ### Sample request
 
-A **Sample request** (see `CONTEXT.md`) is shown inside `ApiKeyRevealDialog`, after both create and rotate. The UI label is "Gọi thử".
+A **Sample request** (see `CONTEXT.md`) is shown on the key's Quickstart, which the reveal dialog links to after both create and rotate (ADR-0012). The UI label is "Gọi thử".
 
 - **No in-app execution.** The Console never sends the raw key back to the BFF. The Sample request is a copyable `curl` command the holder runs from their own machine. This keeps the raw key on the one-way path ADR-0003 allows (BFF → browser) and needs no new ADR.
 - **Host.** The Sample request targets the host of an Environment the key allows. A `production` key targets `https://api.aihubproduction.com`; a `sandbox` key targets `sandbox.aihubproduction.com`. AIHUB has no public `staging` host. Before [ADR-0009](../../adr/0009-customer-sandbox-environment.md) this design assumed customer keys could not allow `sandbox` (aihub-be `CustomerEnvironmentSchema`) and the sandbox Environment had its own database without Console Organizations (aihub-be ADR-0017); aihub-be #182 removed that boundary.
@@ -29,9 +29,9 @@ A **Sample request** (see `CONTEXT.md`) is shown inside `ApiKeyRevealDialog`, af
   2. Headers table (name, value, meaning): `X-API-Key` shows only `key_prefix…`; `X-User-Identity`; `Content-Type` (Writing); `Idempotency-Key` (Writing).
   3. Body table (field, sample value, required, meaning).
   4. Expected outcome: `200` with a trimmed response (`overall_band`, `criteria`, `summary` for Writing), and the common failures `401 UNAUTHORIZED`, `401 INVALID_USER_IDENTITY`, `403 FORBIDDEN`, `403 ENVIRONMENT_NOT_ALLOWED`, `429 RATE_LIMITED` / `QUOTA_EXCEEDED`.
-  5. The `curl` command with the full raw key inline, and a "Sao chép lệnh" button. The command is for a bash-compatible shell, stated next to the button.
+  5. The `curl` command, which reads `API_KEY` from the holder's environment and never contains the raw key, and a "Sao chép lệnh" button. The command is for a bash-compatible shell, stated next to the button.
 - **Usage warning**, one line, chosen by the Environment. For a `production` key, the command makes a real call counted against the Organization's usage. For a `sandbox` key, the call is free and is not counted against the Organization's paid usage, and it is bounded by a monthly allowance. The Sandbox allowance is static copy: the backend does not expose it (ADR-0009).
-- **Lifetime.** The Sample request is derived from the in-memory minted key and discarded with it when the dialog closes. Nothing is written to storage, logs, analytics, or URLs. Since #39 the same Sample requests are also served, without the raw key, on the key's Quickstart page for as long as the key is active.
+- **Lifetime.** A Sample request is derived from the listed key and is reachable for as long as the key has a Quickstart. It holds nothing secret, so nothing about the raw key is written to storage, logs, analytics, or URLs.
 
 ### Writing Scoring catalog
 
