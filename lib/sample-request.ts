@@ -54,7 +54,15 @@ function endpoint(host: string | null, path: string): string {
   return host ? `${host}${path}` : path;
 }
 
-/** Empty when there is no runnable command, so the dialog renders it nowhere. */
+/** Whether the command's call is charged; null when there is no command. */
+export type SampleBilling = "paid" | "free" | null;
+
+function billing(host: string | null): SampleBilling {
+  if (host === null) return null;
+  return host === ENVIRONMENT_HOSTS.sandbox ? "free" : "paid";
+}
+
+/** Empty when there is no runnable command, so the page renders it nowhere. */
 function usageNote(host: string | null): string {
   if (host === ENVIRONMENT_HOSTS.sandbox)
     return `Lệnh này miễn phí và không tính vào hạn mức trả phí của Organization. Sandbox cho phép ${SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE} lần chấm mỗi tháng tính theo Organization, không tính theo key, nên thu hồi rồi tạo key mới không làm hồi lại hạn mức. Hết hạn mức thì request trả về 429 QUOTA_EXCEEDED, và hạn mức hồi lại lúc 00:00 UTC ngày 1 của tháng sau.`;
@@ -98,6 +106,7 @@ export type SampleRequest = {
   firstCriterion: string;
   note: string;
   usageNote: string;
+  billing: SampleBilling;
   contentTypeNote?: string;
   command: string | null;
 };
@@ -296,6 +305,7 @@ function buildWritingTask1({
     firstCriterion: "task_achievement",
     note: writingTask1Note,
     usageNote: usageNote(host),
+    billing: billing(host),
     command,
   };
 }
@@ -374,6 +384,7 @@ function buildWriting({
     firstCriterion: "task_response",
     note: "Chạy lại cùng body với Idempotency-Key này sẽ phát lại kết quả đã lưu trong 24 giờ. Bài nộp mới cần một UUID mới.",
     usageNote: usageNote(host),
+    billing: billing(host),
     command,
   };
 }
@@ -430,6 +441,7 @@ function buildSpeaking({
     firstCriterion: "scorability",
     note: "AIHUB chưa hỗ trợ Idempotency-Key cho Speaking. Chạy lại lệnh này sẽ chấm bài và tính phí thêm một lần nữa.",
     usageNote: usageNote(host),
+    billing: billing(host),
     contentTypeNote:
       "Lệnh dùng -F nên curl tự sinh Content-Type multipart kèm boundary; không cần và không nên đặt header này.",
     command,

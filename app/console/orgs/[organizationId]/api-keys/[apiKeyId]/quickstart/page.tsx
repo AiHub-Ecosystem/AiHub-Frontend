@@ -15,6 +15,7 @@ import { SampleRequests } from "@/components/organizations/sample-requests";
 import "../../../../../../aihub.css";
 import "../../../../../../auth.css";
 import "../../../../../../api-keys.css";
+import "../../../../../../quickstart.css";
 
 export const metadata: Metadata = { title: "Quickstart — AIHub" };
 export const dynamic = "force-dynamic";
@@ -48,26 +49,43 @@ export default async function ApiKeyQuickstartPage({
       <SessionActivity />
       <main className="aihub auth-page console-page">
         <div className="aihub-shell">
-          <p className="aihub-eyebrow">AIHub Console · {organization.name}</p>
-          <h1 className="aihub-title">{apiKey.name} · Quickstart</h1>
-          <dl className="api-key-quickstart-meta">
-            <dt>Key prefix</dt>
-            <dd>
-              <code>{apiKey.key_prefix}</code>
-            </dd>
-            <dt>Môi trường</dt>
-            <dd>
-              {apiKey.allowed_environments
-                .map(apiKeyEnvironmentLabel)
-                .join(", ")}
-            </dd>
-            <dt>Scopes</dt>
-            <dd>{apiKey.scopes.join(", ")}</dd>
-          </dl>
-          <div className="api-key-page-actions">
-            <Link className="organization-back-link" href={apiKeysPath}>
-              ← API keys
-            </Link>
+          <Link className="organization-back-link" href={apiKeysPath}>
+            ← API keys
+          </Link>
+          <div className="qs-hero">
+            <p className="aihub-eyebrow">AIHub Console · {organization.name}</p>
+            <h1 className="aihub-title">{apiKey.name} · Quickstart</h1>
+            <dl className="qs-facts">
+              <div>
+                <dt>Key prefix</dt>
+                <dd>
+                  <code>{apiKey.key_prefix}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Môi trường</dt>
+                <dd>
+                  {apiKey.allowed_environments.map((environment) => (
+                    <span
+                      className={`qs-env qs-env--${environment}`}
+                      key={environment}
+                    >
+                      {apiKeyEnvironmentLabel(environment)}
+                    </span>
+                  ))}
+                </dd>
+              </div>
+              <div>
+                <dt>Scopes</dt>
+                <dd>
+                  {apiKey.scopes.map((scope) => (
+                    <code className="qs-scope" key={scope}>
+                      {scope}
+                    </code>
+                  ))}
+                </dd>
+              </div>
+            </dl>
           </div>
           <SampleRequests
             apiKey={apiKey}

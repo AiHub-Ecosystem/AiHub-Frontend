@@ -434,7 +434,8 @@ test("a key holding both scopes shows one tab per request, Writing first", async
     "IDEMPOTENCY_KEY="
   );
   const writingNotePosition = await writing.evaluate((panel) => {
-    const nodes = Array.from(panel.children);
+    // Document order of the panel's reading blocks, however they are nested.
+    const nodes = Array.from(panel.querySelectorAll("p, table, h3"));
     const at = (matches: (node: Element) => boolean) =>
       nodes.findIndex((node) => matches(node));
     return {

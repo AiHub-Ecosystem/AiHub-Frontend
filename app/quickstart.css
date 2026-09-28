@@ -1,0 +1,506 @@
+/* A key's Quickstart: its Sample requests, read on the left, run on the right. */
+
+.qs-hero {
+  margin: 14px 0 28px;
+  padding: 28px 30px;
+  border: 1px solid var(--aihub-line);
+  border-radius: var(--aihub-radius);
+  background: var(--aihub-card);
+}
+
+.qs-hero .aihub-title {
+  margin-bottom: 18px;
+  font-size: clamp(28px, 3.6vw, 40px);
+}
+
+.qs-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 40px;
+  margin: 0;
+}
+
+.qs-facts dt {
+  margin-bottom: 6px;
+  color: var(--aihub-soft);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.qs-facts dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.qs-facts dd > code,
+.qs-scope {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--aihub-badge-muted-bg);
+  color: var(--aihub-ink);
+  font-size: 13px;
+}
+
+.qs-env {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.qs-env--production {
+  background: #fff4e5;
+  color: #93370d;
+}
+
+.qs-env--sandbox {
+  background: #e7f8ee;
+  color: #05603a;
+}
+
+.qs-env--staging {
+  background: var(--aihub-badge-muted-bg);
+  color: #344054;
+}
+
+/* Tabs */
+
+.qs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.qs-toolbar h2 {
+  margin: 0;
+  color: var(--aihub-ink);
+  font-size: 24px;
+  text-align: left;
+}
+
+.qs-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #e6ebf3;
+}
+
+.qs-tab {
+  min-height: 38px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--aihub-body);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+}
+
+.qs-tab:hover {
+  color: var(--aihub-ink);
+}
+
+.qs-tab[aria-selected="true"] {
+  background: var(--aihub-card);
+  box-shadow: 0 1px 3px rgb(16 24 40 / 12%);
+  color: var(--aihub-brand);
+}
+
+.qs-tab:focus-visible,
+.qs-copy:focus-visible,
+.qs-command:focus-visible,
+.qs-value--long:focus-visible,
+.qs-panel:focus-visible {
+  outline: 3px solid rgb(58 100 250 / 35%);
+  outline-offset: 2px;
+}
+
+/* Endpoint: the path is what tells one request from another */
+
+.qs-endpoint {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 0 0 20px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  border: 1px solid #c7d4fe;
+  border-radius: 12px;
+  background: #eef2ff;
+}
+
+.qs-method {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 7px;
+  background: var(--aihub-brand);
+  color: #fff;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.qs-url {
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.qs-url-host {
+  color: var(--aihub-muted);
+}
+
+.qs-url-path {
+  color: var(--aihub-ink);
+  font-weight: 700;
+}
+
+/* Layout: the command sits beside the reference on wide screens */
+
+.qs-grid {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 1100px) {
+  .qs-grid {
+    grid-template-areas: "docs run";
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .qs-docs {
+    grid-area: docs;
+  }
+
+  .qs-run {
+    /* Clears the site header, which stays fixed once the page scrolls. */
+    position: sticky;
+    top: 96px;
+    grid-area: run;
+  }
+
+  .qs-command {
+    max-height: calc(100vh - 300px);
+  }
+}
+
+.qs-docs {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.qs-run {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.qs-block {
+  min-width: 0;
+  padding: 22px 22px 20px;
+  border: 1px solid var(--aihub-line);
+  border-radius: 14px;
+  background: var(--aihub-card);
+}
+
+.qs-block h3 {
+  margin: 0 0 14px;
+  color: var(--aihub-ink);
+  font-size: 17px;
+  text-align: left;
+}
+
+/* Tables */
+
+.qs-table-wrap {
+  overflow-x: auto;
+}
+
+.qs-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 14px;
+}
+
+.qs-table th,
+.qs-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--aihub-line);
+  color: var(--aihub-body);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.qs-table thead th {
+  border-bottom-color: #d0d5dd;
+  color: var(--aihub-soft);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.qs-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.qs-table--headers th:nth-child(1) {
+  width: 30%;
+}
+
+.qs-table--headers th:nth-child(2) {
+  width: 32%;
+}
+
+.qs-table--body th:nth-child(1) {
+  width: 19%;
+}
+
+.qs-table--body th:nth-child(2) {
+  width: 35%;
+}
+
+.qs-table--body th:nth-child(3) {
+  width: 11%;
+}
+
+.qs-name {
+  color: #1d3fbf;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.qs-value {
+  display: inline-block;
+  max-width: 100%;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: #f2f4f7;
+  color: var(--aihub-ink);
+  font-size: 12.5px;
+  white-space: pre-wrap;
+}
+
+.qs-value--long {
+  display: block;
+  max-height: 9.5em;
+  padding: 8px 10px;
+  overflow: auto;
+  line-height: 1.5;
+}
+
+.qs-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--aihub-badge-muted-bg);
+  color: var(--aihub-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.qs-badge--required {
+  background: #eef2ff;
+  color: var(--aihub-brand);
+}
+
+/* Callouts carry meaning: info, cost, free, unavailable */
+
+.qs-callout {
+  margin: 14px 0 0;
+  padding: 11px 14px;
+  border-left: 3px solid #d0d5dd;
+  border-radius: 0 8px 8px 0;
+  background: #f8fafc;
+  color: var(--aihub-body);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.qs-run .qs-callout {
+  margin: 0;
+}
+
+.qs-callout--info {
+  border-left-color: var(--aihub-brand);
+  background: #f5f7ff;
+}
+
+.qs-callout--paid {
+  border-left-color: #f79009;
+  background: #fffaeb;
+  color: #7a2e0e;
+  font-weight: 600;
+}
+
+.qs-callout--free {
+  border-left-color: #12b76a;
+  background: #ecfdf3;
+  color: #05603a;
+}
+
+.qs-callout--muted {
+  border-left-color: #98a2b3;
+}
+
+/* Expected outcome */
+
+.qs-outcome {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  margin: 0 0 10px;
+  color: var(--aihub-body);
+}
+
+.qs-errors-label {
+  margin: 16px 0 8px;
+  color: var(--aihub-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.qs-errors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.qs-status {
+  padding: 3px 9px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.qs-status code {
+  color: inherit;
+}
+
+.qs-status--ok {
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.qs-status--warn {
+  background: #fffaeb;
+  color: #b54708;
+}
+
+.qs-status--error {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+/* Terminal */
+
+.qs-terminal {
+  overflow: hidden;
+  border-radius: 14px;
+  background: #0b1220;
+  box-shadow: 0 12px 32px rgb(11 18 32 / 22%);
+}
+
+.qs-terminal-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 10px 18px;
+  border-bottom: 1px solid #1f2a3d;
+}
+
+.qs-terminal-bar h3 {
+  margin: 0;
+  color: #9aa7bd;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.qs-copy {
+  flex: none;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid #33415c;
+  border-radius: 8px;
+  background: #16213a;
+  color: #e6edf7;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.qs-copy:hover {
+  border-color: #5b6f99;
+}
+
+.qs-command {
+  max-height: 60vh;
+  margin: 0;
+  padding: 16px 18px 18px;
+  overflow: auto;
+  color: #e6edf7;
+  font-size: 12.5px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.qs-token-keyword {
+  color: #5eead4;
+  font-weight: 700;
+}
+
+.qs-token-flag {
+  color: #7cc4ff;
+}
+
+.qs-token-string {
+  color: #f6c177;
+}
+
+.qs-token-variable {
+  color: #c4b5fd;
+  font-weight: 600;
+}
+
+.qs-token-muted {
+  color: #64748b;
+}
+
+@media (max-width: 640px) {
+  .qs-hero {
+    padding: 22px 18px;
+  }
+
+  .qs-block {
+    padding: 18px 14px;
+  }
+
+  .qs-tabs {
+    width: 100%;
+  }
+
+  .qs-tab {
+    flex: 1 1 auto;
+  }
+}

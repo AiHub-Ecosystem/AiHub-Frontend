@@ -509,6 +509,19 @@ describe("Speaking Sample request", () => {
 describe("Sandbox Environment", () => {
   const sandboxKey = mintedKey({ allowed_environments: ["sandbox"] });
 
+  it("marks a Sandbox call free, a production call paid, and no command neither", () => {
+    const billingFor = (environment: string) =>
+      sampleFor(
+        mintedKey({ allowed_environments: [environment] }),
+        "writing-task2",
+        false
+      )?.billing;
+
+    expect(billingFor("sandbox")).toBe("free");
+    expect(billingFor("production")).toBe("paid");
+    expect(billingFor("staging")).toBeNull();
+  });
+
   it("targets the Sandbox host and keeps a runnable command", () => {
     const sample = sampleFor(sandboxKey, "writing-task2", false);
 
