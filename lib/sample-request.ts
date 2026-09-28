@@ -18,6 +18,7 @@ const SPEAKING_SCOPE = "speaking.grade";
 const writingTask1Path = "/v1/ielts/writing/task1/grade";
 const writingPath = "/v1/ielts/writing/task2/grade";
 const speakingGradingJsonPath = "/v1/ielts/speaking/grading-json";
+const speakingGradingPath = "/v1/ielts/speaking/grading";
 
 /**
  * Public host per Environment. An Environment absent here has no runnable
@@ -187,6 +188,88 @@ function jsonCommands(
     : { command: null, powershellCommand: null, postmanCommand: null };
 }
 
+/** One multipart request that uploads a file from the holder's machine. */
+type FormRequest = {
+  url: string;
+  /** The form field that carries the file, and the file's sample path. */
+  file: { field: string; path: string };
+  /** The other form fields, in the order the body table lists them. */
+  fields: [string, string][];
+};
+
+/**
+ * Every shell's command for a multipart upload. curl sets the multipart
+ * Content-Type and its boundary itself, so no command sends one.
+ */
+function formCommands(
+  request: FormRequest | null,
+  { identity, rawKey }: BuildContext
+): SampleCommands {
+  if (!request)
+    return { command: null, powershellCommand: null, postmanCommand: null };
+  const { url, file, fields } = request;
+  const bashForm = [
+    `-F "${file.field}=@\${AUDIO_FILE}"`,
+    ...fields.map(([name, value]) => `-F "${name}=${value}"`),
+  ];
+  const bash = [
+    bashKeyLine(rawKey),
+    `USER_IDENTITY='${identity.value}'`,
+    `AUDIO_FILE='${file.path}'`,
+    "",
+    "curl --request POST \\",
+    `  '${url}' \\`,
+    `  --header "X-API-Key: \${API_KEY}" \\`,
+    `  --header "X-User-Identity: \${USER_IDENTITY}" \\`,
+    ...bashForm.map(
+      (line, index) => `  ${line}${index < bashForm.length - 1 ? " \\" : ""}`
+    ),
+  ].join("\n");
+
+  const powershellCall = [
+    "  curl.exe --request POST",
+    `    '${url}'`,
+    '    --header "X-API-Key: $apiKey"',
+    '    --header "X-User-Identity: $userIdentity"',
+    `    -F "${file.field}=@$audioFile"`,
+    ...fields.map(([name, value]) => `    -F "${name}=${value}"`),
+  ];
+  const powershell = [
+    "& {",
+    "  $utf8 = New-Object System.Text.UTF8Encoding $false",
+    "  [Console]::OutputEncoding = $utf8",
+    ...powershellKeyLines(rawKey),
+    `  $userIdentity = '${identity.value}'`,
+    `  $audioFile = '${file.path}'`,
+    ...powershellCall.map((line, index) =>
+      index < powershellCall.length - 1 ? `${line} \`` : line
+    ),
+    "}",
+  ].join("\n");
+
+  const postmanLines = [
+    `curl --request POST ${singleQuoted(url)}`,
+    `  --header ${singleQuoted(`X-API-Key: ${rawKey ?? "{{API_KEY}}"}`)}`,
+    `  --header ${singleQuoted(`X-User-Identity: ${identity.value}`)}`,
+    // Postman imports this as a file field; the holder picks the file there.
+    `  --form ${singleQuoted(`${file.field}=@"${file.path.replace(/^\.\//, "")}"`)}`,
+    ...fields.map(
+      ([name, value]) => `  --form ${singleQuoted(`${name}=${value}`)}`
+    ),
+  ];
+  const postman = postmanLines
+    .map((line, index) =>
+      index < postmanLines.length - 1 ? `${line} \\` : line
+    )
+    .join("\n");
+
+  return {
+    command: bash,
+    powershellCommand: powershell,
+    postmanCommand: postman,
+  };
+}
+
 function resolveHost(apiKey: OrganizationApiKey): string | null {
   for (const environment of HOST_PREFERENCE) {
     const host = ENVIRONMENT_HOSTS[environment];
@@ -256,9 +339,16 @@ export type SampleRequest = {
   powershellCommand: string | null;
   /** The same request as a plain curl for Postman's importer. */
   postmanCommand: string | null;
+  /**
+   * The same operation sending the holder's own file instead, where the
+   * request can take one: Speaking's multipart upload. The Quickstart offers
+   * it as a second way to send the audio.
+   */
+  upload?: SampleRequest;
 };
 
 type SpeakingField =
+  | "audio"
   | "audio_url"
   | "part"
   | "question_id"
@@ -543,6 +633,59 @@ function buildSpeaking(context: BuildContext): SampleRequest {
         ? {
             url: endpoint(host, speakingGradingJsonPath),
             body: SPEAKING_SAMPLE_ANSWER_REQUEST,
+          }
+        : null,
+      context
+    ),
+    upload: buildSpeakingUpload(context, headers.slice(0, 2), body),
+  };
+}
+
+/** The Speaking body table's audio row when the holder uploads their own file. */
+const SPEAKING_AUDIO_FILE_ROW: SampleBodyField = {
+  field: "audio",
+  sampleValue: "./answer.wav",
+  required: true,
+  meaning:
+    "Tệp âm thanh trả lời trên máy bạn; thay ./answer.wav bằng tệp của bạn. wav, mp3, m4a, webm hoặc ogg; tối đa 25 MiB.",
+};
+
+/**
+ * Speaking with the holder's own recording: the same question and fields, but
+ * the audio uploaded as a file to the multipart endpoint instead of the
+ * Published sample answer's URL.
+ */
+function buildSpeakingUpload(
+  context: BuildContext,
+  headers: SampleHeader[],
+  jsonBody: SampleBodyField[]
+): SampleRequest {
+  const { host, identity } = context;
+  return {
+    kind: "speaking",
+    label: "Speaking",
+    method: "POST",
+    url: endpoint(host, speakingGradingPath),
+    headers,
+    body: [
+      SPEAKING_AUDIO_FILE_ROW,
+      ...jsonBody.filter((row) => row.field !== "audio_url"),
+    ],
+    identityNote: identity.note,
+    expectedOutcomeFields: ["scorability", "estimated_band", "transcript"],
+    firstCriterion: "scorability",
+    note: "Thay ./answer.wav bằng tệp audio của bạn, và question_id, prompt_text bằng câu hỏi mà tệp đó trả lời. Lệnh dùng -F nên curl tự sinh Content-Type multipart kèm boundary; không cần và không nên đặt header này. AIHUB chưa hỗ trợ Idempotency-Key cho Speaking. Chạy lại lệnh này sẽ chấm bài và tính phí thêm một lần nữa.",
+    usageNote: usageNote(host),
+    billing: billing(host),
+    ...formCommands(
+      host
+        ? {
+            url: endpoint(host, speakingGradingPath),
+            file: { field: "audio", path: SPEAKING_AUDIO_FILE_ROW.sampleValue },
+            // Every field the JSON example sends, except the URL the file replaces.
+            fields: Object.entries(SPEAKING_SAMPLE_ANSWER_REQUEST)
+              .filter(([name]) => name !== "audio_url")
+              .map(([name, value]) => [name, String(value)]),
           }
         : null,
       context

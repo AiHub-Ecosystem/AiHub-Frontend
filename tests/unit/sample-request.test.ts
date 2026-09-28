@@ -845,3 +845,79 @@ describe("Postman command", () => {
     ).toBeNull();
   });
 });
+
+describe("Speaking with the holder's own audio file", () => {
+  const upload = () =>
+    sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
+      ?.upload;
+
+  it("uploads the file to the multipart grading endpoint", () => {
+    expect(upload()?.url).toBe(
+      "https://api.aihubproduction.com/v1/ielts/speaking/grading"
+    );
+    expect(upload()?.body.map((field) => field.field)).toEqual([
+      "audio",
+      "part",
+      "question_id",
+      "prompt_text",
+      "test_type",
+      "test_code",
+      "transcript",
+    ]);
+    expect(upload()?.body[0]).toMatchObject({
+      field: "audio",
+      sampleValue: "./answer.wav",
+    });
+  });
+
+  it("lets curl set the multipart Content-Type", () => {
+    expect(upload()?.headers.map((header) => header.name)).toEqual([
+      "X-API-Key",
+      "X-User-Identity",
+    ]);
+    expect(upload()?.note).toMatch(/Content-Type/);
+    expect(upload()?.note).toMatch(/tính phí thêm/);
+  });
+
+  it("sends the file as a form field in all three commands", () => {
+    const sample = upload();
+
+    expect(sample?.command).toContain("AUDIO_FILE='./answer.wav'");
+    expect(sample?.command).toContain('-F "audio=@${AUDIO_FILE}"');
+    expect(sample?.command).toContain(
+      '-F "question_id=p1_do-you-enjoy-living-in-your-city-or-hometown"'
+    );
+    expect(sample?.powershellCommand).toContain("$audioFile = './answer.wav'");
+    expect(sample?.powershellCommand).toContain('-F "audio=@$audioFile"');
+    expect(sample?.postmanCommand).toContain(`--form 'audio=@"answer.wav"'`);
+    for (const command of [
+      sample?.command,
+      sample?.powershellCommand,
+      sample?.postmanCommand,
+    ]) {
+      expect(command).toContain("/v1/ielts/speaking/grading");
+      expect(command).not.toContain("grading-json");
+      expect(command).not.toContain("Content-Type");
+      expect(command).not.toContain(PUBLISHED_SAMPLE_ANSWER_URL);
+    }
+  });
+
+  it("is offered only for Speaking", () => {
+    expect(
+      sampleFor(mintedKey(), "writing-task2", false)?.upload
+    ).toBeUndefined();
+  });
+
+  it("has no command where there is no public host", () => {
+    expect(
+      sampleFor(
+        mintedKey({
+          scopes: ["speaking.grade"],
+          allowed_environments: ["staging"],
+        }),
+        "speaking",
+        false
+      )?.upload?.command
+    ).toBeNull();
+  });
+});

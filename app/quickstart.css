@@ -137,7 +137,8 @@
   color: var(--aihub-ink);
 }
 
-.qs-tab[aria-selected="true"] {
+.qs-tab[aria-selected="true"],
+.qs-tab[aria-pressed="true"] {
   background: var(--aihub-card);
   box-shadow: 0 1px 3px rgb(16 24 40 / 12%);
   color: var(--aihub-brand);
@@ -150,6 +151,22 @@
 .qs-panel:focus-visible {
   outline: 3px solid rgb(58 100 250 / 35%);
   outline-offset: 2px;
+}
+
+/* How a Speaking request sends its audio */
+
+.qs-source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  margin: 0 0 14px;
+}
+
+.qs-source-label {
+  color: var(--aihub-soft);
+  font-size: 14px;
+  font-weight: 700;
 }
 
 /* Endpoint: the path is what tells one request from another */
@@ -331,6 +348,7 @@
 
 .qs-badge {
   display: inline-block;
+  white-space: nowrap;
   padding: 2px 9px;
   border-radius: 999px;
   background: var(--aihub-badge-muted-bg);

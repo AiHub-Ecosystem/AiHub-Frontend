@@ -112,6 +112,8 @@ export function SampleRequests({
   const [copyFailed, setCopyFailed] = useState(false);
   const [activeKind, setActiveKind] = useState<SampleRequestKind | null>(null);
   const [shell, setShell] = useState<Shell>("bash");
+  // Speaking can send the Published sample answer's URL or the holder's file.
+  const [audioSource, setAudioSource] = useState<"url" | "file">("url");
   // Held in this component only: never sent, stored, or put in the URL.
   const [keyInput, setKeyInput] = useState("");
   const rawKey = isRawKeyFor(apiKey, keyInput) ? keyInput.trim() : undefined;
@@ -162,8 +164,13 @@ export function SampleRequests({
   }
 
   if (!activeSample) return null;
-  const { host, path } = splitUrl(activeSample.url);
-  const command = commandForShell(activeSample, shell);
+  // The request the panel shows: the tab's own, or its upload variant.
+  const shown =
+    audioSource === "file" && activeSample.upload
+      ? activeSample.upload
+      : activeSample;
+  const { host, path } = splitUrl(shown.url);
+  const command = commandForShell(shown, shell);
   const shellTitle = SHELLS.find((option) => option.shell === shell)!.title;
   return (
     <section aria-labelledby="sample-request-title" className="qs">
@@ -203,8 +210,40 @@ export function SampleRequests({
         role="tabpanel"
         tabIndex={0}
       >
+        {activeSample.upload && (
+          <div className="qs-source">
+            <span className="qs-source-label" id="qs-audio-source">
+              Gửi audio bằng
+            </span>
+            <div
+              aria-labelledby="qs-audio-source"
+              className="qs-tabs"
+              role="group"
+            >
+              {(
+                [
+                  ["url", "URL mẫu (chạy ngay)"],
+                  ["file", "Tệp của bạn"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  aria-pressed={audioSource === value}
+                  className="qs-tab"
+                  key={value}
+                  onClick={() => {
+                    setAudioSource(value);
+                    setCopied(false);
+                  }}
+                  type="button"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <p className="qs-endpoint">
-          <strong className="qs-method">{activeSample.method}</strong>{" "}
+          <strong className="qs-method">{shown.method}</strong>{" "}
           <code className="qs-url">
             {host && <span className="qs-url-host">{host}</span>}
             <span className="qs-url-path">{path}</span>
@@ -248,14 +287,16 @@ export function SampleRequests({
                     {RAW_KEY_IN_COMMAND_WARNING}
                   </p>
                 )}
-                <p className={`qs-callout qs-callout--${activeSample.billing}`}>
-                  {activeSample.usageNote}
+                <p className={`qs-callout qs-callout--${shown.billing}`}>
+                  {shown.usageNote}
                 </p>
                 {shell === "postman" && (
                   <p className="qs-callout qs-callout--info">
                     Trong Postman: Import › Raw text, dán lệnh rồi bấm Continue.
                     {!rawKey &&
                       " Tạo biến API_KEY trong Environment của Postman, hoặc dán raw key vào ô phía trên trước khi sao chép."}
+                    {shown === activeSample.upload &&
+                      " Sau khi import, chọn tệp audio của bạn ở field audio trong tab Body."}
                   </p>
                 )}
                 <div className="qs-terminal">
@@ -304,7 +345,7 @@ export function SampleRequests({
               <h3>Headers</h3>
               <div className="qs-table-wrap">
                 <table
-                  aria-label={`${activeSample.label} request headers`}
+                  aria-label={`${shown.label} request headers`}
                   className="qs-table qs-table--headers"
                 >
                   <thead>
@@ -315,7 +356,7 @@ export function SampleRequests({
                     </tr>
                   </thead>
                   <tbody>
-                    {activeSample.headers.map((header) => (
+                    {shown.headers.map((header) => (
                       <tr key={header.name}>
                         <th scope="row">
                           <code className="qs-name">{header.name}</code>
@@ -330,7 +371,7 @@ export function SampleRequests({
                 </table>
               </div>
               <p className="qs-callout qs-callout--info">
-                {activeSample.identityNote}
+                {shown.identityNote}
               </p>
             </section>
 
@@ -338,7 +379,7 @@ export function SampleRequests({
               <h3>Body</h3>
               <div className="qs-table-wrap">
                 <table
-                  aria-label={`${activeSample.label} request body`}
+                  aria-label={`${shown.label} request body`}
                   className="qs-table qs-table--body"
                 >
                   <thead>
@@ -350,7 +391,7 @@ export function SampleRequests({
                     </tr>
                   </thead>
                   <tbody>
-                    {activeSample.body.map((field) => (
+                    {shown.body.map((field) => (
                       <tr key={field.field}>
                         <th scope="row">
                           <code className="qs-name">{field.field}</code>
@@ -384,7 +425,7 @@ export function SampleRequests({
                   </tbody>
                 </table>
               </div>
-              <p className="qs-callout">{activeSample.note}</p>
+              <p className="qs-callout">{shown.note}</p>
             </section>
 
             <section className="qs-block">
@@ -393,9 +434,9 @@ export function SampleRequests({
                 <strong className="qs-status qs-status--ok">200</strong>
                 <span>
                   response có{" "}
-                  {activeSample.expectedOutcomeFields.map((field, index) => (
+                  {shown.expectedOutcomeFields.map((field, index) => (
                     <span key={field}>
-                      {index === activeSample.expectedOutcomeFields.length - 1
+                      {index === shown.expectedOutcomeFields.length - 1
                         ? " và "
                         : index > 0
                           ? ", "
@@ -409,7 +450,7 @@ export function SampleRequests({
               <p className="qs-outcome">
                 <span>
                   Tiêu chí đầu tiên:{" "}
-                  <code className="qs-name">{activeSample.firstCriterion}</code>
+                  <code className="qs-name">{shown.firstCriterion}</code>
                 </span>
               </p>
               <p className="qs-errors-label">Lỗi thường gặp:</p>

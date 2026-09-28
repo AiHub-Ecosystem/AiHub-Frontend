@@ -1190,3 +1190,66 @@ test("a Quickstart offers the request as a curl Postman can import", async ({
   await expect(command).toContainText(`--header 'X-API-Key: ${rawKey}'`);
   await expect(page.getByText(/Tạo biến API_KEY/)).toHaveCount(0);
 });
+
+test("the Speaking Sample request switches between the sample URL and your own file", async ({
+  page,
+  request,
+}) => {
+  await setup(request, {
+    apiKeys: [{ ...quickstartKeys[0], scopes: ["speaking.grade"] }],
+    entitlements: ["speaking"],
+  });
+  await signIn(page, false);
+  await page.goto(quickstartPath("ak_01J00000000000000000000000"));
+
+  const source = page.getByRole("group", { name: "Gửi audio bằng" });
+  const sampleUrl = source.getByRole("button", { name: /URL mẫu/ });
+  const ownFile = source.getByRole("button", { name: "Tệp của bạn" });
+  const command = page.getByTestId("sample-request-command");
+  const body = page.getByRole("table", { name: "Speaking request body" });
+
+  await expect(sampleUrl).toHaveAttribute("aria-pressed", "true");
+  await expect(command).toContainText("/v1/ielts/speaking/grading-json");
+  await expect(body.getByRole("row", { name: /audio_url/ })).toBeVisible();
+
+  await ownFile.click();
+  await expect(ownFile).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".qs-endpoint")).not.toContainText("grading-json");
+  await expect(command).toContainText('-F "audio=@${AUDIO_FILE}"');
+  await expect(body.getByRole("row", { name: /^audio / })).toContainText(
+    "./answer.wav"
+  );
+  await expect(body.getByRole("row", { name: /audio_url/ })).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("table", { name: "Speaking request headers" })
+      .getByRole("row", { name: /Content-Type/ })
+  ).toHaveCount(0);
+
+  // The choice holds across shells.
+  await page.getByRole("button", { name: "PowerShell" }).click();
+  await expect(command).toContainText('-F "audio=@$audioFile"');
+});
+
+test("the reveal dialog also copies the Speaking command for your own file", async ({
+  page,
+  request,
+}) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await setup(request, { apiKeys: [], entitlements: ["speaking"] });
+  await signIn(page);
+  await page.getByText("Tạo API key", { exact: true }).click();
+  await page.getByLabel("Tên API key").fill("Speaking key");
+  await page.locator('input[name="scopes"][value="speaking.grade"]').check();
+  await page.getByRole("button", { name: "Tạo key" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "API key mới" });
+  const rawKey = (await page.getByTestId("api-key-raw").textContent()) ?? "";
+  await dialog
+    .getByRole("button", { name: "Sao chép lệnh Speaking (tệp)" })
+    .click();
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toContain(`API_KEY='${rawKey}'`);
+  expect(copied).toContain("/v1/ielts/speaking/grading'");
+  expect(copied).toContain('-F "audio=@${AUDIO_FILE}"');
+});
