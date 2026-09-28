@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
     },
   },
   async redirects() {
-    // The retired Spec & cURL Hub; the API product catalog and its API references are the only public API docs.
+    // The retired Spec & cURL Hub; see docs/adr/0010-retire-specs-page.md.
     return [{ source: "/specs", destination: "/product", permanent: true }];
   },
   async headers() {
