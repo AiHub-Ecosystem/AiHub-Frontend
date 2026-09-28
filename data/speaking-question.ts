@@ -35,8 +35,8 @@ export const SPEAKING_CATALOG_EXAMPLE: readonly SpeakingQuestion[] = [
 export const SPEAKING_SAMPLE_QUESTION = SPEAKING_CATALOG_EXAMPLE[0];
 
 /**
- * The shape of a Speaking question's audio_url, abbreviated: the examiner
- * reading the question, signed into the private bucket for 15 minutes. Derived
+ * The shape of a Speaking question's audio_url, abbreviated: a sample answer
+ * recording, signed into the private bucket for 15 minutes. Derived
  * from the question, so the ID and the object name cannot drift apart here.
  */
 export function speakingQuestionAudioUrlExample({

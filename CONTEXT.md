@@ -100,8 +100,8 @@ A request shown for an active API key so its holder can make a call with it, one
 _Avoid_: playground, test call, try-it
 
 **Speaking question**:
-One question in the Speaking catalog AIHUB publishes, identified by its `question_id` and carrying its prompt text. Its audio is the examiner reading the question aloud, served for a short time only; it is never an answer and is not graded. A Speaking grading request names the Speaking question the answer responds to.
-_Avoid_: prompt audio as answer, sample answer, question file
+One question in the Speaking catalog AIHUB publishes, identified by its `question_id` and carrying its prompt text. Its catalog audio is a sample recording of an answer to that question, signed for a short time only; it is candidate audio, not the examiner reading the prompt. A Speaking grading request names the question the answer responds to.
+_Avoid_: examiner narration, prompt audio as answer, question file
 
 **Quickstart**:
 The Console page belonging to one active, unexpired API key that lists that key's Sample requests. It stays reachable for as long as the key does; a revoked, expired, or rotated-away key has no Quickstart, and neither does a key with no Sample request.

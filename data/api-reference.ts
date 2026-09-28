@@ -1261,11 +1261,11 @@ export const SPEAKING_REFERENCE: Record<string, EndpointReference> = {
     ],
     requestExample: null,
     responseDescription:
-      "Envelope { data, meta } của AIHUB. data.part là Part đã lọc, data.questions là danh sách câu hỏi, mỗi câu có question_id, part, prompt_text và audio_url là giọng giám khảo đọc câu hỏi trên s3.wispace.app. Lấy question_id từ đây để gửi kèm lúc chấm. Ví dụ rút gọn: audio_url thật còn nhiều tham số ký nữa.",
+      "Envelope { data, meta } của AIHUB. data.part là Part đã lọc, data.questions là danh sách câu hỏi, mỗi câu có question_id, part, prompt_text và audio_url là bản ghi câu trả lời mẫu cho câu hỏi đó trên s3.wispace.app. Gửi audio_url cùng question_id và part tương ứng khi chấm. Ví dụ rút gọn: audio_url thật còn nhiều tham số ký nữa.",
     responseExample: SPEAKING_QUESTIONS_RESPONSE,
     notes: [
       "question_id và prompt_text trong ví dụ là câu hỏi thật trong danh mục; audio_url được rút gọn.",
-      "audio_url là giọng giám khảo đọc câu hỏi, không phải câu trả lời. Đừng gửi nó đi chấm. URL này được ký và hết hạn sau 15 phút, nên lấy lại danh mục thay vì lưu URL.",
+      "audio_url là bản ghi câu trả lời mẫu tương ứng và có thể gửi tới grading-json cùng question_id, part và prompt_text. URL được ký, hết hạn sau 15 phút; lấy URL mới khi cần, không lưu để tái sử dụng lâu dài.",
       "Endpoint này không phải là user-scoped: không cần X-User-Identity, và lượt gọi không được báo cáo dưới bất kỳ End-User ID nào.",
       "Endpoint này không yêu cầu X-API-Key và không giới hạn theo API key scope.",
     ],

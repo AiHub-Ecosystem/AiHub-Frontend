@@ -512,7 +512,7 @@ test("Speaking questions reference carries no User Identity header", async ({
   await expect(endpointNotes(page)).toContainText("không phải");
 });
 
-test("Speaking questions response example names real Speaking questions with signed examiner audio", async ({
+test("Speaking questions response example names real Speaking questions with signed answer audio", async ({
   page,
 }) => {
   await page.goto("/product/speaking/api/speaking-questions");
@@ -532,15 +532,16 @@ test("Speaking questions response example names real Speaking questions with sig
   await expect(response).toContainText(/"part": 1/);
 });
 
-test("Speaking questions warns the question audio is not an answer to grade", async ({
+test("Speaking questions documents its answer audio and short-lived URL", async ({
   page,
 }) => {
   await page.goto("/product/speaking/api/speaking-questions");
 
   const notes = endpointNotes(page);
-  await expect(notes).toContainText("giám khảo đọc câu hỏi");
-  await expect(notes).toContainText("không phải câu trả lời");
+  await expect(notes).toContainText("bản ghi câu trả lời mẫu tương ứng");
+  await expect(notes).toContainText("có thể gửi tới grading-json");
   await expect(notes).toContainText("15 phút");
+  await expect(notes).not.toContainText("giám khảo đọc câu hỏi");
   // The catalog example is real data, so the grading pages' "illustrative"
   // note does not belong here.
   await expect(notes).not.toContainText("minh hoạ");
