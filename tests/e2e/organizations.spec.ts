@@ -825,9 +825,15 @@ test("the Organization header switches to another Organization", async ({
   await menu.getByRole("link", { name: /Beta Org/ }).click();
   await expect(page).toHaveURL(/\/console\/orgs\/switch-b$/);
   await expect(page.getByRole("heading", { name: "Beta Org" })).toBeVisible();
+});
 
+// Its own test, in a fresh browser context: signing in again on a page that
+// just navigated can race a request still setting the old session cookie.
+test("an Organization header offers no switcher to someone in one Organization", async ({
+  page,
+  request,
+}) => {
   await setup(request, [org("switch-only", "Only Org")]);
-  await page.context().clearCookies();
   await signIn(page);
   await expect(page.getByRole("heading", { name: "Only Org" })).toBeVisible();
   await expect(page.getByText("Chuyển Organization")).toHaveCount(0);
