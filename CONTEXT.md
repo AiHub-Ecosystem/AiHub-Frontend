@@ -96,8 +96,12 @@ The request tier AIHUB derives from the hostname a request is sent to; an API ke
 _Avoid_: mode, live/test
 
 **Sample request**:
-A request shown beside a newly issued API key so its holder can make a first call, one for each operation the key's API key scopes permit that has a known endpoint. An API key scope may permit more than one operation, so an Organization's key may be offered several Sample requests; it exists only while that raw key is on screen. A Sample request may depend on several things only its holder has, such as an audio file or the question being answered.
+A request shown for an active API key so its holder can make a call with it, one for each operation the key's API key scopes permit that has a known endpoint. An API key scope may permit more than one operation, so an Organization's key may be offered several Sample requests. A Sample request never contains the raw key; its holder supplies that. It may also depend on several other things only its holder has, such as an audio file or the question being answered.
 _Avoid_: playground, test call, try-it
+
+**Quickstart**:
+The Console page belonging to one active, unexpired API key that lists that key's Sample requests. It stays reachable for as long as the key does; a revoked, expired, or rotated-away key has no Quickstart, and neither does a key with no Sample request.
+_Avoid_: try page, playground, getting started
 
 **Identity configuration**:
 An Organization's issuer plus JWKS URL or public JWKS, which AIHUB uses to verify the User Assertions the Organization signs.
