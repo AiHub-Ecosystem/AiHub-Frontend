@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
       ignore: [/^\/verify-email(?:\?.*)?$/, /^\/reset-password(?:\?.*)?$/],
     },
   },
+  async redirects() {
+    // The retired Spec & cURL Hub; see docs/adr/0010-retire-specs-page.md.
+    return [{ source: "/specs", destination: "/product", permanent: true }];
+  },
   async headers() {
     return [
       {
