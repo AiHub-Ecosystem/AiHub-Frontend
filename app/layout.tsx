@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { HydrationMarker } from "@/components/hydration-marker";
 import { MirrorInteractions } from "@/components/mirror-interactions";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import "./meltano-source.css";
@@ -9,7 +10,9 @@ export const metadata: Metadata = {
   description: "Marketplace và developer portal cho các API AI.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="vi">
       <head>
@@ -20,6 +23,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <SiteHeader />
         {children}
         <SiteFooter />
+        <HydrationMarker />
       </body>
     </html>
   );

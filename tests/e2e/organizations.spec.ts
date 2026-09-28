@@ -4,6 +4,7 @@ import {
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
+import { waitForHydration } from "./hydration";
 
 const mockUrl = "http://127.0.0.1:3101";
 const password = "correct horse battery staple";
@@ -52,6 +53,17 @@ async function signIn(page: Page) {
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(password);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+}
+
+/**
+ * Opens the create-Organization dialog from the Organizations list, once the
+ * sign-in has landed there and the page has hydrated: a click before either is
+ * lost, and the dialog never opens.
+ */
+async function openCreationForm(page: Page) {
+  await expect(page).toHaveURL(/\/console\/orgs$/);
+  await waitForHydration(page);
+  await page.getByRole("button", { name: "Tạo Organization" }).click();
 }
 
 const org = (
@@ -215,7 +227,7 @@ test("create uses server BFF and ignores a double click", async ({
 }) => {
   await setup(request);
   await signIn(page);
-  await page.getByRole("button", { name: "Tạo Organization" }).click();
+  await openCreationForm(page);
   await page.getByLabel("Tên Organization").fill("  New Org  ");
   const submit = page
     .locator("form.auth-form")
@@ -245,7 +257,7 @@ test("uncertain Organization creation can be retried safely", async ({
 }) => {
   await setup(request, [], { createUncertainOnce: true });
   await signIn(page);
-  await page.getByRole("button", { name: "Tạo Organization" }).click();
+  await openCreationForm(page);
   await page.getByLabel("Tên Organization").fill("Retry Org");
   await page
     .locator("form.auth-form")
@@ -306,7 +318,7 @@ test("saving identity during onboarding proceeds directly to API keys", async ({
 }) => {
   await setup(request);
   await signIn(page);
-  await page.getByRole("button", { name: "Tạo Organization" }).click();
+  await openCreationForm(page);
   await page.getByLabel("Tên Organization").fill("Setup during onboarding");
   await page
     .locator("form.auth-form")
@@ -721,7 +733,7 @@ test("a 403 while loading identity settings refreshes the roster and hides all c
 test("creation limit explains the next step", async ({ page, request }) => {
   await setup(request, [], { creationLimit: true });
   await signIn(page);
-  await page.getByRole("button", { name: "Tạo Organization" }).click();
+  await openCreationForm(page);
   await page.getByLabel("Tên Organization").fill("Another Org");
   await page
     .locator("form.auth-form")
