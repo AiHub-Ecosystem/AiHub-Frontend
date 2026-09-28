@@ -10,8 +10,9 @@ const password = "correct horse battery staple";
 const disabledIdentityCopy =
   "AIHUB đã tạm vô hiệu hóa identity configuration này. Organization hiện dùng Declared User ID, nghĩa là bất kỳ ai có API key của Organization đều có thể gửi yêu cầu dưới ID của bất kỳ người dùng nào mà không cần chữ ký. Lưu không khôi phục xác minh chữ ký; chỉ AIHUB có thể kích hoạt lại.";
 const identityReadinessTitle = "Xác thực có chữ ký được khuyến nghị";
-const identityReadinessBody =
-  "Organization hiện dùng Declared User ID: bất kỳ ai có API key của Organization đều có thể gửi yêu cầu dưới ID của bất kỳ End-User nào mà không cần chữ ký. Có thể cấu hình identity để AIHUB xác minh Signed User Assertion.";
+/** The overview's identity card carries the one-sentence form of the note. */
+const identityReadinessSummary =
+  "Đang dùng Declared User ID: ai có API key cũng gửi được yêu cầu dưới ID của End-User bất kỳ.";
 type RosterItem = {
   organization_id: string;
   name: string;
@@ -404,7 +405,7 @@ test("identity readiness recommends signed verification, stays role-safe, and su
     readinessNotice.getByText(identityReadinessTitle, { exact: true })
   ).toBeVisible();
   await expect(
-    readinessNotice.getByText(identityReadinessBody, { exact: true })
+    readinessNotice.getByText(identityReadinessSummary, { exact: true })
   ).toBeVisible();
   await expect(
     readinessNotice.getByText(/Nhờ owner cấu hình identity/)

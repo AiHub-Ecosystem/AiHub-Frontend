@@ -1,16 +1,43 @@
 /* A key's Quickstart: its Sample requests, read on the left, run on the right. */
 
+.qs-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 22px 0 12px;
+  color: var(--aihub-soft);
+  font-size: 14px;
+}
+
+.qs-breadcrumb a {
+  color: var(--aihub-brand);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.qs-breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.qs-breadcrumb [aria-current="page"] {
+  color: var(--aihub-ink);
+  font-weight: 600;
+}
+
 .qs-hero {
-  margin: 14px 0 28px;
-  padding: 28px 30px;
+  margin: 0 0 28px;
+  padding: 22px 26px;
   border: 1px solid var(--aihub-line);
   border-radius: var(--aihub-radius);
   background: var(--aihub-card);
 }
 
-.qs-hero .aihub-title {
-  margin-bottom: 18px;
-  font-size: clamp(28px, 3.6vw, 40px);
+.qs-hero-title {
+  margin: 0 0 14px;
+  color: var(--aihub-ink);
+  font-size: 22px;
+  text-align: left;
 }
 
 .qs-facts {

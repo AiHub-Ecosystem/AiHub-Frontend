@@ -50,34 +50,36 @@ export function OrganizationHeader({
         ← Tất cả Organizations
       </Link>
       <div className="org-header-card">
-        <div className="org-header-main">
-          <p className="aihub-eyebrow">AIHub Console · Organization</p>
-          <h1 className="aihub-title">{organization.name}</h1>
-          <div className="org-badges">
-            <span className="org-badge">
-              Vai trò: {membershipRoleLabel(organization.membershipRole)}
-            </span>
-            <span className={`org-badge org-badge--${organization.status}`}>
-              {organizationStatusLabel(organization.status)}
-            </span>
+        <div className="org-header-top">
+          <div className="org-header-main">
+            <p className="aihub-eyebrow">AIHub Console · Organization</p>
+            <h1 className="aihub-title">{organization.name}</h1>
+            <div className="org-badges">
+              <span className="org-badge">
+                Vai trò: {membershipRoleLabel(organization.membershipRole)}
+              </span>
+              <span className={`org-badge org-badge--${organization.status}`}>
+                {organizationStatusLabel(organization.status)}
+              </span>
+            </div>
           </div>
+          {actions && <div className="org-header-actions">{actions}</div>}
         </div>
-        {actions && <div className="org-header-actions">{actions}</div>}
+        {tabs.length > 1 && (
+          <nav aria-label="Organization" className="org-tabs">
+            {tabs.map((tab) => (
+              <Link
+                aria-current={tab.section === section ? "page" : undefined}
+                className="org-tab"
+                href={tab.href}
+                key={tab.section}
+              >
+                {tab.label}
+              </Link>
+            ))}
+          </nav>
+        )}
       </div>
-      {tabs.length > 1 && (
-        <nav aria-label="Organization" className="org-tabs">
-          {tabs.map((tab) => (
-            <Link
-              aria-current={tab.section === section ? "page" : undefined}
-              className="org-tab"
-              href={tab.href}
-              key={tab.section}
-            >
-              {tab.label}
-            </Link>
-          ))}
-        </nav>
-      )}
     </div>
   );
 }

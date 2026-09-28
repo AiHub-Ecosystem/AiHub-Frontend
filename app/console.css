@@ -5,16 +5,20 @@
 }
 
 .org-header-card {
+  margin-top: 14px;
+  border: 1px solid var(--aihub-line);
+  border-radius: var(--aihub-radius);
+  background: var(--aihub-card);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 4%);
+}
+
+.org-header-top {
   display: flex;
   flex-wrap: wrap;
   gap: 18px 24px;
   align-items: flex-end;
   justify-content: space-between;
-  margin-top: 14px;
-  padding: 26px 30px;
-  border: 1px solid var(--aihub-line);
-  border-radius: var(--aihub-radius);
-  background: var(--aihub-card);
+  padding: 26px 30px 22px;
 }
 
 .org-header-main {
@@ -67,13 +71,12 @@
 .org-tabs {
   display: flex;
   gap: 4px;
-  margin: 18px 0 0;
-  border-bottom: 1px solid #d9dee7;
+  padding: 0 18px;
+  border-top: 1px solid var(--aihub-line);
 }
 
 .org-tab {
-  margin-bottom: -1px;
-  padding: 10px 16px;
+  padding: 13px 12px 11px;
   border-bottom: 2px solid transparent;
   color: var(--aihub-body);
   font-weight: 650;
@@ -114,7 +117,7 @@
 @media (min-width: 960px) {
   .org-cards {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    align-items: stretch;
+    align-items: start;
   }
 }
 
@@ -127,6 +130,34 @@
   border: 1px solid var(--aihub-line);
   border-radius: 14px;
   background: var(--aihub-card);
+}
+
+.org-card-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.org-card-heading .org-secondary-action {
+  min-height: 34px;
+  padding: 5px 12px;
+  font-size: 14px;
+}
+
+.org-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.org-chip {
+  padding: 2px 9px;
+  border-radius: 6px;
+  background: var(--aihub-badge-muted-bg);
+  color: var(--aihub-ink);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .org-card h2 {
@@ -154,8 +185,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: auto;
-  padding-top: 6px;
+  padding-top: 4px;
 }
 
 .org-card-primary {
@@ -265,15 +295,15 @@
 }
 
 @media (max-width: 640px) {
-  .org-header-card {
-    padding: 20px 18px;
+  .org-header-top {
+    padding: 20px 18px 16px;
+  }
+
+  .org-tabs {
+    padding: 0 8px;
   }
 
   .org-card {
     padding: 18px;
-  }
-
-  .org-tab {
-    padding: 10px 12px;
   }
 }

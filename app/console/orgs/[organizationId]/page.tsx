@@ -50,12 +50,16 @@ export default async function OrganizationOverviewPage({
           )}
           <div className="org-cards">
             <section aria-labelledby="org-info-title" className="org-card">
-              <h2 id="org-info-title">Thông tin</h2>
+              <div className="org-card-heading">
+                <h2 id="org-info-title">Thông tin</h2>
+                {isActiveOwner && (
+                  <OrganizationRenameForm
+                    name={organization.name}
+                    organizationId={organization.id}
+                  />
+                )}
+              </div>
               <dl className="org-facts">
-                <div>
-                  <dt>Tên</dt>
-                  <dd>{organization.name}</dd>
-                </div>
                 <div>
                   <dt>ID</dt>
                   <dd>
@@ -64,26 +68,22 @@ export default async function OrganizationOverviewPage({
                 </div>
                 <div>
                   <dt>Dịch vụ được bật</dt>
-                  <dd>
+                  <dd className="org-chips">
                     {organization.entitlements.length
-                      ? organization.entitlements.join(", ")
+                      ? organization.entitlements.map((entitlement) => (
+                          <span className="org-chip" key={entitlement}>
+                            {entitlement}
+                          </span>
+                        ))
                       : "Chưa có"}
                   </dd>
                 </div>
               </dl>
-              {isActiveOwner && (
-                <div className="org-card-actions">
-                  <OrganizationRenameForm
-                    name={organization.name}
-                    organizationId={organization.id}
-                  />
-                </div>
-              )}
             </section>
 
             <section aria-labelledby="org-identity-title" className="org-card">
               <h2 id="org-identity-title">Xác thực người dùng</h2>
-              <IdentityReadinessNotice organization={organization} />
+              <IdentityReadinessNotice compact organization={organization} />
               {organization.identityConfigured === true && (
                 <p className="org-card-text">
                   <span className="org-dot org-dot--ok" aria-hidden="true" />

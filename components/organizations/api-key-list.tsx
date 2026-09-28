@@ -59,8 +59,7 @@ export function ApiKeyList({
                 <th scope="col">Key</th>
                 <th scope="col">Quyền</th>
                 <th scope="col">Trạng thái</th>
-                <th scope="col">Thời hạn</th>
-                <th scope="col">Dùng gần nhất (xấp xỉ)</th>
+                <th scope="col">Thời gian</th>
                 <th scope="col">Thao tác</th>
               </tr>
             </thead>
@@ -97,7 +96,7 @@ export function ApiKeyList({
                         : "Đang hoạt động"}
                     </span>
                   </td>
-                  <td data-label="Thời hạn">
+                  <td data-label="Thời gian">
                     <span className="api-key-date">
                       {apiKey.expires_at
                         ? `Hạn: ${displayDate(apiKey.expires_at)}`
@@ -106,9 +105,12 @@ export function ApiKeyList({
                     <span className="api-key-date api-key-date--muted">
                       Tạo: {displayDate(apiKey.created_at)}
                     </span>
-                  </td>
-                  <td data-label="Dùng gần nhất">
-                    {displayDate(apiKey.last_used_at)}
+                    <span className="api-key-date api-key-date--muted">
+                      Dùng gần nhất (xấp xỉ):{" "}
+                      {apiKey.last_used_at
+                        ? displayDate(apiKey.last_used_at)
+                        : "chưa dùng"}
+                    </span>
                   </td>
                   <td data-label="Thao tác">
                     <div className="api-key-row-actions">

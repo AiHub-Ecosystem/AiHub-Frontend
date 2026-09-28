@@ -12,10 +12,12 @@ import { hasQuickstart, quickstartPath } from "@/lib/sample-request";
 import { SessionActivity } from "@/components/session-activity";
 import { RosterUnavailable } from "@/components/organizations/roster-unavailable";
 import { SampleRequests } from "@/components/organizations/sample-requests";
+import { OrganizationHeader } from "@/components/organizations/organization-header";
 import "../../../../../../aihub.css";
 import "../../../../../../auth.css";
 import "../../../../../../api-keys.css";
 import "../../../../../../quickstart.css";
+import "../../../../../../console.css";
 
 export const metadata: Metadata = { title: "Quickstart — AIHub" };
 export const dynamic = "force-dynamic";
@@ -49,12 +51,14 @@ export default async function ApiKeyQuickstartPage({
       <SessionActivity />
       <main className="aihub auth-page console-page">
         <div className="aihub-shell">
-          <Link className="organization-back-link" href={apiKeysPath}>
-            ← API keys
-          </Link>
+          <OrganizationHeader organization={organization} section="api-keys" />
+          <nav aria-label="Breadcrumb" className="qs-breadcrumb">
+            <Link href={apiKeysPath}>← API keys</Link>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">{apiKey.name}</span>
+          </nav>
           <div className="qs-hero">
-            <p className="aihub-eyebrow">AIHub Console · {organization.name}</p>
-            <h1 className="aihub-title">{apiKey.name} · Quickstart</h1>
+            <h2 className="qs-hero-title">{apiKey.name} · Quickstart</h2>
             <dl className="qs-facts">
               <div>
                 <dt>Key prefix</dt>
