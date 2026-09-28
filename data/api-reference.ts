@@ -1189,38 +1189,6 @@ const SPEAKING_QUESTIONS_ERRORS: ErrorResponse[] = [
     },
   },
   {
-    status: "404",
-    code: "NOT_FOUND",
-    tone: "error",
-    title: "Không có route",
-    description: "Sai path hoặc sai method.",
-    example: {
-      error: {
-        code: "NOT_FOUND",
-        message: "…",
-        request_id: "req_01M23NT8MJW22AYX6FVT17F5XF",
-        retryable: false,
-      },
-    },
-  },
-  {
-    status: "429",
-    code: "RATE_LIMITED",
-    tone: "warn",
-    title: "Vượt rate limit",
-    description:
-      "Quá nhiều request mỗi phút. Nghỉ đúng retry_after_ms rồi thử lại.",
-    example: {
-      error: {
-        code: "RATE_LIMITED",
-        message: "…",
-        request_id: "req_01M23NT8MJW22AYX6FVT17F5XF",
-        retryable: true,
-        retry_after_ms: 2000,
-      },
-    },
-  },
-  {
     status: "500",
     code: "INTERNAL_ERROR",
     tone: "error",
@@ -1265,7 +1233,7 @@ export const SPEAKING_REFERENCE: Record<string, EndpointReference> = {
     ],
     errors: {
       intro:
-        "Endpoint lấy câu hỏi không có guard xác thực nên không thể trả về 401 hay 403. Dưới đây là các mã thực sự có thể xảy ra; phần lớn danh sách lỗi của hai endpoint chấm không áp dụng.",
+        "Endpoint lấy câu hỏi là public, không cần API key hay User Identity. Theo contract hiện tại, endpoint này khai báo INVALID_REQUEST khi tham số part không hợp lệ và INTERNAL_ERROR khi AIHUB gặp lỗi ngoài dự kiến; không áp dụng các lỗi riêng của API chấm Speaking.",
       items: SPEAKING_QUESTIONS_ERRORS,
     },
   },
