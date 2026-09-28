@@ -1,6 +1,6 @@
 import {
   WRITING_TASK1_CHART_TYPES,
-  WRITING_TASK1_IMAGE_PLACEHOLDER_NOTE,
+  WRITING_TASK1_IMAGE_NOTE,
   WRITING_TASK1_REQUEST,
 } from "@/data/writing-task1-request";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
@@ -635,7 +635,7 @@ export const WRITING_SCORING_REFERENCE: Record<string, EndpointReference> = {
     responseDescription: writingResponseDescription("task_achievement"),
     responseExample: WRITING_TASK1_RESPONSE,
     notes: [
-      `${WRITING_TASK1_IMAGE_PLACEHOLDER_NOTE}, nếu không kết quả sẽ sai.`,
+      WRITING_TASK1_IMAGE_NOTE,
       'chart_type phân biệt HOA THƯỜNG và chỉ nhận 7 giá trị đã liệt kê; gửi "bar chart" hoặc một chủ đề như "environment" đều bị 400 INVALID_REQUEST.',
       ...WRITING_SHARED_NOTES,
     ],

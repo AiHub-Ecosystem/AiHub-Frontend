@@ -144,7 +144,7 @@ test("Writing Scoring overview names the production host and its requirements", 
   await expect(facts).toContainText("X-User-Identity");
 });
 
-test("Writing Task 1 reference shows the request contract and image placeholder", async ({
+test("Writing Task 1 reference shows the request contract and AIHUB's published chart", async ({
   page,
 }) => {
   await page.goto("/product/scoring/api/grade-task1");
@@ -172,7 +172,15 @@ test("Writing Task 1 reference shows the request contract and image placeholder"
   for (const chartType of CHART_TYPES) {
     await expect(page.locator("table.aihub-schema")).toContainText(chartType);
   }
-  await expect(page.locator(".aihub-notes")).toContainText("URL giữ chỗ");
+  await expect(request).toContainText(
+    `"image_url": "https://s3.wispace.app/ielts-task1/ca95bd4ab522946d"`
+  );
+  const notes = page.locator(".aihub-notes");
+  await expect(notes).not.toContainText("URL giữ chỗ");
+  await expect(notes).toContainText("biểu đồ mẫu AIHUB công bố");
+  // The published chart is AIHUB's example, not the reader's.
+  await expect(notes).toContainText("thay bằng ảnh biểu đồ của bạn");
+  await expect(notes).toContainText("kết quả sẽ sai");
 });
 
 test("Writing Task 1 reference shows four ordered criteria in the response", async ({

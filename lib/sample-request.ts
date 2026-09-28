@@ -1,6 +1,6 @@
 import {
   WRITING_TASK1_CHART_TYPES,
-  WRITING_TASK1_IMAGE_PLACEHOLDER_NOTE,
+  WRITING_TASK1_IMAGE_NOTE,
   WRITING_TASK1_REQUEST,
 } from "@/data/writing-task1-request";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
@@ -223,9 +223,6 @@ function apiKeyHeader(apiKey: OrganizationApiKey): SampleHeader {
   };
 }
 
-/** The image is the holder's: AIHUB does not host one, and cannot report a bad one. */
-const writingTask1Note = `${WRITING_TASK1_IMAGE_PLACEHOLDER_NOTE}. Dịch vụ chấm không trả lỗi khi không tải được ảnh, nó vẫn chấm và trả kết quả, nên kết quả sẽ sai.`;
-
 /**
  * What each field means to a holder reading the Sample request. The row order
  * comes from the request object, so the table and the command can never teach
@@ -303,7 +300,7 @@ function buildWritingTask1({
     identityNote: identity.note,
     expectedOutcomeFields: ["overall_band", "criteria", "summary"],
     firstCriterion: "task_achievement",
-    note: writingTask1Note,
+    note: WRITING_TASK1_IMAGE_NOTE,
     usageNote: usageNote(host),
     billing: billing(host),
     command,

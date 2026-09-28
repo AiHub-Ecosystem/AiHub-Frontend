@@ -188,18 +188,34 @@ describe("Writing Task 1 Sample request", () => {
     );
   });
 
-  it("says the image is a placeholder and that an unreachable one is not an error", () => {
+  it("sends the chart AIHUB publishes, so the command runs as copied", () => {
+    const sample = task1();
+    const image = sample?.body.find((field) => field.field === "image_url");
+
+    expect(image?.sampleValue).toBe(
+      "https://s3.wispace.app/ielts-task1/ca95bd4ab522946d"
+    );
+    expect(sample?.command).toContain(
+      '"image_url": "https://s3.wispace.app/ielts-task1/ca95bd4ab522946d"'
+    );
+    expect(
+      sample?.body.find((field) => field.field === "question")?.sampleValue
+    ).toMatch(/telephone calls in the UK/);
+  });
+
+  it("says AIHUB's image works and that an unreachable replacement is not an error", () => {
     const note = task1()?.note ?? "";
 
-    expect(note).toMatch(/URL giữ chỗ/);
-    expect(note).toMatch(/thay bằng/);
+    expect(note).not.toMatch(/URL giữ chỗ/);
+    expect(note).toMatch(/biểu đồ mẫu AIHUB công bố/);
+    expect(note).toMatch(/thay bằng ảnh biểu đồ của bạn/);
     expect(note).toMatch(/không trả lỗi/);
     expect(note).toMatch(/kết quả sẽ sai/);
   });
 
-  it("keeps the placeholder note off the Task 2 request", () => {
+  it("keeps the image note off the Task 2 request", () => {
     expect(sampleFor(mintedKey(), "writing-task2", false)?.note).not.toMatch(
-      /URL giữ chỗ/
+      /image_url/
     );
   });
 

@@ -334,8 +334,13 @@ test("a key holding writing.grade shows a Task 1 request beside Task 2", async (
     await expect(chartTypeRow).toContainText(chartType);
   await expect(chartTypeRow).toContainText("HOA THƯỜNG");
   await expect(chartTypeRow).toContainText("environment");
-  await expect(task1.getByText(/URL giữ chỗ/)).toBeVisible();
-  await expect(task1.getByText(/thay bằng/)).toBeVisible();
+  await expect(
+    task1
+      .getByRole("table", { name: "Writing Task 1 request body" })
+      .getByRole("row", { name: /image_url/ })
+  ).toContainText("https://s3.wispace.app/ielts-task1/ca95bd4ab522946d");
+  await expect(task1.getByText(/URL giữ chỗ/)).toHaveCount(0);
+  await expect(task1.getByText(/biểu đồ mẫu AIHUB công bố/)).toBeVisible();
   await expect(
     task1.getByText(/không trả lỗi khi không tải được ảnh/)
   ).toBeVisible();
@@ -359,7 +364,7 @@ test("a key holding writing.grade shows a Task 1 request beside Task 2", async (
   await expect(task2).toHaveCount(0);
   await tablist.getByRole("tab", { name: "Writing Task 2" }).click();
   await expect(task2).toBeVisible();
-  await expect(task2.getByText(/URL giữ chỗ/)).toHaveCount(0);
+  await expect(task2.getByText(/biểu đồ mẫu AIHUB công bố/)).toHaveCount(0);
 });
 
 test("a key holding both scopes shows one tab per request, Writing first", async ({
