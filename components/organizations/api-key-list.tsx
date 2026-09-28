@@ -56,31 +56,39 @@ export function ApiKeyList({
           <table aria-label="API keys" className="api-key-table">
             <thead>
               <tr>
-                <th scope="col">Tên</th>
-                <th scope="col">Key prefix</th>
-                <th scope="col">Scopes</th>
-                <th scope="col">Môi trường</th>
+                <th scope="col">Key</th>
+                <th scope="col">Quyền</th>
                 <th scope="col">Trạng thái</th>
-                <th scope="col">Hết hạn</th>
+                <th scope="col">Thời hạn</th>
                 <th scope="col">Dùng gần nhất (xấp xỉ)</th>
-                <th scope="col">Tạo lúc</th>
                 <th scope="col">Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {apiKeys.map((apiKey) => (
                 <tr key={apiKey.id}>
-                  <th scope="row">{apiKey.name}</th>
-                  <td>
-                    <code>{apiKey.key_prefix}</code>
+                  <th scope="row">
+                    <span className="api-key-name">{apiKey.name}</span>
+                    <code className="api-key-prefix">{apiKey.key_prefix}</code>
+                  </th>
+                  <td data-label="Quyền">
+                    <div className="api-key-chips">
+                      {apiKey.scopes.map((scope) => (
+                        <code className="api-key-chip" key={scope}>
+                          {scope}
+                        </code>
+                      ))}
+                      {apiKey.allowed_environments.map((environment) => (
+                        <span
+                          className={`api-key-env api-key-env--${environment}`}
+                          key={environment}
+                        >
+                          {apiKeyEnvironmentLabel(environment)}
+                        </span>
+                      ))}
+                    </div>
                   </td>
-                  <td>{apiKey.scopes.join(", ")}</td>
-                  <td>
-                    {apiKey.allowed_environments
-                      .map(apiKeyEnvironmentLabel)
-                      .join(", ")}
-                  </td>
-                  <td>
+                  <td data-label="Trạng thái">
                     <span
                       className={`api-key-status api-key-status--${apiKey.status}`}
                     >
@@ -89,14 +97,20 @@ export function ApiKeyList({
                         : "Đang hoạt động"}
                     </span>
                   </td>
-                  <td>
-                    {apiKey.expires_at
-                      ? displayDate(apiKey.expires_at)
-                      : "Không hết hạn"}
+                  <td data-label="Thời hạn">
+                    <span className="api-key-date">
+                      {apiKey.expires_at
+                        ? `Hạn: ${displayDate(apiKey.expires_at)}`
+                        : "Không hết hạn"}
+                    </span>
+                    <span className="api-key-date api-key-date--muted">
+                      Tạo: {displayDate(apiKey.created_at)}
+                    </span>
                   </td>
-                  <td>{displayDate(apiKey.last_used_at)}</td>
-                  <td>{displayDate(apiKey.created_at)}</td>
-                  <td>
+                  <td data-label="Dùng gần nhất">
+                    {displayDate(apiKey.last_used_at)}
+                  </td>
+                  <td data-label="Thao tác">
                     <div className="api-key-row-actions">
                       {hasQuickstart(apiKey) && (
                         <Link

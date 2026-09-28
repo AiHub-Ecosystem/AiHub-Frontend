@@ -2,6 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export function OrganizationRenameForm({
   organizationId,
@@ -13,6 +21,7 @@ export function OrganizationRenameForm({
   const router = useRouter();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,6 +50,7 @@ export function OrganizationRenameForm({
         );
         return;
       }
+      setOpen(false);
       router.refresh();
     } catch {
       setError("Không thể kết nối. Vui lòng thử lại.");
@@ -50,22 +60,43 @@ export function OrganizationRenameForm({
   }
 
   return (
-    <form className="auth-form" onSubmit={submit}>
-      <label htmlFor="rename-organization">Đổi tên Organization</label>
-      <input
-        id="rename-organization"
-        name="name"
-        defaultValue={name}
-        required
-      />
-      {error && (
-        <p className="auth-error" role="alert">
-          {error}
-        </p>
-      )}
-      <button className="auth-submit" disabled={busy} type="submit">
-        {busy ? "Đang lưu…" : "Lưu tên mới"}
-      </button>
-    </form>
+    <Dialog
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setError("");
+      }}
+      open={open}
+    >
+      <DialogTrigger asChild>
+        <button className="org-secondary-action" type="button">
+          Đổi tên
+        </button>
+      </DialogTrigger>
+      <DialogContent aria-describedby="rename-organization-description">
+        <DialogHeader>
+          <DialogTitle>Đổi tên Organization</DialogTitle>
+          <DialogDescription id="rename-organization-description">
+            Tên mới hiển thị với mọi thành viên của Organization.
+          </DialogDescription>
+        </DialogHeader>
+        <form className="auth-form" onSubmit={submit}>
+          <label htmlFor="rename-organization">Tên mới</label>
+          <input
+            id="rename-organization"
+            name="name"
+            defaultValue={name}
+            required
+          />
+          {error && (
+            <p className="auth-error" role="alert">
+              {error}
+            </p>
+          )}
+          <button className="auth-submit" disabled={busy} type="submit">
+            {busy ? "Đang lưu…" : "Lưu tên mới"}
+          </button>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

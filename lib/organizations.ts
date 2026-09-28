@@ -82,3 +82,27 @@ export function parseOrganizationRoster(
 export function shortOrganizationId(id: string) {
   return id.length <= 8 ? id : id.slice(-8);
 }
+
+const MEMBERSHIP_ROLE_LABELS: Record<
+  OrganizationMembership["membershipRole"],
+  string
+> = {
+  owner: "Owner",
+  admin: "Admin",
+  member: "Thành viên",
+};
+
+export function membershipRoleLabel(
+  role: OrganizationMembership["membershipRole"]
+): string {
+  return MEMBERSHIP_ROLE_LABELS[role];
+}
+
+/** Falls back to the raw status for one the Console does not name. */
+export function organizationStatusLabel(status: string): string {
+  return status === "active"
+    ? "Đang hoạt động"
+    : status === "suspended"
+      ? "Tạm ngưng"
+      : status;
+}

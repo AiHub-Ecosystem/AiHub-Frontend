@@ -3,7 +3,9 @@ import Link from "next/link";
 import { requirePageWebSession } from "@/lib/page-session";
 import { readOrganizationRoster } from "@/lib/organization-server";
 import {
+  membershipRoleLabel,
   organizationDestination,
+  organizationStatusLabel,
   shortOrganizationId,
 } from "@/lib/organizations";
 import { SessionActivity } from "@/components/session-activity";
@@ -62,8 +64,12 @@ export default async function OrganizationsPage() {
                       )}
                     </span>
                     <span className="organization-directory-meta">
-                      <span>{organization.membershipRole}</span>
-                      <span>{organization.status}</span>
+                      <span>
+                        {membershipRoleLabel(organization.membershipRole)}
+                      </span>
+                      <span>
+                        {organizationStatusLabel(organization.status)}
+                      </span>
                     </span>
                     <span
                       aria-hidden="true"

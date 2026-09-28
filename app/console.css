@@ -1,0 +1,279 @@
+/* Pages inside one Organization: a shared header, section tabs, and cards. */
+
+.org-header {
+  margin-top: 8px;
+}
+
+.org-header-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 24px;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 26px 30px;
+  border: 1px solid var(--aihub-line);
+  border-radius: var(--aihub-radius);
+  background: var(--aihub-card);
+}
+
+.org-header-main {
+  min-width: 0;
+}
+
+.org-header .aihub-eyebrow {
+  margin: 0;
+}
+
+.org-header .aihub-title {
+  margin: 6px 0 12px;
+  font-size: clamp(28px, 3.6vw, 40px);
+  overflow-wrap: anywhere;
+}
+
+.org-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.org-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.org-badge {
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--aihub-badge-muted-bg);
+  color: #344054;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.org-badge--active {
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.org-badge--suspended {
+  background: #fff4ed;
+  color: #b54708;
+}
+
+/* Section tabs: where the caller is inside the Organization */
+
+.org-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 18px 0 0;
+  border-bottom: 1px solid #d9dee7;
+}
+
+.org-tab {
+  margin-bottom: -1px;
+  padding: 10px 16px;
+  border-bottom: 2px solid transparent;
+  color: var(--aihub-body);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.org-tab:hover {
+  color: var(--aihub-ink);
+}
+
+.org-tab[aria-current="page"] {
+  border-bottom-color: var(--aihub-brand);
+  color: var(--aihub-brand);
+}
+
+.org-tab:focus-visible {
+  border-radius: 6px;
+  outline: 3px solid rgb(58 100 250 / 35%);
+}
+
+/* Overview cards */
+
+.org-suspended {
+  margin: 20px 0 0;
+  padding: 12px 16px;
+  border-left: 3px solid #f79009;
+  border-radius: 0 10px 10px 0;
+  background: #fffaeb;
+  color: #7a2e0e;
+}
+
+.org-cards {
+  display: grid;
+  gap: 20px;
+  margin-top: 24px;
+}
+
+@media (min-width: 960px) {
+  .org-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+  }
+}
+
+.org-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+  border: 1px solid var(--aihub-line);
+  border-radius: 14px;
+  background: var(--aihub-card);
+}
+
+.org-card h2 {
+  margin: 0;
+  color: var(--aihub-ink);
+  font-size: 18px;
+  text-align: left;
+}
+
+.org-card-text {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin: 0;
+  color: var(--aihub-body);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.org-card-muted {
+  color: var(--aihub-soft);
+}
+
+.org-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.org-card-primary {
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 16px;
+  text-decoration: none;
+}
+
+.org-secondary-action {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid #cfd5df;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--aihub-brand);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+}
+
+.org-secondary-action:hover {
+  border-color: var(--aihub-brand);
+}
+
+.org-secondary-action:focus-visible {
+  outline: 3px solid rgb(58 100 250 / 35%);
+  outline-offset: 2px;
+}
+
+.org-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translateY(-1px);
+}
+
+.org-dot--ok {
+  background: #12b76a;
+}
+
+.org-facts {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.org-facts dt {
+  color: var(--aihub-soft);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.org-facts dd {
+  margin: 2px 0 0;
+  color: var(--aihub-ink);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.org-facts code {
+  font-size: 12.5px;
+}
+
+/* The identity reminder, compact: a note, not a second page title */
+
+.org-card .identity-readiness,
+.org-header ~ .identity-readiness {
+  display: block;
+  margin: 0;
+  padding: 12px 14px;
+  border: 0;
+  border-left: 3px solid #f79009;
+  border-radius: 0 10px 10px 0;
+  background: #fffaeb;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.org-header ~ .identity-readiness {
+  margin-top: 20px;
+}
+
+.org-card .identity-readiness p,
+.org-header ~ .identity-readiness p {
+  margin: 4px 0 0;
+  color: #475467;
+}
+
+.org-card .identity-readiness > span,
+.org-header ~ .identity-readiness > span {
+  display: block;
+  margin-top: 6px;
+  color: #7a2e0e;
+  font-weight: 600;
+}
+
+/* Other Organizations, below the cards */
+
+.org-cards ~ .organization-switcher {
+  margin-top: 24px;
+  background: var(--aihub-card);
+}
+
+@media (max-width: 640px) {
+  .org-header-card {
+    padding: 20px 18px;
+  }
+
+  .org-card {
+    padding: 18px;
+  }
+
+  .org-tab {
+    padding: 10px 12px;
+  }
+}

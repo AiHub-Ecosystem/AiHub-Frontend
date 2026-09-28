@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { requirePageWebSession } from "@/lib/page-session";
 import { readOrganizationRoster } from "@/lib/organization-server";
 import { SessionActivity } from "@/components/session-activity";
@@ -8,10 +7,12 @@ import { RosterUnavailable } from "@/components/organizations/roster-unavailable
 import { ApiKeyManager } from "@/components/organizations/api-key-manager";
 import { IdentityReadinessNotice } from "@/components/organizations/identity-readiness-notice";
 import { OrganizationIdentityDialog } from "@/components/organizations/organization-identity-dialog";
+import { OrganizationHeader } from "@/components/organizations/organization-header";
 import "../../../../aihub.css";
 import "../../../../auth.css";
 import "../../../../api-keys.css";
 import "../../../../quickstart.css";
+import "../../../../console.css";
 
 export const metadata: Metadata = { title: "API keys — AIHub" };
 export const dynamic = "force-dynamic";
@@ -36,23 +37,18 @@ export default async function OrganizationApiKeysPage({
       <SessionActivity />
       <main className="aihub auth-page console-page">
         <div className="aihub-shell">
-          <p className="aihub-eyebrow">AIHub Console · Organization</p>
-          <h1 className="aihub-title">{organization.name} · API keys</h1>
-          <p className="aihub-lede">
-            Tạo, xoay và thu hồi API keys dùng để kết nối dịch vụ của
-            Organization.
-          </p>
-          <div className="api-key-page-actions">
-            <Link className="organization-back-link" href="/console/orgs">
-              ← Tất cả Organizations
-            </Link>
-            {organization.membershipRole === "owner" && (
-              <OrganizationIdentityDialog
-                organizationId={organization.id}
-                organizationName={organization.name}
-              />
-            )}
-          </div>
+          <OrganizationHeader
+            actions={
+              organization.membershipRole === "owner" && (
+                <OrganizationIdentityDialog
+                  organizationId={organization.id}
+                  organizationName={organization.name}
+                />
+              )
+            }
+            organization={organization}
+            section="api-keys"
+          />
           <IdentityReadinessNotice organization={organization} />
           <ApiKeyManager
             entitlements={organization.entitlements}

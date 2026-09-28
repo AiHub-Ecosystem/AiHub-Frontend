@@ -171,6 +171,19 @@
   max-width: 1180px;
 }
 
+/*
+ * The marketing theme gives every focused form input a 2px pink border with
+ * !important. Console forms, including dialogs portalled outside the page,
+ * use the brand focus ring instead.
+ */
+.console-page form input:focus,
+.console-page form textarea:focus,
+.ui-dialog-content form input:focus,
+.ui-dialog-content form textarea:focus,
+.api-key-reveal form input:focus {
+  border: 1px solid #3a64fa !important;
+}
+
 .organization-switcher {
   display: flex;
   flex-wrap: wrap;

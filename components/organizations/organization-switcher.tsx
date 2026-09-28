@@ -1,6 +1,8 @@
 import Link from "next/link";
 import {
+  membershipRoleLabel,
   organizationDestination,
+  organizationStatusLabel,
   shortOrganizationId,
   type OrganizationMembership,
 } from "@/lib/organizations";
@@ -44,7 +46,8 @@ export function OrganizationSwitcher({
             </span>
           )}
           <span className="aihub-secondary">
-            {organization.membershipRole} · {organization.status}
+            {membershipRoleLabel(organization.membershipRole)} ·{" "}
+            {organizationStatusLabel(organization.status)}
           </span>
         </Link>
       ))}

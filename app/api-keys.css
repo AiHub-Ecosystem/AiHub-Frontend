@@ -45,7 +45,7 @@
   font-weight: 650;
 }
 
-.api-key-form input:not([type="checkbox"]) {
+.api-key-form input:not([type="checkbox"]):not([type="radio"]) {
   box-sizing: border-box;
   width: 100%;
   min-height: 46px;
@@ -59,6 +59,7 @@
 
 .api-key-form input:focus-visible,
 .api-key-action:focus-visible {
+  box-shadow: none;
   border-color: #3a64fa;
   outline: 3px solid rgb(58 100 250 / 28%);
   outline-offset: 2px;
@@ -175,7 +176,7 @@
 
 .api-key-table {
   width: 100%;
-  min-width: 1080px;
+  min-width: 860px;
   border-collapse: collapse;
   color: #344054;
   font-size: 13px;
@@ -207,6 +208,69 @@
   font-weight: 650;
 }
 
+.api-key-name {
+  display: block;
+  font-size: 14px;
+}
+
+.api-key-prefix {
+  display: inline-block;
+  margin-top: 4px;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.api-key-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.api-key-chip {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #eef0f4;
+  color: #1d2838;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.api-key-env {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.api-key-env--production {
+  background: #fff4e5;
+  color: #93370d;
+}
+
+.api-key-env--sandbox {
+  background: #e7f8ee;
+  color: #05603a;
+}
+
+.api-key-env--staging {
+  background: #eef0f4;
+  color: #344054;
+}
+
+.api-key-date {
+  display: block;
+  white-space: nowrap;
+}
+
+.api-key-date--muted {
+  margin-top: 3px;
+  color: #667084;
+  font-size: 12px;
+}
+
 .api-key-table code {
   overflow-wrap: anywhere;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -232,8 +296,14 @@
 
 .api-key-row-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+  align-items: center;
+}
+
+.api-key-row-actions .api-key-action {
+  min-height: 34px;
+  padding: 6px 10px;
+  white-space: nowrap;
 }
 
 .api-key-action {
@@ -389,7 +459,58 @@ a.api-key-action {
     max-height: calc(100dvh - 24px);
   }
 
+  /* Each key becomes a card: a wide table cannot show its actions here. */
+  .api-key-table-wrap {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
   .api-key-table {
-    min-width: 980px;
+    min-width: 0;
+  }
+
+  .api-key-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .api-key-table tbody,
+  .api-key-table tr,
+  .api-key-table th,
+  .api-key-table td {
+    display: block;
+  }
+
+  .api-key-table tr {
+    margin-bottom: 12px;
+    padding: 14px;
+    border: 1px solid #e4e7ec;
+    border-radius: 12px;
+    background: #fff;
+  }
+
+  .api-key-table tbody th,
+  .api-key-table td {
+    padding: 6px 0;
+    border: 0;
+  }
+
+  .api-key-table td[data-label]::before {
+    display: block;
+    margin-bottom: 4px;
+    color: #667084;
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .api-key-row-actions {
+    flex-wrap: wrap;
   }
 }

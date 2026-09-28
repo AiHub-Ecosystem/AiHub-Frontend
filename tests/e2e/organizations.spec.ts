@@ -106,9 +106,12 @@ test("an owner can configure identity and manage API keys", async ({
   await identityDialog.getByRole("button", { name: "Đóng" }).click();
   await page.getByRole("link", { name: "Quản lý API keys" }).click();
   await expect(page).toHaveURL(/\/console\/orgs\/owner-id\/api-keys$/);
+  await expect(page.getByRole("heading", { name: "Owner Org" })).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Owner Org · API keys" })
-  ).toBeVisible();
+    page
+      .getByRole("navigation", { name: "Organization" })
+      .getByRole("link", { name: "API keys" })
+  ).toHaveAttribute("aria-current", "page");
 });
 
 test("an admin can open the API-key inventory", async ({ page, request }) => {
@@ -127,10 +130,12 @@ test("a member sees the roster without owner actions", async ({
   await setup(request, [org("member-id", "Member Org", "member")]);
   await signIn(page);
   await expect(page).toHaveURL(/\/console\/orgs\/member-id$/);
-  await expect(page.getByText("Membership Role: member")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Lưu tên mới" })).toHaveCount(
-    0
-  );
+  await expect(page.getByText("Vai trò: Thành viên")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Đổi tên" })).toHaveCount(0);
+  // Members do not manage API keys, so they get no section to switch to.
+  await expect(
+    page.getByRole("navigation", { name: "Organization" })
+  ).toHaveCount(0);
 });
 
 test("a suspended organization shows its status", async ({ page, request }) => {
@@ -153,15 +158,17 @@ test("multiple organizations show role, status, and short IDs for duplicate name
   await signIn(page);
   await expect(page).toHaveURL(/\/console\/orgs$/);
   const organizations = page.getByRole("list", { name: "Organizations" });
-  await expect(organizations.getByText("owner")).toBeVisible();
-  await expect(organizations.getByText("member")).toBeVisible();
+  await expect(organizations.getByText("Owner")).toBeVisible();
+  await expect(organizations.getByText("Thành viên")).toBeVisible();
   await expect(
     organizations.getByText("12345678", { exact: true })
   ).toBeVisible();
   await expect(
     organizations.getByText("98765432", { exact: true })
   ).toBeVisible();
-  await organizations.getByRole("link", { name: /Same name.*member/ }).click();
+  await organizations
+    .getByRole("link", { name: /Same name.*Thành viên/ })
+    .click();
   await expect(page).toHaveURL(/\/console\/orgs\/org-98765432$/);
 });
 
@@ -731,7 +738,8 @@ test("active owner can rename; backend denial and foreign IDs use generic denial
   await setup(request, [org("rename-id", "Before")]);
   await signIn(page);
   await page.goto("/console/orgs/rename-id");
-  await page.getByLabel("Đổi tên Organization").fill("After");
+  await page.getByRole("button", { name: "Đổi tên" }).click();
+  await page.getByLabel("Tên mới").fill("After");
   await page.getByRole("button", { name: "Lưu tên mới" }).click();
   await expect(page.getByRole("heading", { name: "After" })).toBeVisible({
     timeout: 15_000,
@@ -739,7 +747,8 @@ test("active owner can rename; backend denial and foreign IDs use generic denial
 
   await setup(request, [org("rename-id", "After")], { renameDenied: true });
   await page.goto("/console/orgs/rename-id");
-  await page.getByLabel("Đổi tên Organization").fill("Denied");
+  await page.getByRole("button", { name: "Đổi tên" }).click();
+  await page.getByLabel("Tên mới").fill("Denied");
   await page.getByRole("button", { name: "Lưu tên mới" }).click();
   await expect(page).toHaveURL(/\/console\/orgs\/denied$/);
   await expect(
