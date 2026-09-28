@@ -646,3 +646,59 @@ describe("Raw key", () => {
     }
   });
 });
+
+describe("PowerShell command", () => {
+  const bashOnly = [" \\n", "<<'JSON'", "${"];
+
+  it("sends the same JSON request with curl.exe and reads the key from $env:API_KEY", () => {
+    const apiKey = mintedKey();
+    const sample = sampleFor(apiKey, "writing-task1", false);
+    const command = sample?.powershellCommand ?? "";
+
+    expect(command.startsWith("& {")).toBe(true);
+    expect(command).toContain(
+      `if (-not $env:API_KEY) { throw 'Chạy $env:API_KEY = "<API key của bạn>" trước' }`
+    );
+    expect(command).toContain("  curl.exe --request POST `");
+    expect(command).toContain(
+      "[IO.File]::WriteAllText($bodyFile, $body, $utf8)"
+    );
+    expect(command).toContain('--data-binary "@$bodyFile"');
+    expect(command).toContain(
+      "'https://api.aihubproduction.com/v1/ielts/writing/task1/grade' `"
+    );
+    expect(command).toContain('--header "X-API-Key: $env:API_KEY" `');
+    // A BOM would reach the server as the first bytes of the JSON body.
+    expect(command).toContain(
+      "$utf8 = New-Object System.Text.UTF8Encoding $false"
+    );
+    expect(command).toContain(`$idempotencyKey = '${idempotencyKey}'`);
+    expect(command).toContain(
+      `$body = @'\n${JSON.stringify(WRITING_TASK1_REQUEST, null, 2)}\n'@`
+    );
+    expect(command).not.toContain(apiKey.api_key);
+    for (const syntax of bashOnly) expect(command).not.toContain(syntax);
+  });
+
+  it("uploads the Speaking answer as a multipart form", () => {
+    const command =
+      sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
+        ?.powershellCommand ?? "";
+
+    expect(command).toContain("$audioFile = './answer.wav'");
+    expect(command).toContain('-F "audio=@$audioFile" `');
+    expect(command).toContain('-F "question_id=p1_hometown"');
+    expect(command).not.toContain("Content-Type");
+    for (const syntax of bashOnly) expect(command).not.toContain(syntax);
+  });
+
+  it("has no command where bash has none", () => {
+    expect(
+      sampleFor(
+        mintedKey({ allowed_environments: ["staging"] }),
+        "writing-task2",
+        false
+      )?.powershellCommand
+    ).toBeNull();
+  });
+});

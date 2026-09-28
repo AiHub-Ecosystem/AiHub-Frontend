@@ -435,6 +435,50 @@
   text-align: left;
 }
 
+.qs-shells {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: #16213a;
+}
+
+.qs-shell {
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #9aa7bd;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.qs-shell:hover {
+  color: #e6edf7;
+}
+
+.qs-shell[aria-pressed="true"] {
+  background: #2b3a5c;
+  color: #fff;
+}
+
+.qs-shell:focus-visible {
+  outline: 3px solid rgb(124 196 255 / 55%);
+  outline-offset: 1px;
+}
+
+.qs-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .qs-copy {
   flex: none;
   min-height: 34px;

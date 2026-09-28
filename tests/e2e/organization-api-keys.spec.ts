@@ -1036,3 +1036,35 @@ test("a Quickstart fits a phone without horizontal page scroll", async ({
   );
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test("a Quickstart offers the same request for PowerShell", async ({
+  page,
+  request,
+}) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await setup(request, { apiKeys: quickstartKeys });
+  await signIn(page, false);
+  await page.goto(quickstartPath("ak_01J00000000000000000000000"));
+
+  const command = page.getByTestId("sample-request-command");
+  await expect(command).toContainText("curl --request POST");
+  await page.getByRole("button", { name: "PowerShell" }).click();
+  await expect(
+    page.getByRole("button", { name: "PowerShell" })
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(command).toContainText("curl.exe --request POST");
+  await expect(command).toContainText("$env:API_KEY");
+  await expect(command).not.toContainText("<<'JSON'");
+
+  await page.getByRole("button", { name: "Sao chép lệnh" }).click();
+  const clipboard = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clipboard).toContain("curl.exe --request POST");
+
+  // The shell is the holder's, not the request's: it survives a tab change.
+  await page
+    .getByRole("tablist", { name: "Sample requests" })
+    .getByRole("tab", { name: "Writing Task 2" })
+    .click();
+  await expect(command).toContainText("curl.exe --request POST");
+  await expect(command).toContainText("task2/grade");
+});

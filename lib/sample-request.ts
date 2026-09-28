@@ -42,6 +42,60 @@ const HOST_PREFERENCE: ApiKeyEnvironment[] = ["sandbox", "production"];
 const RAW_KEY_FROM_ENVIRONMENT =
   'API_KEY="${API_KEY:?Chạy export API_KEY=<API key của bạn> trước}"';
 
+/** Stops the whole block, not one line, when the key is not set. */
+const POWERSHELL_KEY_GUARD = `if (-not $env:API_KEY) { throw 'Chạy $env:API_KEY = "<API key của bạn>" trước' }`;
+
+/**
+ * The same request for Windows PowerShell 5.1 and PowerShell 7. It calls
+ * curl.exe, which ships with Windows 10 and later, rather than the `curl`
+ * alias, and wraps everything in one block so a missing key stops it all.
+ */
+function powershellCommand(setup: string[], call: string[]): string {
+  return [
+    "& {",
+    // Shows the Vietnamese in the response, and writes the body without a BOM.
+    "  $utf8 = New-Object System.Text.UTF8Encoding $false",
+    "  [Console]::OutputEncoding = $utf8",
+    `  ${POWERSHELL_KEY_GUARD}`,
+    ...setup,
+    ...call.map((line, index) =>
+      index < call.length - 1 ? `${line} \`` : line
+    ),
+    "}",
+  ].join("\n");
+}
+
+function powershellJsonCommand(
+  url: string,
+  identity: ResolvedIdentity,
+  idempotencyKey: string,
+  request: object
+): string {
+  return powershellCommand(
+    [
+      `  $userIdentity = '${identity.value}'`,
+      `  $idempotencyKey = '${idempotencyKey}'`,
+      // A here-string's closing '@ must start its line.
+      "  $body = @'",
+      JSON.stringify(request, null, 2),
+      "'@",
+      // Windows PowerShell 5.1 prefixes a BOM to anything piped to curl.exe,
+      // whatever $OutputEncoding says, so the body goes through a file.
+      "  $bodyFile = [IO.Path]::GetTempFileName()",
+      "  [IO.File]::WriteAllText($bodyFile, $body, $utf8)",
+    ],
+    [
+      "  curl.exe --request POST",
+      `    '${url}'`,
+      '    --header "X-API-Key: $env:API_KEY"',
+      '    --header "X-User-Identity: $userIdentity"',
+      "    --header 'Content-Type: application/json'",
+      '    --header "Idempotency-Key: $idempotencyKey"',
+      '    --data-binary "@$bodyFile"',
+    ]
+  );
+}
+
 function resolveHost(apiKey: OrganizationApiKey): string | null {
   for (const environment of HOST_PREFERENCE) {
     const host = ENVIRONMENT_HOSTS[environment];
@@ -108,7 +162,10 @@ export type SampleRequest = {
   usageNote: string;
   billing: SampleBilling;
   contentTypeNote?: string;
+  /** For a Bash-compatible shell. */
   command: string | null;
+  /** The same request for PowerShell on Windows. */
+  powershellCommand: string | null;
 };
 
 type SpeakingField =
@@ -304,6 +361,14 @@ function buildWritingTask1({
     usageNote: usageNote(host),
     billing: billing(host),
     command,
+    powershellCommand: host
+      ? powershellJsonCommand(
+          endpoint(host, writingTask1Path),
+          identity,
+          idempotencyKey,
+          WRITING_TASK1_REQUEST
+        )
+      : null,
   };
 }
 
@@ -383,6 +448,14 @@ function buildWriting({
     usageNote: usageNote(host),
     billing: billing(host),
     command,
+    powershellCommand: host
+      ? powershellJsonCommand(
+          endpoint(host, writingPath),
+          identity,
+          idempotencyKey,
+          WRITING_TASK2_REQUEST
+        )
+      : null,
   };
 }
 
@@ -442,6 +515,24 @@ function buildSpeaking({
     contentTypeNote:
       "Lệnh dùng -F nên curl tự sinh Content-Type multipart kèm boundary; không cần và không nên đặt header này.",
     command,
+    powershellCommand: host
+      ? powershellCommand(
+          [
+            `  $userIdentity = '${identity.value}'`,
+            "  $audioFile = './answer.wav'",
+          ],
+          [
+            "  curl.exe --request POST",
+            `    '${endpoint(host, speakingPath)}'`,
+            '    --header "X-API-Key: $env:API_KEY"',
+            '    --header "X-User-Identity: $userIdentity"',
+            ...SPEAKING_FORM_FIELDS.filter((field) => field.sendsInSample).map(
+              ({ field, formValue }) =>
+                `    -F "${field}=${formValue.replace("${AUDIO_FILE}", "$audioFile")}"`
+            ),
+          ]
+        )
+      : null,
   };
 }
 

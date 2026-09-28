@@ -27,15 +27,26 @@ const COMMON_ERRORS = [
   "429 QUOTA_EXCEEDED",
 ];
 
+type Shell = "bash" | "powershell";
+
+const SHELLS: { shell: Shell; label: string; title: string }[] = [
+  { shell: "bash", label: "Bash", title: "Lệnh cho Bash-compatible shell" },
+  { shell: "powershell", label: "PowerShell", title: "Lệnh cho PowerShell" },
+];
+
 /** A sample value longer than this scrolls inside its cell. */
 const LONG_SAMPLE_VALUE = 120;
 
+// Bash ${VAR} and PowerShell $name or $env:NAME, quoted strings, the curl
+// binary, flags, and a trailing line continuation (\ in Bash, ` in PowerShell).
 const SHELL_TOKEN =
-  /(\$\{[^}\n]*\})|('[^'\n]*'|"(?:[^"\\\n]|\\.)*")|(^curl\b)|((?<=\s)--?[A-Za-z][\w-]*)|(\\$)/gm;
+  /(\$\{[^}\n]*\}|\$(?:env:)?[A-Za-z_]\w*)|('[^'\n]*'|"(?:[^"\\\n]|\\.)*")|(^\s*curl(?:\.exe)?\b)|((?<=\s)--?[A-Za-z][\w-]*)|(\\$|`$)/gm;
+const VARIABLE = /(\$\{[^}\n]*\}|\$(?:env:)?[A-Za-z_]\w*)/;
 
 function highlightVariables(text: string): ReactNode[] {
-  return text.split(/(\$\{[^}\n]*\})/).map((part, index) =>
-    part.startsWith("${") ? (
+  // split() with a capture group puts every variable at an odd index.
+  return text.split(VARIABLE).map((part, index) =>
+    index % 2 === 1 ? (
       <span className="qs-token-variable" key={index}>
         {part}
       </span>
@@ -64,7 +75,8 @@ function highlightCommand(command: string): ReactNode[] {
             : "qs-token-muted";
     nodes.push(
       <span className={className} key={start}>
-        {string ? highlightVariables(token) : token}
+        {/* Only a double-quoted string expands its variables, in both shells. */}
+        {string?.startsWith('"') ? highlightVariables(token) : token}
       </span>
     );
     last = start + token.length;
@@ -94,6 +106,7 @@ export function SampleRequests({
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
   const [activeKind, setActiveKind] = useState<SampleRequestKind | null>(null);
+  const [shell, setShell] = useState<Shell>("bash");
 
   const samples = useMemo(
     () => buildSampleRequests({ apiKey, identityConfigured, idempotencyKey }),
@@ -135,6 +148,11 @@ export function SampleRequests({
 
   if (!activeSample) return null;
   const { host, path } = splitUrl(activeSample.url);
+  const command =
+    shell === "powershell"
+      ? activeSample.powershellCommand
+      : activeSample.command;
+  const shellTitle = SHELLS.find((option) => option.shell === shell)!.title;
   return (
     <section aria-labelledby="sample-request-title" className="qs">
       <div className="qs-toolbar">
@@ -183,17 +201,33 @@ export function SampleRequests({
 
         <div className="qs-grid">
           <div className="qs-run">
-            {activeSample.command ? (
+            {command ? (
               <>
                 <p className={`qs-callout qs-callout--${activeSample.billing}`}>
                   {activeSample.usageNote}
                 </p>
                 <div className="qs-terminal">
                   <div className="qs-terminal-bar">
-                    <h3>Lệnh cho Bash-compatible shell</h3>
+                    <h3 className="qs-visually-hidden">{shellTitle}</h3>
+                    <div aria-label="Shell" className="qs-shells" role="group">
+                      {SHELLS.map((option) => (
+                        <button
+                          aria-pressed={shell === option.shell}
+                          className="qs-shell"
+                          key={option.shell}
+                          onClick={() => {
+                            setShell(option.shell);
+                            setCopied(false);
+                          }}
+                          type="button"
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
                     <button
                       className="qs-copy"
-                      onClick={() => void copyCommand(activeSample.command!)}
+                      onClick={() => void copyCommand(command)}
                       type="button"
                     >
                       {copied ? "Đã sao chép lệnh" : "Sao chép lệnh"}
@@ -204,7 +238,7 @@ export function SampleRequests({
                     data-testid="sample-request-command"
                     tabIndex={0}
                   >
-                    <code>{highlightCommand(activeSample.command)}</code>
+                    <code>{highlightCommand(command)}</code>
                   </pre>
                 </div>
                 {copyFailed && (
