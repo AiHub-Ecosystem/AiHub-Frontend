@@ -436,7 +436,7 @@ test("Speaking grading command sends every documented field", async ({
   await expect(request).not.toContainText('-F "transcript="');
 });
 
-test("Speaking URL fallback command is a JSON body with its content type", async ({
+test("Speaking published answer sample uses its stable URL in a JSON body", async ({
   page,
 }) => {
   await page.goto("/product/speaking/api/speaking-grading-json");
@@ -449,8 +449,11 @@ test("Speaking URL fallback command is a JSON body with its content type", async
   await expect(request).toContainText('-H "Content-Type: application/json"');
   await expect(request).toContainText("https://api.aihubproduction.com");
   await expect(request).toContainText(
-    '"audio_url": "https://s3.wispace.app/ielts/speaking/answer.mp3?signature=demo"'
+    '"audio_url": "https://s3.wispace.app/ielts-task1/speaking-answers/part-1/do-you-enjoy-living-in-your-city-or-hometown.webm"'
   );
+  await expect(request).not.toContainText(/"audio_url": "[^"]*\?/);
+  await expect(request).not.toContainText("aihub-speaking-samples");
+  await expect(request).toContainText('"part": 1');
   await expect(request).toContainText(
     '"question_id": "p1_do-you-enjoy-living-in-your-city-or-hometown"'
   );

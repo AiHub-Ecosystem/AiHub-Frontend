@@ -21,6 +21,17 @@ const idempotencyKey = "6f1ed729-8d92-4fa6-8e87-0fe6e71e9a17";
 const REAL_QUESTION_ID = "p1_do-you-enjoy-living-in-your-city-or-hometown";
 const REAL_PROMPT_TEXT = "Do you enjoy living in your city or hometown?";
 
+/**
+ * The Published sample answer AIHUB publishes for REAL_QUESTION_ID, written
+ * out as a literal rather than read from the shared example data, so moving
+ * the URL there can never pass this suite by construction.
+ */
+const PUBLISHED_ANSWER_URL =
+  "https://s3.wispace.app/ielts-task1/speaking-answers/part-1/do-you-enjoy-living-in-your-city-or-hometown.webm";
+
+/** The multipart spellings a copied Speaking command must no longer carry. */
+const FILE_UPLOAD_SYNTAX = ["answer.wav", "-F", "--form", "audio=@"];
+
 function mintedKey(
   overrides: Partial<MintedOrganizationApiKey> = {}
 ): MintedOrganizationApiKey {
@@ -354,7 +365,7 @@ describe("Writing Sample request", () => {
 });
 
 describe("Speaking Sample request", () => {
-  it("presents the grading endpoint as multipart with masked key", () => {
+  it("presents the JSON grading endpoint with a masked key", () => {
     const sample = sampleFor(
       mintedKey({ scopes: ["speaking.grade"] }),
       "speaking",
@@ -363,10 +374,11 @@ describe("Speaking Sample request", () => {
 
     expect(sample).toMatchObject({
       method: "POST",
-      url: "https://api.aihubproduction.com/v1/ielts/speaking/grading",
+      url: "https://api.aihubproduction.com/v1/ielts/speaking/grading-json",
       headers: [
         { name: "X-API-Key", value: "aihub_sk_ABC123…" },
         { name: "X-User-Identity", value: "test-user-1" },
+        { name: "Content-Type", value: "application/json" },
       ],
     });
   });
@@ -386,7 +398,7 @@ describe("Speaking Sample request", () => {
     expect(sample?.note).toMatch(/chấm.*(lần nữa|lại)/);
   });
 
-  it("points the audio at a file the holder supplies", () => {
+  it("sends the Published sample answer, so every command runs as copied", () => {
     const sample = sampleFor(
       mintedKey({ scopes: ["speaking.grade"] }),
       "speaking",
@@ -394,25 +406,35 @@ describe("Speaking Sample request", () => {
     );
 
     expect(sample?.body[0]).toMatchObject({
-      field: "audio",
+      field: "audio_url",
+      sampleValue: PUBLISHED_ANSWER_URL,
       required: true,
     });
-    expect(sample?.body[0]?.meaning).toMatch(/file.*của bạn/);
-    expect(sample?.command).toContain("AUDIO_FILE='./answer.wav'");
-    expect(sample?.command).toContain('-F "audio=@${AUDIO_FILE}"');
+    for (const command of [
+      sample?.command,
+      sample?.powershellCommand,
+      sample?.postmanCommand,
+    ]) {
+      expect(command).toContain(`"audio_url": "${PUBLISHED_ANSWER_URL}"`);
+      // The published copy is unsigned, so it carries no signature query.
+      expect(command).not.toMatch(/"audio_url": "[^"]*\?/);
+      expect(command).toContain('"part": 1');
+      expect(command).toContain(`"question_id": "${REAL_QUESTION_ID}"`);
+      expect(command).toContain(`"prompt_text": "${REAL_PROMPT_TEXT}"`);
+      expect(command).toContain('"test_type": "Practice"');
+      for (const syntax of FILE_UPLOAD_SYNTAX)
+        expect(command).not.toContain(syntax);
+    }
   });
 
-  it("sends every form field the grading endpoint requires", () => {
-    const command = sampleFor(
-      mintedKey({ scopes: ["speaking.grade"] }),
-      "speaking",
-      false
-    )?.command;
+  it("says the answer is AIHUB's and how to grade your own audio", () => {
+    const note =
+      sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
+        ?.note ?? "";
 
-    expect(command).toContain('-F "part=1"');
-    expect(command).toContain(`-F "question_id=${REAL_QUESTION_ID}"`);
-    expect(command).toContain(`-F "prompt_text=${REAL_PROMPT_TEXT}"`);
-    expect(command).toContain('-F "test_type=Practice"');
+    expect(note).toMatch(/Published sample answer/);
+    expect(note).toContain("POST /v1/ielts/speaking/grading");
+    expect(note).toMatch(/audio_url.*s3\.wispace\.app/);
   });
 
   it("names a question in AIHUB's catalog and says where the IDs come from", () => {
@@ -446,7 +468,7 @@ describe("Speaking Sample request", () => {
         ?.body ?? [];
 
     expect(body.map((field) => [field.field, field.required])).toEqual([
-      ["audio", true],
+      ["audio_url", true],
       ["part", true],
       ["question_id", true],
       ["prompt_text", false],
@@ -464,21 +486,20 @@ describe("Speaking Sample request", () => {
     )?.command;
 
     expect(command).not.toContain("test_code");
-    expect(command).not.toContain('-F "transcript=');
+    expect(command).not.toContain('"transcript"');
   });
 
-  it("omits a hand-written content type so the boundary survives", () => {
+  it("sends the content type its JSON body needs", () => {
     const sample = sampleFor(
       mintedKey({ scopes: ["speaking.grade"] }),
       "speaking",
       false
     );
 
-    expect(
-      sample?.headers.some((header) => header.name === "Content-Type")
-    ).toBe(false);
-    expect(sample?.command).not.toContain("Content-Type");
-    expect(sample?.contentTypeNote).toMatch(/boundary/);
+    expect(sample?.command).toContain(
+      '--header "Content-Type: application/json"'
+    );
+    expect(sample).not.toHaveProperty("contentTypeNote");
   });
 
   it("ends both commands without a dangling line continuation", () => {
@@ -518,7 +539,7 @@ describe("Speaking Sample request", () => {
       false
     );
 
-    expect(sample?.url).toBe("/v1/ielts/speaking/grading");
+    expect(sample?.url).toBe("/v1/ielts/speaking/grading-json");
     expect(sample?.command).toBeNull();
   });
 
@@ -699,17 +720,17 @@ describe("PowerShell command", () => {
     for (const syntax of bashOnly) expect(command).not.toContain(syntax);
   });
 
-  it("uploads the Speaking answer as a multipart form", () => {
+  it("sends Speaking as a JSON body with curl.exe", () => {
     const command =
       sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
         ?.powershellCommand ?? "";
 
-    expect(command).toContain("$audioFile = './answer.wav'");
-    expect(command).toContain('-F "audio=@$audioFile" `');
-    expect(command).toContain(`-F "question_id=${REAL_QUESTION_ID}"`);
-    expect(command).toContain(`-F "prompt_text=${REAL_PROMPT_TEXT}"`);
-    expect(command).not.toContain("Content-Type");
-    for (const syntax of bashOnly) expect(command).not.toContain(syntax);
+    expect(command).toContain(`"part": 1`);
+    expect(command).toContain("--header 'Content-Type: application/json'");
+    expect(command).toContain('--data-binary "@$bodyFile"');
+    expect(command).not.toContain("Idempotency-Key");
+    for (const syntax of [...bashOnly, ...FILE_UPLOAD_SYNTAX])
+      expect(command).not.toContain(syntax);
   });
 
   it("has no command where bash has none", () => {
@@ -800,16 +821,16 @@ describe("Postman command", () => {
     expect(command).not.toContain("{{API_KEY}}");
   });
 
-  it("sends Speaking as a form with the answer file", () => {
+  it("sends Speaking as a JSON body Postman can import", () => {
     const command =
       sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
         ?.postmanCommand ?? "";
 
-    expect(command).toContain(`--form 'audio=@"answer.wav"' \\`);
-    expect(command).toContain(`--form 'question_id=${REAL_QUESTION_ID}'`);
-    expect(command).toContain(`--form 'prompt_text=${REAL_PROMPT_TEXT}'`);
-    expect(command).not.toContain("Content-Type");
-    for (const syntax of shellOnly) expect(command).not.toContain(syntax);
+    expect(command).toContain("--data-raw '{");
+    expect(command).toContain("--header 'Content-Type: application/json'");
+    expect(command).not.toContain("Idempotency-Key");
+    for (const syntax of [...shellOnly, ...FILE_UPLOAD_SYNTAX])
+      expect(command).not.toContain(syntax);
   });
 
   it("has no command where the shells have none", () => {

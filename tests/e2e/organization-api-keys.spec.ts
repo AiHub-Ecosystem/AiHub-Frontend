@@ -485,7 +485,7 @@ test("a key holding both scopes shows one tab per request, Writing first", async
   await expect(speakingTab).toHaveAttribute("aria-selected", "true");
   await expect(
     speaking.getByText(
-      "https://api.aihubproduction.com/v1/ielts/speaking/grading",
+      "https://api.aihubproduction.com/v1/ielts/speaking/grading-json",
       { exact: true }
     )
   ).toBeVisible();
@@ -496,19 +496,27 @@ test("a key holding both scopes shows one tab per request, Writing first", async
   await expect(
     headers.getByRole("row", { name: /Idempotency-Key/ })
   ).toHaveCount(0);
-  await expect(headers.getByRole("row", { name: /Content-Type/ })).toHaveCount(
-    0
-  );
+  await expect(
+    headers.getByRole("row", { name: /Content-Type/ })
+  ).toBeVisible();
   await expect(speaking.getByText(/chưa hỗ trợ Idempotency-Key/)).toBeVisible();
   await expect(speaking.getByText(/chấm bài và tính phí/)).toBeVisible();
-  await expect(speaking.getByText(/curl tự sinh Content-Type/)).toBeVisible();
+  // The note tells a holder with their own audio how to grade it instead.
+  await expect(speaking.getByText(/chưa hỗ trợ Idempotency-Key/)).toContainText(
+    "POST /v1/ielts/speaking/grading"
+  );
+  await expect(
+    speaking
+      .getByRole("table", { name: "Speaking request body" })
+      .getByRole("row", { name: /audio_url/ })
+  ).toContainText(
+    "https://s3.wispace.app/ielts-task1/speaking-answers/part-1/do-you-enjoy-living-in-your-city-or-hometown.webm"
+  );
 
   const command = await speaking
     .getByTestId("sample-request-command")
     .innerText();
-  expect(command).toContain("AUDIO_FILE='./answer.wav'");
-  expect(command).toContain('-F "audio=@${AUDIO_FILE}"');
-  expect(command).not.toContain("Content-Type");
+  expect(command).not.toContain("answer.wav");
   expect(command).not.toContain("Idempotency-Key");
 });
 

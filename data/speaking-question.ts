@@ -17,8 +17,8 @@ export type SpeakingQuestion = {
  * catalog changes; nothing else will notice.
  */
 export const SPEAKING_CATALOG_EXAMPLE: readonly SpeakingQuestion[] = [
-  // The question aihub-be#196 records a published answer for, so #42 can swap
-  // in that answer's audio_url without touching the question again.
+  // The question the Published sample answer below answers, so the two cannot
+  // drift apart here.
   {
     question_id: "p1_do-you-enjoy-living-in-your-city-or-hometown",
     part: 1,
@@ -33,6 +33,17 @@ export const SPEAKING_CATALOG_EXAMPLE: readonly SpeakingQuestion[] = [
 
 /** The Speaking question every Speaking request example answers. */
 export const SPEAKING_SAMPLE_QUESTION = SPEAKING_CATALOG_EXAMPLE[0];
+
+/**
+ * The Published sample answer for SPEAKING_SAMPLE_QUESTION: a stable, unsigned
+ * public copy of one answer recording, so a copied Sample request runs with
+ * nothing on the holder's machine but the key. This is the copy of backend
+ * data aihub-be ADR-0062 records, with no synchronization: a change on AIHUB's
+ * side is a one-line change here, and the examples checking the URL fail until
+ * it is made. The Speaking question above is a copy of the same kind.
+ */
+export const SPEAKING_SAMPLE_ANSWER_AUDIO_URL =
+  "https://s3.wispace.app/ielts-task1/speaking-answers/part-1/do-you-enjoy-living-in-your-city-or-hometown.webm";
 
 /**
  * The shape of a Speaking question's audio_url, abbreviated: a sample answer

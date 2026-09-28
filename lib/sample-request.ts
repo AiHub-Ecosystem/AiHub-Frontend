@@ -3,7 +3,10 @@ import {
   WRITING_TASK1_IMAGE_NOTE,
   WRITING_TASK1_REQUEST,
 } from "@/data/writing-task1-request";
-import { SPEAKING_SAMPLE_QUESTION } from "@/data/speaking-question";
+import {
+  SPEAKING_SAMPLE_ANSWER_AUDIO_URL,
+  SPEAKING_SAMPLE_QUESTION,
+} from "@/data/speaking-question";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 import type { ApiKeyScope } from "@/lib/api-key-scopes";
 import {
@@ -17,7 +20,7 @@ const SPEAKING_SCOPE = "speaking.grade";
 
 const writingTask1Path = "/v1/ielts/writing/task1/grade";
 const writingPath = "/v1/ielts/writing/task2/grade";
-const speakingPath = "/v1/ielts/speaking/grading";
+const speakingPath = "/v1/ielts/speaking/grading-json";
 
 /**
  * Public host per Environment. An Environment absent here has no runnable
@@ -85,14 +88,16 @@ function powershellCommand(
 
 function powershellJsonCommand(
   url: string,
-  { identity, idempotencyKey, rawKey }: BuildContext,
-  request: object
+  { identity, rawKey }: BuildContext,
+  request: object,
+  /** undefined for a request AIHUB accepts no Idempotency-Key on. */
+  idempotencyKey: string | undefined
 ): string {
   return powershellCommand(
     rawKey,
     [
       `  $userIdentity = '${identity.value}'`,
-      `  $idempotencyKey = '${idempotencyKey}'`,
+      ...(idempotencyKey ? [`  $idempotencyKey = '${idempotencyKey}'`] : []),
       // A here-string's closing '@ must start its line.
       "  $body = @'",
       JSON.stringify(request, null, 2),
@@ -108,7 +113,9 @@ function powershellJsonCommand(
       '    --header "X-API-Key: $apiKey"',
       '    --header "X-User-Identity: $userIdentity"',
       "    --header 'Content-Type: application/json'",
-      '    --header "Idempotency-Key: $idempotencyKey"',
+      ...(idempotencyKey
+        ? ['    --header "Idempotency-Key: $idempotencyKey"']
+        : []),
       '    --data-binary "@$bodyFile"',
     ]
   );
@@ -144,8 +151,10 @@ function postmanCommand(
 
 function postmanJsonCommand(
   url: string,
-  { identity, idempotencyKey, rawKey }: BuildContext,
-  request: object
+  { identity, rawKey }: BuildContext,
+  request: object,
+  /** undefined for a request AIHUB accepts no Idempotency-Key on. */
+  idempotencyKey: string | undefined
 ): string {
   return postmanCommand(
     url,
@@ -153,7 +162,9 @@ function postmanJsonCommand(
     [
       ["X-User-Identity", identity.value],
       ["Content-Type", "application/json"],
-      ["Idempotency-Key", idempotencyKey],
+      ...(idempotencyKey
+        ? ([["Idempotency-Key", idempotencyKey]] as [string, string][])
+        : []),
     ],
     [`--data-raw ${singleQuoted(JSON.stringify(request, null, 2))}`]
   );
@@ -222,7 +233,6 @@ export type SampleRequest = {
   note: string;
   usageNote: string;
   billing: SampleBilling;
-  contentTypeNote?: string;
   /** For a Bash-compatible shell. */
   command: string | null;
   /** The same request for PowerShell on Windows. */
@@ -232,7 +242,7 @@ export type SampleRequest = {
 };
 
 type SpeakingField =
-  | "audio"
+  | "audio_url"
   | "part"
   | "question_id"
   | "prompt_text"
@@ -240,81 +250,75 @@ type SpeakingField =
   | "test_code"
   | "transcript";
 
-type SpeakingFormField = {
+type SpeakingJsonField = {
   field: SpeakingField;
-  /** Sent as the multipart form value. Audio reads the holder's own file. */
-  formValue: string;
-  /** Shown in the body table, so it differs from the form for audio. */
-  sampleValue: string;
+  /** What the JSON body sends; absent for a field the body only documents. */
+  value?: string | number;
+  /** The body table's sample value, written only where value is absent. */
+  sampleValue?: string;
   required: boolean;
-  /** Whether the sample command sends it; the rest are documented only. */
-  sendsInSample: boolean;
   meaning: string;
 };
 
-/** Required flags follow the AIHUB Speaking grading contract, not the demo client. */
-const SPEAKING_FORM_FIELDS: SpeakingFormField[] = [
+/**
+ * The Speaking grading body and the body table, one list: the row order comes
+ * from the body, so the table and the command cannot teach two different
+ * orders. Required flags follow the AIHUB Speaking grading contract.
+ */
+const SPEAKING_JSON_FIELDS: SpeakingJsonField[] = [
   {
-    field: "audio",
-    formValue: "@${AUDIO_FILE}",
-    sampleValue: "./answer.wav",
+    field: "audio_url",
+    value: SPEAKING_SAMPLE_ANSWER_AUDIO_URL,
     required: true,
-    sendsInSample: true,
     meaning:
-      "File âm thanh bạn trả lời; thay bằng file của bạn. wav, mp3, m4a, webm hoặc ogg; tối đa 25 MiB.",
+      "URL HTTPS của tệp âm thanh trả lời, trên đúng host s3.wispace.app; thay bằng URL của bạn. wav, mp3, m4a, webm hoặc ogg; tối đa 25 MiB.",
   },
   {
     field: "part",
-    formValue: String(SPEAKING_SAMPLE_QUESTION.part),
-    sampleValue: String(SPEAKING_SAMPLE_QUESTION.part),
+    value: SPEAKING_SAMPLE_QUESTION.part,
     required: true,
-    sendsInSample: true,
     meaning: "Phần của bài Speaking: 1, 2 hoặc 3.",
   },
   {
     field: "question_id",
-    formValue: SPEAKING_SAMPLE_QUESTION.question_id,
-    sampleValue: SPEAKING_SAMPLE_QUESTION.question_id,
+    value: SPEAKING_SAMPLE_QUESTION.question_id,
     required: true,
-    sendsInSample: true,
     meaning:
       "Một câu hỏi thật trong danh mục Speaking của AIHUB; lấy câu hỏi khác từ GET /v1/ielts/speaking/questions và thay bằng câu hỏi bạn trả lời.",
   },
   {
     field: "prompt_text",
-    formValue: SPEAKING_SAMPLE_QUESTION.prompt_text,
-    sampleValue: SPEAKING_SAMPLE_QUESTION.prompt_text,
+    value: SPEAKING_SAMPLE_QUESTION.prompt_text,
     required: false,
-    sendsInSample: true,
     meaning: "Tuỳ chọn; prompt dùng để đánh giá độ liên quan.",
   },
   {
     field: "test_type",
-    formValue: "Practice",
-    sampleValue: "Practice",
+    value: "Practice",
     required: false,
-    sendsInSample: true,
     meaning: "Tuỳ chọn; ví dụ Practice hoặc Full-test.",
   },
   {
     field: "test_code",
-    formValue: "ielts-practice-01",
     sampleValue: "ielts-practice-01",
     required: false,
-    sendsInSample: false,
     meaning:
       "Tuỳ chọn; mã chung cho các câu hỏi thuộc cùng một bài kiểm tra đầy đủ.",
   },
   {
     field: "transcript",
-    formValue: "",
     sampleValue: "",
     required: false,
-    sendsInSample: false,
     meaning:
       "Tuỳ chọn; transcript có sẵn, dùng khi nhà cung cấp hỗ trợ bỏ qua STT.",
   },
 ];
+
+const SPEAKING_GRADING_JSON_BODY = Object.fromEntries(
+  SPEAKING_JSON_FIELDS.filter((field) => field.value !== undefined).map(
+    ({ field, value }) => [field, value]
+  )
+);
 
 type ResolvedIdentity = { value: string; meaning: string; note: string };
 
@@ -425,14 +429,16 @@ function buildWritingTask1(context: BuildContext): SampleRequest {
       ? powershellJsonCommand(
           endpoint(host, writingTask1Path),
           context,
-          WRITING_TASK1_REQUEST
+          WRITING_TASK1_REQUEST,
+          idempotencyKey
         )
       : null,
     postmanCommand: host
       ? postmanJsonCommand(
           endpoint(host, writingTask1Path),
           context,
-          WRITING_TASK1_REQUEST
+          WRITING_TASK1_REQUEST,
+          idempotencyKey
         )
       : null,
   };
@@ -514,25 +520,23 @@ function buildWriting(context: BuildContext): SampleRequest {
       ? powershellJsonCommand(
           endpoint(host, writingPath),
           context,
-          WRITING_TASK2_REQUEST
+          WRITING_TASK2_REQUEST,
+          idempotencyKey
         )
       : null,
     postmanCommand: host
       ? postmanJsonCommand(
           endpoint(host, writingPath),
           context,
-          WRITING_TASK2_REQUEST
+          WRITING_TASK2_REQUEST,
+          idempotencyKey
         )
       : null,
   };
 }
 
-function buildSpeaking({
-  apiKey,
-  host,
-  identity,
-  rawKey,
-}: BuildContext): SampleRequest {
+function buildSpeaking(context: BuildContext): SampleRequest {
+  const { apiKey, host, identity, rawKey } = context;
   const headers: SampleHeader[] = [
     apiKeyHeader(apiKey),
     {
@@ -540,31 +544,33 @@ function buildSpeaking({
       value: identity.value,
       meaning: identity.meaning,
     },
+    {
+      name: "Content-Type",
+      value: "application/json",
+      meaning: "Body của request có định dạng JSON.",
+    },
   ];
-  const body: SampleBodyField[] = SPEAKING_FORM_FIELDS.map(
-    ({ field, sampleValue, required, meaning }) => ({
+  const body: SampleBodyField[] = SPEAKING_JSON_FIELDS.map(
+    ({ field, value, sampleValue, required, meaning }) => ({
       field,
-      sampleValue,
+      sampleValue: sampleValue ?? String(value),
       required,
       meaning,
     })
   );
-  const formArgs = SPEAKING_FORM_FIELDS.filter(
-    (field) => field.sendsInSample
-  ).map(({ field, formValue }) => `-F "${field}=${formValue}"`);
   const command = host
     ? [
         bashKeyLine(rawKey),
         `USER_IDENTITY='${identity.value}'`,
-        "AUDIO_FILE='./answer.wav'",
         "",
         "curl --request POST \\",
         `  '${endpoint(host, speakingPath)}' \\`,
         `  --header "X-API-Key: \${API_KEY}" \\`,
         `  --header "X-User-Identity: \${USER_IDENTITY}" \\`,
-        ...formArgs.map(
-          (arg, index) => `  ${arg}${index < formArgs.length - 1 ? " \\" : ""}`
-        ),
+        `  --header "Content-Type: application/json" \\`,
+        "  --data-binary @- <<'JSON'",
+        JSON.stringify(SPEAKING_GRADING_JSON_BODY, null, 2),
+        "JSON",
       ].join("\n")
     : null;
 
@@ -578,44 +584,24 @@ function buildSpeaking({
     identityNote: identity.note,
     expectedOutcomeFields: ["scorability", "estimated_band", "transcript"],
     firstCriterion: "scorability",
-    note: "AIHUB chưa hỗ trợ Idempotency-Key cho Speaking. Chạy lại lệnh này sẽ chấm bài và tính phí thêm một lần nữa.",
+    note: "Ví dụ này gửi Published sample answer của AIHUB nên chạy được ngay, không cần tệp nào trên máy bạn. Để chấm audio của bạn, hãy upload tệp lên POST /v1/ielts/speaking/grading, hoặc truyền audio_url của bạn trên host s3.wispace.app. AIHUB chưa hỗ trợ Idempotency-Key cho Speaking. Chạy lại lệnh này sẽ chấm bài và tính phí thêm một lần nữa.",
     usageNote: usageNote(host),
     billing: billing(host),
-    contentTypeNote:
-      "Lệnh dùng -F nên curl tự sinh Content-Type multipart kèm boundary; không cần và không nên đặt header này.",
     command,
     powershellCommand: host
-      ? powershellCommand(
-          rawKey,
-          [
-            `  $userIdentity = '${identity.value}'`,
-            "  $audioFile = './answer.wav'",
-          ],
-          [
-            "  curl.exe --request POST",
-            `    '${endpoint(host, speakingPath)}'`,
-            '    --header "X-API-Key: $apiKey"',
-            '    --header "X-User-Identity: $userIdentity"',
-            ...SPEAKING_FORM_FIELDS.filter((field) => field.sendsInSample).map(
-              ({ field, formValue }) =>
-                `    -F "${field}=${formValue.replace("${AUDIO_FILE}", "$audioFile")}"`
-            ),
-          ]
+      ? powershellJsonCommand(
+          endpoint(host, speakingPath),
+          context,
+          SPEAKING_GRADING_JSON_BODY,
+          undefined
         )
       : null,
     postmanCommand: host
-      ? postmanCommand(
+      ? postmanJsonCommand(
           endpoint(host, speakingPath),
-          rawKey,
-          [["X-User-Identity", identity.value]],
-          SPEAKING_FORM_FIELDS.filter((field) => field.sendsInSample).map(
-            ({ field, formValue }) =>
-              `--form ${singleQuoted(
-                field === "audio"
-                  ? `${field}=@"answer.wav"`
-                  : `${field}=${formValue}`
-              )}`
-          )
+          context,
+          SPEAKING_GRADING_JSON_BODY,
+          undefined
         )
       : null,
   };

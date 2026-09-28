@@ -256,8 +256,6 @@ export function SampleRequests({
                     Trong Postman: Import › Raw text, dán lệnh rồi bấm Continue.
                     {!rawKey &&
                       " Tạo biến API_KEY trong Environment của Postman, hoặc dán raw key vào ô phía trên trước khi sao chép."}
-                    {activeSample.kind === "speaking" &&
-                      " Sau khi import, chọn lại file audio ở field audio trong tab Body."}
                   </p>
                 )}
                 <div className="qs-terminal">
@@ -334,11 +332,6 @@ export function SampleRequests({
               <p className="qs-callout qs-callout--info">
                 {activeSample.identityNote}
               </p>
-              {activeSample.contentTypeNote && (
-                <p className="qs-callout qs-callout--info">
-                  {activeSample.contentTypeNote}
-                </p>
-              )}
             </section>
 
             <section className="qs-block">

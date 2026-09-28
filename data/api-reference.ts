@@ -5,6 +5,7 @@ import {
 } from "@/data/writing-task1-request";
 import {
   SPEAKING_CATALOG_EXAMPLE,
+  SPEAKING_SAMPLE_ANSWER_AUDIO_URL,
   SPEAKING_SAMPLE_QUESTION,
   speakingQuestionAudioUrlExample,
 } from "@/data/speaking-question";
@@ -1164,8 +1165,9 @@ const AUDIO_URL_FIELD: SchemaField = {
   name: "audio_url",
   type: "string",
   required: true,
-  sampleValue:
-    "https://s3.wispace.app/ielts/speaking/answer.mp3?signature=demo",
+  // The Published sample answer, so the reference and the Console's Sample
+  // request send the same recording for the same question.
+  sampleValue: SPEAKING_SAMPLE_ANSWER_AUDIO_URL,
   description:
     "URL HTTPS trên đúng host s3.wispace.app, dài tối đa 2.048 ký tự, có thể kèm query cho signed object URL. AIHUB kiểm tra URL nhưng không tải — nhà cung cấp tự tải và không theo redirect.",
 };
@@ -1174,7 +1176,9 @@ const AUDIO_URL_FIELD: SchemaField = {
 const SPEAKING_GRADING_JSON_BODY = Object.fromEntries(
   speakingGradingFields(AUDIO_URL_FIELD).map((field) => [
     field.name,
-    field.formValue ?? field.sampleValue ?? "",
+    field.type === "integer"
+      ? Number(field.sampleValue)
+      : (field.formValue ?? field.sampleValue ?? ""),
   ])
 );
 
