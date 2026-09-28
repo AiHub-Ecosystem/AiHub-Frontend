@@ -11,6 +11,7 @@ import { OrganizationIdentityDialog } from "@/components/organizations/organizat
 import "../../../../aihub.css";
 import "../../../../auth.css";
 import "../../../../api-keys.css";
+import "../../../../quickstart.css";
 
 export const metadata: Metadata = { title: "API keys — AIHub" };
 export const dynamic = "force-dynamic";
@@ -55,6 +56,7 @@ export default async function OrganizationApiKeysPage({
           <IdentityReadinessNotice organization={organization} />
           <ApiKeyManager
             entitlements={organization.entitlements}
+            identityConfigured={organization.identityConfigured}
             organizationId={organization.id}
           />
         </div>

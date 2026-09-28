@@ -1,22 +1,79 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MintedOrganizationApiKey } from "@/lib/api-keys";
-import { hasQuickstart, quickstartPath } from "@/lib/sample-request";
+import {
+  buildSampleRequests,
+  hasQuickstart,
+  quickstartPath,
+  RAW_KEY_IN_COMMAND_WARNING,
+  type SampleRequestKind,
+} from "@/lib/sample-request";
+import {
+  ShellSwitch,
+  type Shell,
+} from "@/components/organizations/shell-switch";
 
 export function ApiKeyRevealDialog({
   apiKey,
+  identityConfigured,
   organizationId,
   onClose,
   onCopyError,
 }: {
   apiKey: MintedOrganizationApiKey | null;
+  identityConfigured?: boolean;
   organizationId: string;
   onClose: () => void;
   onCopyError: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [copied, setCopied] = useState(false);
+  const [shell, setShell] = useState<Shell>("bash");
+  const [copiedKind, setCopiedKind] = useState<SampleRequestKind | null>(null);
+
+  /**
+   * The one place a Sample request carries the raw key without the holder
+   * typing it (ADR-0013): copied to the clipboard, never rendered.
+   */
+  function runnableCommand(kind: SampleRequestKind): string | null {
+    if (!apiKey) return null;
+    const sample = buildSampleRequests({
+      apiKey,
+      identityConfigured,
+      idempotencyKey: crypto.randomUUID(),
+      rawKey: apiKey.api_key,
+    }).find((request) => request.kind === kind);
+    return (
+      (shell === "powershell" ? sample?.powershellCommand : sample?.command) ??
+      null
+    );
+  }
+
+  const runnable = useMemo(
+    () =>
+      apiKey
+        ? buildSampleRequests({
+            apiKey,
+            identityConfigured,
+            idempotencyKey: "",
+          })
+            .filter((request) => request.command)
+            .map(({ kind, label }) => ({ kind, label }))
+        : [],
+    [apiKey, identityConfigured]
+  );
+
+  async function copyRunnable(kind: SampleRequestKind) {
+    const command = runnableCommand(kind);
+    if (!command) return;
+    try {
+      await navigator.clipboard.writeText(command);
+      setCopiedKind(kind);
+    } catch {
+      onCopyError();
+    }
+  }
 
   useEffect(() => {
     if (apiKey && dialog.current && !dialog.current.open) {
@@ -83,6 +140,44 @@ export function ApiKeyRevealDialog({
               Đóng
             </button>
           </div>
+          {runnable.length > 0 && (
+            <section
+              aria-labelledby="api-key-run-title"
+              className="api-key-run"
+            >
+              <div className="api-key-run-heading">
+                <h3 id="api-key-run-title">Gọi thử ngay</h3>
+                <ShellSwitch
+                  onChange={(next) => {
+                    setShell(next);
+                    setCopiedKind(null);
+                  }}
+                  shell={shell}
+                  tone="light"
+                />
+              </div>
+              <p>Sao chép lệnh đã chứa key này rồi dán vào terminal là chạy.</p>
+              <div className="api-key-run-actions">
+                {runnable.map(({ kind, label }) => (
+                  <button
+                    className="api-key-action"
+                    key={kind}
+                    onClick={() => void copyRunnable(kind)}
+                    type="button"
+                  >
+                    Sao chép lệnh {label}
+                  </button>
+                ))}
+              </div>
+              <p aria-live="polite" className="api-key-run-status">
+                {copiedKind &&
+                  `Đã sao chép lệnh ${runnable.find((item) => item.kind === copiedKind)?.label}.`}
+              </p>
+              <p className="api-key-run-warning">
+                {RAW_KEY_IN_COMMAND_WARNING}
+              </p>
+            </section>
+          )}
         </>
       )}
     </dialog>

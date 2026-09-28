@@ -576,6 +576,9 @@ test("a revealed key with no Sample request offers no Quickstart", async ({
     page.getByRole("tablist", { name: "Sample requests" })
   ).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Gọi thử/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Sao chép lệnh/ })).toHaveCount(
+    0
+  );
 });
 
 test("create timeout refreshes the list without automatically retrying", async ({
@@ -1067,4 +1070,88 @@ test("a Quickstart offers the same request for PowerShell", async ({
     .click();
   await expect(command).toContainText("curl.exe --request POST");
   await expect(command).toContainText("task2/grade");
+});
+
+test("a raw key pasted into the Quickstart makes its commands run as pasted", async ({
+  page,
+  request,
+}) => {
+  const rawKey = `aihub_sk_ABC123${"k".repeat(37)}`;
+  await setup(request, { apiKeys: quickstartKeys });
+  await signIn(page, false);
+  await page.goto(quickstartPath("ak_01J00000000000000000000000"));
+
+  const field = page.getByLabel("API key của bạn");
+  const command = page.getByTestId("sample-request-command");
+  await field.fill(`aihub_sk_ZZZZZZ${"k".repeat(37)}`);
+  await expect(
+    page.getByText(/không phải raw key của Production backend/)
+  ).toBeVisible();
+  await expect(command).toContainText("${API_KEY:?");
+
+  await field.fill(`  ${rawKey}\n`);
+  await expect(command).toContainText(`API_KEY='${rawKey}'`);
+  await expect(page.getByText(/Lệnh đã chứa API key/)).toBeVisible();
+  await page.getByRole("button", { name: "PowerShell" }).click();
+  await expect(command).toContainText(`$apiKey = '${rawKey}'`);
+
+  // The key stays in this tab's memory: not in the URL, not in storage.
+  expect(page.url()).not.toContain(rawKey);
+  const storage = await page.evaluate(() =>
+    JSON.stringify({ local: localStorage, session: sessionStorage })
+  );
+  expect(storage).not.toContain(rawKey);
+  await page.reload();
+  await expect(page.getByLabel("API key của bạn")).toHaveValue("");
+  await expect(command).not.toContainText(rawKey);
+});
+
+test("the reveal dialog copies a command that runs as pasted", async ({
+  page,
+  request,
+}) => {
+  let requestContainsRawKey = false;
+  let rawKey = "";
+  page.on("request", (browserRequest) => {
+    if (
+      rawKey &&
+      `${browserRequest.url()}\n${browserRequest.postData() ?? ""}`.includes(
+        rawKey
+      )
+    )
+      requestContainsRawKey = true;
+  });
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await setup(request, { apiKeys: [] });
+  await signIn(page);
+  await page.getByText("Tạo API key", { exact: true }).click();
+  await page.getByLabel("Tên API key").fill("One step key");
+  await page.locator('input[name="scopes"][value="writing.grade"]').check();
+  await page.getByRole("button", { name: "Tạo key" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "API key mới" });
+  rawKey = (await page.getByTestId("api-key-raw").textContent()) ?? "";
+  const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
+
+  await dialog
+    .getByRole("button", { name: "Sao chép lệnh Writing Task 2" })
+    .click();
+  const bash = await clipboard();
+  expect(bash.split(/\r?\n/)[0]).toBe(`API_KEY='${rawKey}'`);
+  expect(bash).toContain(
+    "https://api.aihubproduction.com/v1/ielts/writing/task2/grade"
+  );
+
+  await dialog.getByRole("button", { name: "PowerShell" }).click();
+  await dialog
+    .getByRole("button", { name: "Sao chép lệnh Writing Task 1" })
+    .click();
+  const powershell = await clipboard();
+  expect(powershell).toContain(`$apiKey = '${rawKey}'`);
+  expect(powershell).toContain("curl.exe --request POST");
+
+  // Copied, never shown: the dialog renders no command, and nothing is sent.
+  await expect(dialog.getByTestId("sample-request-command")).toHaveCount(0);
+  await expect(dialog.getByText(/Lệnh đã chứa API key/)).toBeVisible();
+  expect(requestContainsRawKey).toBe(false);
 });

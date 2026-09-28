@@ -435,6 +435,56 @@
   text-align: left;
 }
 
+.qs-key-field {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--aihub-line);
+  border-radius: 12px;
+  background: var(--aihub-card);
+}
+
+.qs-key-field label {
+  color: var(--aihub-ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.qs-key-field input {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--aihub-ink);
+  font:
+    13px/1.4 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+}
+
+.qs-key-field input:focus-visible {
+  border-color: var(--aihub-brand);
+  outline: 3px solid rgb(58 100 250 / 25%);
+}
+
+.qs-key-field input[aria-invalid="true"] {
+  border-color: #f04438;
+}
+
+.qs-key-help {
+  margin: 0;
+  color: var(--aihub-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.qs-key-field .auth-error {
+  margin: 0;
+}
+
 .qs-shells {
   display: inline-flex;
   gap: 2px;
@@ -463,6 +513,20 @@
 .qs-shell[aria-pressed="true"] {
   background: #2b3a5c;
   color: #fff;
+}
+
+.qs-shells--light {
+  background: #e6ebf3;
+}
+
+.qs-shells--light .qs-shell {
+  color: var(--aihub-body);
+}
+
+.qs-shells--light .qs-shell[aria-pressed="true"] {
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(16 24 40 / 12%);
+  color: var(--aihub-brand);
 }
 
 .qs-shell:focus-visible {

@@ -33,9 +33,11 @@ function networkErrorMessage(action: "create" | "rotate") {
 export function ApiKeyManager({
   organizationId,
   entitlements,
+  identityConfigured,
 }: {
   organizationId: string;
   entitlements: string[];
+  identityConfigured?: boolean;
 }) {
   const router = useRouter();
   const [apiKeys, setApiKeys] = useState<OrganizationApiKey[]>([]);
@@ -333,6 +335,7 @@ export function ApiKeyManager({
 
       <ApiKeyRevealDialog
         apiKey={revealedKey}
+        identityConfigured={identityConfigured}
         organizationId={organizationId}
         key={revealedKey?.id ?? "closed"}
         onClose={() => setRevealedKey(null)}

@@ -10,8 +10,15 @@ import {
 import type { OrganizationApiKey } from "@/lib/api-keys";
 import {
   buildSampleRequests,
+  isRawKeyFor,
+  RAW_KEY_IN_COMMAND_WARNING,
   type SampleRequestKind,
 } from "@/lib/sample-request";
+import {
+  SHELLS,
+  ShellSwitch,
+  type Shell,
+} from "@/components/organizations/shell-switch";
 
 const TAB_OFFSETS = new Map<string, number>([
   ["ArrowRight", 1],
@@ -25,13 +32,6 @@ const COMMON_ERRORS = [
   "403 ENVIRONMENT_NOT_ALLOWED",
   "429 RATE_LIMITED",
   "429 QUOTA_EXCEEDED",
-];
-
-type Shell = "bash" | "powershell";
-
-const SHELLS: { shell: Shell; label: string; title: string }[] = [
-  { shell: "bash", label: "Bash", title: "Lệnh cho Bash-compatible shell" },
-  { shell: "powershell", label: "PowerShell", title: "Lệnh cho PowerShell" },
 ];
 
 /** A sample value longer than this scrolls inside its cell. */
@@ -107,10 +107,20 @@ export function SampleRequests({
   const [copyFailed, setCopyFailed] = useState(false);
   const [activeKind, setActiveKind] = useState<SampleRequestKind | null>(null);
   const [shell, setShell] = useState<Shell>("bash");
+  // Held in this component only: never sent, stored, or put in the URL.
+  const [keyInput, setKeyInput] = useState("");
+  const rawKey = isRawKeyFor(apiKey, keyInput) ? keyInput.trim() : undefined;
+  const keyRejected = keyInput.trim() !== "" && !rawKey;
 
   const samples = useMemo(
-    () => buildSampleRequests({ apiKey, identityConfigured, idempotencyKey }),
-    [apiKey, identityConfigured, idempotencyKey]
+    () =>
+      buildSampleRequests({
+        apiKey,
+        identityConfigured,
+        idempotencyKey,
+        rawKey,
+      }),
+    [apiKey, identityConfigured, idempotencyKey, rawKey]
   );
   const activeIndex = Math.max(
     0,
@@ -203,28 +213,52 @@ export function SampleRequests({
           <div className="qs-run">
             {command ? (
               <>
+                <div className="qs-key-field">
+                  <label htmlFor="qs-raw-key">API key của bạn</label>
+                  <input
+                    aria-describedby="qs-raw-key-help"
+                    aria-invalid={keyRejected}
+                    autoComplete="off"
+                    id="qs-raw-key"
+                    onChange={(event) => {
+                      setKeyInput(event.target.value);
+                      setCopied(false);
+                    }}
+                    placeholder={`${apiKey.key_prefix}…`}
+                    spellCheck={false}
+                    type="password"
+                    value={keyInput}
+                  />
+                  <p className="qs-key-help" id="qs-raw-key-help">
+                    Dán raw key để lệnh chạy được ngay khi dán vào terminal. Key
+                    chỉ nằm trong tab này: không gửi lên server, không lưu lại.
+                    Để trống thì lệnh đọc key từ biến môi trường API_KEY.
+                  </p>
+                  {keyRejected && (
+                    <p className="auth-error" role="alert">
+                      Đây không phải raw key của {apiKey.name}: raw key bắt đầu
+                      bằng {apiKey.key_prefix} và dài 52 ký tự.
+                    </p>
+                  )}
+                </div>
+                {rawKey && (
+                  <p className="qs-callout qs-callout--paid">
+                    {RAW_KEY_IN_COMMAND_WARNING}
+                  </p>
+                )}
                 <p className={`qs-callout qs-callout--${activeSample.billing}`}>
                   {activeSample.usageNote}
                 </p>
                 <div className="qs-terminal">
                   <div className="qs-terminal-bar">
                     <h3 className="qs-visually-hidden">{shellTitle}</h3>
-                    <div aria-label="Shell" className="qs-shells" role="group">
-                      {SHELLS.map((option) => (
-                        <button
-                          aria-pressed={shell === option.shell}
-                          className="qs-shell"
-                          key={option.shell}
-                          onClick={() => {
-                            setShell(option.shell);
-                            setCopied(false);
-                          }}
-                          type="button"
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
+                    <ShellSwitch
+                      onChange={(next) => {
+                        setShell(next);
+                        setCopied(false);
+                      }}
+                      shell={shell}
+                    />
                     <button
                       className="qs-copy"
                       onClick={() => void copyCommand(command)}

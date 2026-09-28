@@ -36,27 +36,44 @@ const ENVIRONMENT_HOSTS: Partial<Record<ApiKeyEnvironment, string>> = {
 const HOST_PREFERENCE: ApiKeyEnvironment[] = ["sandbox", "production"];
 
 /**
- * A Sample request never contains the raw key; see CONTEXT.md. Its command
- * reads the key from the holder's environment and stops when it is unset.
+ * A Sample request carries the raw key only when the holder supplies it in the
+ * browser (ADR-0013); otherwise its command reads the key from the holder's
+ * environment and stops when it is unset. A supplied key has passed
+ * isRawKeyFor, so it holds no quote that could break out of the shell string.
  */
-const RAW_KEY_FROM_ENVIRONMENT =
-  'API_KEY="${API_KEY:?Chạy export API_KEY=<API key của bạn> trước}"';
+function bashKeyLine(rawKey?: string): string {
+  return rawKey
+    ? `API_KEY='${rawKey}'`
+    : 'API_KEY="${API_KEY:?Chạy export API_KEY=<API key của bạn> trước}"';
+}
 
-/** Stops the whole block, not one line, when the key is not set. */
-const POWERSHELL_KEY_GUARD = `if (-not $env:API_KEY) { throw 'Chạy $env:API_KEY = "<API key của bạn>" trước' }`;
+/** A local $apiKey, so a pasted command never overwrites $env:API_KEY. */
+function powershellKeyLines(rawKey?: string): string[] {
+  return rawKey
+    ? [`  $apiKey = '${rawKey}'`]
+    : [
+        "  $apiKey = $env:API_KEY",
+        // Stops the whole block, not one line, when the key is not set.
+        `  if (-not $apiKey) { throw 'Chạy $env:API_KEY = "<API key của bạn>" trước' }`,
+      ];
+}
 
 /**
  * The same request for Windows PowerShell 5.1 and PowerShell 7. It calls
  * curl.exe, which ships with Windows 10 and later, rather than the `curl`
  * alias, and wraps everything in one block so a missing key stops it all.
  */
-function powershellCommand(setup: string[], call: string[]): string {
+function powershellCommand(
+  rawKey: string | undefined,
+  setup: string[],
+  call: string[]
+): string {
   return [
     "& {",
     // Shows the Vietnamese in the response, and writes the body without a BOM.
     "  $utf8 = New-Object System.Text.UTF8Encoding $false",
     "  [Console]::OutputEncoding = $utf8",
-    `  ${POWERSHELL_KEY_GUARD}`,
+    ...powershellKeyLines(rawKey),
     ...setup,
     ...call.map((line, index) =>
       index < call.length - 1 ? `${line} \`` : line
@@ -67,11 +84,11 @@ function powershellCommand(setup: string[], call: string[]): string {
 
 function powershellJsonCommand(
   url: string,
-  identity: ResolvedIdentity,
-  idempotencyKey: string,
+  { identity, idempotencyKey, rawKey }: BuildContext,
   request: object
 ): string {
   return powershellCommand(
+    rawKey,
     [
       `  $userIdentity = '${identity.value}'`,
       `  $idempotencyKey = '${idempotencyKey}'`,
@@ -87,7 +104,7 @@ function powershellJsonCommand(
     [
       "  curl.exe --request POST",
       `    '${url}'`,
-      '    --header "X-API-Key: $env:API_KEY"',
+      '    --header "X-API-Key: $apiKey"',
       '    --header "X-User-Identity: $userIdentity"',
       "    --header 'Content-Type: application/json'",
       '    --header "Idempotency-Key: $idempotencyKey"',
@@ -297,12 +314,8 @@ const WRITING_TASK1_MEANINGS: Record<
   essay: "Bài viết mô tả biểu đồ.",
 };
 
-function buildWritingTask1({
-  apiKey,
-  host,
-  identity,
-  idempotencyKey,
-}: BuildContext): SampleRequest {
+function buildWritingTask1(context: BuildContext): SampleRequest {
+  const { apiKey, host, identity, idempotencyKey, rawKey } = context;
   const body: SampleBodyField[] = (
     Object.keys(WRITING_TASK1_REQUEST) as (keyof typeof WRITING_TASK1_REQUEST)[]
   ).map((field) => ({
@@ -331,7 +344,7 @@ function buildWritingTask1({
   ];
   const command = host
     ? [
-        RAW_KEY_FROM_ENVIRONMENT,
+        bashKeyLine(rawKey),
         `USER_IDENTITY='${identity.value}'`,
         `IDEMPOTENCY_KEY='${idempotencyKey}'`,
         "",
@@ -364,20 +377,15 @@ function buildWritingTask1({
     powershellCommand: host
       ? powershellJsonCommand(
           endpoint(host, writingTask1Path),
-          identity,
-          idempotencyKey,
+          context,
           WRITING_TASK1_REQUEST
         )
       : null,
   };
 }
 
-function buildWriting({
-  apiKey,
-  host,
-  identity,
-  idempotencyKey,
-}: BuildContext): SampleRequest {
+function buildWriting(context: BuildContext): SampleRequest {
+  const { apiKey, host, identity, idempotencyKey, rawKey } = context;
   const body: SampleBodyField[] = [
     {
       field: "question",
@@ -418,7 +426,7 @@ function buildWriting({
   ];
   const command = host
     ? [
-        RAW_KEY_FROM_ENVIRONMENT,
+        bashKeyLine(rawKey),
         `USER_IDENTITY='${identity.value}'`,
         `IDEMPOTENCY_KEY='${idempotencyKey}'`,
         "",
@@ -451,8 +459,7 @@ function buildWriting({
     powershellCommand: host
       ? powershellJsonCommand(
           endpoint(host, writingPath),
-          identity,
-          idempotencyKey,
+          context,
           WRITING_TASK2_REQUEST
         )
       : null,
@@ -463,6 +470,7 @@ function buildSpeaking({
   apiKey,
   host,
   identity,
+  rawKey,
 }: BuildContext): SampleRequest {
   const headers: SampleHeader[] = [
     apiKeyHeader(apiKey),
@@ -485,7 +493,7 @@ function buildSpeaking({
   ).map(({ field, formValue }) => `-F "${field}=${formValue}"`);
   const command = host
     ? [
-        RAW_KEY_FROM_ENVIRONMENT,
+        bashKeyLine(rawKey),
         `USER_IDENTITY='${identity.value}'`,
         "AUDIO_FILE='./answer.wav'",
         "",
@@ -517,6 +525,7 @@ function buildSpeaking({
     command,
     powershellCommand: host
       ? powershellCommand(
+          rawKey,
           [
             `  $userIdentity = '${identity.value}'`,
             "  $audioFile = './answer.wav'",
@@ -524,7 +533,7 @@ function buildSpeaking({
           [
             "  curl.exe --request POST",
             `    '${endpoint(host, speakingPath)}'`,
-            '    --header "X-API-Key: $env:API_KEY"',
+            '    --header "X-API-Key: $apiKey"',
             '    --header "X-User-Identity: $userIdentity"',
             ...SPEAKING_FORM_FIELDS.filter((field) => field.sendsInSample).map(
               ({ field, formValue }) =>
@@ -541,6 +550,7 @@ type BuildContext = {
   host: string | null;
   identity: ResolvedIdentity;
   idempotencyKey: string;
+  rawKey?: string;
 };
 
 export type SampleRequestEntry = {
@@ -559,10 +569,13 @@ export function buildSampleRequests({
   apiKey,
   identityConfigured,
   idempotencyKey,
+  rawKey,
 }: {
   apiKey: OrganizationApiKey;
   identityConfigured?: boolean;
   idempotencyKey: string;
+  /** Only one isRawKeyFor accepted for this key; see ADR-0013. */
+  rawKey?: string;
 }): SampleRequest[] {
   const identity = resolveIdentity(identityConfigured);
   const context = {
@@ -570,10 +583,32 @@ export function buildSampleRequests({
     host: resolveHost(apiKey),
     identity,
     idempotencyKey,
+    rawKey,
   };
   return SAMPLE_REQUESTS.filter((entry) =>
     apiKey.scopes.includes(entry.scope)
   ).map((entry) => entry.build(context));
+}
+
+/** Shown wherever a command carrying the raw key can be copied. */
+export const RAW_KEY_IN_COMMAND_WARNING =
+  "Lệnh đã chứa API key. Đừng chia sẻ lệnh này, và key có thể còn lại trong lịch sử của shell.";
+
+const RAW_KEY_FORMAT = /^aihub_sk_[A-Za-z0-9]{43}$/;
+
+/**
+ * Whether a value the holder supplies is this key's raw key: the backend's key
+ * format, starting with the key's own display prefix. Surrounding whitespace
+ * from a paste is ignored; the caller passes the trimmed value on.
+ */
+export function isRawKeyFor(
+  apiKey: OrganizationApiKey,
+  value: string
+): boolean {
+  const candidate = value.trim();
+  return (
+    RAW_KEY_FORMAT.test(candidate) && candidate.startsWith(apiKey.key_prefix)
+  );
 }
 
 /** The Console path of an API key's Quickstart. */

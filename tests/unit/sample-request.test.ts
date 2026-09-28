@@ -6,6 +6,7 @@ import {
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 import {
   buildSampleRequests,
+  isRawKeyFor,
   type SampleRequestKind,
 } from "@/lib/sample-request";
 import type { MintedOrganizationApiKey } from "@/lib/api-keys";
@@ -656,8 +657,9 @@ describe("PowerShell command", () => {
     const command = sample?.powershellCommand ?? "";
 
     expect(command.startsWith("& {")).toBe(true);
+    expect(command).toContain("  $apiKey = $env:API_KEY");
     expect(command).toContain(
-      `if (-not $env:API_KEY) { throw 'Chạy $env:API_KEY = "<API key của bạn>" trước' }`
+      `if (-not $apiKey) { throw 'Chạy $env:API_KEY = "<API key của bạn>" trước' }`
     );
     expect(command).toContain("  curl.exe --request POST `");
     expect(command).toContain(
@@ -667,7 +669,7 @@ describe("PowerShell command", () => {
     expect(command).toContain(
       "'https://api.aihubproduction.com/v1/ielts/writing/task1/grade' `"
     );
-    expect(command).toContain('--header "X-API-Key: $env:API_KEY" `');
+    expect(command).toContain('--header "X-API-Key: $apiKey" `');
     // A BOM would reach the server as the first bytes of the JSON body.
     expect(command).toContain(
       "$utf8 = New-Object System.Text.UTF8Encoding $false"
@@ -700,5 +702,46 @@ describe("PowerShell command", () => {
         false
       )?.powershellCommand
     ).toBeNull();
+  });
+});
+
+describe("A raw key the holder supplies", () => {
+  const apiKey = mintedKey({ key_prefix: "aihub_sk_AAAAAA" });
+  const rawKey = apiKey.api_key;
+
+  function withRawKey(kind: SampleRequestKind) {
+    return buildSampleRequests({
+      apiKey,
+      identityConfigured: false,
+      idempotencyKey,
+      rawKey,
+    }).find((request) => request.kind === kind);
+  }
+
+  it("goes inline into both commands, so they run as pasted", () => {
+    const sample = withRawKey("writing-task2");
+
+    expect(sample?.command?.split("\n")[0]).toBe(`API_KEY='${rawKey}'`);
+    expect(sample?.powershellCommand).toContain(`  $apiKey = '${rawKey}'`);
+    expect(sample?.powershellCommand).not.toContain("throw");
+    expect(sample?.powershellCommand).toContain(
+      '--header "X-API-Key: $apiKey" `'
+    );
+  });
+
+  it("stays out of the table, which still shows only the prefix", () => {
+    const header = withRawKey("writing-task2")?.headers.find(
+      (row) => row.name === "X-API-Key"
+    );
+
+    expect(header?.value).toBe("aihub_sk_AAAAAA…");
+  });
+
+  it("is accepted only in the key's own format and with its own prefix", () => {
+    expect(isRawKeyFor(apiKey, rawKey)).toBe(true);
+    expect(isRawKeyFor(apiKey, `  ${rawKey}  `)).toBe(true);
+    expect(isRawKeyFor(apiKey, `aihub_sk_${"B".repeat(43)}`)).toBe(false);
+    expect(isRawKeyFor(apiKey, `${rawKey}'; rm -rf ~ #`)).toBe(false);
+    expect(isRawKeyFor(apiKey, "aihub_sk_AAAAAA")).toBe(false);
   });
 });

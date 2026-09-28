@@ -96,7 +96,7 @@ The request tier AIHUB derives from the hostname a request is sent to; an API ke
 _Avoid_: mode, live/test
 
 **Sample request**:
-A request shown for an active API key so its holder can make a call with it, one for each operation the key's API key scopes permit that has a known endpoint. An API key scope may permit more than one operation, so an Organization's key may be offered several Sample requests. A Sample request never contains the raw key; its holder supplies it. It may also depend on several other things only its holder has, such as an audio file or the question being answered.
+A request shown for an active API key so its holder can make a call with it, one for each operation the key's API key scopes permit that has a known endpoint. An API key scope may permit more than one operation, so an Organization's key may be offered several Sample requests. A Sample request carries the raw key only when its holder supplies it in the browser, by copying it from the reveal or pasting it on the Quickstart; otherwise its command reads the key from the holder's environment. It may also depend on several other things only its holder has, such as an audio file or the question being answered.
 _Avoid_: playground, test call, try-it
 
 **Quickstart**:
