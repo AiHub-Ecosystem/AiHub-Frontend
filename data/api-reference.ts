@@ -3,6 +3,7 @@ import {
   WRITING_TASK1_IMAGE_NOTE,
   WRITING_TASK1_REQUEST,
 } from "@/data/writing-task1-request";
+import { SPEAKING_SAMPLE_QUESTION } from "@/data/speaking-question";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 
 export { WRITING_TASK2_REQUEST };
@@ -1018,7 +1019,7 @@ const SPEAKING_RESPONSE_DESCRIPTION =
 const SPEAKING_GRADING_RESPONSE = {
   data: {
     test_type: "Practice",
-    question_id: "p1_hometown",
+    question_id: SPEAKING_SAMPLE_QUESTION.question_id,
     scorability: {
       is_scorable: true,
       confidence: "high",
@@ -1071,17 +1072,18 @@ const SPEAKING_QUESTIONS_RESPONSE = {
     part: 1,
     questions: [
       {
-        question_id: "p1_hometown",
+        question_id: SPEAKING_SAMPLE_QUESTION.question_id,
         part: 1,
-        prompt_text: "Do you enjoy living in your hometown?",
-        audio_url: "https://s3.wispace.app/ielts/speaking/p1_hometown.mp3",
+        prompt_text: SPEAKING_SAMPLE_QUESTION.prompt_text,
+        audio_url:
+          "https://s3.wispace.app/aihub-speaking-samples/speaking-samples/part-1/do-you-enjoy-living-in-your-city-or-hometown.webm?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-Signature=…",
       },
       {
-        question_id: "p1_favourite_place",
+        question_id: "p1_how-often-do-you-use-public-transport",
         part: 1,
-        prompt_text: "Describe a place you like to visit.",
+        prompt_text: "How often do you use public transport?",
         audio_url:
-          "https://s3.wispace.app/ielts/speaking/p1_favourite_place.mp3",
+          "https://s3.wispace.app/aihub-speaking-samples/speaking-samples/part-1/how-often-do-you-use-public-transport.webm?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-Signature=…",
       },
     ],
   },
@@ -1113,17 +1115,17 @@ function speakingGradingFields(audioField: SchemaField): SchemaField[] {
       name: "question_id",
       type: "string",
       required: true,
-      sampleValue: "p1_hometown",
-      formValue: "p1_hometown",
+      sampleValue: SPEAKING_SAMPLE_QUESTION.question_id,
+      formValue: SPEAKING_SAMPLE_QUESTION.question_id,
       description:
-        "Mã câu hỏi lấy từ endpoint lấy câu hỏi. Giá trị này là ví dụ minh hoạ — hãy thay bằng câu hỏi bạn sắp trả lời.",
+        "Mã câu hỏi lấy từ endpoint lấy câu hỏi; thay bằng câu hỏi bạn sắp trả lời.",
     },
     {
       name: "prompt_text",
       type: "string",
       required: false,
-      sampleValue: "Do you enjoy living in your hometown?",
-      formValue: "Do you enjoy living in your hometown?",
+      sampleValue: SPEAKING_SAMPLE_QUESTION.prompt_text,
+      formValue: SPEAKING_SAMPLE_QUESTION.prompt_text,
       description: "Nội dung câu hỏi, dùng để đánh giá độ liên quan.",
     },
     {
@@ -1267,10 +1269,11 @@ export const SPEAKING_REFERENCE: Record<string, EndpointReference> = {
     ],
     requestExample: null,
     responseDescription:
-      "Envelope { data, meta } của AIHUB. data.part là Part đã lọc, data.questions là danh sách câu hỏi, mỗi câu có question_id, part, prompt_text và audio_url mẫu nghe trên s3.wispace.app. Lấy question_id từ đây để gửi kèm lúc chấm.",
+      "Envelope { data, meta } của AIHUB. data.part là Part đã lọc, data.questions là danh sách câu hỏi, mỗi câu có question_id, part, prompt_text và audio_url mẫu nghe trên s3.wispace.app. Lấy question_id từ đây để gửi kèm lúc chấm. Ví dụ rút gọn: audio_url thật còn nhiều tham số ký nữa.",
     responseExample: SPEAKING_QUESTIONS_RESPONSE,
     notes: [
       SPEAKING_ILLUSTRATIVE_NOTE,
+      "audio_url là giọng giáo viên đọc câu hỏi, không phải câu trả lời. Đừng gửi nó đi chấm. URL này được ký và hết hạn sau 15 phút, nên lấy lại danh mục thay vì lưu URL.",
       "Endpoint này không phải là user-scoped: không cần X-User-Identity, và lượt gọi không được báo cáo dưới bất kỳ End-User ID nào.",
       "Endpoint này không yêu cầu X-API-Key và không giới hạn theo API key scope.",
     ],

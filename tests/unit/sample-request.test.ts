@@ -13,6 +13,14 @@ import type { MintedOrganizationApiKey } from "@/lib/api-keys";
 
 const idempotencyKey = "6f1ed729-8d92-4fa6-8e87-0fe6e71e9a17";
 
+/**
+ * The real Speaking question AIHUB publishes, written out as literals rather
+ * than read from the shared example data, so moving the example question can
+ * never pass this suite by construction.
+ */
+const REAL_QUESTION_ID = "p1_do-you-enjoy-living-in-your-city-or-hometown";
+const REAL_PROMPT_TEXT = "Do you enjoy living in your city or hometown?";
+
 function mintedKey(
   overrides: Partial<MintedOrganizationApiKey> = {}
 ): MintedOrganizationApiKey {
@@ -402,14 +410,12 @@ describe("Speaking Sample request", () => {
     )?.command;
 
     expect(command).toContain('-F "part=1"');
-    expect(command).toContain('-F "question_id=p1_hometown"');
-    expect(command).toContain(
-      '-F "prompt_text=Do you enjoy living in your hometown?"'
-    );
+    expect(command).toContain(`-F "question_id=${REAL_QUESTION_ID}"`);
+    expect(command).toContain(`-F "prompt_text=${REAL_PROMPT_TEXT}"`);
     expect(command).toContain('-F "test_type=Practice"');
   });
 
-  it("marks the question id as a value the holder replaces", () => {
+  it("names a question in AIHUB's catalog and says where the IDs come from", () => {
     const sample = sampleFor(
       mintedKey({ scopes: ["speaking.grade"] }),
       "speaking",
@@ -419,8 +425,19 @@ describe("Speaking Sample request", () => {
       (field) => field.field === "question_id"
     );
 
-    expect(question).toMatchObject({ sampleValue: "p1_hometown" });
+    expect(question).toMatchObject({ sampleValue: REAL_QUESTION_ID });
+    expect(question?.meaning).toMatch(/GET \/v1\/ielts\/speaking\/questions/);
     expect(question?.meaning).toMatch(/thay bằng/);
+  });
+
+  it("shows the prompt that matches the question it names", () => {
+    const body =
+      sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
+        ?.body ?? [];
+
+    expect(
+      body.find((field) => field.field === "prompt_text")?.sampleValue
+    ).toBe(REAL_PROMPT_TEXT);
   });
 
   it("marks the fields the grading contract requires, not the demo's", () => {
@@ -689,7 +706,8 @@ describe("PowerShell command", () => {
 
     expect(command).toContain("$audioFile = './answer.wav'");
     expect(command).toContain('-F "audio=@$audioFile" `');
-    expect(command).toContain('-F "question_id=p1_hometown"');
+    expect(command).toContain(`-F "question_id=${REAL_QUESTION_ID}"`);
+    expect(command).toContain(`-F "prompt_text=${REAL_PROMPT_TEXT}"`);
     expect(command).not.toContain("Content-Type");
     for (const syntax of bashOnly) expect(command).not.toContain(syntax);
   });
@@ -788,7 +806,8 @@ describe("Postman command", () => {
         ?.postmanCommand ?? "";
 
     expect(command).toContain(`--form 'audio=@"answer.wav"' \\`);
-    expect(command).toContain("--form 'question_id=p1_hometown'");
+    expect(command).toContain(`--form 'question_id=${REAL_QUESTION_ID}'`);
+    expect(command).toContain(`--form 'prompt_text=${REAL_PROMPT_TEXT}'`);
     expect(command).not.toContain("Content-Type");
     for (const syntax of shellOnly) expect(command).not.toContain(syntax);
   });

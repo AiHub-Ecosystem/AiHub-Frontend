@@ -99,6 +99,10 @@ _Avoid_: mode, live/test
 A request shown for an active API key so its holder can make a call with it, one for each operation the key's API key scopes permit that has a known endpoint. An API key scope may permit more than one operation, so an Organization's key may be offered several Sample requests. A Sample request carries the raw key only when its holder supplies it in the browser, by copying it from the reveal or pasting it on the Quickstart; otherwise its command reads the key from the holder's environment. It may also depend on several other things only its holder has, such as an audio file or the question being answered.
 _Avoid_: playground, test call, try-it
 
+**Speaking question**:
+One question in the Speaking catalog AIHUB publishes, identified by its `question_id` and carrying its prompt text. Its audio is the examiner reading the question aloud, served for a short time only; it is never an answer and is not graded. A Speaking grading request names the Speaking question the answer responds to.
+_Avoid_: prompt audio as answer, sample answer, question file
+
 **Quickstart**:
 The Console page belonging to one active, unexpired API key that lists that key's Sample requests. It stays reachable for as long as the key does; a revoked, expired, or rotated-away key has no Quickstart, and neither does a key with no Sample request.
 _Avoid_: try page, playground, getting started

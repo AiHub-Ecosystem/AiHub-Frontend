@@ -3,6 +3,7 @@ import {
   WRITING_TASK1_IMAGE_NOTE,
   WRITING_TASK1_REQUEST,
 } from "@/data/writing-task1-request";
+import { SPEAKING_SAMPLE_QUESTION } from "@/data/speaking-question";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 import type { ApiKeyScope } from "@/lib/api-key-scopes";
 import {
@@ -186,8 +187,6 @@ function usageNote(host: string | null): string {
   return "Lệnh gửi request thật và tính vào hạn mức sử dụng của Organization.";
 }
 
-const speakingPromptText = "Do you enjoy living in your hometown?";
-
 type SampleHeader = {
   name: string;
   value: string;
@@ -274,16 +273,17 @@ const SPEAKING_FORM_FIELDS: SpeakingFormField[] = [
   },
   {
     field: "question_id",
-    formValue: "p1_hometown",
-    sampleValue: "p1_hometown",
+    formValue: SPEAKING_SAMPLE_QUESTION.question_id,
+    sampleValue: SPEAKING_SAMPLE_QUESTION.question_id,
     required: true,
     sendsInSample: true,
-    meaning: "Giá trị mẫu; thay bằng câu hỏi bạn trả lời.",
+    meaning:
+      "Một câu hỏi thật trong danh mục Speaking của AIHUB; lấy câu hỏi khác từ GET /v1/ielts/speaking/questions và thay bằng câu hỏi bạn trả lời.",
   },
   {
     field: "prompt_text",
-    formValue: speakingPromptText,
-    sampleValue: speakingPromptText,
+    formValue: SPEAKING_SAMPLE_QUESTION.prompt_text,
+    sampleValue: SPEAKING_SAMPLE_QUESTION.prompt_text,
     required: false,
     sendsInSample: true,
     meaning: "Tuỳ chọn; prompt dùng để đánh giá độ liên quan.",

@@ -541,9 +541,11 @@ test("a key holding only speaking.grade shows only the Speaking tab", async ({
   await expect(tablist.getByRole("tab")).toHaveText(["Speaking"]);
   const speaking = page.getByRole("tabpanel", { name: "Speaking" });
   await expect(speaking).toBeVisible();
-  await expect(
-    speaking.getByRole("table", { name: "Speaking request body" })
-  ).toContainText("question_id");
+  const body = speaking.getByRole("table", { name: "Speaking request body" });
+  await expect(body).toContainText("question_id");
+  await expect(body).toContainText(
+    "p1_do-you-enjoy-living-in-your-city-or-hometown"
+  );
 });
 
 test("a revealed key with no Sample request offers no Quickstart", async ({

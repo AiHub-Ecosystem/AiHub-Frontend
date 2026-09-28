@@ -424,10 +424,12 @@ test("Speaking grading command sends every documented field", async ({
     await expect(request).toContainText(`-F "${field}=`);
   }
   await expect(request).toContainText('-F "part=1"');
-  await expect(request).toContainText('-F "question_id=p1_hometown"');
+  await expect(request).toContainText(
+    '-F "question_id=p1_do-you-enjoy-living-in-your-city-or-hometown"'
+  );
   await expect(request).toContainText('-F "test_type=Practice"');
   await expect(request).toContainText(
-    '-F "prompt_text=Do you enjoy living in your hometown?"'
+    '-F "prompt_text=Do you enjoy living in your city or hometown?"'
   );
   await expect(request).toContainText('-F "test_code=ielts-practice-01"');
   // A documented field with no value would render an empty argument.
@@ -449,7 +451,12 @@ test("Speaking URL fallback command is a JSON body with its content type", async
   await expect(request).toContainText(
     '"audio_url": "https://s3.wispace.app/ielts/speaking/answer.mp3?signature=demo"'
   );
-  await expect(request).toContainText('"question_id": "p1_hometown"');
+  await expect(request).toContainText(
+    '"question_id": "p1_do-you-enjoy-living-in-your-city-or-hometown"'
+  );
+  await expect(request).toContainText(
+    '"prompt_text": "Do you enjoy living in your city or hometown?"'
+  );
   await expect(request).not.toContainText(" -F ");
   await expect(request).not.toContainText("Idempotency-Key");
   // The JSON body is derived from the same field list as the table.
@@ -505,17 +512,36 @@ test("Speaking questions reference carries no User Identity header", async ({
   await expect(endpointNotes(page)).toContainText("không phải");
 });
 
-test("Speaking questions response example shows a real question id", async ({
+test("Speaking questions response example shows the real catalog", async ({
   page,
 }) => {
   await page.goto("/product/speaking/api/speaking-questions");
 
   const response = await showResponse(page);
-  await expect(response).toContainText(/"question_id": "p1_hometown"/);
   await expect(response).toContainText(
-    /"audio_url": "https:\/\/s3\.wispace\.app/
+    /"question_id": "p1_do-you-enjoy-living-in-your-city-or-hometown"/
   );
+  await expect(response).toContainText(
+    /"question_id": "p1_how-often-do-you-use-public-transport"/
+  );
+  // The real audio_url is a signed object URL, not a permanent one.
+  await expect(response).toContainText(
+    /"audio_url": "https:\/\/s3\.wispace\.app\/aihub-speaking-samples\/speaking-samples\/part-1\/do-you-enjoy-living-in-your-city-or-hometown\.webm\?/
+  );
+  await expect(response).toContainText(/X-Amz-Expires=900/);
   await expect(response).toContainText(/"part": 1/);
+});
+
+test("Speaking questions warns the question audio is not an answer to grade", async ({
+  page,
+}) => {
+  await page.goto("/product/speaking/api/speaking-questions");
+
+  const notes = endpointNotes(page);
+  await expect(notes).toContainText("giáo viên đọc câu hỏi");
+  await expect(notes).toContainText("15 phút");
+  await expect(notes).toContainText("không phải câu trả lời");
+  await expect(notes).toContainText("Đừng gửi nó đi chấm");
 });
 
 test("Speaking URL fallback states the host AIHUB will accept", async ({
