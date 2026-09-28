@@ -716,7 +716,7 @@ test("staging-only rotation shows a note instead of a command", async ({
   await expect(page.getByText(/tính vào hạn mức sử dụng/)).toHaveCount(0);
 });
 
-test("creating a Sandbox key restricts the scopes and targets the Sandbox host", async ({
+test("the create form offers no Environment and warns every call is billed", async ({
   page,
   request,
 }) => {
@@ -724,95 +724,24 @@ test("creating a Sandbox key restricts the scopes and targets the Sandbox host",
   await signIn(page);
   await page.getByText("Tạo API key", { exact: true }).click();
 
-  const speaking = page.locator('input[name="scopes"][value="speaking.grade"]');
-  await speaking.check();
-  await page.locator('input[name="environment"][value="sandbox"]').check();
-
-  await expect(speaking).toBeDisabled();
-  await expect(speaking).not.toBeChecked();
-  await expect(
-    page.getByText(/Sandbox key chỉ chạy được Writing/)
-  ).toBeVisible();
-  await expect(
-    page.getByText(/miễn phí và không tính vào hạn mức trả phí/)
-  ).toBeVisible();
-
-  await page.getByLabel("Tên API key").fill("Sandbox test key");
-  await page.locator('input[name="scopes"][value="writing.grade"]').check();
-  await page.getByRole("button", { name: "Tạo key" }).click();
-
-  const dialog = page.getByRole("dialog", { name: "API key mới" });
-  await expect(dialog).toBeVisible();
-  await expect(
-    dialog.getByRole("tablist", { name: "Sample requests" }).getByRole("tab")
-  ).toHaveText(["Writing Task 1", "Writing Task 2"]);
-
-  const sandboxTask1 = dialog.getByRole("tabpanel", { name: "Writing Task 1" });
-  await expect(sandboxTask1).toBeVisible();
-  await expect(
-    sandboxTask1.getByText(
-      "https://sandbox.aihubproduction.com/v1/ielts/writing/task1/grade",
-      { exact: true }
-    )
-  ).toBeVisible();
-  await expect(
-    sandboxTask1.getByTestId("sample-request-command")
-  ).toContainText("sandbox.aihubproduction.com");
-  await expect(
-    sandboxTask1.getByText(/miễn phí và không tính vào hạn mức trả phí/)
-  ).toBeVisible();
-
-  await showWritingTask2(page);
-  const sample = dialog.getByRole("tabpanel", { name: "Writing Task 2" });
-  await expect(sample).toBeVisible();
-  await expect(
-    sample.getByText(
-      "https://sandbox.aihubproduction.com/v1/ielts/writing/task2/grade",
-      { exact: true }
-    )
-  ).toBeVisible();
-  await expect(sample.getByTestId("sample-request-command")).toContainText(
-    "sandbox.aihubproduction.com"
-  );
-  await expect(sample.getByText(/25 lần chấm mỗi tháng/)).toBeVisible();
-  await expect(
-    sample.getByText(/tính theo Organization, không tính theo key/)
-  ).toBeVisible();
-
-  const requests = await request
-    .get(`${mockUrl}/__test__/organizations/requests`)
-    .then((result) => result.json());
-  expect(
-    requests.requests.find(
-      (entry: { path: string }) => entry.path === "create-api-key"
-    )
-  ).toMatchObject({
-    allowed_environments: ["sandbox"],
-    scopes: ["writing.grade"],
-  });
+  await expect(page.locator('input[name="environment"]')).toHaveCount(0);
+  await expect(page.getByText(/kể cả gọi thử, đều tính/)).toBeVisible();
 });
 
-test("closing the create form discards the Environment and the scopes", async ({
+test("closing the create form discards the scopes", async ({
   page,
   request,
 }) => {
   await setup(request, { apiKeys: [], entitlements: ["writing", "speaking"] });
   await signIn(page);
   await page.getByText("Tạo API key", { exact: true }).click();
-  await page.locator('input[name="environment"][value="sandbox"]').check();
   await page.locator('input[name="scopes"][value="writing.grade"]').check();
   await page.getByRole("button", { name: "Đóng" }).click();
 
   await page.getByText("Tạo API key", { exact: true }).click();
   await expect(
-    page.locator('input[name="environment"][value="production"]')
-  ).toBeChecked();
-  await expect(
     page.locator('input[name="scopes"][value="writing.grade"]')
   ).not.toBeChecked();
-  await expect(
-    page.locator('input[name="scopes"][value="speaking.grade"]')
-  ).toBeEnabled();
 });
 
 test("rotating a Sandbox key keeps the Sandbox Sample request", async ({
