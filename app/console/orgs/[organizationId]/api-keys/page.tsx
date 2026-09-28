@@ -47,6 +47,7 @@ export default async function OrganizationApiKeysPage({
               )
             }
             organization={organization}
+            roster={roster}
             section="api-keys"
           />
           <IdentityReadinessNotice organization={organization} />

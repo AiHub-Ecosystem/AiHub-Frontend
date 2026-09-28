@@ -51,7 +51,11 @@ export default async function ApiKeyQuickstartPage({
       <SessionActivity />
       <main className="aihub auth-page console-page">
         <div className="aihub-shell">
-          <OrganizationHeader organization={organization} section="api-keys" />
+          <OrganizationHeader
+            organization={organization}
+            roster={roster}
+            section="api-keys"
+          />
           <nav aria-label="Breadcrumb" className="qs-breadcrumb">
             <Link href={apiKeysPath}>← API keys</Link>
             <span aria-hidden="true">/</span>

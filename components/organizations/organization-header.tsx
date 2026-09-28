@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { OrganizationSwitcher } from "@/components/organizations/organization-switcher";
 import {
   membershipRoleLabel,
   organizationStatusLabel,
@@ -22,10 +23,13 @@ export function canManageApiKeys(organization: OrganizationMembership) {
  */
 export function OrganizationHeader({
   organization,
+  roster,
   section,
   actions,
 }: {
   organization: OrganizationMembership;
+  /** The caller's Organizations; with more than one, the header can switch. */
+  roster: OrganizationMembership[];
   section: OrganizationSection;
   actions?: ReactNode;
 }) {
@@ -63,7 +67,17 @@ export function OrganizationHeader({
               </span>
             </div>
           </div>
-          {actions && <div className="org-header-actions">{actions}</div>}
+          {(actions || roster.length > 1) && (
+            <div className="org-header-actions">
+              {actions}
+              {roster.length > 1 && (
+                <OrganizationSwitcher
+                  roster={roster}
+                  selectedId={organization.id}
+                />
+              )}
+            </div>
+          )}
         </div>
         {tabs.length > 1 && (
           <nav aria-label="Organization" className="org-tabs">

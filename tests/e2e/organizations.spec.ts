@@ -788,3 +788,47 @@ test("active owner can rename; backend denial and foreign IDs use generic denial
     )
   ).toBeVisible();
 });
+
+test("the Organization header switches to another Organization", async ({
+  page,
+  request,
+}) => {
+  await setup(request, [
+    org("switch-a", "Alpha Org"),
+    org("switch-b", "Beta Org", "member"),
+    org("switch-c", "Gamma Org", "owner", "suspended"),
+  ]);
+  await signIn(page);
+  await page.goto("/console/orgs/switch-a");
+
+  const switcher = page.getByText("Chuyển Organization", { exact: true });
+  await switcher.click();
+  const menu = page.getByRole("navigation", { name: "Organizations" });
+  await expect(menu.getByRole("link", { name: /Alpha Org/ })).toHaveAttribute(
+    "aria-current",
+    "page"
+  );
+  // Only what differs from an active Owner is spelled out.
+  await expect(menu.getByRole("link", { name: /Beta Org/ })).toContainText(
+    "Thành viên"
+  );
+  await expect(menu.getByRole("link", { name: /Gamma Org/ })).toContainText(
+    "Tạm ngưng"
+  );
+  await expect(menu.getByRole("link", { name: /Alpha Org/ })).not.toContainText(
+    "Owner"
+  );
+
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  await switcher.click();
+  await menu.getByRole("link", { name: /Beta Org/ }).click();
+  await expect(page).toHaveURL(/\/console\/orgs\/switch-b$/);
+  await expect(page.getByRole("heading", { name: "Beta Org" })).toBeVisible();
+
+  await setup(request, [org("switch-only", "Only Org")]);
+  await page.context().clearCookies();
+  await signIn(page);
+  await expect(page.getByRole("heading", { name: "Only Org" })).toBeVisible();
+  await expect(page.getByText("Chuyển Organization")).toHaveCount(0);
+});

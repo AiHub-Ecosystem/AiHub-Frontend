@@ -287,14 +287,145 @@
   font-weight: 600;
 }
 
-/* Other Organizations, below the cards */
+/* Switching Organization from the header */
 
-.org-cards ~ .organization-switcher {
-  margin-top: 24px;
+.org-switcher {
+  position: relative;
+}
+
+.org-switcher > summary {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid #cfd5df;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--aihub-ink);
+  cursor: pointer;
+  font-weight: 650;
+  list-style: none;
+}
+
+.org-switcher > summary::-webkit-details-marker {
+  display: none;
+}
+
+.org-switcher > summary::after {
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentcolor;
+  border-bottom: 2px solid currentcolor;
+  content: "";
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.org-switcher[open] > summary::after {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+.org-switcher > summary:hover {
+  border-color: var(--aihub-brand);
+}
+
+.org-switcher > summary:focus-visible {
+  outline: 3px solid rgb(58 100 250 / 35%);
+  outline-offset: 2px;
+}
+
+.org-switcher-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(300px, calc(100vw - 32px));
+  padding: 6px;
+  border: 1px solid var(--aihub-line);
+  border-radius: 12px;
   background: var(--aihub-card);
+  box-shadow: 0 12px 32px rgb(16 24 40 / 14%);
+}
+
+/* The site theme styles every nav > ul as its main menu; undo that here. */
+.org-switcher-menu > ul {
+  display: grid;
+  max-width: none;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.org-switcher-menu > ul > li {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.org-switcher-menu a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  color: var(--aihub-ink);
+  text-decoration: none;
+}
+
+.org-switcher-menu a:hover,
+.org-switcher-menu a:focus-visible {
+  background: #f2f4f7;
+  outline: none;
+}
+
+.org-switcher-menu a[aria-current="page"] {
+  color: var(--aihub-brand);
+  font-weight: 700;
+}
+
+/* The theme draws decorations on nav links; this menu has none. */
+.org-switcher-menu a::before,
+.org-switcher-menu a::after,
+.org-switcher-menu li::before,
+.org-switcher-menu li::after {
+  content: none;
+  display: none;
+}
+
+.org-switcher-check {
+  flex: none;
+}
+
+.org-switcher-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.org-switcher-note {
+  flex: none;
+  color: var(--aihub-soft);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.org-switcher-menu .org-switcher-all {
+  margin-top: 4px;
+  border-top: 1px solid var(--aihub-line);
+  border-radius: 0 0 8px 8px;
+  color: var(--aihub-brand);
+  font-weight: 650;
 }
 
 @media (max-width: 640px) {
+  /* The button sits at the left on a phone, so the menu opens rightwards. */
+  .org-switcher-menu {
+    right: auto;
+    left: 0;
+  }
+
   .org-header-top {
     padding: 20px 18px 16px;
   }

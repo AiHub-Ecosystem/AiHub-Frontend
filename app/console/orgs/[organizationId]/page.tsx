@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { requirePageWebSession } from "@/lib/page-session";
 import { readOrganizationRoster } from "@/lib/organization-server";
 import { SessionActivity } from "@/components/session-activity";
-import { OrganizationSwitcher } from "@/components/organizations/organization-switcher";
 import { OrganizationRenameForm } from "@/components/organizations/organization-rename-form";
 import { RosterUnavailable } from "@/components/organizations/roster-unavailable";
 import { IdentityReadinessNotice } from "@/components/organizations/identity-readiness-notice";
@@ -34,15 +33,16 @@ export default async function OrganizationOverviewPage({
   if (!organization) redirect("/console/orgs/denied");
   const isActiveOwner =
     organization.status === "active" && organization.membershipRole === "owner";
-  const otherOrganizations = roster.filter(
-    (item) => item.id !== organization.id
-  );
   return (
     <>
       <SessionActivity />
       <main className="aihub auth-page console-page">
         <div className="aihub-shell">
-          <OrganizationHeader organization={organization} section="overview" />
+          <OrganizationHeader
+            organization={organization}
+            roster={roster}
+            section="overview"
+          />
           {organization.status === "suspended" && (
             <p className="org-suspended" role="status">
               Organization đang tạm ngưng. Trang này chỉ hiển thị thông tin đọc.
@@ -131,13 +131,6 @@ export default async function OrganizationOverviewPage({
               )}
             </section>
           </div>
-          {otherOrganizations.length > 0 && (
-            <OrganizationSwitcher
-              roster={roster}
-              selectedId={organization.id}
-              showCreate={false}
-            />
-          )}
         </div>
       </main>
     </>
