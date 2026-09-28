@@ -10,6 +10,7 @@ import {
   type SampleRequestKind,
 } from "@/lib/sample-request";
 import {
+  commandForShell,
   ShellSwitch,
   type Shell,
 } from "@/components/organizations/shell-switch";
@@ -44,10 +45,7 @@ export function ApiKeyRevealDialog({
       idempotencyKey: crypto.randomUUID(),
       rawKey: apiKey.api_key,
     }).find((request) => request.kind === kind);
-    return (
-      (shell === "powershell" ? sample?.powershellCommand : sample?.command) ??
-      null
-    );
+    return commandForShell(sample, shell);
   }
 
   const runnable = useMemo(
@@ -156,7 +154,11 @@ export function ApiKeyRevealDialog({
                   tone="light"
                 />
               </div>
-              <p>Sao chép lệnh đã chứa key này rồi dán vào terminal là chạy.</p>
+              <p>
+                {shell === "postman"
+                  ? "Sao chép lệnh đã chứa key này rồi dán vào Postman › Import › Raw text."
+                  : "Sao chép lệnh đã chứa key này rồi dán vào terminal là chạy."}
+              </p>
               <div className="api-key-run-actions">
                 {runnable.map(({ kind, label }) => (
                   <button

@@ -15,6 +15,7 @@ import {
   type SampleRequestKind,
 } from "@/lib/sample-request";
 import {
+  commandForShell,
   SHELLS,
   ShellSwitch,
   type Shell,
@@ -40,8 +41,9 @@ const LONG_SAMPLE_VALUE = 120;
 // Bash ${VAR} and PowerShell $name or $env:NAME, quoted strings, the curl
 // binary, flags, and a trailing line continuation (\ in Bash, ` in PowerShell).
 const SHELL_TOKEN =
-  /(\$\{[^}\n]*\}|\$(?:env:)?[A-Za-z_]\w*)|('[^'\n]*'|"(?:[^"\\\n]|\\.)*")|(^\s*curl(?:\.exe)?\b)|((?<=\s)--?[A-Za-z][\w-]*)|(\\$|`$)/gm;
-const VARIABLE = /(\$\{[^}\n]*\}|\$(?:env:)?[A-Za-z_]\w*)/;
+  /(\$\{[^}\n]*\}|\$(?:env:)?[A-Za-z_]\w*|\{\{\w+\}\})|('[^'\n]*'|"(?:[^"\\\n]|\\.)*")|(^\s*curl(?:\.exe)?\b)|((?<=\s)--?[A-Za-z][\w-]*)|(\\$|`$)/gm;
+// Includes Postman's {{NAME}}, which Postman resolves even inside single quotes.
+const VARIABLE = /(\$\{[^}\n]*\}|\$(?:env:)?[A-Za-z_]\w*|\{\{\w+\}\})/;
 
 function highlightVariables(text: string): ReactNode[] {
   // split() with a capture group puts every variable at an odd index.
@@ -75,8 +77,11 @@ function highlightCommand(command: string): ReactNode[] {
             : "qs-token-muted";
     nodes.push(
       <span className={className} key={start}>
-        {/* Only a double-quoted string expands its variables, in both shells. */}
-        {string?.startsWith('"') ? highlightVariables(token) : token}
+        {/* A shell expands variables only in double quotes; Postman expands
+            {{NAME}} in any string. */}
+        {string?.startsWith('"') || string?.includes("{{")
+          ? highlightVariables(token)
+          : token}
       </span>
     );
     last = start + token.length;
@@ -158,10 +163,7 @@ export function SampleRequests({
 
   if (!activeSample) return null;
   const { host, path } = splitUrl(activeSample.url);
-  const command =
-    shell === "powershell"
-      ? activeSample.powershellCommand
-      : activeSample.command;
+  const command = commandForShell(activeSample, shell);
   const shellTitle = SHELLS.find((option) => option.shell === shell)!.title;
   return (
     <section aria-labelledby="sample-request-title" className="qs">
@@ -249,6 +251,15 @@ export function SampleRequests({
                 <p className={`qs-callout qs-callout--${activeSample.billing}`}>
                   {activeSample.usageNote}
                 </p>
+                {shell === "postman" && (
+                  <p className="qs-callout qs-callout--info">
+                    Trong Postman: Import › Raw text, dán lệnh rồi bấm Continue.
+                    {!rawKey &&
+                      " Tạo biến API_KEY trong Environment của Postman, hoặc dán raw key vào ô phía trên trước khi sao chép."}
+                    {activeSample.kind === "speaking" &&
+                      " Sau khi import, chọn lại file audio ở field audio trong tab Body."}
+                  </p>
+                )}
                 <div className="qs-terminal">
                   <div className="qs-terminal-bar">
                     <h3 className="qs-visually-hidden">{shellTitle}</h3>

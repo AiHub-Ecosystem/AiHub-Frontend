@@ -745,3 +745,61 @@ describe("A raw key the holder supplies", () => {
     expect(isRawKeyFor(apiKey, "aihub_sk_AAAAAA")).toBe(false);
   });
 });
+
+describe("Postman command", () => {
+  const shellOnly = ["${", "<<'JSON'", "$env:", "curl.exe", "API_KEY="];
+
+  it("is a plain curl Postman can import, with {{API_KEY}} for the key", () => {
+    const sample = sampleFor(mintedKey(), "writing-task1", false);
+    const command = sample?.postmanCommand ?? "";
+
+    expect(command.split("\n")[0]).toBe(
+      "curl --request POST 'https://api.aihubproduction.com/v1/ielts/writing/task1/grade' \\"
+    );
+    expect(command).toContain("--header 'X-API-Key: {{API_KEY}}' \\");
+    expect(command).toContain("--header 'X-User-Identity: test-user-1' \\");
+    expect(command).toContain(
+      `--header 'Idempotency-Key: ${idempotencyKey}' \\`
+    );
+    expect(command).toContain(
+      `--data-raw '${JSON.stringify(WRITING_TASK1_REQUEST, null, 2)}'`
+    );
+    for (const syntax of shellOnly) expect(command).not.toContain(syntax);
+  });
+
+  it("inlines a raw key the holder supplies", () => {
+    const apiKey = mintedKey();
+    const command =
+      buildSampleRequests({
+        apiKey,
+        identityConfigured: false,
+        idempotencyKey,
+        rawKey: apiKey.api_key,
+      }).find((request) => request.kind === "writing-task2")?.postmanCommand ??
+      "";
+
+    expect(command).toContain(`--header 'X-API-Key: ${apiKey.api_key}' \\`);
+    expect(command).not.toContain("{{API_KEY}}");
+  });
+
+  it("sends Speaking as a form with the answer file", () => {
+    const command =
+      sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
+        ?.postmanCommand ?? "";
+
+    expect(command).toContain(`--form 'audio=@"answer.wav"' \\`);
+    expect(command).toContain("--form 'question_id=p1_hometown'");
+    expect(command).not.toContain("Content-Type");
+    for (const syntax of shellOnly) expect(command).not.toContain(syntax);
+  });
+
+  it("has no command where the shells have none", () => {
+    expect(
+      sampleFor(
+        mintedKey({ allowed_environments: ["staging"] }),
+        "writing-task2",
+        false
+      )?.postmanCommand
+    ).toBeNull();
+  });
+});

@@ -1,11 +1,29 @@
 "use client";
 
-export type Shell = "bash" | "powershell";
+import type { SampleRequest } from "@/lib/sample-request";
+
+export type Shell = "bash" | "powershell" | "postman";
 
 export const SHELLS: { shell: Shell; label: string; title: string }[] = [
   { shell: "bash", label: "Bash", title: "Lệnh cho Bash-compatible shell" },
   { shell: "powershell", label: "PowerShell", title: "Lệnh cho PowerShell" },
+  {
+    shell: "postman",
+    label: "Postman",
+    title: "Lệnh curl để import vào Postman",
+  },
 ];
+
+/** The Sample request's command for the shell the holder picked. */
+export function commandForShell(
+  sample: SampleRequest | undefined,
+  shell: Shell
+): string | null {
+  if (!sample) return null;
+  if (shell === "powershell") return sample.powershellCommand;
+  if (shell === "postman") return sample.postmanCommand;
+  return sample.command;
+}
 
 /** Picks the shell a copied Sample request command is written for. */
 export function ShellSwitch({

@@ -113,6 +113,51 @@ function powershellJsonCommand(
   );
 }
 
+/** Single-quotes a value the way a POSIX shell, and Postman's importer, read it. */
+function singleQuoted(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+/**
+ * A plain curl for Postman's Import > Raw text, which reads no shell variables
+ * or heredocs: every value is written out. Without a supplied raw key the key is
+ * {{API_KEY}}, a Postman variable the holder sets once in an environment.
+ */
+function postmanCommand(
+  url: string,
+  rawKey: string | undefined,
+  headers: [string, string][],
+  data: string[]
+): string {
+  const lines = [
+    `curl --request POST ${singleQuoted(url)}`,
+    ...[["X-API-Key", rawKey ?? "{{API_KEY}}"], ...headers].map(
+      ([name, value]) => `  --header ${singleQuoted(`${name}: ${value}`)}`
+    ),
+    ...data.map((line) => `  ${line}`),
+  ];
+  return lines
+    .map((line, index) => (index < lines.length - 1 ? `${line} \\` : line))
+    .join("\n");
+}
+
+function postmanJsonCommand(
+  url: string,
+  { identity, idempotencyKey, rawKey }: BuildContext,
+  request: object
+): string {
+  return postmanCommand(
+    url,
+    rawKey,
+    [
+      ["X-User-Identity", identity.value],
+      ["Content-Type", "application/json"],
+      ["Idempotency-Key", idempotencyKey],
+    ],
+    [`--data-raw ${singleQuoted(JSON.stringify(request, null, 2))}`]
+  );
+}
+
 function resolveHost(apiKey: OrganizationApiKey): string | null {
   for (const environment of HOST_PREFERENCE) {
     const host = ENVIRONMENT_HOSTS[environment];
@@ -183,6 +228,8 @@ export type SampleRequest = {
   command: string | null;
   /** The same request for PowerShell on Windows. */
   powershellCommand: string | null;
+  /** The same request as a plain curl for Postman's importer. */
+  postmanCommand: string | null;
 };
 
 type SpeakingField =
@@ -381,6 +428,13 @@ function buildWritingTask1(context: BuildContext): SampleRequest {
           WRITING_TASK1_REQUEST
         )
       : null,
+    postmanCommand: host
+      ? postmanJsonCommand(
+          endpoint(host, writingTask1Path),
+          context,
+          WRITING_TASK1_REQUEST
+        )
+      : null,
   };
 }
 
@@ -463,6 +517,13 @@ function buildWriting(context: BuildContext): SampleRequest {
           WRITING_TASK2_REQUEST
         )
       : null,
+    postmanCommand: host
+      ? postmanJsonCommand(
+          endpoint(host, writingPath),
+          context,
+          WRITING_TASK2_REQUEST
+        )
+      : null,
   };
 }
 
@@ -540,6 +601,21 @@ function buildSpeaking({
                 `    -F "${field}=${formValue.replace("${AUDIO_FILE}", "$audioFile")}"`
             ),
           ]
+        )
+      : null,
+    postmanCommand: host
+      ? postmanCommand(
+          endpoint(host, speakingPath),
+          rawKey,
+          [["X-User-Identity", identity.value]],
+          SPEAKING_FORM_FIELDS.filter((field) => field.sendsInSample).map(
+            ({ field, formValue }) =>
+              `--form ${singleQuoted(
+                field === "audio"
+                  ? `${field}=@"answer.wav"`
+                  : `${field}=${formValue}`
+              )}`
+          )
         )
       : null,
   };

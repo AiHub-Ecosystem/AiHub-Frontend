@@ -1155,3 +1155,27 @@ test("the reveal dialog copies a command that runs as pasted", async ({
   await expect(dialog.getByText(/Lệnh đã chứa API key/)).toBeVisible();
   expect(requestContainsRawKey).toBe(false);
 });
+
+test("a Quickstart offers the request as a curl Postman can import", async ({
+  page,
+  request,
+}) => {
+  await setup(request, { apiKeys: quickstartKeys });
+  await signIn(page, false);
+  await page.goto(quickstartPath("ak_01J00000000000000000000000"));
+
+  const command = page.getByTestId("sample-request-command");
+  await page.getByRole("button", { name: "Postman" }).click();
+  await expect(command).toContainText(
+    "curl --request POST 'https://api.aihubproduction.com/v1/ielts/writing/task1/grade'"
+  );
+  await expect(command).toContainText("--header 'X-API-Key: {{API_KEY}}'");
+  await expect(command).toContainText("--data-raw '{");
+  await expect(page.getByText(/Import › Raw text/)).toBeVisible();
+  await expect(page.getByText(/Tạo biến API_KEY/)).toBeVisible();
+
+  const rawKey = `aihub_sk_ABC123${"k".repeat(37)}`;
+  await page.getByLabel("API key của bạn").fill(rawKey);
+  await expect(command).toContainText(`--header 'X-API-Key: ${rawKey}'`);
+  await expect(page.getByText(/Tạo biến API_KEY/)).toHaveCount(0);
+});
