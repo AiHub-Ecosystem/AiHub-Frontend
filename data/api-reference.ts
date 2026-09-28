@@ -5,7 +5,8 @@ import {
 } from "@/data/writing-task1-request";
 import {
   SPEAKING_CATALOG_EXAMPLE,
-  SPEAKING_SAMPLE_ANSWER_AUDIO_URL,
+  PUBLISHED_SAMPLE_ANSWER_URL,
+  SPEAKING_SAMPLE_ANSWER_REQUEST,
   SPEAKING_SAMPLE_QUESTION,
   speakingQuestionAudioUrlExample,
 } from "@/data/speaking-question";
@@ -1158,29 +1159,18 @@ const AUDIO_FIELD: SchemaField = {
   sampleValue: "./answer.wav",
   formValue: "@${AIHUB_AUDIO_FILE}",
   description:
-    "Một tệp wav, mp3, m4a, webm hoặc ogg; tối thiểu 100 byte, tối đa 25 MiB. AIHUB không cung cấp tệp mẫu — bạn phải tự trỏ tới tệp của mình.",
+    "Một tệp wav, mp3, m4a, webm hoặc ogg; tối thiểu 100 byte, tối đa 25 MiB. Ví dụ trỏ tới tệp trên máy bạn; muốn chạy thử không cần tệp, dùng POST /v1/ielts/speaking/grading-json với Published sample answer của AIHUB.",
 };
 
 const AUDIO_URL_FIELD: SchemaField = {
   name: "audio_url",
   type: "string",
   required: true,
-  // The Published sample answer, so the reference and the Console's Sample
-  // request send the same recording for the same question.
-  sampleValue: SPEAKING_SAMPLE_ANSWER_AUDIO_URL,
+  // The Published sample answer the example below sends.
+  sampleValue: PUBLISHED_SAMPLE_ANSWER_URL,
   description:
     "URL HTTPS trên đúng host s3.wispace.app, dài tối đa 2.048 ký tự, có thể kèm query cho signed object URL. AIHUB kiểm tra URL nhưng không tải — nhà cung cấp tự tải và không theo redirect.",
 };
-
-/** Body ví dụ sinh từ cùng danh sách field, nên không thể lệch với bảng. */
-const SPEAKING_GRADING_JSON_BODY = Object.fromEntries(
-  speakingGradingFields(AUDIO_URL_FIELD).map((field) => [
-    field.name,
-    field.type === "integer"
-      ? Number(field.sampleValue)
-      : (field.formValue ?? field.sampleValue ?? ""),
-  ])
-);
 
 const SPEAKING_QUESTIONS_ERRORS: ErrorResponse[] = [
   {
@@ -1307,7 +1297,8 @@ export const SPEAKING_REFERENCE: Record<string, EndpointReference> = {
     ],
     requestPreamble: SPEAKING_CURL_PREAMBLE,
     requestFields: speakingGradingFields(AUDIO_URL_FIELD),
-    requestExample: SPEAKING_GRADING_JSON_BODY,
+    // The same body as the Console's Speaking Sample request.
+    requestExample: SPEAKING_SAMPLE_ANSWER_REQUEST,
     responseDescription: SPEAKING_RESPONSE_DESCRIPTION,
     responseExample: SPEAKING_GRADING_RESPONSE,
     notes: [

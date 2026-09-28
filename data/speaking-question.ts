@@ -37,13 +37,28 @@ export const SPEAKING_SAMPLE_QUESTION = SPEAKING_CATALOG_EXAMPLE[0];
 /**
  * The Published sample answer for SPEAKING_SAMPLE_QUESTION: a stable, unsigned
  * public copy of one answer recording, so a copied Sample request runs with
- * nothing on the holder's machine but the key. This is the copy of backend
- * data aihub-be ADR-0062 records, with no synchronization: a change on AIHUB's
- * side is a one-line change here, and the examples checking the URL fail until
- * it is made. The Speaking question above is a copy of the same kind.
+ * nothing on the holder's machine but the key. Copied from aihub-be ADR-0062
+ * with no synchronization, like the Speaking question above: if AIHUB moves or
+ * removes the object, the examples keep sending this URL and nothing here
+ * fails. Update it by hand when the backend's copy changes.
  */
-export const SPEAKING_SAMPLE_ANSWER_AUDIO_URL =
+export const PUBLISHED_SAMPLE_ANSWER_URL =
   "https://s3.wispace.app/ielts-task1/speaking-answers/part-1/do-you-enjoy-living-in-your-city-or-hometown.webm";
+
+/**
+ * The one grading-json body every Speaking example sends: the Published sample
+ * answer and the Speaking question it answers. The Console's Sample request and
+ * the API reference both send exactly this, so they cannot disagree. It sends
+ * no transcript, because a transcript that is not in the recording would be
+ * graded instead of the audio.
+ */
+export const SPEAKING_SAMPLE_ANSWER_REQUEST = {
+  audio_url: PUBLISHED_SAMPLE_ANSWER_URL,
+  part: SPEAKING_SAMPLE_QUESTION.part,
+  question_id: SPEAKING_SAMPLE_QUESTION.question_id,
+  prompt_text: SPEAKING_SAMPLE_QUESTION.prompt_text,
+  test_type: "Practice",
+} as const;
 
 /**
  * The shape of a Speaking question's audio_url, abbreviated: a sample answer

@@ -26,7 +26,7 @@ const REAL_PROMPT_TEXT = "Do you enjoy living in your city or hometown?";
  * out as a literal rather than read from the shared example data, so moving
  * the URL there can never pass this suite by construction.
  */
-const PUBLISHED_ANSWER_URL =
+const PUBLISHED_SAMPLE_ANSWER_URL =
   "https://s3.wispace.app/ielts-task1/speaking-answers/part-1/do-you-enjoy-living-in-your-city-or-hometown.webm";
 
 /** The multipart spellings a copied Speaking command must no longer carry. */
@@ -407,7 +407,7 @@ describe("Speaking Sample request", () => {
 
     expect(sample?.body[0]).toMatchObject({
       field: "audio_url",
-      sampleValue: PUBLISHED_ANSWER_URL,
+      sampleValue: PUBLISHED_SAMPLE_ANSWER_URL,
       required: true,
     });
     for (const command of [
@@ -415,7 +415,9 @@ describe("Speaking Sample request", () => {
       sample?.powershellCommand,
       sample?.postmanCommand,
     ]) {
-      expect(command).toContain(`"audio_url": "${PUBLISHED_ANSWER_URL}"`);
+      expect(command).toContain(
+        `"audio_url": "${PUBLISHED_SAMPLE_ANSWER_URL}"`
+      );
       // The published copy is unsigned, so it carries no signature query.
       expect(command).not.toMatch(/"audio_url": "[^"]*\?/);
       expect(command).toContain('"part": 1');
@@ -433,7 +435,8 @@ describe("Speaking Sample request", () => {
         ?.note ?? "";
 
     expect(note).toMatch(/Published sample answer/);
-    expect(note).toContain("POST /v1/ielts/speaking/grading");
+    // The multipart endpoint itself, not grading-json, which also starts so.
+    expect(note).toMatch(/POST \/v1\/ielts\/speaking\/grading(?!-json)/);
     expect(note).toMatch(/audio_url.*s3\.wispace\.app/);
   });
 
@@ -499,7 +502,6 @@ describe("Speaking Sample request", () => {
     expect(sample?.command).toContain(
       '--header "Content-Type: application/json"'
     );
-    expect(sample).not.toHaveProperty("contentTypeNote");
   });
 
   it("ends both commands without a dangling line continuation", () => {

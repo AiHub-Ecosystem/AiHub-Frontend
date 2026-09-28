@@ -462,7 +462,9 @@ test("Speaking published answer sample uses its stable URL in a JSON body", asyn
   );
   await expect(request).not.toContainText(" -F ");
   await expect(request).not.toContainText("Idempotency-Key");
-  // The JSON body is derived from the same field list as the table.
+  // A transcript that is not in the recording would be graded instead of it.
+  await expect(request).not.toContainText('"transcript"');
+  await expect(request).not.toContainText('"test_code"');
   const response = await showResponse(page);
   expect(response).toBeTruthy();
 });

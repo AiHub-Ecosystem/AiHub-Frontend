@@ -502,8 +502,9 @@ test("a key holding both scopes shows one tab per request, Writing first", async
   await expect(speaking.getByText(/chưa hỗ trợ Idempotency-Key/)).toBeVisible();
   await expect(speaking.getByText(/chấm bài và tính phí/)).toBeVisible();
   // The note tells a holder with their own audio how to grade it instead.
+  // The multipart endpoint itself, not grading-json, which also starts so.
   await expect(speaking.getByText(/chưa hỗ trợ Idempotency-Key/)).toContainText(
-    "POST /v1/ielts/speaking/grading"
+    /POST \/v1\/ielts\/speaking\/grading(?!-json)/
   );
   await expect(
     speaking

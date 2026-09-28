@@ -3,10 +3,7 @@ import {
   WRITING_TASK1_IMAGE_NOTE,
   WRITING_TASK1_REQUEST,
 } from "@/data/writing-task1-request";
-import {
-  SPEAKING_SAMPLE_ANSWER_AUDIO_URL,
-  SPEAKING_SAMPLE_QUESTION,
-} from "@/data/speaking-question";
+import { SPEAKING_SAMPLE_ANSWER_REQUEST } from "@/data/speaking-question";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 import type { ApiKeyScope } from "@/lib/api-key-scopes";
 import {
@@ -20,7 +17,7 @@ const SPEAKING_SCOPE = "speaking.grade";
 
 const writingTask1Path = "/v1/ielts/writing/task1/grade";
 const writingPath = "/v1/ielts/writing/task2/grade";
-const speakingPath = "/v1/ielts/speaking/grading-json";
+const speakingGradingJsonPath = "/v1/ielts/speaking/grading-json";
 
 /**
  * Public host per Environment. An Environment absent here has no runnable
@@ -62,63 +59,84 @@ function powershellKeyLines(rawKey?: string): string[] {
       ];
 }
 
+/** One JSON request, as every shell's command sends it. */
+type JsonRequest = {
+  url: string;
+  body: object;
+  /** Absent for a request AIHUB accepts no Idempotency-Key on. */
+  idempotencyKey?: string;
+};
+
+type SampleCommands = Pick<
+  SampleRequest,
+  "command" | "powershellCommand" | "postmanCommand"
+>;
+
+/** For a Bash-compatible shell: shell variables, and the body as a heredoc. */
+function bashJsonCommand(
+  { url, body, idempotencyKey }: JsonRequest,
+  { identity, rawKey }: BuildContext
+): string {
+  return [
+    bashKeyLine(rawKey),
+    `USER_IDENTITY='${identity.value}'`,
+    ...(idempotencyKey ? [`IDEMPOTENCY_KEY='${idempotencyKey}'`] : []),
+    "",
+    "curl --request POST \\",
+    `  '${url}' \\`,
+    `  --header "X-API-Key: \${API_KEY}" \\`,
+    `  --header "X-User-Identity: \${USER_IDENTITY}" \\`,
+    `  --header "Content-Type: application/json" \\`,
+    ...(idempotencyKey
+      ? [`  --header "Idempotency-Key: \${IDEMPOTENCY_KEY}" \\`]
+      : []),
+    "  --data-binary @- <<'JSON'",
+    JSON.stringify(body, null, 2),
+    "JSON",
+  ].join("\n");
+}
+
 /**
  * The same request for Windows PowerShell 5.1 and PowerShell 7. It calls
  * curl.exe, which ships with Windows 10 and later, rather than the `curl`
  * alias, and wraps everything in one block so a missing key stops it all.
  */
-function powershellCommand(
-  rawKey: string | undefined,
-  setup: string[],
-  call: string[]
+function powershellJsonCommand(
+  { url, body, idempotencyKey }: JsonRequest,
+  { identity, rawKey }: BuildContext
 ): string {
+  const call = [
+    "  curl.exe --request POST",
+    `    '${url}'`,
+    '    --header "X-API-Key: $apiKey"',
+    '    --header "X-User-Identity: $userIdentity"',
+    "    --header 'Content-Type: application/json'",
+    ...(idempotencyKey
+      ? ['    --header "Idempotency-Key: $idempotencyKey"']
+      : []),
+    '    --data-binary "@$bodyFile"',
+  ];
   return [
     "& {",
     // Shows the Vietnamese in the response, and writes the body without a BOM.
     "  $utf8 = New-Object System.Text.UTF8Encoding $false",
     "  [Console]::OutputEncoding = $utf8",
     ...powershellKeyLines(rawKey),
-    ...setup,
+    `  $userIdentity = '${identity.value}'`,
+    ...(idempotencyKey ? [`  $idempotencyKey = '${idempotencyKey}'`] : []),
+    // A here-string's closing '@ must start its line.
+    "  $body = @'",
+    JSON.stringify(body, null, 2),
+    "'@",
+    // Windows PowerShell 5.1 prefixes a BOM to anything piped to curl.exe,
+    // whatever $OutputEncoding says, so the body goes through a file.
+    "  $bodyFile = [IO.Path]::GetTempFileName()",
+    "  [IO.File]::WriteAllText($bodyFile, $body, $utf8)",
     ...call.map((line, index) =>
       index < call.length - 1 ? `${line} \`` : line
     ),
     "}",
   ].join("\n");
-}
-
-function powershellJsonCommand(
-  url: string,
-  { identity, rawKey }: BuildContext,
-  request: object,
-  /** undefined for a request AIHUB accepts no Idempotency-Key on. */
-  idempotencyKey: string | undefined
-): string {
-  return powershellCommand(
-    rawKey,
-    [
-      `  $userIdentity = '${identity.value}'`,
-      ...(idempotencyKey ? [`  $idempotencyKey = '${idempotencyKey}'`] : []),
-      // A here-string's closing '@ must start its line.
-      "  $body = @'",
-      JSON.stringify(request, null, 2),
-      "'@",
-      // Windows PowerShell 5.1 prefixes a BOM to anything piped to curl.exe,
-      // whatever $OutputEncoding says, so the body goes through a file.
-      "  $bodyFile = [IO.Path]::GetTempFileName()",
-      "  [IO.File]::WriteAllText($bodyFile, $body, $utf8)",
-    ],
-    [
-      "  curl.exe --request POST",
-      `    '${url}'`,
-      '    --header "X-API-Key: $apiKey"',
-      '    --header "X-User-Identity: $userIdentity"',
-      "    --header 'Content-Type: application/json'",
-      ...(idempotencyKey
-        ? ['    --header "Idempotency-Key: $idempotencyKey"']
-        : []),
-      '    --data-binary "@$bodyFile"',
-    ]
-  );
 }
 
 /** Single-quotes a value the way a POSIX shell, and Postman's importer, read it. */
@@ -131,43 +149,42 @@ function singleQuoted(value: string): string {
  * or heredocs: every value is written out. Without a supplied raw key the key is
  * {{API_KEY}}, a Postman variable the holder sets once in an environment.
  */
-function postmanCommand(
-  url: string,
-  rawKey: string | undefined,
-  headers: [string, string][],
-  data: string[]
+function postmanJsonCommand(
+  { url, body, idempotencyKey }: JsonRequest,
+  { identity, rawKey }: BuildContext
 ): string {
+  const headers: [string, string][] = [
+    ["X-API-Key", rawKey ?? "{{API_KEY}}"],
+    ["X-User-Identity", identity.value],
+    ["Content-Type", "application/json"],
+    ...(idempotencyKey
+      ? ([["Idempotency-Key", idempotencyKey]] as [string, string][])
+      : []),
+  ];
   const lines = [
     `curl --request POST ${singleQuoted(url)}`,
-    ...[["X-API-Key", rawKey ?? "{{API_KEY}}"], ...headers].map(
+    ...headers.map(
       ([name, value]) => `  --header ${singleQuoted(`${name}: ${value}`)}`
     ),
-    ...data.map((line) => `  ${line}`),
+    `  --data-raw ${singleQuoted(JSON.stringify(body, null, 2))}`,
   ];
   return lines
     .map((line, index) => (index < lines.length - 1 ? `${line} \\` : line))
     .join("\n");
 }
 
-function postmanJsonCommand(
-  url: string,
-  { identity, rawKey }: BuildContext,
-  request: object,
-  /** undefined for a request AIHUB accepts no Idempotency-Key on. */
-  idempotencyKey: string | undefined
-): string {
-  return postmanCommand(
-    url,
-    rawKey,
-    [
-      ["X-User-Identity", identity.value],
-      ["Content-Type", "application/json"],
-      ...(idempotencyKey
-        ? ([["Idempotency-Key", idempotencyKey]] as [string, string][])
-        : []),
-    ],
-    [`--data-raw ${singleQuoted(JSON.stringify(request, null, 2))}`]
-  );
+/** Every shell's command for one request; none where there is no public host. */
+function jsonCommands(
+  request: JsonRequest | null,
+  context: BuildContext
+): SampleCommands {
+  return request
+    ? {
+        command: bashJsonCommand(request, context),
+        powershellCommand: powershellJsonCommand(request, context),
+        postmanCommand: postmanJsonCommand(request, context),
+      }
+    : { command: null, powershellCommand: null, postmanCommand: null };
 }
 
 function resolveHost(apiKey: OrganizationApiKey): string | null {
@@ -250,75 +267,76 @@ type SpeakingField =
   | "test_code"
   | "transcript";
 
+/** A row of the Speaking body table: one the body sends, or one it only documents. */
 type SpeakingJsonField = {
   field: SpeakingField;
-  /** What the JSON body sends; absent for a field the body only documents. */
-  value?: string | number;
-  /** The body table's sample value, written only where value is absent. */
-  sampleValue?: string;
   required: boolean;
   meaning: string;
-};
+} & (
+  | { sent: true; value: string | number }
+  | { sent: false; documentedValue: string }
+);
 
 /**
- * The Speaking grading body and the body table, one list: the row order comes
- * from the body, so the table and the command cannot teach two different
- * orders. Required flags follow the AIHUB Speaking grading contract.
+ * The Speaking body table, in the order the body sends its fields, so the
+ * table and the command cannot teach two different orders. Required flags
+ * follow the AIHUB Speaking grading contract.
  */
 const SPEAKING_JSON_FIELDS: SpeakingJsonField[] = [
   {
     field: "audio_url",
-    value: SPEAKING_SAMPLE_ANSWER_AUDIO_URL,
+    sent: true,
+    value: SPEAKING_SAMPLE_ANSWER_REQUEST.audio_url,
     required: true,
     meaning:
       "URL HTTPS của tệp âm thanh trả lời, trên đúng host s3.wispace.app; thay bằng URL của bạn. wav, mp3, m4a, webm hoặc ogg; tối đa 25 MiB.",
   },
   {
     field: "part",
-    value: SPEAKING_SAMPLE_QUESTION.part,
+    sent: true,
+    value: SPEAKING_SAMPLE_ANSWER_REQUEST.part,
     required: true,
     meaning: "Phần của bài Speaking: 1, 2 hoặc 3.",
   },
   {
     field: "question_id",
-    value: SPEAKING_SAMPLE_QUESTION.question_id,
+    sent: true,
+    value: SPEAKING_SAMPLE_ANSWER_REQUEST.question_id,
     required: true,
     meaning:
       "Một câu hỏi thật trong danh mục Speaking của AIHUB; lấy câu hỏi khác từ GET /v1/ielts/speaking/questions và thay bằng câu hỏi bạn trả lời.",
   },
   {
     field: "prompt_text",
-    value: SPEAKING_SAMPLE_QUESTION.prompt_text,
+    sent: true,
+    value: SPEAKING_SAMPLE_ANSWER_REQUEST.prompt_text,
     required: false,
     meaning: "Tuỳ chọn; prompt dùng để đánh giá độ liên quan.",
   },
   {
     field: "test_type",
-    value: "Practice",
+    sent: true,
+    value: SPEAKING_SAMPLE_ANSWER_REQUEST.test_type,
     required: false,
     meaning: "Tuỳ chọn; ví dụ Practice hoặc Full-test.",
   },
   {
     field: "test_code",
-    sampleValue: "ielts-practice-01",
+    sent: false,
+    documentedValue: "ielts-practice-01",
     required: false,
     meaning:
       "Tuỳ chọn; mã chung cho các câu hỏi thuộc cùng một bài kiểm tra đầy đủ.",
   },
   {
     field: "transcript",
-    sampleValue: "",
+    sent: false,
+    documentedValue: "",
     required: false,
     meaning:
-      "Tuỳ chọn; transcript có sẵn, dùng khi nhà cung cấp hỗ trợ bỏ qua STT.",
+      "Tuỳ chọn; transcript có sẵn, dùng khi nhà cung cấp hỗ trợ bỏ qua STT. Ví dụ không gửi, vì transcript không khớp bản ghi sẽ được chấm thay cho audio.",
   },
 ];
-
-const SPEAKING_GRADING_JSON_BODY = Object.fromEntries(
-  SPEAKING_JSON_FIELDS.filter((field) => field.value !== undefined).map(
-    ({ field, value }) => [field, value]
-  )
-);
 
 type ResolvedIdentity = { value: string; meaning: string; note: string };
 
@@ -366,7 +384,7 @@ const WRITING_TASK1_MEANINGS: Record<
 };
 
 function buildWritingTask1(context: BuildContext): SampleRequest {
-  const { apiKey, host, identity, idempotencyKey, rawKey } = context;
+  const { apiKey, host, identity, idempotencyKey } = context;
   const body: SampleBodyField[] = (
     Object.keys(WRITING_TASK1_REQUEST) as (keyof typeof WRITING_TASK1_REQUEST)[]
   ).map((field) => ({
@@ -393,24 +411,6 @@ function buildWritingTask1(context: BuildContext): SampleRequest {
       meaning: "Chạy lại cùng body trong 24 giờ sẽ phát lại kết quả đã lưu.",
     },
   ];
-  const command = host
-    ? [
-        bashKeyLine(rawKey),
-        `USER_IDENTITY='${identity.value}'`,
-        `IDEMPOTENCY_KEY='${idempotencyKey}'`,
-        "",
-        "curl --request POST \\",
-        `  '${endpoint(host, writingTask1Path)}' \\`,
-        `  --header "X-API-Key: \${API_KEY}" \\`,
-        `  --header "X-User-Identity: \${USER_IDENTITY}" \\`,
-        `  --header "Content-Type: application/json" \\`,
-        `  --header "Idempotency-Key: \${IDEMPOTENCY_KEY}" \\`,
-        "  --data-binary @- <<'JSON'",
-        JSON.stringify(WRITING_TASK1_REQUEST, null, 2),
-        "JSON",
-      ].join("\n")
-    : null;
-
   return {
     kind: "writing-task1",
     label: "Writing Task 1",
@@ -424,28 +424,21 @@ function buildWritingTask1(context: BuildContext): SampleRequest {
     note: WRITING_TASK1_IMAGE_NOTE,
     usageNote: usageNote(host),
     billing: billing(host),
-    command,
-    powershellCommand: host
-      ? powershellJsonCommand(
-          endpoint(host, writingTask1Path),
-          context,
-          WRITING_TASK1_REQUEST,
-          idempotencyKey
-        )
-      : null,
-    postmanCommand: host
-      ? postmanJsonCommand(
-          endpoint(host, writingTask1Path),
-          context,
-          WRITING_TASK1_REQUEST,
-          idempotencyKey
-        )
-      : null,
+    ...jsonCommands(
+      host
+        ? {
+            url: endpoint(host, writingTask1Path),
+            body: WRITING_TASK1_REQUEST,
+            idempotencyKey,
+          }
+        : null,
+      context
+    ),
   };
 }
 
 function buildWriting(context: BuildContext): SampleRequest {
-  const { apiKey, host, identity, idempotencyKey, rawKey } = context;
+  const { apiKey, host, identity, idempotencyKey } = context;
   const body: SampleBodyField[] = [
     {
       field: "question",
@@ -484,24 +477,6 @@ function buildWriting(context: BuildContext): SampleRequest {
       meaning: "Chạy lại cùng body trong 24 giờ sẽ phát lại kết quả đã lưu.",
     },
   ];
-  const command = host
-    ? [
-        bashKeyLine(rawKey),
-        `USER_IDENTITY='${identity.value}'`,
-        `IDEMPOTENCY_KEY='${idempotencyKey}'`,
-        "",
-        "curl --request POST \\",
-        `  '${endpoint(host, writingPath)}' \\`,
-        `  --header "X-API-Key: \${API_KEY}" \\`,
-        `  --header "X-User-Identity: \${USER_IDENTITY}" \\`,
-        `  --header "Content-Type: application/json" \\`,
-        `  --header "Idempotency-Key: \${IDEMPOTENCY_KEY}" \\`,
-        "  --data-binary @- <<'JSON'",
-        JSON.stringify(WRITING_TASK2_REQUEST, null, 2),
-        "JSON",
-      ].join("\n")
-    : null;
-
   return {
     kind: "writing-task2",
     label: "Writing Task 2",
@@ -515,28 +490,21 @@ function buildWriting(context: BuildContext): SampleRequest {
     note: "Chạy lại cùng body với Idempotency-Key này sẽ phát lại kết quả đã lưu trong 24 giờ. Bài nộp mới cần một UUID mới.",
     usageNote: usageNote(host),
     billing: billing(host),
-    command,
-    powershellCommand: host
-      ? powershellJsonCommand(
-          endpoint(host, writingPath),
-          context,
-          WRITING_TASK2_REQUEST,
-          idempotencyKey
-        )
-      : null,
-    postmanCommand: host
-      ? postmanJsonCommand(
-          endpoint(host, writingPath),
-          context,
-          WRITING_TASK2_REQUEST,
-          idempotencyKey
-        )
-      : null,
+    ...jsonCommands(
+      host
+        ? {
+            url: endpoint(host, writingPath),
+            body: WRITING_TASK2_REQUEST,
+            idempotencyKey,
+          }
+        : null,
+      context
+    ),
   };
 }
 
 function buildSpeaking(context: BuildContext): SampleRequest {
-  const { apiKey, host, identity, rawKey } = context;
+  const { apiKey, host, identity } = context;
   const headers: SampleHeader[] = [
     apiKeyHeader(apiKey),
     {
@@ -550,35 +518,17 @@ function buildSpeaking(context: BuildContext): SampleRequest {
       meaning: "Body của request có định dạng JSON.",
     },
   ];
-  const body: SampleBodyField[] = SPEAKING_JSON_FIELDS.map(
-    ({ field, value, sampleValue, required, meaning }) => ({
-      field,
-      sampleValue: sampleValue ?? String(value),
-      required,
-      meaning,
-    })
-  );
-  const command = host
-    ? [
-        bashKeyLine(rawKey),
-        `USER_IDENTITY='${identity.value}'`,
-        "",
-        "curl --request POST \\",
-        `  '${endpoint(host, speakingPath)}' \\`,
-        `  --header "X-API-Key: \${API_KEY}" \\`,
-        `  --header "X-User-Identity: \${USER_IDENTITY}" \\`,
-        `  --header "Content-Type: application/json" \\`,
-        "  --data-binary @- <<'JSON'",
-        JSON.stringify(SPEAKING_GRADING_JSON_BODY, null, 2),
-        "JSON",
-      ].join("\n")
-    : null;
-
+  const body: SampleBodyField[] = SPEAKING_JSON_FIELDS.map((row) => ({
+    field: row.field,
+    sampleValue: row.sent ? String(row.value) : row.documentedValue,
+    required: row.required,
+    meaning: row.meaning,
+  }));
   return {
     kind: "speaking",
     label: "Speaking",
     method: "POST",
-    url: endpoint(host, speakingPath),
+    url: endpoint(host, speakingGradingJsonPath),
     headers,
     body,
     identityNote: identity.note,
@@ -587,23 +537,16 @@ function buildSpeaking(context: BuildContext): SampleRequest {
     note: "Ví dụ này gửi Published sample answer của AIHUB nên chạy được ngay, không cần tệp nào trên máy bạn. Để chấm audio của bạn, hãy upload tệp lên POST /v1/ielts/speaking/grading, hoặc truyền audio_url của bạn trên host s3.wispace.app. AIHUB chưa hỗ trợ Idempotency-Key cho Speaking. Chạy lại lệnh này sẽ chấm bài và tính phí thêm một lần nữa.",
     usageNote: usageNote(host),
     billing: billing(host),
-    command,
-    powershellCommand: host
-      ? powershellJsonCommand(
-          endpoint(host, speakingPath),
-          context,
-          SPEAKING_GRADING_JSON_BODY,
-          undefined
-        )
-      : null,
-    postmanCommand: host
-      ? postmanJsonCommand(
-          endpoint(host, speakingPath),
-          context,
-          SPEAKING_GRADING_JSON_BODY,
-          undefined
-        )
-      : null,
+    // No Idempotency-Key: AIHUB accepts none on Speaking yet.
+    ...jsonCommands(
+      host
+        ? {
+            url: endpoint(host, speakingGradingJsonPath),
+            body: SPEAKING_SAMPLE_ANSWER_REQUEST,
+          }
+        : null,
+      context
+    ),
   };
 }
 
