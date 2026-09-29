@@ -43,6 +43,10 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Generate route types
+        # PageProps/LayoutProps are generated into .next/types; tsc below needs them.
+        run: npx next typegen
+
       - name: Lint (advisory)
         # ponytail: keep deployment unblocked by the existing lint baseline; make it a gate after cleanup.
         continue-on-error: true
