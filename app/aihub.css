@@ -1535,3 +1535,53 @@ a.aihub-card:hover {
 .aihub-shell [id] {
   scroll-margin-top: 140px;
 }
+
+/* Code block có nút sao chép: thanh trên có chiều cao cố định nên trạng thái không làm layout nhảy */
+.aihub-codeblock {
+  margin-top: 12px;
+}
+
+.aihub-codeblock-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  margin-bottom: 6px;
+}
+
+.aihub-codeblock-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--aihub-soft);
+  overflow-wrap: anywhere;
+}
+
+.aihub-copy-status {
+  flex: 1;
+  font-size: 12px;
+  color: var(--aihub-body);
+  min-width: 0;
+}
+
+.aihub-copy {
+  flex: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--aihub-brand);
+  background: var(--aihub-card);
+  border: 1px solid var(--aihub-line);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.aihub-copy:hover {
+  border-color: var(--aihub-brand);
+}
+
+.aihub-copy:focus-visible,
+.aihub-code:focus-visible {
+  outline: 2px solid var(--aihub-brand);
+  outline-offset: 2px;
+}

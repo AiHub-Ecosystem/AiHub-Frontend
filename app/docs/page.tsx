@@ -1,6 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE } from "@/lib/api-keys";
+import { CodeBlock } from "@/components/docs/code-block";
+import {
+  FIRST_CALL,
+  NODE_SAMPLE,
+  PRODUCTION_HOST,
+  SANDBOX_HOST,
+  SANDBOX_KEY_REQUEST,
+  SIGN_JAVA,
+  SIGN_NODE,
+  SIGN_PYTHON,
+  SIGNED_HEADER,
+} from "@/data/docs-guide";
 import "../aihub.css";
 
 export const metadata: Metadata = {
@@ -8,71 +20,6 @@ export const metadata: Metadata = {
   description:
     "Từ Organization đến lệnh chấm đầu tiên trên production: chọn cách định danh người dùng, cấp API key, thử với Customer Sandbox, retry và xử lý lỗi.",
 };
-
-const PRODUCTION_HOST = "https://api.aihubproduction.com";
-const SANDBOX_HOST = "https://sandbox.aihubproduction.com";
-
-const FIRST_CALL = `# 1. Lưu key vào biến môi trường (chỉ trong terminal server, không commit)
-export AIHUB_API_KEY="aihub_sk_..."
-
-# 2. End-User ID của bạn — ổn định, 1–256 ký tự ASCII hiển thị, không khoảng trắng
-export AIHUB_USER_IDENTITY="student_456"
-
-# 3. Gọi thử một lần chấm Writing Task 2
-curl -X POST '${PRODUCTION_HOST}/v1/ielts/writing/task2/grade' \\
-  -H "X-API-Key: $AIHUB_API_KEY" \\
-  -H "X-User-Identity: $AIHUB_USER_IDENTITY" \\
-  -H "Idempotency-Key: $(uuidgen)" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "topic": "education",
-    "question": "Some people believe that universities should only offer academic subjects, while others think vocational training is equally important. Discuss both views and give your own opinion.",
-    "essay": "Universities have traditionally focused on academic subjects, yet the value of vocational training is increasingly recognised..."
-  }'`;
-
-const NODE_SAMPLE = `// backend/grading.js — gọi AIHUB từ server, không bao giờ từ trình duyệt
-const AIHUB_HOST = "${PRODUCTION_HOST}";
-
-// idempotencyKey: sinh MỘT lần cho mỗi bài làm (ví dụ randomUUID()), lưu cùng bài làm,
-// và dùng lại đúng key này ở mọi lần retry. Đừng sinh key mới bên trong hàm này.
-export async function gradeTask2({ question, topic, essay, endUserId, idempotencyKey }) {
-  const response = await fetch(\`\${AIHUB_HOST}/v1/ielts/writing/task2/grade\`, {
-    method: "POST",
-    signal: AbortSignal.timeout(90_000), // ngân sách AIHUB là 60 giây; client chờ tối thiểu 90 giây
-    headers: {
-      "X-API-Key": process.env.AIHUB_API_KEY,
-      "X-User-Identity": endUserId, // Declared User ID, hoặc Signed User Assertion nếu Organization bật xác minh
-      "Idempotency-Key": idempotencyKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ question, topic, essay }),
-  });
-
-  // Mọi response thành công đều bọc trong { data, meta }.
-  if (response.ok) return (await response.json()).data;
-
-  // Lỗi: rẽ nhánh theo error.code, quyết định retry theo retryable / retry_after_ms.
-  const { error } = await response.json();
-  throw Object.assign(new Error(\`AIHUB \${response.status} \${error.code}\`), {
-    code: error.code,
-    retryable: error.retryable,
-    retryAfterMs: error.retry_after_ms,
-    requestId: error.request_id, // gửi cho hỗ trợ, đừng gửi kèm key hay bài làm
-  });
-}`;
-
-const SIGNED_HEADER = `# SIGNED_USER_ASSERTION do backend của bạn ký ngay trước mỗi lần gọi
--H "X-User-Identity: $SIGNED_USER_ASSERTION"`;
-
-const SANDBOX_KEY_REQUEST = `POST /v1/organizations/{organization_id}/api-keys
-Authorization: Bearer <User Access JWT của owner hoặc admin>
-Content-Type: application/json
-
-{
-  "name": "writing-sandbox",
-  "scopes": ["writing.grade"],
-  "allowed_environments": ["sandbox"]
-}`;
 
 const IDENTITY_MODES = [
   {
@@ -130,7 +77,7 @@ const ASSERTION_FIELDS = [
   {
     field: "exp",
     value: "Hết hạn, tính bằng giây",
-    note: "Mặc định tối đa 300 giây; ký ngay trước khi gọi.",
+    note: "Mặc định tối đa 300 giây (cấu hình max_assertion_ttl_seconds từ 1 đến 3600); ký ngay trước khi gọi.",
   },
 ];
 
@@ -160,7 +107,7 @@ const OPERATIONS = [
     href: "/product/speaking/api/speaking-grading",
     path: "/v1/ielts/speaking/grading",
     scope: "speaking.grade",
-    idempotency: "Không hỗ trợ",
+    idempotency: "Không hỗ trợ (header bị bỏ qua)",
     body: "26 MiB",
     budget: "60 giây",
     timeout: "90 giây",
@@ -170,7 +117,7 @@ const OPERATIONS = [
     href: "/product/speaking/api/speaking-grading-json",
     path: "/v1/ielts/speaking/grading-json",
     scope: "speaking.grade",
-    idempotency: "Không hỗ trợ",
+    idempotency: "Không hỗ trợ (header bị bỏ qua)",
     body: "256 KB",
     budget: "30 giây",
     timeout: "60 giây",
@@ -354,11 +301,10 @@ export default function Page() {
             production và tính phí ngay, kể cả lệnh gọi thử; muốn thử miễn phí
             cho Writing, xem <a href="#sandbox">Customer Sandbox</a>.
           </p>
-          <div className="aihub-scroll">
-            <pre className="aihub-code" tabIndex={0}>
-              {FIRST_CALL}
-            </pre>
-          </div>
+          <CodeBlock
+            code={FIRST_CALL}
+            label="Lệnh curl gọi thử Writing Task 2 (Declared User ID)"
+          />
           <p className="aihub-callout" style={{ marginTop: 16 }}>
             Gọi AIHUB từ server của bạn. Đưa API key hoặc assertion xuống trình
             duyệt hay mobile app là lộ credential.
@@ -446,7 +392,8 @@ export default function Page() {
               URL JWKS HTTPS truy cập công khai được (<code>jwks_url</code>),
               hoặc JWKS public dán trực tiếp (<code>public_keys_jwks</code>).
               Không bao giờ gửi private key cho AIHUB; private key ở lại backend
-              của bạn.
+              của bạn. Có thể đặt thêm <code>allowed_algorithms</code> (RS256,
+              ES256) và <code>max_assertion_ttl_seconds</code>.
             </li>
             <li>
               Cấu hình áp dụng cho cả Organization, ở mọi environment của nó.
@@ -486,11 +433,24 @@ export default function Page() {
             nguyên. Ký assertion ngay trước mỗi lần gọi ở backend, không lưu lâu
             và không đưa xuống trình duyệt hay mobile app.
           </p>
-          <div className="aihub-scroll">
-            <pre className="aihub-code" tabIndex={0}>
-              {SIGNED_HEADER}
-            </pre>
-          </div>
+          <CodeBlock
+            code={SIGNED_HEADER}
+            label="Header X-User-Identity ở dạng ký"
+          />
+          <p className="aihub-prose">
+            Mẫu ký assertion ở backend của bạn (Node.js, Python, Java). Thay các
+            giá trị <code>{"<...>"}</code> bằng issuer và kid đã đăng ký; nạp
+            private key từ secret manager.
+          </p>
+          <CodeBlock
+            code={SIGN_NODE}
+            label="Node.js: ký Signed User Assertion"
+          />
+          <CodeBlock
+            code={SIGN_PYTHON}
+            label="Python: ký Signed User Assertion"
+          />
+          <CodeBlock code={SIGN_JAVA} label="Java: ký Signed User Assertion" />
         </section>
 
         <section className="aihub-category" id="thiet-lap">
@@ -578,11 +538,10 @@ export default function Page() {
             trong <Link href="/console/orgs">Console</Link>.
           </p>
           <h3 className="aihub-sub">Gắn vào backend</h3>
-          <div className="aihub-scroll">
-            <pre className="aihub-code" tabIndex={0}>
-              {NODE_SAMPLE}
-            </pre>
-          </div>
+          <CodeBlock
+            code={NODE_SAMPLE}
+            label="Node.js: gọi Writing Task 2 từ backend"
+          />
         </section>
 
         <section className="aihub-category" id="sandbox">
@@ -621,11 +580,10 @@ export default function Page() {
               như production: Declared User ID hoặc Signed User Assertion.
             </li>
           </ul>
-          <div className="aihub-scroll">
-            <pre className="aihub-code" tabIndex={0}>
-              {SANDBOX_KEY_REQUEST}
-            </pre>
-          </div>
+          <CodeBlock
+            code={SANDBOX_KEY_REQUEST}
+            label="Request cấp Customer Sandbox API key"
+          />
 
           <h3 className="aihub-sub">Demo assertion không dành cho khách</h3>
           <p className="aihub-prose">
@@ -645,10 +603,10 @@ export default function Page() {
           <ul className="aihub-list">
             <li>
               <strong>Writing</strong> bắt buộc có <code>Idempotency-Key</code>,
-              lưu trạng thái replay 24 giờ. Retry thì dùng lại đúng key và đúng
-              body: AIHUB trả kết quả đã lưu thay vì chấm lại. Đổi body, hoặc
-              gửi lại khi request cũ vẫn đang chạy, có thể trả{" "}
-              <code>409 IDEMPOTENCY_CONFLICT</code>.
+              lưu trạng thái replay 24 giờ. Key dài 1–255 byte UTF-8. Retry thì
+              dùng lại đúng key và đúng body: AIHUB trả kết quả đã lưu thay vì
+              chấm lại. Đổi body, hoặc gửi lại khi request cũ vẫn đang chạy, có
+              thể trả <code>409 IDEMPOTENCY_CONFLICT</code>.
             </li>
             <li>
               <strong>Speaking không có idempotency.</strong> Mỗi lần gửi lại là

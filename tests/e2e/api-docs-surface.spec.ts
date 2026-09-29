@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
+import { waitForHydration } from "./hydration";
 
 test("Retired /specs redirects permanently to the API product catalog", async ({
   page,
@@ -169,10 +170,65 @@ test("/docs offers no browser grading action and makes no AIHUB API request", as
   await page.goto("/docs");
   await page.waitForLoadState("networkidle");
 
-  await expect(
-    page.locator(".aihub-shell").locator("form, input, textarea, button")
-  ).toHaveCount(0);
+  const shell = page.locator(".aihub-shell");
+  await expect(shell.locator("form, input, textarea")).toHaveCount(0);
+  // The only controls are the copy buttons; none of them sends a request.
+  const buttons = shell.getByRole("button");
+  expect(await buttons.count()).toBeGreaterThan(0);
+  for (const name of await buttons.evaluateAll((els) =>
+    els.map((el) => el.getAttribute("aria-label"))
+  )) {
+    expect(name).toMatch(/^Sao chép: /);
+  }
   expect(apiRequests).toEqual([]);
+});
+
+test("/docs code samples copy to the clipboard and announce it without moving the layout", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/docs");
+  await waitForHydration(page);
+
+  const block = page.locator(".aihub-codeblock").first();
+  const bar = block.locator(".aihub-codeblock-bar");
+  const heightBefore = (await bar.boundingBox())!.height;
+  const offsetBefore = await gapBetweenBarAndCode(block);
+
+  const copy = block.getByRole("button", { name: /^Sao chép: / });
+  await copy.focus();
+  await page.keyboard.press("Enter");
+
+  await expect(block.getByRole("status")).toHaveText("Đã sao chép");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(
+    "/v1/ielts/writing/task2/grade"
+  );
+  expect((await bar.boundingBox())!.height).toBe(heightBefore);
+  expect(await gapBetweenBarAndCode(block)).toBe(offsetBefore);
+
+  await expect(block.getByRole("status")).toHaveText("", { timeout: 5000 });
+});
+
+test("/docs shows how to sign an assertion in Node.js, Python and Java", async ({
+  page,
+}) => {
+  await page.goto("/docs");
+
+  const signed = page.locator("#dinh-danh");
+  for (const language of ["Node.js", "Python", "Java"]) {
+    await expect(
+      signed.getByRole("button", {
+        name: `Sao chép: ${language}: ký Signed User Assertion`,
+      })
+    ).toBeVisible();
+  }
+  const samples = signed.locator("pre.aihub-code");
+  await expect(samples.filter({ hasText: '"aud": "aihub"' })).toHaveCount(1);
+  await expect(samples.filter({ hasText: ".audience(" })).toHaveCount(1);
+  await expect(samples.filter({ hasText: ".setAudience(" })).toHaveCount(1);
+  // Placeholders only: no key material ships in the page.
+  await expect(signed).not.toContainText("BEGIN PRIVATE KEY");
 });
 
 test("/docs stays inside a phone viewport and is keyboard reachable", async ({
@@ -218,7 +274,14 @@ test("/docs anchors land below the site header, one per identity mode", async ({
   }
 
   // The Signed snippet changes only the identity header's value.
-  await expect(page.locator("#dinh-danh pre.aihub-code")).toContainText(
-    "SIGNED_USER_ASSERTION"
-  );
+  await expect(
+    page.getByLabel("Header X-User-Identity ở dạng ký", { exact: true })
+  ).toContainText("SIGNED_USER_ASSERTION");
 });
+
+/** Distance from the copy bar to its code: unchanged unless the layout moved. */
+async function gapBetweenBarAndCode(block: Locator) {
+  const bar = (await block.locator(".aihub-codeblock-bar").boundingBox())!;
+  const code = (await block.locator("pre").boundingBox())!;
+  return code.y - bar.y;
+}

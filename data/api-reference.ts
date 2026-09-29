@@ -1020,7 +1020,7 @@ const SPEAKING_MULTIPART_NOTES = speakingLimitNotes("26 MiB", 60, 90);
 const SPEAKING_JSON_NOTES = speakingLimitNotes("256 KB", 30, 60);
 
 const SPEAKING_NO_IDEMPOTENCY_NOTE =
-  "Endpoint này không có idempotent replay — không có header Idempotency-Key nào được chấp nhận. Chạy lại cùng một lệnh sẽ tạo một lần chấm mới và tính phí thêm.";
+  "Endpoint này không có idempotent replay — header Idempotency-Key, nếu bạn gửi, bị bỏ qua. Chạy lại cùng một lệnh sẽ tạo một lần chấm mới và tính phí thêm.";
 
 /** Ví dụ trong các endpoint này là giá trị minh hoạ, không phải traffic thật. */
 const SPEAKING_ILLUSTRATIVE_NOTE =
