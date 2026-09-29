@@ -271,6 +271,13 @@
   text-decoration: none;
 }
 
+.aihub-docs .aihub-toc a[aria-current="location"] {
+  background: #e8efff;
+  color: #173d9d;
+  box-shadow: inset 3px 0 0 #315ee8;
+  font-weight: 800;
+}
+
 .docs-content {
   min-width: 0;
 }

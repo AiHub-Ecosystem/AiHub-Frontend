@@ -8,4 +8,5 @@ build/
 *.log
 .vitest/
 playwright-report/
-test-results/
+test-results/*
+!test-results/docs-captures/

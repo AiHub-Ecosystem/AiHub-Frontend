@@ -261,6 +261,28 @@ test("/docs stays inside a phone viewport and is keyboard reachable", async ({
   await expect(page.locator("#sandbox")).toBeInViewport();
 });
 
+test("/docs highlights the sidebar item for the section in view", async ({
+  page,
+}) => {
+  await page.goto("/docs");
+  const toc = page.getByRole("navigation", { name: "Trong trang" });
+  const identity = toc.getByRole("link", { name: "Nhận diện người học" });
+  const sandbox = toc.getByRole("link", { name: "Thử miễn phí" });
+
+  await identity.click();
+  await expect(identity).toHaveAttribute("aria-current", "location");
+
+  await page.evaluate(() => {
+    const target = document.getElementById("sandbox")!;
+    window.scrollTo({
+      top: target.getBoundingClientRect().top + window.scrollY - 140,
+      behavior: "instant",
+    });
+  });
+  await expect(sandbox).toHaveAttribute("aria-current", "location");
+  await expect(identity).not.toHaveAttribute("aria-current");
+});
+
 test("/docs anchors land below the site header, one per identity mode", async ({
   page,
 }) => {

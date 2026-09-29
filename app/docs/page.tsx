@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE } from "@/lib/api-keys";
 import { CodeBlock } from "@/components/docs/code-block";
+import { DocsToc } from "./docs-toc";
 import {
   FIRST_CALL,
   NODE_SAMPLE,
@@ -336,14 +337,7 @@ export default function Page() {
           Các bước chi tiết dành cho đội kỹ thuật
         </p>
         <div className="docs-layout">
-          <nav className="aihub-toc" aria-label="Trong trang">
-            <p>Trong hướng dẫn</p>
-            {SECTIONS.map((section) => (
-              <a key={section.id} href={`#${section.id}`}>
-                {section.label}
-              </a>
-            ))}
-          </nav>
+          <DocsToc sections={SECTIONS} />
           <main className="docs-content">
             <section className="aihub-category" id="bat-dau">
               <div className="aihub-category-head">
