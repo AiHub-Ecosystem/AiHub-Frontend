@@ -4,6 +4,7 @@ import {
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
+import { waitForHydration } from "./hydration";
 
 const mockUrl = "http://127.0.0.1:3101";
 
@@ -76,6 +77,7 @@ test("Speaking grading sends the User Identity in X-User-Identity", async ({
 }) => {
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
   await page.goto("/demo/speaking");
+  await waitForHydration(page);
   await chooseFirstQuestion(page);
 
   // A prompt with a presigned sample audio URL sends the demo down the
@@ -98,6 +100,7 @@ test("Speaking grading by uploaded audio sends the User Identity in X-User-Ident
 }) => {
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
   await page.goto("/demo/speaking");
+  await waitForHydration(page);
   await chooseFirstQuestion(page);
 
   // Uploading a file routes the demo to the multipart grading operation.
@@ -124,6 +127,7 @@ test("Speaking grading mints a fresh assertion for each request", async ({
 }) => {
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
   await page.goto("/demo/speaking");
+  await waitForHydration(page);
   await chooseFirstQuestion(page);
   await page.getByTestId("button-confirm-step-2").click();
   await expect(page.getByTestId("panel-feedback-dashboard")).toBeVisible();

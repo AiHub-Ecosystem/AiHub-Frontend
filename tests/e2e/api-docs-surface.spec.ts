@@ -236,6 +236,11 @@ test("/docs stays inside a phone viewport and is keyboard reachable", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/docs");
+  // CI renders monospace wider than a dev machine; widen it here so an
+  // unbreakable path in running text fails locally too, not only on CI.
+  await page.addStyleTag({
+    content: "code, pre { font-size: 1.25em !important; }",
+  });
 
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - window.innerWidth

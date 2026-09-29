@@ -1585,3 +1585,8 @@ a.aihub-card:hover {
   outline: 2px solid var(--aihub-brand);
   outline-offset: 2px;
 }
+
+/* Path dài trong văn xuôi (vd. PUT /v1/organizations/{id}/identity-config) phải ngắt được trên mobile */
+.aihub-shell code {
+  overflow-wrap: anywhere;
+}
