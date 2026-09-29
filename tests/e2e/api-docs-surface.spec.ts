@@ -194,3 +194,31 @@ test("/docs stays inside a phone viewport and is keyboard reachable", async ({
   await expect(page).toHaveURL(/#sandbox$/);
   await expect(page.locator("#sandbox")).toBeInViewport();
 });
+
+test("/docs anchors land below the site header, one per identity mode", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/docs");
+
+  for (const id of ["declared", "signed", "sandbox", "do-tin-cay"]) {
+    await page.evaluate((hash) => (location.hash = hash), id);
+    const target = page.locator(`#${id}`);
+    await expect(target).toBeInViewport();
+    const headerBottom = await page
+      .locator("header")
+      .first()
+      .evaluate((el) => el.getBoundingClientRect().bottom);
+    const targetTop = await target.evaluate(
+      (el) => el.getBoundingClientRect().top
+    );
+    expect(targetTop, `#${id} hidden by header`).toBeGreaterThanOrEqual(
+      headerBottom - 1
+    );
+  }
+
+  // The Signed snippet changes only the identity header's value.
+  await expect(page.locator("#dinh-danh pre.aihub-code")).toContainText(
+    "SIGNED_USER_ASSERTION"
+  );
+});

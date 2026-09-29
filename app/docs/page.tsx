@@ -13,14 +13,14 @@ const PRODUCTION_HOST = "https://api.aihubproduction.com";
 const SANDBOX_HOST = "https://sandbox.aihubproduction.com";
 
 const FIRST_CALL = `# 1. Lưu key vào biến môi trường (chỉ trong terminal server, không commit)
-export API_KEY="aihub_sk_..."
+export AIHUB_API_KEY="aihub_sk_..."
 
 # 2. End-User ID của bạn — ổn định, 1–256 ký tự ASCII hiển thị, không khoảng trắng
 export AIHUB_USER_IDENTITY="student_456"
 
 # 3. Gọi thử một lần chấm Writing Task 2
 curl -X POST '${PRODUCTION_HOST}/v1/ielts/writing/task2/grade' \\
-  -H "X-API-Key: $API_KEY" \\
+  -H "X-API-Key: $AIHUB_API_KEY" \\
   -H "X-User-Identity: $AIHUB_USER_IDENTITY" \\
   -H "Idempotency-Key: $(uuidgen)" \\
   -H "Content-Type: application/json" \\
@@ -60,6 +60,9 @@ export async function gradeTask2({ question, topic, essay, endUserId, idempotenc
     requestId: error.request_id, // gửi cho hỗ trợ, đừng gửi kèm key hay bài làm
   });
 }`;
+
+const SIGNED_HEADER = `# SIGNED_USER_ASSERTION do backend của bạn ký ngay trước mỗi lần gọi
+-H "X-User-Identity: $SIGNED_USER_ASSERTION"`;
 
 const SANDBOX_KEY_REQUEST = `POST /v1/organizations/{organization_id}/api-keys
 Authorization: Bearer <User Access JWT của owner hoặc admin>
@@ -398,7 +401,9 @@ export default function Page() {
             hoặc đã bị tắt thì chưa bật xác minh có chữ ký.
           </p>
 
-          <h3 className="aihub-sub">Declared User ID</h3>
+          <h3 className="aihub-sub" id="declared">
+            Declared User ID
+          </h3>
           <ul className="aihub-list">
             <li>
               1–256 ký tự ASCII hiển thị, không có khoảng trắng. AIHUB so sánh
@@ -423,7 +428,9 @@ export default function Page() {
             Assertion bên dưới.
           </p>
 
-          <h3 className="aihub-sub">(Tuỳ chọn) Signed User Assertion</h3>
+          <h3 className="aihub-sub" id="signed">
+            (Tuỳ chọn) Signed User Assertion
+          </h3>
           <ul className="aihub-list">
             <li>
               Chỉ owner đang hoạt động của Organization lưu được cấu hình, bằng{" "}
@@ -440,6 +447,11 @@ export default function Page() {
               hoặc JWKS public dán trực tiếp (<code>public_keys_jwks</code>).
               Không bao giờ gửi private key cho AIHUB; private key ở lại backend
               của bạn.
+            </li>
+            <li>
+              Cấu hình áp dụng cho cả Organization, ở mọi environment của nó.
+              Đừng đổi issuer giữa các request, và đừng gửi issuer hay JWKS như
+              header khi chấm.
             </li>
             <li>
               Khi có cấu hình đang hoạt động, mọi request phải mang một
@@ -470,9 +482,15 @@ export default function Page() {
             </table>
           </div>
           <p className="aihub-prose">
-            Ký assertion ngay trước mỗi lần gọi ở backend, không lưu lâu và
-            không đưa xuống trình duyệt hay mobile app.
+            Dạng ký chỉ đổi giá trị của header; phần còn lại của request giữ
+            nguyên. Ký assertion ngay trước mỗi lần gọi ở backend, không lưu lâu
+            và không đưa xuống trình duyệt hay mobile app.
           </p>
+          <div className="aihub-scroll">
+            <pre className="aihub-code" tabIndex={0}>
+              {SIGNED_HEADER}
+            </pre>
+          </div>
         </section>
 
         <section className="aihub-category" id="thiet-lap">
@@ -658,7 +676,16 @@ export default function Page() {
               lúc; <code>QUOTA_EXCEEDED</code> có thể phải chờ tới tháng UTC
               sau.
             </li>
+            <li>
+              Ngân sách của Speaking multipart gồm cả thời gian tải âm thanh
+              lên, nên file lớn trên đường truyền chậm cần timeout client lớn
+              hơn mức tối thiểu ở <a href="#thao-tac">bảng thao tác</a>.
+            </li>
           </ul>
+          <p className="aihub-prose">
+            Bảng dưới là tóm tắt chung. Lỗi riêng và response mẫu của từng thao
+            tác nằm ở trang API Reference, link ở bảng thao tác.
+          </p>
           <div className="aihub-scroll">
             <table className="aihub-schema">
               <thead>

@@ -1530,3 +1530,8 @@ a.aihub-card:hover {
   color: var(--aihub-body);
   margin: 12px 0 0;
 }
+
+/* Header của site là fixed: chừa chỗ để anchor không bị che */
+.aihub-shell [id] {
+  scroll-margin-top: 140px;
+}
