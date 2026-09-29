@@ -92,8 +92,14 @@ One capability an API key permits, named as a dotted string such as `writing.gra
 _Avoid_: permission, entitlement, feature
 
 **Environment**:
-The request tier AIHUB derives from the hostname a request is sent to; an API key only works in the Environments it allows. A customer may allow `production`, `staging`, or `sandbox`. The Sandbox Environment is AIHUB's free test tier: its calls do not count against the Organization's paid usage, and a Sandbox key allows that Environment alone and carries only the `writing.grade` scope.
+The request tier AIHUB derives from the hostname a request is sent to; an API key only works in the Environments it allows. A customer may allow `production`, `staging`, or `sandbox`. The Sandbox Environment is AIHUB's free test tier: its calls do not count against the Organization's paid usage, and a Customer Sandbox API key allows that Environment alone and carries only the `writing.grade` scope.
 _Avoid_: mode, live/test
+
+**Customer Sandbox API key**:
+An Organization-owned key restricted to the Sandbox Environment and `writing.grade`, issued separately from its production key by an active owner or admin.
+
+**Sandbox API key**:
+The server-held key of AIHUB's dedicated demo Organization, separate from every Customer Sandbox API key.
 
 **Sample request**:
 A request shown for an active API key so its holder can make a call with it, one for each operation the key's API key scopes permit that has a known endpoint. An API key scope may permit more than one operation, so an Organization's key may be offered several Sample requests. A Sample request carries the raw key only when its holder supplies it in the browser, by copying it from the reveal or pasting it on the Quickstart; otherwise its command reads the key from the holder's environment. It may also depend on things only its holder has, such as their own chart image or the question they answer; where AIHUB publishes a sample input, such as a chart image or a Published sample answer, the Sample request uses it so it runs as copied.
