@@ -1,0 +1,210 @@
+[
+  {
+    "route": "/docs",
+    "view": "desktop",
+    "image": "desktop/docs.png",
+    "status": 200,
+    "title": "Hướng dẫn tích hợp — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product",
+    "view": "desktop",
+    "image": "desktop/product.png",
+    "status": 200,
+    "title": "Document — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/scoring",
+    "view": "desktop",
+    "image": "desktop/product__scoring.png",
+    "status": 200,
+    "title": "Chấm điểm — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/scoring/api/grade-task1",
+    "view": "desktop",
+    "image": "desktop/product__scoring__api__grade-task1.png",
+    "status": 200,
+    "title": "Chấm bài Task 1 — Chấm điểm — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/scoring/api/grade-task2",
+    "view": "desktop",
+    "image": "desktop/product__scoring__api__grade-task2.png",
+    "status": 200,
+    "title": "Chấm bài Task 2 — Chấm điểm — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/speaking",
+    "view": "desktop",
+    "image": "desktop/product__speaking.png",
+    "status": 200,
+    "title": "Chấm Speaking — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/speaking/api/speaking-questions",
+    "view": "desktop",
+    "image": "desktop/product__speaking__api__speaking-questions.png",
+    "status": 200,
+    "title": "Lấy câu hỏi theo Part — Chấm Speaking — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/speaking/api/speaking-grading",
+    "view": "desktop",
+    "image": "desktop/product__speaking__api__speaking-grading.png",
+    "status": 200,
+    "title": "Chấm câu trả lời — Chấm Speaking — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/speaking/api/speaking-grading-json",
+    "view": "desktop",
+    "image": "desktop/product__speaking__api__speaking-grading-json.png",
+    "status": 200,
+    "title": "Chấm câu trả lời bằng URL audio — Chấm Speaking — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/exercise-generation",
+    "view": "desktop",
+    "image": "desktop/product__exercise-generation.png",
+    "status": 200,
+    "title": "Tạo bài tập — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/exercise-generation/api/sample-references",
+    "view": "desktop",
+    "image": "desktop/product__exercise-generation__api__sample-references.png",
+    "status": 200,
+    "title": "Lấy dữ liệu tham chiếu — Tạo bài tập — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/exercise-generation/api/create-micro-exercise",
+    "view": "desktop",
+    "image": "desktop/product__exercise-generation__api__create-micro-exercise.png",
+    "status": 200,
+    "title": "Tạo bài tập nhỏ — Tạo bài tập — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/exercise-generation/api/create-longwriting-exercise",
+    "view": "desktop",
+    "image": "desktop/product__exercise-generation__api__create-longwriting-exercise.png",
+    "status": 200,
+    "title": "Tạo bài tập đoạn văn — Tạo bài tập — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/docs",
+    "view": "mobile",
+    "image": "mobile/docs.png",
+    "status": 200,
+    "title": "Hướng dẫn tích hợp — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product",
+    "view": "mobile",
+    "image": "mobile/product.png",
+    "status": 200,
+    "title": "Document — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/scoring",
+    "view": "mobile",
+    "image": "mobile/product__scoring.png",
+    "status": 200,
+    "title": "Chấm điểm — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/scoring/api/grade-task1",
+    "view": "mobile",
+    "image": "mobile/product__scoring__api__grade-task1.png",
+    "status": 200,
+    "title": "Chấm bài Task 1 — Chấm điểm — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/scoring/api/grade-task2",
+    "view": "mobile",
+    "image": "mobile/product__scoring__api__grade-task2.png",
+    "status": 200,
+    "title": "Chấm bài Task 2 — Chấm điểm — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/speaking",
+    "view": "mobile",
+    "image": "mobile/product__speaking.png",
+    "status": 200,
+    "title": "Chấm Speaking — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/speaking/api/speaking-questions",
+    "view": "mobile",
+    "image": "mobile/product__speaking__api__speaking-questions.png",
+    "status": 200,
+    "title": "Lấy câu hỏi theo Part — Chấm Speaking — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/speaking/api/speaking-grading",
+    "view": "mobile",
+    "image": "mobile/product__speaking__api__speaking-grading.png",
+    "status": 200,
+    "title": "Chấm câu trả lời — Chấm Speaking — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/speaking/api/speaking-grading-json",
+    "view": "mobile",
+    "image": "mobile/product__speaking__api__speaking-grading-json.png",
+    "status": 200,
+    "title": "Chấm câu trả lời bằng URL audio — Chấm Speaking — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/exercise-generation",
+    "view": "mobile",
+    "image": "mobile/product__exercise-generation.png",
+    "status": 200,
+    "title": "Tạo bài tập — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/exercise-generation/api/sample-references",
+    "view": "mobile",
+    "image": "mobile/product__exercise-generation__api__sample-references.png",
+    "status": 200,
+    "title": "Lấy dữ liệu tham chiếu — Tạo bài tập — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/exercise-generation/api/create-micro-exercise",
+    "view": "mobile",
+    "image": "mobile/product__exercise-generation__api__create-micro-exercise.png",
+    "status": 200,
+    "title": "Tạo bài tập nhỏ — Tạo bài tập — AIHub",
+    "overflow": 0
+  },
+  {
+    "route": "/product/exercise-generation/api/create-longwriting-exercise",
+    "view": "mobile",
+    "image": "mobile/product__exercise-generation__api__create-longwriting-exercise.png",
+    "status": 200,
+    "title": "Tạo bài tập đoạn văn — Tạo bài tập — AIHub",
+    "overflow": 0
+  }
+]
