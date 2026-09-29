@@ -1,7 +1,7 @@
 .aihub-docs {
   --aihub-ink: #17233d;
-  --aihub-body: #475674;
-  --aihub-soft: #596984;
+  --aihub-body: #263550;
+  --aihub-soft: #425472;
   --aihub-line: #dfe6f3;
   --aihub-surface: #f5f7fc;
   --aihub-brand: #315ee8;
@@ -158,7 +158,7 @@
 
 .docs-route li small {
   margin-top: 4px;
-  color: #52627f;
+  color: #3f506e;
   font-size: 13px;
   line-height: 1.4;
 }
@@ -187,7 +187,7 @@
 
 .aihub-docs .aihub-toc p {
   margin: 0 10px 12px;
-  color: #596984;
+  color: #425472;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -306,7 +306,7 @@
 }
 
 .aihub-docs .aihub-facts-label {
-  color: #53637d;
+  color: #425472;
   text-transform: none;
   letter-spacing: 0;
 }
