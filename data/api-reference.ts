@@ -1006,11 +1006,18 @@ const SPEAKING_AUDIO_PREAMBLE = [
   "",
 ];
 
-/** Ghi một lần, áp dụng cho cả hai endpoint chấm. */
-const SPEAKING_SHARED_NOTES = [
-  "Body vượt 26 MiB trả về 413 PAYLOAD_TOO_LARGE. Trường lạ trong request bị từ chối chứ không bị bỏ qua.",
-  "Đặt timeout phía client tối thiểu 60 giây cho Speaking; ngân sách của gateway là trần của phía server.",
+/** Hai endpoint chấm có giới hạn khác nhau, nên mỗi dạng ghi giới hạn của riêng nó. */
+const speakingLimitNotes = (
+  ceiling: string,
+  budgetSeconds: number,
+  clientTimeoutSeconds: number
+) => [
+  `Request vượt ${ceiling} trả về 413 PAYLOAD_TOO_LARGE. Trường lạ trong request bị từ chối chứ không bị bỏ qua.`,
+  `Ngân sách ${budgetSeconds} giây của gateway là trần của phía server — đặt timeout phía client tối thiểu ${clientTimeoutSeconds} giây.`,
 ];
+
+const SPEAKING_MULTIPART_NOTES = speakingLimitNotes("26 MiB", 60, 90);
+const SPEAKING_JSON_NOTES = speakingLimitNotes("256 KB", 30, 60);
 
 const SPEAKING_NO_IDEMPOTENCY_NOTE =
   "Endpoint này không có idempotent replay — không có header Idempotency-Key nào được chấp nhận. Chạy lại cùng một lệnh sẽ tạo một lần chấm mới và tính phí thêm.";
@@ -1251,7 +1258,7 @@ export const SPEAKING_REFERENCE: Record<string, EndpointReference> = {
       SPEAKING_NO_IDEMPOTENCY_NOTE,
       "Lệnh dùng -F nên curl tự sinh Content-Type multipart kèm boundary; không cần và không nên đặt header này.",
       SPEAKING_ILLUSTRATIVE_NOTE,
-      ...SPEAKING_SHARED_NOTES,
+      ...SPEAKING_MULTIPART_NOTES,
     ],
   },
 
@@ -1274,7 +1281,7 @@ export const SPEAKING_REFERENCE: Record<string, EndpointReference> = {
       "audio_url chỉ được trỏ tới đúng host s3.wispace.app và scheme https. AIHUB từ chối thông tin đăng nhập nhúng trong URL, fragment, host hoặc cổng khác trước khi gọi dịch vụ.",
       "AIHUB không theo redirect. Nếu object URL hết hạn giữa chừng, lượt chấm sẽ thất bại ở phía dịch vụ.",
       SPEAKING_ILLUSTRATIVE_NOTE,
-      ...SPEAKING_SHARED_NOTES,
+      ...SPEAKING_JSON_NOTES,
     ],
   },
 };
@@ -1338,7 +1345,7 @@ const SPEAKING_GATEWAY_ERRORS: GatewayError[] = [
     tone: "error",
     title: "Request quá lớn",
     description:
-      "Body vượt trần của thao tác. Giới hạn là 26 MiB cho request multipart.",
+      "Body vượt trần của thao tác: 26 MiB cho request multipart, 256 KB cho JSON-by-URL.",
   },
   {
     status: "429",

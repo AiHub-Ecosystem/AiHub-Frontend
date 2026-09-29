@@ -10,10 +10,10 @@ const mockUrl = "http://127.0.0.1:3101";
 const password = "correct horse battery staple";
 const disabledIdentityCopy =
   "AIHUB đã tạm vô hiệu hóa identity configuration này. Organization hiện dùng Declared User ID, nghĩa là bất kỳ ai có API key của Organization đều có thể gửi yêu cầu dưới ID của bất kỳ người dùng nào mà không cần chữ ký. Lưu không khôi phục xác minh chữ ký; chỉ AIHUB có thể kích hoạt lại.";
-const identityReadinessTitle = "Xác thực có chữ ký được khuyến nghị";
+const identityReadinessTitle = "Xác thực có chữ ký là tùy chọn";
 /** The overview's identity card carries the one-sentence form of the note. */
 const identityReadinessSummary =
-  "Đang dùng Declared User ID: ai có API key cũng gửi được yêu cầu dưới ID của End-User bất kỳ.";
+  "Đang dùng Declared User ID: vẫn chấm được, nhưng ai có API key cũng gửi được yêu cầu dưới ID của End-User bất kỳ.";
 type RosterItem = {
   organization_id: string;
   name: string;

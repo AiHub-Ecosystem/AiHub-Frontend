@@ -16,18 +16,19 @@ export function IdentityReadinessNotice({
   return (
     <aside className="identity-readiness" role="status">
       <div>
-        <strong>Xác thực có chữ ký được khuyến nghị</strong>
+        <strong>Xác thực có chữ ký là tùy chọn</strong>
         {compact ? (
           <p>
-            Đang dùng Declared User ID: ai có API key cũng gửi được yêu cầu dưới
-            ID của End-User bất kỳ.
+            Đang dùng Declared User ID: vẫn chấm được, nhưng ai có API key cũng
+            gửi được yêu cầu dưới ID của End-User bất kỳ.
           </p>
         ) : (
           <p>
-            Organization hiện dùng Declared User ID: bất kỳ ai có API key của
+            Organization hiện dùng Declared User ID nên vẫn chấm được mà không
+            cần cấu hình identity. Đổi lại, bất kỳ ai có API key của
             Organization đều có thể gửi yêu cầu dưới ID của bất kỳ End-User nào
-            mà không cần chữ ký. Có thể cấu hình identity để AIHUB xác minh
-            Signed User Assertion.
+            mà không cần chữ ký. Nếu bạn muốn AIHUB xác minh Signed User
+            Assertion, hãy thiết lập identity.
           </p>
         )}
       </div>

@@ -11,9 +11,9 @@ import {
 
 const mockUrl = "http://127.0.0.1:3101";
 const password = "correct horse battery staple";
-const identityReadinessTitle = "Xác thực có chữ ký được khuyến nghị";
+const identityReadinessTitle = "Xác thực có chữ ký là tùy chọn";
 const identityReadinessBody =
-  "Organization hiện dùng Declared User ID: bất kỳ ai có API key của Organization đều có thể gửi yêu cầu dưới ID của bất kỳ End-User nào mà không cần chữ ký. Có thể cấu hình identity để AIHUB xác minh Signed User Assertion.";
+  "Organization hiện dùng Declared User ID nên vẫn chấm được mà không cần cấu hình identity. Đổi lại, bất kỳ ai có API key của Organization đều có thể gửi yêu cầu dưới ID của bất kỳ End-User nào mà không cần chữ ký. Nếu bạn muốn AIHUB xác minh Signed User Assertion, hãy thiết lập identity.";
 
 async function setup(
   request: APIRequestContext,

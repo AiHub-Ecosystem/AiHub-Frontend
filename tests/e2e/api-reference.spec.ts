@@ -607,8 +607,6 @@ test("Speaking questions shows only the failures it can return", async ({
   const errors = errorSection(page);
   await expect(errors.locator("article code")).toHaveText([
     "INVALID_REQUEST",
-    "NOT_FOUND",
-    "RATE_LIMITED",
     "INTERNAL_ERROR",
   ]);
   // The grading-only failures cannot come back from an unguarded GET.
@@ -627,4 +625,20 @@ test("Speaking example values are labelled as illustrative", async ({
   await page.goto("/product/speaking/api/speaking-grading");
 
   await expect(endpointNotes(page)).toContainText("minh hoạ");
+});
+
+test("Speaking operations state their own body limit and timeout", async ({
+  page,
+}) => {
+  await page.goto("/product/speaking/api/speaking-grading");
+  await expect(endpointNotes(page)).toContainText("26 MiB");
+  await expect(endpointNotes(page)).toContainText("60 giây");
+  await expect(endpointNotes(page)).toContainText("tối thiểu 90 giây");
+  await expect(endpointNotes(page)).not.toContainText("256 KB");
+
+  await page.goto("/product/speaking/api/speaking-grading-json");
+  await expect(endpointNotes(page)).toContainText("256 KB");
+  await expect(endpointNotes(page)).toContainText("30 giây");
+  await expect(endpointNotes(page)).toContainText("tối thiểu 60 giây");
+  await expect(endpointNotes(page)).not.toContainText("26 MiB");
 });
