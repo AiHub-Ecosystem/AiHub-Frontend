@@ -83,7 +83,9 @@ test("Speaking grading sends the User Identity in X-User-Identity", async ({
   // A prompt with a presigned sample audio URL sends the demo down the
   // JSON-by-URL route without a local file.
   await page.getByTestId("button-confirm-step-2").click();
-  await expect(page.getByTestId("panel-feedback-dashboard")).toBeVisible();
+  await expect(page.getByTestId("panel-feedback-dashboard")).toBeVisible({
+    timeout: 30_000, // the first grading call compiles its route on a cold CI dev server
+  });
 
   const log = await speakingLog(request);
   expect(log.requests).toHaveLength(1);
@@ -110,7 +112,9 @@ test("Speaking grading by uploaded audio sends the User Identity in X-User-Ident
     buffer: Buffer.alloc(2048, 1),
   });
   await page.getByTestId("button-confirm-step-2").click();
-  await expect(page.getByTestId("panel-feedback-dashboard")).toBeVisible();
+  await expect(page.getByTestId("panel-feedback-dashboard")).toBeVisible({
+    timeout: 30_000, // the first grading call compiles its route on a cold CI dev server
+  });
 
   const log = await speakingLog(request);
   expect(log.requests).toHaveLength(1);
@@ -130,12 +134,16 @@ test("Speaking grading mints a fresh assertion for each request", async ({
   await waitForHydration(page);
   await chooseFirstQuestion(page);
   await page.getByTestId("button-confirm-step-2").click();
-  await expect(page.getByTestId("panel-feedback-dashboard")).toBeVisible();
+  await expect(page.getByTestId("panel-feedback-dashboard")).toBeVisible({
+    timeout: 30_000, // the first grading call compiles its route on a cold CI dev server
+  });
 
   await page.getByRole("button", { name: /Reset toàn bộ/ }).click();
   await chooseFirstQuestion(page);
   await page.getByTestId("button-confirm-step-2").click();
-  await expect(page.getByTestId("panel-feedback-dashboard")).toBeVisible();
+  await expect(page.getByTestId("panel-feedback-dashboard")).toBeVisible({
+    timeout: 30_000, // the first grading call compiles its route on a cold CI dev server
+  });
 
   const log = await speakingLog(request);
   expect(log.requests).toHaveLength(2);
