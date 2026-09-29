@@ -1,0 +1,483 @@
+.aihub-docs {
+  --aihub-ink: #17233d;
+  --aihub-body: #475674;
+  --aihub-soft: #596984;
+  --aihub-line: #dfe6f3;
+  --aihub-surface: #f5f7fc;
+  --aihub-brand: #315ee8;
+  --aihub-brand-dark: #1e42b4;
+  padding: 116px 24px 88px;
+  font-family: var(--font-plus-jakarta), Arial, sans-serif;
+}
+
+.aihub-docs .aihub-shell {
+  max-width: 1240px;
+}
+
+.docs-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.8fr);
+  gap: clamp(32px, 6vw, 84px);
+  align-items: center;
+  padding: clamp(34px, 5vw, 70px);
+  border: 1px solid #d8e3ff;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 85% 15%, #e5edff 0, transparent 38%), #fff;
+  box-shadow: 0 18px 50px rgb(34 66 132 / 6%);
+}
+
+.aihub-docs .aihub-eyebrow {
+  margin-bottom: 18px;
+  color: #315ee8;
+}
+
+.aihub-docs .aihub-title {
+  max-width: 13ch;
+  margin-bottom: 20px;
+  font-size: clamp(36px, 4.1vw, 58px);
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+}
+
+.aihub-docs .aihub-lede {
+  max-width: 52ch;
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+.docs-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.aihub-docs .docs-hero-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 46px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.aihub-docs .docs-primary-link {
+  background: #315ee8;
+  color: #fff;
+}
+
+.aihub-docs .docs-primary-link:hover {
+  background: #1e42b4;
+}
+
+.aihub-docs .docs-secondary-link {
+  border: 1px solid #c9d7f5;
+  background: #fff;
+  color: #1e42b4;
+}
+
+.aihub-docs .docs-secondary-link:hover {
+  background: #eef3ff;
+}
+
+.docs-route {
+  padding: 28px;
+  border: 1px solid #d5e1fb;
+  border-radius: 20px;
+  background: #f6f9ff;
+}
+
+.docs-route-title {
+  margin: 0 0 22px;
+  color: #315ee8;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.docs-route ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: docs-route;
+}
+
+.docs-route li {
+  position: relative;
+  min-height: 76px;
+  padding: 2px 0 18px 48px;
+  counter-increment: docs-route;
+}
+
+.docs-route li:last-child {
+  min-height: 42px;
+  padding-bottom: 0;
+}
+
+.docs-route li::before {
+  content: counter(docs-route);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #315ee8;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.docs-route li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 32px;
+  bottom: 0;
+  left: 15px;
+  border-left: 2px dashed #a7bdf4;
+}
+
+.docs-route li span,
+.docs-route li small {
+  display: block;
+}
+
+.docs-route li span {
+  color: #17233d;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.docs-route li small {
+  margin-top: 4px;
+  color: #52627f;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.docs-layout {
+  display: grid;
+  grid-template-columns: 216px minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(24px, 4vw, 52px);
+  margin-top: 42px;
+}
+
+.aihub-docs .aihub-toc {
+  position: sticky;
+  top: 112px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 18px 10px;
+  border: 1px solid #e0e7f3;
+  border-radius: 16px;
+  background: #fff;
+  font-size: 13px;
+}
+
+.aihub-docs .aihub-toc p {
+  margin: 0 10px 12px;
+  color: #596984;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.aihub-docs .aihub-toc a {
+  display: block;
+  padding: 10px;
+  border-radius: 8px;
+  color: #394862;
+  line-height: 1.35;
+}
+
+.aihub-docs .aihub-toc a:hover,
+.aihub-docs .aihub-toc a:focus-visible {
+  background: #eef3ff;
+  color: #1e42b4;
+  text-decoration: none;
+}
+
+.docs-content {
+  min-width: 0;
+}
+
+.aihub-docs .aihub-category {
+  margin-top: 22px;
+  padding: clamp(24px, 3vw, 38px);
+  border: 1px solid #e0e7f3;
+  border-radius: 20px;
+  background: #fff;
+}
+
+.aihub-docs .aihub-category:first-child {
+  margin-top: 0;
+  border-color: #bed0ff;
+  box-shadow: 0 10px 30px rgb(49 94 232 / 6%);
+}
+
+.aihub-docs .aihub-category-head {
+  margin-bottom: 22px;
+  padding: 0;
+  border: 0;
+}
+
+.aihub-docs .aihub-category-name {
+  margin-bottom: 10px;
+  font-size: clamp(22px, 2.4vw, 29px);
+  line-height: 1.26;
+  letter-spacing: -0.025em;
+}
+
+.aihub-docs .aihub-category-desc,
+.aihub-docs .aihub-prose,
+.aihub-docs .aihub-list,
+.aihub-docs .aihub-steps p {
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.aihub-docs .aihub-list li + li {
+  margin-top: 10px;
+}
+
+.aihub-docs .aihub-callout {
+  padding: 16px 18px;
+  border-left: 4px solid #315ee8;
+  border-radius: 8px;
+  background: #eef3ff;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.docs-notice {
+  margin: 20px 0;
+  padding: 18px 20px;
+  border: 1px solid #d9e3f7;
+  border-left: 4px solid #315ee8;
+  border-radius: 10px;
+  background: #f3f7ff;
+  color: #263755;
+}
+
+.docs-notice--billing {
+  border-color: #f3d8a5;
+  border-left-color: #bd7815;
+  background: #fff8e9;
+}
+
+.docs-notice--security {
+  border-color: #d0e9e3;
+  border-left-color: #15816d;
+  background: #f0faf7;
+}
+
+.docs-notice strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.docs-notice p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.aihub-docs .aihub-facts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.aihub-docs .aihub-facts li {
+  min-width: 0;
+  background: #f8faff;
+}
+
+.aihub-docs .aihub-facts-label {
+  color: #53637d;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.aihub-docs .aihub-facts-value {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.aihub-docs .aihub-sub {
+  margin-top: 32px;
+  font-size: 19px;
+}
+
+.aihub-docs .aihub-scroll {
+  max-width: 100%;
+  margin: 20px 0;
+  border: 1px solid #e0e7f3;
+  border-radius: 12px;
+}
+
+.aihub-docs .aihub-schema th {
+  padding: 12px;
+  background: #f3f6fc;
+  color: #3c4c68;
+}
+
+.aihub-docs .aihub-schema td {
+  padding: 12px;
+  line-height: 1.55;
+}
+
+.aihub-docs .aihub-schema tr:last-child td {
+  border-bottom: 0;
+}
+
+.aihub-docs .aihub-codeblock {
+  margin-top: 20px;
+}
+
+.aihub-docs .aihub-code {
+  background: #17233d;
+}
+
+.aihub-docs .aihub-steps li {
+  padding-bottom: 34px;
+}
+
+.aihub-docs .aihub-steps h3 {
+  font-size: 17px;
+}
+
+.aihub-docs .aihub-shortcuts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 20px;
+}
+
+.aihub-docs :is(a, button):focus-visible {
+  outline: 3px solid #315ee8;
+  outline-offset: 3px;
+}
+
+@media (max-width: 900px) {
+  .docs-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .docs-route ol {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .docs-route li {
+    min-height: 0;
+    padding-bottom: 0;
+  }
+
+  .docs-route li::after {
+    display: none;
+  }
+
+  .docs-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .aihub-docs .aihub-toc {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .aihub-docs .aihub-toc p {
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .aihub-docs {
+    padding: 104px 14px 64px;
+  }
+
+  .docs-hero {
+    padding: 28px 22px;
+    border-radius: 20px;
+  }
+
+  .aihub-docs .aihub-title {
+    font-size: 34px;
+  }
+
+  .aihub-docs .aihub-lede {
+    font-size: 15px;
+  }
+
+  .docs-route {
+    padding: 18px;
+  }
+
+  .docs-route ol {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .docs-route li {
+    min-height: 0;
+    padding: 40px 0 0;
+  }
+
+  .docs-route li::before {
+    left: 0;
+  }
+
+  .docs-route li span {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .docs-route li small {
+    font-size: 11px;
+  }
+
+  .docs-route li:not(:last-child)::after {
+    display: none;
+  }
+
+  .docs-layout {
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  .aihub-docs .aihub-toc {
+    gap: 4px;
+  }
+
+  .aihub-docs .aihub-toc a {
+    width: calc(50% - 2px);
+    padding: 8px;
+  }
+
+  .aihub-docs .aihub-category {
+    padding: 22px 18px;
+    border-radius: 16px;
+  }
+
+  .aihub-docs .aihub-facts,
+  .aihub-docs .aihub-shortcuts {
+    grid-template-columns: 1fr;
+  }
+
+  .aihub-docs .aihub-codeblock-bar {
+    gap: 6px;
+  }
+}

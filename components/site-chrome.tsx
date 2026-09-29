@@ -25,7 +25,7 @@ const NAV_REWRITES = [
     // Resources trỏ sang docs.meltano.com kèm query string tracking của HubSpot.
     find: '<li class="has-sub has-sub-items"><a href="https://docs.meltano.com/?',
     replaceWith:
-      '<li><a href="/docs">Hướng dẫn</a></li><li><a href="/demo">Demo</a></li><li><a href="/lab">Lab</a></li>',
+      '<li><a href="/docs">Guides</a></li><li><a href="/demo">Demo</a></li><li><a href="/lab">Lab</a></li>',
   },
   // Tạm ẩn Connectors và Company khỏi nav — chưa có nội dung AIHub cho 2 mục
   // này. Route vẫn còn, chỉ ẩn lối vào từ nav; xoá replaceWith rỗng để bật lại.
@@ -266,6 +266,7 @@ export function stripChrome(html: string): string {
 const FALLBACK_NAV = [
   { label: "Document", href: "/product" },
   { label: "Pricing", href: "/pricing" },
+  { label: "Guides", href: "/docs" },
   { label: "Demo", href: "/demo" },
   { label: "Lab", href: "/lab" },
 ];

@@ -52,10 +52,12 @@ test("/docs opens with the identity decision and a Declared first call", async (
   const main = page.locator(".aihub-shell");
   const firstSection = main.locator("section").first();
   await expect(firstSection.getByRole("heading", { level: 2 })).toContainText(
-    "Declared User ID"
+    "mã người học"
   );
   await expect(firstSection).toContainText("X-User-Identity");
-  await expect(firstSection).toContainText("JWKS là tuỳ chọn");
+  await expect(firstSection).toContainText(
+    "JWKS (bộ khóa xác minh) là tuỳ chọn"
+  );
 
   const firstCall = firstSection.locator("pre.aihub-code").first();
   await expect(firstCall).toContainText("/v1/ielts/writing/task2/grade");
@@ -248,7 +250,7 @@ test("/docs stays inside a phone viewport and is keyboard reachable", async ({
   expect(overflow).toBeLessThanOrEqual(0);
 
   const toc = page.getByRole("navigation", { name: "Trong trang" });
-  const link = toc.getByRole("link", { name: /Customer Sandbox/ });
+  const link = toc.getByRole("link", { name: "Thử miễn phí" });
   await link.focus();
   await expect(link).toBeFocused();
   await page.keyboard.press("Enter");

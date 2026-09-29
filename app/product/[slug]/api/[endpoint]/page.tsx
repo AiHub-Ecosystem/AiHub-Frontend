@@ -132,38 +132,40 @@ export default async function Page({ params }: Props) {
         <div className="aihub-refdetail">
           <div>
             <h2 className="aihub-category-name">Request</h2>
-            <table className="aihub-schema">
-              <thead>
-                <tr>
-                  <th>Field</th>
-                  <th>Type</th>
-                  {showsSampleValues && <th>Giá trị mẫu</th>}
-                  <th>Bắt buộc</th>
-                  <th>Mô tả</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ref.requestFields.map((f) => (
-                  <tr key={f.name}>
-                    <td>{f.name}</td>
-                    <td>{f.type}</td>
-                    {showsSampleValues && (
-                      <td>
-                        <code>{f.sampleValue ?? ""}</code>
-                      </td>
-                    )}
-                    <td>
-                      {f.required ? (
-                        <span className="aihub-required">BẮT BUỘC</span>
-                      ) : (
-                        <span className="aihub-optional">tuỳ chọn</span>
-                      )}
-                    </td>
-                    <td>{f.description}</td>
+            <div className="aihub-scroll">
+              <table className="aihub-schema">
+                <thead>
+                  <tr>
+                    <th>Field</th>
+                    <th>Type</th>
+                    {showsSampleValues && <th>Giá trị mẫu</th>}
+                    <th>Bắt buộc</th>
+                    <th>Mô tả</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {ref.requestFields.map((f) => (
+                    <tr key={f.name}>
+                      <td>{f.name}</td>
+                      <td>{f.type}</td>
+                      {showsSampleValues && (
+                        <td>
+                          <code>{f.sampleValue ?? ""}</code>
+                        </td>
+                      )}
+                      <td>
+                        {f.required ? (
+                          <span className="aihub-required">BẮT BUỘC</span>
+                        ) : (
+                          <span className="aihub-optional">tuỳ chọn</span>
+                        )}
+                      </td>
+                      <td>{f.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             <h2 className="aihub-category-name" style={{ marginTop: 28 }}>
               Response
