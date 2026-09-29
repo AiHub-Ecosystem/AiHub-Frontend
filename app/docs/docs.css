@@ -321,6 +321,19 @@
   margin-top: 10px;
 }
 
+.aihub-docs .aihub-list {
+  list-style: disc;
+}
+
+.aihub-docs .aihub-list li::marker {
+  color: #315ee8;
+}
+
+.aihub-docs :is(.aihub-list, .aihub-prose, .aihub-category-desc) strong {
+  color: var(--aihub-ink);
+  font-weight: 800;
+}
+
 .aihub-docs .aihub-callout {
   padding: 16px 18px;
   border-left: 4px solid #315ee8;
@@ -362,6 +375,77 @@
   margin: 6px 0 0;
   font-size: 14px;
   line-height: 1.65;
+}
+
+.docs-sandbox-host {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid #dce5f5;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.docs-sandbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.docs-sandbox-card {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid #dce5f5;
+  border-radius: 12px;
+  background: #f8faff;
+  color: var(--aihub-body);
+}
+
+.docs-sandbox-card h3 {
+  margin: 0 0 10px;
+  color: var(--aihub-ink);
+  font-size: 17px;
+}
+
+.docs-sandbox-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.docs-sandbox-card > p + p {
+  margin-top: 10px;
+}
+
+.docs-sandbox-quota {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.docs-sandbox-quota p {
+  padding: 12px;
+  border: 1px solid #dce5f5;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.docs-sandbox-quota strong {
+  display: block;
+  color: #1e42b4;
+  font-size: 27px;
+  line-height: 1.2;
+}
+
+.docs-sandbox-quota span {
+  display: block;
+  margin-top: 3px;
 }
 
 .aihub-docs .aihub-facts {
@@ -412,6 +496,27 @@
   border-bottom: 0;
 }
 
+.aihub-docs #do-tin-cay .aihub-schema {
+  min-width: 860px;
+  table-layout: fixed;
+}
+
+.aihub-docs #do-tin-cay .aihub-schema th:first-child {
+  width: 8%;
+}
+
+.aihub-docs #do-tin-cay .aihub-schema th:nth-child(2) {
+  width: 27%;
+}
+
+.aihub-docs #do-tin-cay .aihub-schema th:nth-child(3) {
+  width: 33%;
+}
+
+.aihub-docs #do-tin-cay .aihub-schema td:nth-child(2) {
+  overflow-wrap: anywhere;
+}
+
 .aihub-docs .aihub-codeblock {
   margin-top: 20px;
 }
@@ -439,6 +544,10 @@
 }
 
 @media (max-width: 900px) {
+  .docs-sandbox-grid {
+    grid-template-columns: 1fr;
+  }
+
   .docs-overview-grid {
     grid-template-columns: 1fr;
   }
@@ -478,6 +587,10 @@
 }
 
 @media (max-width: 600px) {
+  .docs-sandbox-quota {
+    grid-template-columns: 1fr;
+  }
+
   .aihub-docs {
     padding: 104px 14px 64px;
   }

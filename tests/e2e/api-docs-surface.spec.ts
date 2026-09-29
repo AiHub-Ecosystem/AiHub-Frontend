@@ -125,6 +125,10 @@ test("/docs separates Customer Sandbox from the demo assertion route", async ({
   await page.goto("/docs");
 
   const sandbox = page.locator("#sandbox");
+  await expect(
+    sandbox.getByRole("heading", { name: "Hạn mức miễn phí" })
+  ).toBeVisible();
+  await expect(sandbox).toContainText("Khi nào bị trừ lượt?");
   await expect(sandbox).toContainText("sandbox.aihubproduction.com");
   await expect(sandbox).toContainText(
     "POST /v1/organizations/{organization_id}/api-keys"

@@ -437,35 +437,40 @@ export default function Page() {
               </h3>
               <ul className="aihub-list">
                 <li>
-                  1–256 ký tự ASCII hiển thị, không có khoảng trắng. AIHUB so
-                  sánh đúng như bạn gửi: <code>Student@X.com</code> và{" "}
-                  <code>student@x.com</code> là hai người dùng.
+                  <strong>Đúng định dạng:</strong> 1–256 ký tự ASCII hiển thị,
+                  không có khoảng trắng. AIHUB so sánh đúng như bạn gửi:{" "}
+                  <code>Student@X.com</code> và <code>student@x.com</code> là
+                  hai người dùng.
                 </li>
                 <li>
-                  Gửi cùng một giá trị cho cùng một người mỗi lần, để mức dùng
-                  luôn tính về đúng người đó. Dùng ID ổn định.
+                  <strong>Không đổi mã giữa các lần chấm:</strong> Gửi cùng một
+                  giá trị cho cùng một người, để mức dùng luôn tính về đúng
+                  người đó.
                 </li>
                 <li>
-                  Nên dùng ID không mang nghĩa (opaque) thay vì email: AIHUB lưu
-                  giá trị này trong bản ghi sử dụng và chuyển tiếp nguyên văn
-                  cho dịch vụ chấm, nên email trở thành dữ liệu cá nhân.
+                  <strong>Tránh dùng email:</strong> Nên dùng ID không mang
+                  nghĩa (opaque). AIHUB lưu mã trong bản ghi sử dụng và chuyển
+                  tiếp nguyên văn cho dịch vụ chấm; email sẽ trở thành dữ liệu
+                  cá nhân.
                 </li>
               </ul>
-              <p className="aihub-callout" style={{ marginTop: 16 }}>
-                Ranh giới tin cậy: AIHUB tin Declared User ID đúng bằng mức nó
-                tin API key. Ai giữ API key của Organization đều đặt được tên
-                bất kỳ người dùng cuối nào trong Organization đó. Cần AIHUB xác
-                minh rằng backend của bạn đã bảo lãnh cho từng người dùng thì
-                bật Signed User Assertion bên dưới.
-              </p>
+              <aside className="docs-notice docs-notice--security">
+                <strong>Khi nào cần xác minh nâng cao?</strong>
+                <p>
+                  AIHUB tin Declared User ID dựa trên API key: ai giữ khóa của
+                  tổ chức đều có thể gửi mã của bất kỳ người học nào. Nếu cần
+                  xác minh máy chủ của bạn đã bảo lãnh cho từng người học, hãy
+                  bật Signed User Assertion bên dưới.
+                </p>
+              </aside>
 
               <h3 className="aihub-sub" id="signed">
                 Khi cần xác minh nâng cao (Signed User Assertion)
               </h3>
               <ul className="aihub-list">
                 <li>
-                  Chỉ owner đang hoạt động của Organization lưu được cấu hình,
-                  bằng{" "}
+                  <strong>Ai được cấu hình:</strong> Chỉ owner đang hoạt động
+                  của Organization lưu được cấu hình, bằng{" "}
                   <code>
                     PUT /v1/organizations/{"{organization_id}"}/identity-config
                   </code>{" "}
@@ -474,22 +479,23 @@ export default function Page() {
                   Console có sẵn trang Identity làm việc này.
                 </li>
                 <li>
-                  Khai báo một <code>issuer</code> và đúng một nguồn khoá
-                  public: URL JWKS HTTPS truy cập công khai được (
-                  <code>jwks_url</code>), hoặc JWKS public dán trực tiếp (
-                  <code>public_keys_jwks</code>). Không bao giờ gửi private key
-                  cho AIHUB; private key ở lại backend của bạn. Có thể đặt thêm{" "}
+                  <strong>Chỉ cung cấp khóa công khai:</strong> Khai báo một{" "}
+                  <code>issuer</code> và đúng một nguồn khoá public: URL JWKS
+                  HTTPS truy cập công khai được (<code>jwks_url</code>), hoặc
+                  JWKS public dán trực tiếp (<code>public_keys_jwks</code>).
+                  Không bao giờ gửi private key cho AIHUB; private key ở lại
+                  backend của bạn. Có thể đặt thêm{" "}
                   <code>allowed_algorithms</code> (RS256, ES256) và{" "}
                   <code>max_assertion_ttl_seconds</code>.
                 </li>
                 <li>
-                  Cấu hình áp dụng cho cả Organization, ở mọi environment của
-                  nó. Đừng đổi issuer giữa các request, và đừng gửi issuer hay
-                  JWKS như header khi chấm.
+                  <strong>Áp dụng toàn tổ chức:</strong> Cấu hình dùng ở mọi
+                  environment của Organization. Đừng đổi issuer giữa các
+                  request, và đừng gửi issuer hay JWKS như header khi chấm.
                 </li>
                 <li>
-                  Khi có cấu hình đang hoạt động, mọi request phải mang một
-                  assertion hợp lệ. Assertion sai bị trả{" "}
+                  <strong>Bắt buộc xác minh khi đã bật:</strong> Mọi request
+                  phải mang một assertion hợp lệ. Assertion sai bị trả{" "}
                   <code>401 INVALID_USER_IDENTITY</code>, không có fallback
                   xuống ID văn bản thuần, nên tích hợp lỗi ngay thay vì âm thầm
                   đổi mức bảo đảm.
@@ -647,46 +653,62 @@ export default function Page() {
                   Thử chấm Writing miễn phí
                 </h2>
                 <p className="aihub-category-desc">
-                  Môi trường Customer Sandbox dành cho Writing Task 1 và Task 2.
-                  Bạn cần khóa riêng cho môi trường thử.
+                  <strong>Chỉ dành cho Writing Task 1 và Task 2.</strong> Bạn
+                  cần khóa riêng để dùng môi trường thử.
                 </p>
               </div>
               <aside className="docs-notice docs-notice--sandbox">
-                <strong>Khóa dùng thử khác khóa dùng thật</strong>
+                <strong>Dùng đúng khóa, đúng địa chỉ</strong>
                 <p>
-                  Dùng <code>{SANDBOX_HOST}</code> với khóa Sandbox riêng. Khóa
-                  tạo trong Console chỉ dùng cho môi trường thật.
+                  Địa chỉ dùng thử:
+                  <code className="docs-sandbox-host">{SANDBOX_HOST}</code>
+                  Khóa thử chỉ hoạt động tại địa chỉ trên. Khóa tạo trong
+                  Console chỉ dùng cho môi trường thật. Dùng sai cặp sẽ nhận lỗi{" "}
+                  <code>403 ENVIRONMENT_NOT_ALLOWED</code>.
                 </p>
               </aside>
-              <ul className="aihub-list">
-                <li>
-                  Có host riêng <code>{SANDBOX_HOST}</code> và API key riêng.
-                  Key Sandbox chỉ chạy ở host này, key production chỉ chạy ở
-                  host production; gọi sai host trả{" "}
-                  <code>403 ENVIRONMENT_NOT_ALLOWED</code>.
-                </li>
-                <li>
-                  Owner hoặc admin đang hoạt động cấp key qua control-plane API
-                  bên dưới, với <code>allowed_environments</code> chỉ là{" "}
-                  <code>sandbox</code> và <code>scopes</code> chỉ là{" "}
-                  <code>writing.grade</code>. Form tạo key trong Console chỉ tạo
-                  key production, nên đừng tìm lựa chọn Sandbox ở đó.
-                </li>
-                <li>
-                  Miễn phí với khách, nhưng mỗi lần chấm vẫn gọi AI thật:{" "}
-                  {SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE} lần mỗi Organization
-                  mỗi tháng UTC, và 500 lần cho toàn bộ Sandbox mỗi tháng UTC
-                  (tính cả lưu lượng demo của AIHUB nên có thể cạn trước khi
-                  Organization dùng đủ hạn mức riêng). Một lần gọi phía sau lỗi
-                  hoặc timeout vẫn tính vào hạn mức; replay idempotency đã hoàn
-                  tất thì không gọi lại nên không tính.
-                </li>
-                <li>
-                  Sandbox dùng đúng dạng định danh đang hoạt động của
-                  Organization như production: Declared User ID hoặc Signed User
-                  Assertion.
-                </li>
-              </ul>
+              <div className="docs-sandbox-grid">
+                <div className="docs-sandbox-card">
+                  <h3>Lấy khóa dùng thử</h3>
+                  <p>
+                    <strong>Chủ sở hữu hoặc quản trị viên</strong> đang hoạt
+                    động tạo khóa bằng lệnh bên dưới. Lệnh đã chọn môi trường
+                    thử và chỉ cấp quyền chấm Writing.
+                  </p>
+                  <p>Console hiện chỉ tạo khóa dùng thật.</p>
+                </div>
+                <div className="docs-sandbox-card">
+                  <h3>Hạn mức miễn phí</h3>
+                  <div className="docs-sandbox-quota">
+                    <p>
+                      <strong>{SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE}</strong>
+                      <span>lượt / tổ chức</span>
+                    </p>
+                    <p>
+                      <strong>500</strong>
+                      <span>lượt / toàn bộ môi trường thử</span>
+                    </p>
+                  </div>
+                  <p>
+                    Tính theo tháng UTC. Hạn mức chung gồm cả lượt demo của
+                    AIHUB nên có thể hết trước hạn mức của tổ chức bạn.
+                  </p>
+                </div>
+              </div>
+              <aside className="docs-notice docs-notice--billing">
+                <strong>Khi nào bị trừ lượt?</strong>
+                <p>
+                  Lần gọi đến dịch vụ chấm phía sau bị lỗi hoặc hết thời gian
+                  chờ vẫn trừ lượt. Gửi lại yêu cầu <em>đã hoàn tất</em> với
+                  cùng <code>Idempotency-Key</code> và nội dung thì không trừ
+                  thêm.
+                </p>
+              </aside>
+              <p className="aihub-prose">
+                <strong>Mã người học:</strong> Môi trường thử dùng cùng cách
+                nhận diện người học đang bật cho tổ chức: mã thông thường
+                (Declared User ID) hoặc mã có chữ ký (Signed User Assertion).
+              </p>
               <CodeBlock
                 code={SANDBOX_KEY_REQUEST}
                 label="Request cấp Customer Sandbox API key"
@@ -694,12 +716,11 @@ export default function Page() {
 
               <h3 className="aihub-sub">Demo assertion không dành cho khách</h3>
               <p className="aihub-prose">
-                <code>POST /v1/sandbox/assertions</code> chỉ dùng được bởi
-                Organization demo riêng của AIHUB, cùng Sandbox API key mà
-                server AIHUB giữ. Đây không phải route ký assertion cho khách:
-                Customer Sandbox API key của bạn không gọi được nó, và bạn không
-                cần nó để tích hợp. Nếu Organization của bạn bật xác minh có chữ
-                ký, hãy ký assertion bằng private key của chính bạn.
+                <strong>Bạn không cần gọi đường dẫn này.</strong>{" "}
+                <code>POST /v1/sandbox/assertions</code> chỉ dành cho
+                Organization demo của AIHUB và khóa Sandbox do máy chủ AIHUB
+                giữ. Khóa của bạn không gọi được đường dẫn này. Nếu tổ chức bật
+                xác minh có chữ ký, hãy ký bằng khóa riêng của chính bạn.
               </p>
             </section>
 
@@ -722,13 +743,14 @@ export default function Page() {
                   hãy quyết định có chấp nhận chấm lại hay không.
                 </li>
                 <li>
-                  Response thành công có dạng <code>{"{ data, meta }"}</code>.
-                  Giữ <code>meta.request_id</code> của mỗi lần gọi để AIHUB tra
-                  khi bạn cần hỗ trợ. Không gửi API key, assertion, bài viết hay
-                  âm thanh cho hỗ trợ.
+                  <strong>Lưu mã để được hỗ trợ:</strong> Kết quả thành công có
+                  dạng <code>{"{ data, meta }"}</code>. Giữ{" "}
+                  <code>meta.request_id</code> của mỗi lần gọi để AIHUB tra khi
+                  cần. Không gửi API key, assertion, bài viết hay âm thanh cho
+                  hỗ trợ.
                 </li>
                 <li>
-                  Lỗi có dạng{" "}
+                  <strong>Chỉ thử lại khi được phép:</strong> Lỗi có dạng{" "}
                   <code>{"{ error: { code, retryable, ... } }"}</code>. Rẽ nhánh
                   theo <code>code</code>, không theo <code>message</code>. Chỉ
                   retry khi <code>retryable</code> là true, và đợi{" "}
@@ -737,16 +759,18 @@ export default function Page() {
                   status.
                 </li>
                 <li>
-                  Retry tối đa hai hoặc ba lần với backoff ngẫu nhiên.{" "}
+                  <strong>Giới hạn số lần thử lại:</strong> Tối đa hai hoặc ba
+                  lần, với thời gian chờ tăng dần và thêm một khoảng ngẫu nhiên.{" "}
                   <code>RATE_LIMITED</code> nghĩa là chậm lại;{" "}
                   <code>CONCURRENCY_LIMIT</code> nghĩa là giảm số request chạy
                   cùng lúc; <code>QUOTA_EXCEEDED</code> có thể phải chờ tới
                   tháng UTC sau.
                 </li>
                 <li>
-                  Ngân sách của Speaking multipart gồm cả thời gian tải âm thanh
-                  lên, nên file lớn trên đường truyền chậm cần timeout client
-                  lớn hơn mức tối thiểu ở <a href="#thao-tac">bảng thao tác</a>.
+                  <strong>Để đủ thời gian tải âm thanh:</strong> Ngân sách của
+                  Speaking multipart gồm cả thời gian tải lên. File lớn trên
+                  đường truyền chậm cần timeout client lớn hơn mức tối thiểu ở{" "}
+                  <a href="#thao-tac">bảng thao tác</a>.
                 </li>
               </ul>
               <p className="aihub-prose">
