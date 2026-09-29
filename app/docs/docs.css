@@ -163,6 +163,68 @@
   line-height: 1.4;
 }
 
+.docs-overview {
+  margin-top: 28px;
+  padding: clamp(24px, 3vw, 38px);
+  border: 1px solid #bed0ff;
+  border-radius: 20px;
+  background: #fff;
+  color: var(--aihub-body);
+}
+
+.docs-overview-head {
+  max-width: 68ch;
+}
+
+.docs-overview .aihub-eyebrow {
+  margin-bottom: 10px;
+}
+
+.docs-overview h2 {
+  margin: 0 0 10px;
+  color: var(--aihub-ink);
+  font-size: clamp(25px, 2.6vw, 32px);
+  letter-spacing: -0.03em;
+  text-align: left;
+}
+
+.docs-overview p {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.docs-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 26px 0 18px;
+}
+
+.docs-overview-grid > div {
+  padding: 20px;
+  border: 1px solid #e0e7f3;
+  border-radius: 12px;
+  background: #f8faff;
+}
+
+.docs-overview-grid h3 {
+  margin: 0 0 8px;
+  color: var(--aihub-ink);
+  font-size: 16px;
+}
+
+.docs-overview a {
+  color: var(--aihub-brand-dark);
+  font-weight: 750;
+}
+
+.docs-technical-label {
+  margin: 38px 0 0;
+  color: var(--aihub-ink);
+  font-size: 19px;
+  font-weight: 800;
+}
+
 .docs-layout {
   display: grid;
   grid-template-columns: 216px minmax(0, 1fr);
@@ -370,6 +432,10 @@
 }
 
 @media (max-width: 900px) {
+  .docs-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
   .docs-hero {
     grid-template-columns: 1fr;
   }

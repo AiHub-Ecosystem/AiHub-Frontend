@@ -260,15 +260,15 @@ export default function Page() {
               Đưa tính năng chấm AI vào ứng dụng của bạn
             </h1>
             <p className="aihub-lede">
-              Từ tạo tài khoản đến lần chấm đầu tiên: làm theo từng bước, lấy
-              đoạn mã có thể dùng ngay và tra cứu chi tiết khi cần.
+              AIHUB chấm bài viết và bài nói IELTS ngay trong ứng dụng của bạn.
+              Xem cách bắt đầu, cách thử và khi nào phát sinh chi phí.
             </p>
             <div className="docs-hero-actions">
-              <a className="docs-primary-link" href="#bat-dau">
-                Xem lệnh gọi mẫu <span aria-hidden="true">↗</span>
+              <a className="docs-primary-link" href="#tong-quan">
+                Xem những điều cần biết <span aria-hidden="true">↗</span>
               </a>
               <a className="docs-secondary-link" href="#sandbox">
-                Thử miễn phí trước
+                Xem cách thử miễn phí
               </a>
             </div>
           </div>
@@ -276,21 +276,65 @@ export default function Page() {
             <p className="docs-route-title">Lộ trình của bạn</p>
             <ol>
               <li>
-                <span>Tạo tài khoản</span>
-                <small>Đăng ký và lấy khóa truy cập</small>
+                <span>Đăng ký AIHUB</span>
+                <small>Tạo tài khoản cho doanh nghiệp</small>
               </li>
               <li>
-                <span>Chọn môi trường</span>
-                <small>Thử miễn phí hoặc dùng thật</small>
+                <span>Thử trước</span>
+                <small>Thử chấm bài viết miễn phí</small>
               </li>
               <li>
-                <span>Gọi API chấm</span>
-                <small>Gửi bài làm từ máy chủ của bạn</small>
+                <span>Kết nối ứng dụng</span>
+                <small>Nhờ đội kỹ thuật thiết lập</small>
               </li>
             </ol>
           </div>
         </div>
 
+        <section
+          className="docs-overview"
+          id="tong-quan"
+          aria-labelledby="docs-overview-title"
+        >
+          <div className="docs-overview-head">
+            <p className="aihub-eyebrow">Dành cho người phụ trách sản phẩm</p>
+            <h2 id="docs-overview-title">Bạn cần biết trước khi bắt đầu</h2>
+            <p>
+              Người học tiếp tục làm bài trong ứng dụng của bạn; AIHUB nhận bài,
+              chấm và gửi kết quả về để bạn hiển thị.
+            </p>
+          </div>
+          <div className="docs-overview-grid">
+            <div>
+              <h3>Ai cần tham gia?</h3>
+              <p>
+                Bạn tạo tài khoản AIHUB. Đội kỹ thuật kết nối ứng dụng để gửi
+                bài làm và nhận kết quả.
+              </p>
+            </div>
+            <div>
+              <h3>Có thể thử trước không?</h3>
+              <p>
+                Có. Chế độ thử miễn phí hỗ trợ chấm bài viết trong hạn mức. Bài
+                nói cần dùng kết nối có tính phí.
+              </p>
+            </div>
+            <div>
+              <h3>Khi nào tính phí?</h3>
+              <p>
+                Khi chuyển sang dùng thật, các lần chấm bắt đầu tính phí, kể cả
+                lần kiểm tra đầu tiên.
+              </p>
+            </div>
+          </div>
+          <a href="#thiet-lap">
+            Xem hướng dẫn cho đội kỹ thuật <span aria-hidden="true">→</span>
+          </a>
+        </section>
+
+        <p className="docs-technical-label">
+          Các bước chi tiết dành cho đội kỹ thuật
+        </p>
         <div className="docs-layout">
           <nav className="aihub-toc" aria-label="Trong trang">
             <p>Trong hướng dẫn</p>

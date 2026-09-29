@@ -50,7 +50,10 @@ test("/docs opens with the identity decision and a Declared first call", async (
   await page.goto("/docs");
 
   const main = page.locator(".aihub-shell");
-  const firstSection = main.locator("section").first();
+  const overview = main.locator("#tong-quan");
+  await expect(overview).toContainText("Khi nào tính phí?");
+  await expect(overview).toContainText("chấm bài viết miễn phí");
+  const firstSection = main.locator("#bat-dau");
   await expect(firstSection.getByRole("heading", { level: 2 })).toContainText(
     "mã người học"
   );
