@@ -84,39 +84,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Browser tests
-        env:
-          SHARD_TOTAL: "3"
-        run: |
-          set -uo pipefail
-
-          # Shards run side by side in one job so the browser download and the
-          # npm install are paid once. Each shard gets its own ports, its own
-          # build directories and its own Redis; see tests/e2e/ports.ts.
-          pids=()
-          for i in $(seq 1 "$SHARD_TOTAL"); do
-            E2E_PORT_OFFSET=$(( (i - 1) * 10 )) E2E_SHARD_INDEX="$i" \
-              npx playwright test --shard="$i/$SHARD_TOTAL" --output="test-results/shard-$i" \
-              > "shard-$i.log" 2>&1 &
-            pids+=("$!")
-          done
-
-          # A failing shard does not cancel its siblings: all three run to the
-          # end so one red run still reports all three shards.
-          failed=()
-          for i in $(seq 1 "$SHARD_TOTAL"); do
-            wait "${pids[$(( i - 1 ))]}" || failed+=("$i")
-          done
-
-          for i in $(seq 1 "$SHARD_TOTAL"); do
-            echo "::group::Shard $i/$SHARD_TOTAL"
-            cat "shard-$i.log"
-            echo "::endgroup::"
-          done
-
-          if [ "${#failed[@]}" -ne 0 ]; then
-            echo "::error::Failing shards: ${failed[*]}"
-            exit 1
-          fi
+        run: npm run test:e2e
 
   deploy:
     name: Deploy production

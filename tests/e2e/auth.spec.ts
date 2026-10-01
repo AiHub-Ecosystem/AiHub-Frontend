@@ -4,9 +4,11 @@ import {
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
-import { appUrl, mockUrl, secondAppUrl } from "./ports";
 import { waitForHydration } from "./hydration";
 
+const appUrl = "http://127.0.0.1:3100";
+const mockUrl = "http://127.0.0.1:3101";
+const secondAppUrl = "http://127.0.0.1:3105";
 const validPassword = "correct horse battery staple";
 
 async function resetAuthMock(request: APIRequestContext) {

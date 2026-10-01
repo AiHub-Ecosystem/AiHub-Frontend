@@ -8,9 +8,9 @@ import {
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
-import { mockUrl } from "./ports";
 import { waitForHydration } from "./hydration";
 
+const mockUrl = "http://127.0.0.1:3101";
 const password = "correct horse battery staple";
 const identityReadinessTitle = "Xác thực có chữ ký là tùy chọn";
 const identityReadinessBody =

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { mockUrl } from "./ports";
+
+const mockUrl = "http://127.0.0.1:3101";
 
 test("Exercise Generation displays a reference from the local mock", async ({
   page,

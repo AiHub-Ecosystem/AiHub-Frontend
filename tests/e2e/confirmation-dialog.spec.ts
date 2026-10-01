@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { waitForHydration } from "./hydration";
-import { secondAppUrl } from "./ports";
 
 const harnessPath = "/test-harness/confirmation-dialog";
+const secondAppUrl = "http://127.0.0.1:3105";
 
 async function openNestedConfirmation(page: Page, outcome = "success") {
   await page.goto(harnessPath);

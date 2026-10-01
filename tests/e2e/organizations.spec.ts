@@ -5,8 +5,8 @@ import {
   type Page,
 } from "@playwright/test";
 import { waitForHydration } from "./hydration";
-import { mockUrl } from "./ports";
 
+const mockUrl = "http://127.0.0.1:3101";
 const password = "correct horse battery staple";
 const disabledIdentityCopy =
   "AIHUB đã tạm vô hiệu hóa identity configuration này. Organization hiện dùng Declared User ID, nghĩa là bất kỳ ai có API key của Organization đều có thể gửi yêu cầu dưới ID của bất kỳ người dùng nào mà không cần chữ ký. Lưu không khôi phục xác minh chữ ký; chỉ AIHUB có thể kích hoạt lại.";
