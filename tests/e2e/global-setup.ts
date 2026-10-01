@@ -1,7 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createConnection } from "node:net";
-
-const redisPort = 3103;
+import { redisContainerName, redisPort } from "./ports";
 
 function pingRedis() {
   return new Promise<boolean>((resolve) => {
@@ -19,7 +18,9 @@ function pingRedis() {
 }
 
 export default async function globalSetup() {
-  const container = `aihub-frontend-e2e-redis-${process.pid}`;
+  const container = redisContainerName(
+    Number(process.env.E2E_SHARD_INDEX ?? 1)
+  );
   const started = spawnSync(
     "docker",
     [

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { mockUrl } from "./ports";
 
 test("Exercise Generation displays a reference from the local mock", async ({
   page,
@@ -29,7 +30,7 @@ test("Exercise Generation displays a reference from the local mock", async ({
     page.getByText("“E2E_ONLY_REFERENCE_PROMPT”", { exact: true })
   ).toBeVisible();
 
-  const mockLog = await request.get("http://127.0.0.1:3101/__test__/requests");
+  const mockLog = await request.get(`${mockUrl}/__test__/requests`);
   expect(mockLog.ok()).toBe(true);
   const { requests } = await mockLog.json();
   expect(requests).toHaveLength(1);

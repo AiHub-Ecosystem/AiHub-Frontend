@@ -4,10 +4,9 @@ import {
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
+import { appUrl, mockUrl, secondAppUrl } from "./ports";
+import { waitForHydration } from "./hydration";
 
-const appUrl = "http://127.0.0.1:3100";
-const mockUrl = "http://127.0.0.1:3101";
-const secondAppUrl = "http://127.0.0.1:3105";
 const validPassword = "correct horse battery staple";
 
 async function resetAuthMock(request: APIRequestContext) {
@@ -51,6 +50,8 @@ async function signIn(
 ) {
   await configureConsoleRoster(request);
   await page.goto("/login");
+  // ponytail: a click before hydration is silently lost; slower shards lose the race.
+  await waitForHydration(page);
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Mật khẩu").fill(validPassword);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
@@ -85,6 +86,7 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
     page.getByRole("link", { name: "Đăng ký", exact: true })
   ).toBeVisible();
 
+  await waitForHydration(page);
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(validPassword);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
@@ -127,7 +129,7 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
   ).toBeVisible();
   await page.getByText("Tài khoản", { exact: true }).click();
   await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/");
+  await expect(page).toHaveURL(`${appUrl}/`);
   await expect(
     page.getByRole("link", { name: "Đăng nhập", exact: true })
   ).toBeVisible();
@@ -812,6 +814,7 @@ test("credential failures share one message and rate limits show a retry delay",
     "disabled@example.test",
   ]) {
     await page.goto("/login");
+    await waitForHydration(page);
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Mật khẩu").fill(validPassword);
     await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
@@ -823,6 +826,7 @@ test("credential failures share one message and rate limits show a retry delay",
   expect(messages[0]).toBe("Email hoặc mật khẩu không đúng.");
 
   await page.goto("/login");
+  await waitForHydration(page);
   await page.getByLabel("Email").fill("rate-limit@example.test");
   await page.getByLabel("Mật khẩu").fill(validPassword);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
@@ -888,7 +892,7 @@ test("rejects foreign or missing Origin and coordinates refresh across app insta
   await page.waitForTimeout(2_100);
   const cookieHeader = { Cookie: cookie };
   const [first, second] = await Promise.all([
-    request.get("http://127.0.0.1:3100/console", { headers: cookieHeader }),
+    request.get(`${appUrl}/console`, { headers: cookieHeader }),
     request.get(`${secondAppUrl}/console`, { headers: cookieHeader }),
   ]);
   expect(first.status()).toBe(200);
@@ -915,6 +919,7 @@ test("a rejected refresh ends the session and logout clears it during an AIHUB o
     data: { refreshUnauthorized: true },
   });
   await page.goto("/login");
+  await waitForHydration(page);
   await page.getByLabel("Email").fill("expiring@example.test");
   await page.getByLabel("Mật khẩu").fill(validPassword);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
@@ -937,13 +942,13 @@ test("a rejected refresh ends the session and logout clears it during an AIHUB o
   });
   await page.getByText("Tài khoản", { exact: true }).click();
   await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/");
+  await expect(page).toHaveURL(`${appUrl}/`);
   expect(
     (await page.context().cookies()).some(
       (cookie) => cookie.name === "__Host-aihub_web_session"
     )
   ).toBe(false);
-  const protectedPage = await request.get("http://127.0.0.1:3100/console", {
+  const protectedPage = await request.get(`${appUrl}/console`, {
     headers: { Cookie: `${logoutCookie!.name}=${logoutCookie!.value}` },
   });
   expect(protectedPage.status()).toBe(200);

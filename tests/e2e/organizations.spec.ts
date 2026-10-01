@@ -5,8 +5,8 @@ import {
   type Page,
 } from "@playwright/test";
 import { waitForHydration } from "./hydration";
+import { mockUrl } from "./ports";
 
-const mockUrl = "http://127.0.0.1:3101";
 const password = "correct horse battery staple";
 const disabledIdentityCopy =
   "AIHUB đã tạm vô hiệu hóa identity configuration này. Organization hiện dùng Declared User ID, nghĩa là bất kỳ ai có API key của Organization đều có thể gửi yêu cầu dưới ID của bất kỳ người dùng nào mà không cần chữ ký. Lưu không khôi phục xác minh chữ ký; chỉ AIHUB có thể kích hoạt lại.";
@@ -50,6 +50,8 @@ async function signIn(page: Page) {
   await page.goto("/login");
   await expect(page).toHaveURL(/\/login(?:\?.*)?$/);
   await expect(page.getByLabel("Email")).toBeVisible();
+  // ponytail: a click before hydration is silently lost; slower shards lose the race.
+  await waitForHydration(page);
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(password);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
@@ -107,6 +109,8 @@ test("an owner can configure identity and manage API keys", async ({
     page.getByRole("button", { name: "Cấu hình identity" })
   ).toBeVisible();
   await expect(page.getByText(identityReadinessTitle)).toHaveCount(0);
+  // The sign-in is a client-side navigation, so this document needs its own wait.
+  await waitForHydration(page);
   await page.getByRole("button", { name: "Cấu hình identity" }).click();
   const identityDialog = page.getByRole("dialog");
   await expect(identityDialog).toBeVisible();
@@ -117,6 +121,7 @@ test("an owner can configure identity and manage API keys", async ({
     identityDialog.getByRole("link", { name: "Quản lý API keys" })
   ).toBeVisible();
   await identityDialog.getByRole("button", { name: "Đóng" }).click();
+  await waitForHydration(page);
   await page.getByRole("link", { name: "Quản lý API keys" }).click();
   await expect(page).toHaveURL(/\/console\/orgs\/owner-id\/api-keys$/);
   await expect(page.getByRole("heading", { name: "Owner Org" })).toBeVisible();
@@ -207,6 +212,7 @@ test("safe same-origin next wins while an external next is ignored", async ({
   await setup(request, [org("one", "One Org")]);
   await page.context().clearCookies();
   await page.goto("/login?next=%2Fpricing");
+  await waitForHydration(page);
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(password);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
@@ -215,6 +221,7 @@ test("safe same-origin next wins while an external next is ignored", async ({
   await setup(request, [org("one", "One Org")]);
   await page.context().clearCookies();
   await page.goto("/login?next=https%3A%2F%2Fattacker.test%2Fcollect");
+  await waitForHydration(page);
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(password);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
@@ -626,6 +633,7 @@ test("active identity configuration saves without a declared-mode confirmation",
   );
   await signIn(page);
   await page.goto("/console/orgs/identity-active-save/identity");
+  await waitForHydration(page);
   await expect(page.locator(".identity-warning")).toHaveCount(0);
   await expect(page.getByText(/Declared User ID/)).toHaveCount(0);
   await page.getByLabel("Issuer").fill("https://updated.example.test");
@@ -714,6 +722,7 @@ test("a 403 while loading identity settings refreshes the roster and hides all c
     );
   await signIn(page);
   await page.goto("/console/orgs/identity-get-forbidden");
+  await waitForHydration(page);
   await page.getByRole("button", { name: "Cấu hình identity" }).click();
   await expect(
     page.locator(".identity-dialog .identity-safe-notice")
@@ -751,6 +760,7 @@ test("active owner can rename; backend denial and foreign IDs use generic denial
   await setup(request, [org("rename-id", "Before")]);
   await signIn(page);
   await page.goto("/console/orgs/rename-id");
+  await waitForHydration(page);
   await page.getByRole("button", { name: "Đổi tên" }).click();
   await page.getByLabel("Tên mới").fill("After");
   await page.getByRole("button", { name: "Lưu tên mới" }).click();
@@ -760,6 +770,7 @@ test("active owner can rename; backend denial and foreign IDs use generic denial
 
   await setup(request, [org("rename-id", "After")], { renameDenied: true });
   await page.goto("/console/orgs/rename-id");
+  await waitForHydration(page);
   await page.getByRole("button", { name: "Đổi tên" }).click();
   await page.getByLabel("Tên mới").fill("Denied");
   await page.getByRole("button", { name: "Lưu tên mới" }).click();
@@ -812,6 +823,7 @@ test("the Organization header switches to another Organization", async ({
   ]);
   await signIn(page);
   await page.goto("/console/orgs/switch-a");
+  await waitForHydration(page);
 
   const switcher = page.getByText("Chuyển Organization", { exact: true });
   await switcher.click();

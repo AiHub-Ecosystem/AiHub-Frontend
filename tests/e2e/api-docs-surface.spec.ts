@@ -113,6 +113,8 @@ test("/docs links each grading operation to its API reference page", async ({
 
   for (const { href } of OPERATION_REFERENCES) {
     await page.goto("/docs");
+    // ponytail: a click before hydration is silently lost; slower shards lose the race.
+    await waitForHydration(page);
     await page.locator(`.aihub-shell a[href="${href}"]`).first().click();
     await expect(page).toHaveURL(new RegExp(`${href}$`));
     await expect(page.locator("pre.aihub-code").first()).toBeVisible();

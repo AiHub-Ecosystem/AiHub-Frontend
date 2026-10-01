@@ -8,8 +8,9 @@ import {
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
+import { mockUrl } from "./ports";
+import { waitForHydration } from "./hydration";
 
-const mockUrl = "http://127.0.0.1:3101";
 const password = "correct horse battery staple";
 const identityReadinessTitle = "Xác thực có chữ ký là tùy chọn";
 const identityReadinessBody =
@@ -92,6 +93,8 @@ async function openQuickstartFromDialog(page: Page) {
 async function signIn(page: Page, openApiKeys = true) {
   await page.context().clearCookies();
   await page.goto("/login");
+  // ponytail: a click before hydration is silently lost; slower shards lose the race.
+  await waitForHydration(page);
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(password);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
@@ -625,6 +628,7 @@ test("active identity configuration uses a signed User Assertion in the sample",
   await signIn(page, false);
   await page.goto(quickstartPath("ak_01J00000000000000000000000"));
 
+  await waitForHydration(page);
   await page
     .getByRole("tablist", { name: "Sample requests" })
     .getByRole("tab", { name: "Writing Task 2" })
@@ -1060,6 +1064,7 @@ test("a Quickstart offers the same request for PowerShell", async ({
   await signIn(page, false);
   await page.goto(quickstartPath("ak_01J00000000000000000000000"));
 
+  await waitForHydration(page);
   const command = page.getByTestId("sample-request-command");
   await expect(command).toContainText("curl --request POST");
   await page.getByRole("button", { name: "PowerShell" }).click();
@@ -1092,6 +1097,7 @@ test("a raw key pasted into the Quickstart makes its commands run as pasted", as
   await signIn(page, false);
   await page.goto(quickstartPath("ak_01J00000000000000000000000"));
 
+  await waitForHydration(page);
   const field = page.getByLabel("API key của bạn");
   const command = page.getByTestId("sample-request-command");
   await field.fill(`aihub_sk_ZZZZZZ${"k".repeat(37)}`);
@@ -1175,6 +1181,7 @@ test("a Quickstart offers the request as a curl Postman can import", async ({
   await signIn(page, false);
   await page.goto(quickstartPath("ak_01J00000000000000000000000"));
 
+  await waitForHydration(page);
   const command = page.getByTestId("sample-request-command");
   await page.getByRole("button", { name: "Postman" }).click();
   await expect(command).toContainText(

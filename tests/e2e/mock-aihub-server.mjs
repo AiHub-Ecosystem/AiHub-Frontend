@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { createHash } from "node:crypto";
 
 const host = "127.0.0.1";
-const port = 3101;
+const port = Number(process.env.E2E_MOCK_PORT ?? 3101);
 const requests = [];
 const authRequests = [];
 const organizationRequests = [];

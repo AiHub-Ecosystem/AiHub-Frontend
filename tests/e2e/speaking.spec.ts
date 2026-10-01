@@ -5,8 +5,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { waitForHydration } from "./hydration";
-
-const mockUrl = "http://127.0.0.1:3101";
+import { mockUrl } from "./ports";
 
 type SpeakingRequest = {
   operation: string;

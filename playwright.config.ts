@@ -1,8 +1,16 @@
 import { defineConfig } from "@playwright/test";
+import {
+  appPort,
+  appUrl,
+  distDir,
+  mockPort,
+  mockUrl,
+  redisUrl,
+  secondaryDistDir,
+  secondAppPort,
+  secondAppUrl,
+} from "./tests/e2e/ports";
 
-const appUrl = "http://127.0.0.1:3100";
-const secondAppUrl = "http://127.0.0.1:3105";
-const mockUrl = "http://127.0.0.1:3101";
 const speakingEnv = {
   AIHUB_SANDBOX_BASE_URL: mockUrl,
   AIHUB_SANDBOX_E2E_MOCK_BASE_URL: mockUrl,
@@ -26,19 +34,21 @@ export default defineConfig({
       name: "AIHUB mock",
       command: "node tests/e2e/mock-aihub-server.mjs",
       url: `${mockUrl}/health`,
+      env: { E2E_MOCK_PORT: String(mockPort) },
       reuseExistingServer: false,
       timeout: 15_000,
     },
     {
       name: "Next.js app",
-      command: "npm run dev -- --hostname 127.0.0.1 --port 3100",
+      command: `npm run dev -- --hostname 127.0.0.1 --port ${appPort}`,
       url: appUrl,
       env: {
         API_BASE_URL: mockUrl,
         AIHUB_BASE_URL: mockUrl,
         CUSTOMER_WEB_ORIGIN: appUrl,
-        REDIS_URL: "redis://127.0.0.1:3103",
+        REDIS_URL: redisUrl,
         E2E_TESTING: "1",
+        NEXT_DIST_DIR: distDir,
         NEXT_TELEMETRY_DISABLED: "1",
         ...speakingEnv,
       },
@@ -47,14 +57,14 @@ export default defineConfig({
     },
     {
       name: "Second Next.js app instance",
-      command: "npm run dev -- --hostname 127.0.0.1 --port 3105",
+      command: `npm run dev -- --hostname 127.0.0.1 --port ${secondAppPort}`,
       url: secondAppUrl,
       env: {
         API_BASE_URL: mockUrl,
         AIHUB_BASE_URL: mockUrl,
         CUSTOMER_WEB_ORIGIN: appUrl,
-        REDIS_URL: "redis://127.0.0.1:3103",
-        NEXT_DIST_DIR: ".next-e2e-secondary",
+        REDIS_URL: redisUrl,
+        NEXT_DIST_DIR: secondaryDistDir,
         NEXT_TELEMETRY_DISABLED: "1",
         ...speakingEnv,
       },
