@@ -525,6 +525,37 @@
   background: #17233d;
 }
 
+/* Endpoint chấm: gập lại để trang Guides không dài bất thường */
+.aihub-docs .docs-endpoint {
+  border: 1px solid #e0e7f3;
+  border-radius: 12px;
+  margin-top: 12px;
+  background: #fff;
+}
+
+.aihub-docs .docs-endpoint summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.aihub-docs .docs-endpoint[open] summary {
+  border-bottom: 1px solid #e0e7f3;
+}
+
+.aihub-docs .docs-endpoint > :not(summary) {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+
+.aihub-docs .docs-endpoint > :not(summary):first-of-type {
+  margin-top: 16px;
+}
+
 .aihub-docs .aihub-steps li {
   padding-bottom: 34px;
 }

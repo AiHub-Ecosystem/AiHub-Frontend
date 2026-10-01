@@ -121,6 +121,96 @@ test("/docs links each grading operation to its API reference page", async ({
   }
 });
 
+test("/docs states the header contract shared by every grading endpoint", async ({
+  page,
+}) => {
+  await page.goto("/docs");
+
+  const contracts = page.locator("#thao-tac");
+  for (const header of [
+    "X-API-Key",
+    "X-User-Identity",
+    "Idempotency-Key",
+    "Content-Type",
+  ]) {
+    await expect(
+      contracts.locator("tr", { hasText: header }).first(),
+      header
+    ).toBeVisible();
+  }
+  // Speaking has no idempotent replay, so the header must say it is ignored.
+  await expect(contracts).toContainText("Speaking không có idempotency");
+  await expect(contracts).toContainText("multipart");
+});
+
+test("/docs shows the request body and response shape of every grading endpoint", async ({
+  page,
+}) => {
+  await page.goto("/docs");
+
+  for (const { name, href, bodyFields } of [
+    {
+      name: "Writing Task 1",
+      href: "/product/scoring/api/grade-task1",
+      bodyFields: ["question", "chart_type", "essay", "image_url"],
+    },
+    {
+      name: "Writing Task 2",
+      href: "/product/scoring/api/grade-task2",
+      bodyFields: ["question", "topic", "essay"],
+    },
+    {
+      name: "Speaking multipart",
+      href: "/product/speaking/api/speaking-grading",
+      bodyFields: ["part", "question_id"],
+    },
+    {
+      name: "Speaking JSON-by-URL",
+      href: "/product/speaking/api/speaking-grading-json",
+      bodyFields: ["audio_url", "part", "question_id"],
+    },
+  ]) {
+    const detail = page.locator(".docs-endpoint", { hasText: name });
+    await detail.locator("summary").click();
+
+    // Every field the endpoint actually requires must be documented here, not
+    // only on the endpoint page.
+    for (const field of bodyFields) {
+      await expect(
+        detail.locator("tr", { hasText: field }).first(),
+        `${name}: ${field}`
+      ).toBeVisible();
+    }
+
+    const response = detail.locator("pre.aihub-code");
+    await expect(response).toContainText('"data"');
+    await expect(response).toContainText('"meta"');
+    await expect(
+      detail.getByRole("link", { name: new RegExp(name) })
+    ).toHaveAttribute("href", href);
+  }
+});
+
+test("/docs body tables mark required fields and keep optional ones optional", async ({
+  page,
+}) => {
+  await page.goto("/docs");
+
+  const task2 = page.locator(".docs-endpoint", { hasText: "Writing Task 2" });
+  await task2.locator("summary").click();
+  await expect(task2.locator("tr", { hasText: "topic" }).first()).toContainText(
+    "BẮT BUỘC"
+  );
+  await expect(
+    task2.locator("tr", { hasText: "language" }).first()
+  ).toContainText("tuỳ chọn");
+
+  const task1 = page.locator(".docs-endpoint", { hasText: "Writing Task 1" });
+  await expect(
+    task1.locator("tr", { hasText: "image_url" }).first()
+  ).toContainText("BẮT BUỘC");
+});
+
 test("/docs separates Customer Sandbox from the demo assertion route", async ({
   page,
 }) => {

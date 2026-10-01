@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE } from "@/lib/api-keys";
 import { CodeBlock } from "@/components/docs/code-block";
 import { DocsToc } from "./docs-toc";
+import { PRODUCT_DOCS } from "@/data/api-reference";
 import {
   FIRST_CALL,
   NODE_SAMPLE,
@@ -87,6 +88,8 @@ const OPERATIONS = [
   {
     name: "Writing Task 1",
     href: "/product/scoring/api/grade-task1",
+    product: "scoring",
+    endpoint: "grade-task1",
     path: "/v1/ielts/writing/task1/grade",
     scope: "writing.grade",
     idempotency: "Bắt buộc",
@@ -97,6 +100,8 @@ const OPERATIONS = [
   {
     name: "Writing Task 2",
     href: "/product/scoring/api/grade-task2",
+    product: "scoring",
+    endpoint: "grade-task2",
     path: "/v1/ielts/writing/task2/grade",
     scope: "writing.grade",
     idempotency: "Bắt buộc",
@@ -107,6 +112,8 @@ const OPERATIONS = [
   {
     name: "Speaking multipart",
     href: "/product/speaking/api/speaking-grading",
+    product: "speaking",
+    endpoint: "speaking-grading",
     path: "/v1/ielts/speaking/grading",
     scope: "speaking.grade",
     idempotency: "Không hỗ trợ (header bị bỏ qua)",
@@ -117,12 +124,46 @@ const OPERATIONS = [
   {
     name: "Speaking JSON-by-URL",
     href: "/product/speaking/api/speaking-grading-json",
+    product: "speaking",
+    endpoint: "speaking-grading-json",
     path: "/v1/ielts/speaking/grading-json",
     scope: "speaking.grade",
     idempotency: "Không hỗ trợ (header bị bỏ qua)",
     body: "256 KB",
     budget: "30 giây",
     timeout: "60 giây",
+  },
+];
+
+/**
+ * Header của các API chấm. Danh sách header mỗi endpoint nằm trong
+ * `data/api-reference.ts`; bảng này chỉ kèm cột "áp dụng cho" và "ý nghĩa"
+ * để đọc nhanh, nên giữ đúng tên header với tài liệu đó.
+ */
+const HEADERS = [
+  {
+    name: "X-API-Key",
+    appliesTo: "Cả bốn",
+    meaning:
+      "Khóa của tổ chức bạn. Chỉ gọi từ máy chủ, không đưa vào trình duyệt.",
+  },
+  {
+    name: "X-User-Identity",
+    appliesTo: "Cả bốn",
+    meaning:
+      "Định danh người học: mã văn bản thuần, hoặc JWT có chữ ký nếu tổ chức bật xác minh.",
+  },
+  {
+    name: "Idempotency-Key",
+    appliesTo: "Writing Task 1 và 2",
+    meaning:
+      "Bắt buộc. Gán một UUID cho mỗi bài làm và dùng lại nguyên giá trị khi retry. Speaking không có idempotency nên header này bị bỏ qua.",
+  },
+  {
+    name: "Content-Type",
+    appliesTo: "Task 1, Task 2 và Speaking JSON",
+    meaning:
+      "application/json cho các endpoint gửi JSON. Endpoint Speaking multipart tự sinh content type kèm boundary, đừng đặt tay.",
   },
 ];
 
@@ -640,11 +681,102 @@ export default function Page() {
                 Lệnh chạy sẵn cho đúng API key của bạn nằm ở Quickstart của key
                 trong <Link href="/console/orgs">Console</Link>.
               </p>
+              <p className="aihub-prose">
+                Ba bảng dưới đây là hợp đồng của cả bốn endpoint: mọi thao tác
+                chấm đều dùng chung <code>X-User-Identity</code>, và Writing có
+                thêm <code>Idempotency-Key</code>.
+              </p>
+              <div className="aihub-scroll">
+                <table className="aihub-schema">
+                  <thead>
+                    <tr>
+                      <th>Header</th>
+                      <th>Áp dụng cho</th>
+                      <th>Ý nghĩa</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {HEADERS.map((header) => (
+                      <tr key={header.name}>
+                        <td>{header.name}</td>
+                        <td>{header.appliesTo}</td>
+                        <td>{header.meaning}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               <h3 className="aihub-sub">Gắn vào backend</h3>
               <CodeBlock
                 code={NODE_SAMPLE}
                 label="Node.js: gọi Writing Task 2 từ backend"
               />
+              <h3 className="aihub-sub">Body và response của từng API</h3>
+              {OPERATIONS.map((operation) => {
+                const docs = PRODUCT_DOCS[operation.product];
+                const reference = docs?.reference[operation.endpoint];
+                if (!docs || !reference) return null;
+                return (
+                  <details className="docs-endpoint" key={operation.href}>
+                    <summary>
+                      <span className="aihub-method" data-method="POST">
+                        POST
+                      </span>
+                      {operation.name}
+                      <code>{operation.path}</code>
+                    </summary>
+                    <div className="aihub-scroll">
+                      <table className="aihub-schema">
+                        <thead>
+                          <tr>
+                            <th>Field</th>
+                            <th>Kiểu</th>
+                            <th>Bắt buộc</th>
+                            <th>Mô tả</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reference.requestFields.map((field) => (
+                            <tr key={field.name}>
+                              <td>{field.name}</td>
+                              <td>{field.type}</td>
+                              <td>
+                                {field.required ? (
+                                  <span className="aihub-required">
+                                    BẮT BUỘC
+                                  </span>
+                                ) : (
+                                  <span className="aihub-optional">
+                                    tuỳ chọn
+                                  </span>
+                                )}
+                              </td>
+                              <td>{field.description}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="aihub-prose">
+                      <strong>Response:</strong> {reference.responseDescription}
+                    </p>
+                    <pre
+                      className="aihub-code"
+                      tabIndex={0}
+                      aria-label={`Response mẫu của ${operation.name}`}
+                    >
+                      {JSON.stringify(reference.responseExample, null, 2)}
+                    </pre>
+                    <p className="aihub-prose">
+                      Trường và ví dụ đầy đủ, kèm mọi lỗi có thể gặp:{" "}
+                      <Link href={operation.href}>
+                        mở trang {operation.name}
+                      </Link>
+                      .
+                    </p>
+                  </details>
+                );
+              })}
             </section>
 
             <section className="aihub-category" id="sandbox">
