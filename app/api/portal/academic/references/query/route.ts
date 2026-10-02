@@ -25,14 +25,15 @@ export async function POST(request: Request) {
 
     const data = await backendRes.json();
     return NextResponse.json(data, { status: backendRes.status });
-  } catch (error: any) {
+  } catch (error) {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: "PROXY_ERROR",
           message:
-            error.message || "Failed to communicate with backend service",
+            (error as Error).message ||
+            "Failed to communicate with backend service",
         },
       },
       { status: 502 }
