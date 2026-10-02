@@ -99,6 +99,9 @@ test("Speaking grading by uploaded audio sends the User Identity in X-User-Ident
   page,
   request,
 }) => {
+  // The multipart grading route compiles on first hit, and on a cold CI dev
+  // server that outlives the default 30s test deadline.
+  test.setTimeout(90_000);
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
   await page.goto("/demo/speaking");
   await waitForHydration(page);
@@ -111,9 +114,7 @@ test("Speaking grading by uploaded audio sends the User Identity in X-User-Ident
     buffer: Buffer.alloc(2048, 1),
   });
   await page.getByTestId("button-confirm-step-2").click();
-  await expect(page.getByTestId("panel-feedback-dashboard")).toBeVisible({
-    timeout: 30_000, // the first grading call compiles its route on a cold CI dev server
-  });
+  await expect(page.getByTestId("panel-feedback-dashboard")).toBeVisible();
 
   const log = await speakingLog(request);
   expect(log.requests).toHaveLength(1);
