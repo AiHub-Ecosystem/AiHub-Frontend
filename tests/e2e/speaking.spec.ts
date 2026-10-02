@@ -99,6 +99,10 @@ test("Speaking grading by uploaded audio sends the User Identity in X-User-Ident
   page,
   request,
 }) => {
+  // The multipart route is the last one this suite reaches, so its compile
+  // lands on a cold dev server. The assertion below wants 30s, which the
+  // default test deadline would cut off a moment before.
+  test.setTimeout(90_000);
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
   await page.goto("/demo/speaking");
   await waitForHydration(page);
