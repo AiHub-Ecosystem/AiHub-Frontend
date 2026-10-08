@@ -60,7 +60,12 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ env.PUBLIC_API_URL }}
 
-      - name: Security audit
+      - name: Security audit (production dependencies)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Security audit (all dependencies, advisory)
+        # ponytail: braces has no patched release yet; keep the dev-tool risk visible without blocking deploys.
+        continue-on-error: true
         run: npm audit --audit-level=high
 
   browser-tests:
