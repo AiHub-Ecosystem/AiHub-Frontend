@@ -16,6 +16,7 @@ let organizationConfig = {
   creationLimit: false,
   renameDenied: false,
   createUncertainOnce: false,
+  createConflictOnce: false,
   createKeyUncertainOnce: false,
   rotateKeyUncertainOnce: false,
   apiKeyLimitReached: false,
@@ -24,7 +25,9 @@ let organizationConfig = {
   identityConfigs: {},
 };
 const createdOrganizations = new Map();
+let createdOrganizationSequence = 0;
 let uncertainCreationUsed = false;
+let conflictCreationUsed = false;
 let uncertainApiKeyCreationUsed = false;
 let uncertainApiKeyRotationUsed = false;
 let apiKeySequence = 0;
@@ -102,6 +105,7 @@ const server = createServer(async (request, response) => {
     };
     organizationRequests.length = 0;
     createdOrganizations.clear();
+    createdOrganizationSequence = 0;
     organizationConfig = {
       roster: [],
       apiKeys: [],
@@ -109,6 +113,7 @@ const server = createServer(async (request, response) => {
       creationLimit: false,
       renameDenied: false,
       createUncertainOnce: false,
+      createConflictOnce: false,
       createKeyUncertainOnce: false,
       rotateKeyUncertainOnce: false,
       apiKeyLimitReached: false,
@@ -117,6 +122,7 @@ const server = createServer(async (request, response) => {
       identityConfigs: {},
     };
     uncertainCreationUsed = false;
+    conflictCreationUsed = false;
     uncertainApiKeyCreationUsed = false;
     uncertainApiKeyRotationUsed = false;
     apiKeySequence = 0;
@@ -468,6 +474,7 @@ const server = createServer(async (request, response) => {
       method: "POST",
       path: "create",
       name: body.name,
+      idempotencyKey: request.headers["idempotency-key"],
     });
     if (organizationConfig.creationLimit) {
       sendJson(response, 409, {
@@ -476,10 +483,27 @@ const server = createServer(async (request, response) => {
       return;
     }
     const key = request.headers["idempotency-key"];
+    if (organizationConfig.createConflictOnce && !conflictCreationUsed) {
+      conflictCreationUsed = true;
+      sendJson(response, 409, {
+        error: { code: "IDEMPOTENCY_CONFLICT" },
+      });
+      return;
+    }
     let organization = createdOrganizations.get(key);
+    if (organization && organization.name !== body.name) {
+      sendJson(response, 409, {
+        error: { code: "IDEMPOTENCY_CONFLICT" },
+      });
+      return;
+    }
     if (!organization) {
+      createdOrganizationSequence += 1;
       organization = {
-        organization_id: "org-created-12345678",
+        organization_id:
+          createdOrganizationSequence === 1
+            ? "org-created-12345678"
+            : `org-created-${String(createdOrganizationSequence).padStart(8, "0")}`,
         name: body.name,
         status: "active",
         entitlements: ["writing"],

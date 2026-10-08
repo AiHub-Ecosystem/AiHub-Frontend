@@ -2,9 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({
   authenticatedAihubFetch: vi.fn(),
-  completeOrganizationCreation: vi.fn(),
   originIsAllowed: vi.fn(),
-  organizationCreationKey: vi.fn(),
   requireWebSession: vi.fn(),
   webSessionIdFromRequest: vi.fn(),
 }));
@@ -74,7 +72,43 @@ describe("Organization BFF", () => {
     );
   });
 
-  it("maps the Organization Creation Limit denial and closes the attempt", async () => {
+  it("rejects missing or malformed UUID v4 keys before calling AIHUB", async () => {
+    for (const key of [
+      undefined,
+      "a1b2c3d4-e5f6-1a1b-8c2d-1234567890ab",
+      "a1b2c3d4-e5f6-4a1b-1c2d-1234567890ab",
+    ]) {
+      const response = await createOrganization(
+        request("POST", { name: "Org" }, key ? { "Idempotency-Key": key } : {})
+      );
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: { code: "IDEMPOTENCY_KEY_REQUIRED" },
+      });
+    }
+    expect(auth.authenticatedAihubFetch).not.toHaveBeenCalled();
+  });
+
+  it("requires a Web Session before creation", async () => {
+    const denied = Response.json(
+      { error: { code: "UNAUTHORIZED" } },
+      { status: 401 }
+    );
+    auth.requireWebSession.mockResolvedValue(denied);
+    const response = await createOrganization(
+      request(
+        "POST",
+        { name: "Org" },
+        {
+          "Idempotency-Key": "a1b2c3d4-e5f6-4a1b-8c2d-1234567890ab",
+        }
+      )
+    );
+    expect(response).toBe(denied);
+    expect(auth.authenticatedAihubFetch).not.toHaveBeenCalled();
+  });
+
+  it("maps the Organization Creation Limit denial", async () => {
     auth.authenticatedAihubFetch.mockResolvedValue(
       Response.json(
         { error: { code: "ORGANIZATION_CREATION_LIMIT_REACHED" } },
@@ -92,7 +126,6 @@ describe("Organization BFF", () => {
     expect(await response.json()).toEqual({
       error: { code: "ORGANIZATION_CREATION_LIMIT_REACHED" },
     });
-    expect(auth.completeOrganizationCreation).toHaveBeenCalledWith(sessionId);
   });
 
   it("returns roster failures as retryable errors", async () => {

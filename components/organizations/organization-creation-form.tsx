@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -11,6 +11,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+// ponytail: AIHUB expires idempotency records after 24h; extend backend retention if recovery must last longer.
+const CREATION_ATTEMPT_STORAGE_KEY = "aihub:organization-creation-attempt";
+const UUID_V4_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+type CreationAttempt = { idempotencyKey: string; name: string };
+
 export function OrganizationCreationForm({
   openOnMount = false,
 }: {
@@ -18,51 +25,109 @@ export function OrganizationCreationForm({
 }) {
   const router = useRouter();
   const inFlight = useRef(false);
-  const key = useRef<string | null>(null);
   const [open, setOpen] = useState(openOnMount);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [name, setName] = useState("");
+  const [attempt, setAttempt] = useState<CreationAttempt | null>(null);
+  const [storageReady, setStorageReady] = useState(false);
 
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(CREATION_ATTEMPT_STORAGE_KEY);
+      if (stored) {
+        const value: unknown = JSON.parse(stored);
+        if (
+          value &&
+          typeof value === "object" &&
+          "idempotencyKey" in value &&
+          typeof value.idempotencyKey === "string" &&
+          UUID_V4_PATTERN.test(value.idempotencyKey) &&
+          "name" in value &&
+          typeof value.name === "string"
+        ) {
+          const restoredAttempt = {
+            idempotencyKey: value.idempotencyKey,
+            name: value.name,
+          };
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage is client-only and must restore after hydration.
+          setAttempt(restoredAttempt);
+          setName(restoredAttempt.name);
+        } else {
+          sessionStorage.removeItem(CREATION_ATTEMPT_STORAGE_KEY);
+        }
+      }
+    } catch {
+      try {
+        sessionStorage.removeItem(CREATION_ATTEMPT_STORAGE_KEY);
+      } catch {}
+    }
+    setStorageReady(true);
+  }, []);
+
+  function clearAttempt() {
+    sessionStorage.removeItem(CREATION_ATTEMPT_STORAGE_KEY);
+    setAttempt(null);
+  }
+
+  // Keep response and storage decisions together: only ambiguous results retain this attempt.
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (inFlight.current) return;
-    const name = new FormData(event.currentTarget).get("name");
-    if (typeof name !== "string") return;
+    if (inFlight.current || !storageReady) return;
+    const submittedName = new FormData(event.currentTarget).get("name");
+    if (typeof submittedName !== "string") return;
+    if (attempt && attempt.name !== submittedName) return;
     inFlight.current = true;
     setBusy(true);
     setError("");
     try {
-      if (!key.current) {
-        const keyResponse = await fetch("/api/organizations/creation-key", {
-          method: "POST",
-        });
-        if (!keyResponse.ok) throw new Error("SERVICE_UNAVAILABLE");
-        key.current = (await keyResponse.json()).idempotencyKey;
+      let currentAttempt = attempt;
+      if (!currentAttempt) {
+        currentAttempt = {
+          idempotencyKey: crypto.randomUUID(),
+          name: submittedName,
+        };
+        try {
+          sessionStorage.setItem(
+            CREATION_ATTEMPT_STORAGE_KEY,
+            JSON.stringify(currentAttempt)
+          );
+        } catch {
+          setError("Không thể lưu lần tạo trong tab. Vui lòng thử lại.");
+          return;
+        }
+        setAttempt(currentAttempt);
       }
       const response = await fetch("/api/organizations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Idempotency-Key": key.current!,
+          "Idempotency-Key": currentAttempt.idempotencyKey,
         },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name: currentAttempt.name }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
-        if (result.error?.code === "ORGANIZATION_CREATION_LIMIT_REACHED") {
-          key.current = null;
+        if (result.error?.code === "IDEMPOTENCY_CONFLICT") {
+          setError(
+            "Yêu cầu đang được xử lý. Hãy thử lại sau với cùng tên Organization."
+          );
+        } else if (
+          result.error?.code === "ORGANIZATION_CREATION_LIMIT_REACHED"
+        ) {
+          clearAttempt();
           setError(
             "Bạn đã đạt Organization Creation Limit: tối đa ba Organization trong suốt thời gian sử dụng. Liên hệ AIHUB để yêu cầu thêm."
           );
         } else if (result.error?.code === "INVALID_NAME") {
-          key.current = null;
+          clearAttempt();
           setError(
             "Tên Organization phải có từ 1 đến 100 ký tự sau khi bỏ khoảng trắng đầu cuối."
           );
         } else if (response.status >= 500) {
           setError("Chưa xác nhận được kết quả. Bạn có thể thử lại an toàn.");
         } else {
-          key.current = null;
+          clearAttempt();
           setError(
             "Không thể tạo Organization. Vui lòng kiểm tra thông tin và thử lại."
           );
@@ -74,17 +139,7 @@ export function OrganizationCreationForm({
         setError("Chưa xác nhận được kết quả. Bạn có thể thử lại an toàn.");
         return;
       }
-      const completed = await fetch(
-        "/api/organizations/creation-key/complete",
-        {
-          method: "POST",
-        }
-      );
-      if (!completed.ok) {
-        setError("Tổ chức đã được tạo. Hãy thử lại để xác nhận và tiếp tục.");
-        return;
-      }
-      key.current = null;
+      clearAttempt();
       router.push(
         `/console/orgs/${encodeURIComponent(id)}?identity=open&onboarding=1`
       );
@@ -112,13 +167,25 @@ export function OrganizationCreationForm({
         </DialogHeader>
         <form className="auth-form dialog-form" onSubmit={submit}>
           <label htmlFor="organization-name">Tên Organization</label>
-          <input id="organization-name" name="name" minLength={1} required />
+          <input
+            id="organization-name"
+            name="name"
+            minLength={1}
+            onChange={(event) => setName(event.target.value)}
+            readOnly={Boolean(attempt)}
+            required
+            value={attempt?.name ?? name}
+          />
           {error && (
             <p className="auth-error" role="alert">
               {error}
             </p>
           )}
-          <button className="auth-submit" disabled={busy} type="submit">
+          <button
+            className="auth-submit"
+            disabled={busy || !storageReady}
+            type="submit"
+          >
             {busy ? "Đang tạo…" : "Tạo Organization"}
           </button>
         </form>

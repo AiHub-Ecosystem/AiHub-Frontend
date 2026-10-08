@@ -258,6 +258,100 @@ test("create uses server BFF and ignores a double click", async ({
   ).toHaveLength(1);
 });
 
+test("successful creations clear the attempt and use a fresh key next time", async ({
+  page,
+  request,
+}) => {
+  const legacyKeyRequests: string[] = [];
+  page.on("request", (browserRequest) => {
+    const path = new URL(browserRequest.url()).pathname;
+    if (path.startsWith("/api/organizations/creation-key"))
+      legacyKeyRequests.push(path);
+  });
+  await setup(request);
+  await signIn(page);
+
+  await openCreationForm(page);
+  await page.getByLabel("Tên Organization").fill("First Org");
+  await page
+    .locator("form.auth-form")
+    .getByRole("button", { name: "Tạo Organization" })
+    .click();
+  await expect(page).toHaveURL(
+    /\/console\/orgs\/org-created-12345678\?identity=open&onboarding=1$/
+  );
+  expect(
+    await page.evaluate(() =>
+      sessionStorage.getItem("aihub:organization-creation-attempt")
+    )
+  ).toBeNull();
+
+  await page.goto("/console/orgs");
+  await openCreationForm(page);
+  await page.getByLabel("Tên Organization").fill("Second Org");
+  await page
+    .locator("form.auth-form")
+    .getByRole("button", { name: "Tạo Organization" })
+    .click();
+  await expect(page).toHaveURL(
+    /\/console\/orgs\/org-created-00000002\?identity=open&onboarding=1$/
+  );
+
+  const log = await request
+    .get(`${mockUrl}/__test__/organizations/requests`)
+    .then((r) => r.json());
+  const createRequests = log.requests.filter(
+    (entry: { path: string }) => entry.path === "create"
+  );
+  expect(createRequests).toHaveLength(2);
+  expect(createRequests.map((entry: { name: string }) => entry.name)).toEqual([
+    "First Org",
+    "Second Org",
+  ]);
+  expect(createRequests[0].idempotencyKey).not.toBe(
+    createRequests[1].idempotencyKey
+  );
+  expect(legacyKeyRequests).toEqual([]);
+});
+
+test("an idempotency conflict keeps the attempt for a manual retry", async ({
+  page,
+  request,
+}) => {
+  await setup(request, [], { createConflictOnce: true });
+  await signIn(page);
+  await openCreationForm(page);
+  await page.getByLabel("Tên Organization").fill("Pending Org");
+  const name = page.getByLabel("Tên Organization");
+  await page
+    .locator("form.auth-form")
+    .getByRole("button", { name: "Tạo Organization" })
+    .click();
+  await expect(page.locator("form.auth-form").getByRole("alert")).toContainText(
+    "đang được xử lý"
+  );
+  await expect(name).toHaveValue("Pending Org");
+  await expect(name).toHaveAttribute("readonly", "");
+
+  await page
+    .locator("form.auth-form")
+    .getByRole("button", { name: "Tạo Organization" })
+    .click();
+  await expect(page).toHaveURL(
+    /\/console\/orgs\/org-created-12345678\?identity=open&onboarding=1$/
+  );
+  const log = await request
+    .get(`${mockUrl}/__test__/organizations/requests`)
+    .then((r) => r.json());
+  const createRequests = log.requests.filter(
+    (entry: { path: string }) => entry.path === "create"
+  );
+  expect(createRequests).toHaveLength(2);
+  expect(createRequests[1].idempotencyKey).toBe(
+    createRequests[0].idempotencyKey
+  );
+});
+
 test("uncertain Organization creation can be retried safely", async ({
   page,
   request,
@@ -273,6 +367,9 @@ test("uncertain Organization creation can be retried safely", async ({
   await expect(page.locator("form.auth-form").getByRole("alert")).toContainText(
     "thử lại an toàn"
   );
+  await page.reload();
+  await openCreationForm(page);
+  await expect(page.getByLabel("Tên Organization")).toHaveValue("Retry Org");
   await page
     .locator("form.auth-form")
     .getByRole("button", { name: "Tạo Organization" })
@@ -284,6 +381,25 @@ test("uncertain Organization creation can be retried safely", async ({
     .get(`${mockUrl}/__test__/organizations/state`)
     .then((r) => r.json());
   expect(state.organizations).toHaveLength(1);
+  const createRequests = await request
+    .get(`${mockUrl}/__test__/organizations/requests`)
+    .then((r) => r.json())
+    .then((log) =>
+      log.requests.filter((entry: { path: string }) => entry.path === "create")
+    );
+  expect(createRequests).toHaveLength(2);
+  expect(createRequests.map((entry: { name: string }) => entry.name)).toEqual([
+    "Retry Org",
+    "Retry Org",
+  ]);
+  expect(
+    createRequests[0].idempotencyKey.match(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    )
+  ).toBeTruthy();
+  expect(createRequests[1].idempotencyKey).toBe(
+    createRequests[0].idempotencyKey
+  );
 });
 
 test("owner can save a JWKS URL and the readiness reminder clears", async ({

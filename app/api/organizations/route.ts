@@ -1,6 +1,5 @@
 import {
   authenticatedAihubFetch,
-  completeOrganizationCreation,
   originIsAllowed,
   requireWebSession,
   webSessionIdFromRequest,
@@ -28,14 +27,18 @@ export async function POST(request: Request) {
     (body as { name?: unknown } | null)?.name
   );
   if (!name) {
-    await completeOrganizationCreation(sessionId);
     return Response.json(
       { error: { code: "INVALID_NAME" } },
       { status: 400, headers: noStore }
     );
   }
   const idempotencyKey = request.headers.get("idempotency-key");
-  if (!idempotencyKey || !/^[0-9a-f-]{36}$/i.test(idempotencyKey)) {
+  if (
+    !idempotencyKey ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      idempotencyKey
+    )
+  ) {
     return Response.json(
       { error: { code: "IDEMPOTENCY_KEY_REQUIRED" } },
       { status: 400, headers: noStore }
@@ -61,12 +64,6 @@ export async function POST(request: Request) {
         status: upstream.status,
         headers: { ...noStore, "Content-Type": "application/json" },
       });
-    }
-    if (
-      upstream.status === 409 ||
-      (upstream.status >= 400 && upstream.status < 500)
-    ) {
-      await completeOrganizationCreation(sessionId);
     }
     let code = "ORGANIZATION_CREATE_FAILED";
     try {
