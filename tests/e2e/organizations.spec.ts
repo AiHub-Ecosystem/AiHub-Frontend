@@ -402,7 +402,7 @@ test("uncertain Organization creation can be retried safely", async ({
   );
 });
 
-test("an expired Organization creation attempt cannot be retried with an expired key", async ({
+test("an expired Organization creation attempt can be resolved before starting a new attempt", async ({
   page,
   request,
 }) => {
@@ -441,6 +441,77 @@ test("an expired Organization creation attempt cannot be retried with an expired
   expect(
     log.requests.some((entry: { path: string }) => entry.path === "create")
   ).toBe(false);
+
+  await page
+    .locator("form.auth-form")
+    .getByRole("button", { name: "Đã kiểm tra, bắt đầu lần tạo mới" })
+    .click();
+  expect(
+    await page.evaluate(() =>
+      sessionStorage.getItem("aihub:organization-creation-attempt")
+    )
+  ).toBeNull();
+  await expect(page.getByLabel("Tên Organization")).toHaveValue("Old Org");
+  await expect(page.getByLabel("Tên Organization")).not.toHaveAttribute(
+    "readonly",
+    ""
+  );
+
+  await page
+    .locator("form.auth-form")
+    .getByRole("button", { name: "Tạo Organization" })
+    .click();
+  await expect(page).toHaveURL(
+    /\/console\/orgs\/org-created-12345678\?identity=open&onboarding=1$/
+  );
+  const createRequests = await request
+    .get(`${mockUrl}/__test__/organizations/requests`)
+    .then((r) => r.json())
+    .then((result) =>
+      result.requests.filter(
+        (entry: { path: string }) => entry.path === "create"
+      )
+    );
+  expect(createRequests).toHaveLength(1);
+  expect(createRequests[0].idempotencyKey).not.toBe(
+    "a1b2c3d4-e5f6-4a1b-8c2d-1234567890ab"
+  );
+});
+
+test("an attempt without a timestamp requires checking before it can be replaced", async ({
+  page,
+  request,
+}) => {
+  await setup(request);
+  await page.addInitScript(() => {
+    sessionStorage.setItem(
+      "aihub:organization-creation-attempt",
+      JSON.stringify({
+        idempotencyKey: "a1b2c3d4-e5f6-4a1b-8c2d-1234567890ab",
+        name: "Legacy Org",
+      })
+    );
+  });
+  await signIn(page);
+  await openCreationForm(page);
+
+  await expect(page.locator("form.auth-form").getByRole("alert")).toContainText(
+    "không xác định được thời điểm"
+  );
+  await expect(page.getByLabel("Tên Organization")).toHaveValue("Legacy Org");
+  await page
+    .locator("form.auth-form")
+    .getByRole("button", { name: "Đã kiểm tra, bắt đầu lần tạo mới" })
+    .click();
+  expect(
+    await page.evaluate(() =>
+      sessionStorage.getItem("aihub:organization-creation-attempt")
+    )
+  ).toBeNull();
+  await expect(page.getByLabel("Tên Organization")).not.toHaveAttribute(
+    "readonly",
+    ""
+  );
 });
 
 test("owner can save a JWKS URL and the readiness reminder clears", async ({

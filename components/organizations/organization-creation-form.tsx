@@ -15,7 +15,7 @@ import {
 const CREATION_ATTEMPT_STORAGE_KEY = "aihub:organization-creation-attempt";
 const CREATION_ATTEMPT_TTL_MS = 24 * 60 * 60 * 1000;
 const EXPIRED_ATTEMPT_MESSAGE =
-  "Lần tạo này đã quá 24 giờ; retry có thể tạo trùng Organization. Hãy đóng form để kiểm tra danh sách Organization; nếu kết quả chưa rõ, liên hệ hỗ trợ trước khi thử lại.";
+  "Lần tạo này đã quá 24 giờ hoặc không xác định được thời điểm; retry có thể tạo trùng Organization. Hãy kiểm tra danh sách Organization. Nếu kết quả chưa rõ, liên hệ hỗ trợ trước khi bắt đầu lần tạo mới.";
 const UUID_V4_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -208,6 +208,15 @@ export function OrganizationCreationForm({
             <p className="auth-error" role="alert">
               {expired ? EXPIRED_ATTEMPT_MESSAGE : error}
             </p>
+          )}
+          {expired && (
+            <button
+              className="auth-submit"
+              onClick={clearAttempt}
+              type="button"
+            >
+              Đã kiểm tra, bắt đầu lần tạo mới
+            </button>
           )}
           <button
             className="auth-submit"
