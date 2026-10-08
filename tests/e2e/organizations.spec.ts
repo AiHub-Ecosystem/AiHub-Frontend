@@ -402,6 +402,47 @@ test("uncertain Organization creation can be retried safely", async ({
   );
 });
 
+test("an expired Organization creation attempt cannot be retried with an expired key", async ({
+  page,
+  request,
+}) => {
+  await setup(request);
+  await page.addInitScript(() => {
+    sessionStorage.setItem(
+      "aihub:organization-creation-attempt",
+      JSON.stringify({
+        idempotencyKey: "a1b2c3d4-e5f6-4a1b-8c2d-1234567890ab",
+        name: "Old Org",
+        createdAt: Date.now() - 24 * 60 * 60 * 1000 - 1,
+      })
+    );
+  });
+  await signIn(page);
+  await openCreationForm(page);
+
+  await expect(page.locator("form.auth-form").getByRole("alert")).toContainText(
+    "quá 24 giờ"
+  );
+  await expect(page.getByLabel("Tên Organization")).toHaveValue("Old Org");
+  await expect(
+    page
+      .locator("form.auth-form")
+      .getByRole("button", { name: "Tạo Organization" })
+  ).toBeDisabled();
+  expect(
+    await page.evaluate(() =>
+      sessionStorage.getItem("aihub:organization-creation-attempt")
+    )
+  ).not.toBeNull();
+
+  const log = await request
+    .get(`${mockUrl}/__test__/organizations/requests`)
+    .then((r) => r.json());
+  expect(
+    log.requests.some((entry: { path: string }) => entry.path === "create")
+  ).toBe(false);
+});
+
 test("owner can save a JWKS URL and the readiness reminder clears", async ({
   page,
   request,

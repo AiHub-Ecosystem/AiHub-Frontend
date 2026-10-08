@@ -13,10 +13,25 @@ import {
 
 // ponytail: AIHUB expires idempotency records after 24h; extend backend retention if recovery must last longer.
 const CREATION_ATTEMPT_STORAGE_KEY = "aihub:organization-creation-attempt";
+const CREATION_ATTEMPT_TTL_MS = 24 * 60 * 60 * 1000;
+const EXPIRED_ATTEMPT_MESSAGE =
+  "Lần tạo này đã quá 24 giờ; retry có thể tạo trùng Organization. Hãy đóng form để kiểm tra danh sách Organization; nếu kết quả chưa rõ, liên hệ hỗ trợ trước khi thử lại.";
 const UUID_V4_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type CreationAttempt = { idempotencyKey: string; name: string };
+type CreationAttempt = {
+  idempotencyKey: string;
+  name: string;
+  createdAt: number;
+};
+
+function attemptExpired(attempt: CreationAttempt, now = Date.now()) {
+  return (
+    attempt.createdAt <= 0 ||
+    now < attempt.createdAt ||
+    now - attempt.createdAt >= CREATION_ATTEMPT_TTL_MS
+  );
+}
 
 export function OrganizationCreationForm({
   openOnMount = false,
@@ -31,6 +46,7 @@ export function OrganizationCreationForm({
   const [name, setName] = useState("");
   const [attempt, setAttempt] = useState<CreationAttempt | null>(null);
   const [storageReady, setStorageReady] = useState(false);
+  const expired = attempt ? attemptExpired(attempt) : false;
 
   useEffect(() => {
     try {
@@ -46,9 +62,16 @@ export function OrganizationCreationForm({
           "name" in value &&
           typeof value.name === "string"
         ) {
+          const createdAt =
+            "createdAt" in value &&
+            typeof value.createdAt === "number" &&
+            Number.isFinite(value.createdAt)
+              ? value.createdAt
+              : 0;
           const restoredAttempt = {
             idempotencyKey: value.idempotencyKey,
             name: value.name,
+            createdAt,
           };
           // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage is client-only and must restore after hydration.
           setAttempt(restoredAttempt);
@@ -74,6 +97,10 @@ export function OrganizationCreationForm({
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (inFlight.current || !storageReady) return;
+    if (attempt && attemptExpired(attempt)) {
+      setError(EXPIRED_ATTEMPT_MESSAGE);
+      return;
+    }
     const submittedName = new FormData(event.currentTarget).get("name");
     if (typeof submittedName !== "string") return;
     if (attempt && attempt.name !== submittedName) return;
@@ -86,6 +113,7 @@ export function OrganizationCreationForm({
         currentAttempt = {
           idempotencyKey: crypto.randomUUID(),
           name: submittedName,
+          createdAt: Date.now(),
         };
         try {
           sessionStorage.setItem(
@@ -176,14 +204,14 @@ export function OrganizationCreationForm({
             required
             value={attempt?.name ?? name}
           />
-          {error && (
+          {(expired || error) && (
             <p className="auth-error" role="alert">
-              {error}
+              {expired ? EXPIRED_ATTEMPT_MESSAGE : error}
             </p>
           )}
           <button
             className="auth-submit"
-            disabled={busy || !storageReady}
+            disabled={busy || !storageReady || expired}
             type="submit"
           >
             {busy ? "Đang tạo…" : "Tạo Organization"}
