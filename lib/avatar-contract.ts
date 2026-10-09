@@ -14,6 +14,12 @@ export type Avatar = {
   url: string;
 };
 
+export function isAvatarAssetId(value: unknown): value is string {
+  return (
+    typeof value === "string" && /^ava_[0-9A-HJKMNP-TV-Z]{26}$/.test(value)
+  );
+}
+
 export function isAvatar(value: unknown): value is Avatar | null {
   if (value === null) return true;
   if (!value || typeof value !== "object") return false;
@@ -25,8 +31,7 @@ export function isAvatar(value: unknown): value is Avatar | null {
     return false;
   }
   return (
-    typeof avatar.asset_id === "string" &&
-    /^ava_[0-9A-HJKMNP-TV-Z]{26}$/.test(avatar.asset_id) &&
+    isAvatarAssetId(avatar.asset_id) &&
     typeof avatar.content_type === "string" &&
     AVATAR_CONTENT_TYPES.includes(
       avatar.content_type as (typeof AVATAR_CONTENT_TYPES)[number]

@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth-session";
 import {
   isAvatar,
+  isAvatarAssetId,
   noStore,
   unavailable,
   upstreamFailure,
@@ -19,7 +20,7 @@ export async function POST(request: Request, { params }: Context) {
   const denied = await requireWebSession(request);
   if (denied) return denied;
   const { assetId } = await params;
-  if (!/^ava_[0-9A-HJKMNP-TV-Z]{26}$/.test(assetId))
+  if (!isAvatarAssetId(assetId))
     return Response.json(
       { error: { code: "INVALID_AVATAR_ASSET_ID" } },
       { status: 400, headers: noStore }

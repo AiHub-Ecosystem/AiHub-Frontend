@@ -8,6 +8,7 @@ import {
   AVATAR_CONTENT_TYPES,
   AVATAR_MAX_BYTES,
   AVATAR_STORAGE_ORIGIN,
+  isAvatarAssetId,
   noStore,
   unavailable,
   upstreamFailure,
@@ -117,8 +118,7 @@ export async function POST(request: Request) {
     } catch {}
     if (
       !grant ||
-      typeof grant.asset_id !== "string" ||
-      !/^ava_[0-9A-HJKMNP-TV-Z]{26}$/.test(grant.asset_id) ||
+      !isAvatarAssetId(grant.asset_id) ||
       !uploadUrl ||
       uploadUrl.origin !== AVATAR_STORAGE_ORIGIN ||
       uploadUrl.username !== "" ||

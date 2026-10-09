@@ -5,6 +5,7 @@ export {
   AVATAR_MAX_BYTES,
   AVATAR_STORAGE_ORIGIN,
   isAvatar,
+  isAvatarAssetId,
 } from "@/lib/avatar-contract";
 
 export const noStore = { "Cache-Control": "no-store" };
