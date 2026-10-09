@@ -227,6 +227,34 @@ test("a confirmation failure keeps the existing Avatar", async ({
   );
 });
 
+test("an invalid confirmed Avatar URL is rejected and leaves the current Avatar", async ({
+  page,
+  request,
+}) => {
+  await prepareMocks(request, {
+    avatar: existingAvatar,
+    completeAvatar: {
+      ...existingAvatar,
+      url: "https://attacker.example/avatar",
+    },
+  });
+  await mockStorage(page);
+  await signIn(page);
+  await openAccountMenu(page);
+  await page.getByLabel("Chọn ảnh đại diện").setInputFiles({
+    name: "replacement.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("replacement"),
+  });
+  await expect(page.locator(".account-avatar-error")).toContainText(
+    "Ảnh hiện tại vẫn được giữ nguyên"
+  );
+  await expect(page.getByRole("img", { name: "Ảnh đại diện" })).toHaveAttribute(
+    "src",
+    existingAvatar.url
+  );
+});
+
 test("an untrusted upload origin is rejected before browser PUT", async ({
   page,
   request,
@@ -375,6 +403,38 @@ test("an AVATAR_CHANGED confirmation refreshes the current Avatar", async ({
   );
   await expect(page.locator(".account-avatar-error")).toContainText(
     "đã được cập nhật ở nơi khác"
+  );
+});
+
+test("a failed AVATAR_CHANGED refresh reports that account data could not be loaded", async ({
+  page,
+  request,
+}) => {
+  await prepareMocks(request, {
+    avatar: existingAvatar,
+    completeStatus: 409,
+    completeErrorCode: "AVATAR_CHANGED",
+  });
+  await mockStorage(page);
+  await signIn(page);
+  await openAccountMenu(page);
+  await page.route("**/api/account", async (route) => {
+    await route.fulfill({
+      status: 503,
+      json: { error: { code: "ACCOUNT_UNAVAILABLE" } },
+    });
+  });
+  await page.getByLabel("Chọn ảnh đại diện").setInputFiles({
+    name: "replacement.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("replacement"),
+  });
+  await expect(page.locator(".account-avatar-error")).toHaveText(
+    "Không thể tải thông tin tài khoản."
+  );
+  await expect(page.getByRole("img", { name: "Ảnh đại diện" })).toHaveAttribute(
+    "src",
+    existingAvatar.url
   );
 });
 

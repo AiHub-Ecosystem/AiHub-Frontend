@@ -52,6 +52,7 @@ let avatarConfig = {
   uploadErrorCode: "AVATAR_UPLOAD_DENIED",
   completeStatus: 201,
   completeErrorCode: "AVATAR_CONFIRMATION_FAILED",
+  completeAvatar: null,
   deleteStatus: 204,
   deleteErrorCode: "AVATAR_REMOVE_FAILED",
 };
@@ -119,6 +120,7 @@ const server = createServer(async (request, response) => {
       uploadErrorCode: "AVATAR_UPLOAD_DENIED",
       completeStatus: 201,
       completeErrorCode: "AVATAR_CONFIRMATION_FAILED",
+      completeAvatar: null,
       deleteStatus: 204,
       deleteErrorCode: "AVATAR_REMOVE_FAILED",
     };
@@ -283,7 +285,7 @@ const server = createServer(async (request, response) => {
       sendJson(response, 404, { error: { code: "NOT_FOUND" } });
       return;
     }
-    avatarConfig.avatar = {
+    avatarConfig.avatar = avatarConfig.completeAvatar ?? {
       asset_id: assetId,
       content_type: pending.contentType,
       byte_size: pending.byteSize,

@@ -109,14 +109,16 @@ export function AccountAvatarMenu() {
       });
       if (response.status === 401) {
         router.push("/login?error=session");
-        return;
+        return false;
       }
       if (!response.ok) throw new Error("ACCOUNT_UNAVAILABLE");
       const payload = (await response.json()) as { data: Account };
       setAccount(payload.data);
       setImageFailed(false);
+      return true;
     } catch {
       setError("Không thể tải thông tin tài khoản.");
+      return false;
     } finally {
       setLoading(false);
     }
@@ -186,8 +188,9 @@ export function AccountAvatarMenu() {
         }
       );
       if (completeResponse.status === 409) {
-        await loadAccount();
-        throw new Error("AVATAR_CHANGED");
+        throw new Error(
+          (await loadAccount()) ? "AVATAR_CHANGED" : "AVATAR_REFRESH_FAILED"
+        );
       }
       if (!completeResponse.ok)
         throw new Error(await responseError(completeResponse, onUnauthorized));
@@ -196,6 +199,7 @@ export function AccountAvatarMenu() {
       setImageFailed(false);
     } catch (cause) {
       const code = cause instanceof Error ? cause.message : "";
+      if (code === "AVATAR_REFRESH_FAILED") return;
       setError(
         code === "AVATAR_CHANGED"
           ? "Ảnh đại diện đã được cập nhật ở nơi khác. Thông tin mới nhất đã được tải."
@@ -216,9 +220,9 @@ export function AccountAvatarMenu() {
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
       if (response.status === 409) {
-        await loadAccount();
+        const refreshed = await loadAccount();
         setConfirmRemove(false);
-        throw new Error("AVATAR_CHANGED");
+        throw new Error(refreshed ? "AVATAR_CHANGED" : "AVATAR_REFRESH_FAILED");
       }
       if (!response.ok)
         throw new Error(await responseError(response, onUnauthorized));
@@ -228,6 +232,7 @@ export function AccountAvatarMenu() {
     } catch (cause) {
       const code = cause instanceof Error ? cause.message : "";
       setConfirmRemove(false);
+      if (code === "AVATAR_REFRESH_FAILED") return;
       setError(
         code === "AVATAR_CHANGED"
           ? "Ảnh đại diện đã được cập nhật ở nơi khác. Thông tin mới nhất đã được tải."

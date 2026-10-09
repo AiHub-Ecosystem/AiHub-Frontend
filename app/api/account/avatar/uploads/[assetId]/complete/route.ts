@@ -4,7 +4,12 @@ import {
   requireWebSession,
   webSessionIdFromRequest,
 } from "@/lib/auth-session";
-import { noStore, unavailable, upstreamFailure } from "@/lib/account-avatar";
+import {
+  isAvatar,
+  noStore,
+  unavailable,
+  upstreamFailure,
+} from "@/lib/account-avatar";
 
 type Context = { params: Promise<{ assetId: string }> };
 
@@ -28,10 +33,13 @@ export async function POST(request: Request, { params }: Context) {
     );
     if (!upstream.ok)
       return upstreamFailure(upstream, "AVATAR_CONFIRMATION_FAILED");
-    return new Response(await upstream.text(), {
-      status: upstream.status,
-      headers: { ...noStore, "Content-Type": "application/json" },
-    });
+    const payload = (await upstream.json()) as { data?: unknown };
+    if (!isAvatar(payload.data) || !payload.data)
+      return unavailable("AVATAR_CONFIRMATION_RESPONSE_INVALID");
+    return Response.json(
+      { data: payload.data },
+      { status: upstream.status, headers: noStore }
+    );
   } catch {
     return unavailable("AVATAR_CONFIRMATION_UNAVAILABLE");
   }
