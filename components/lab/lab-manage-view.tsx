@@ -1,27 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
+import type { AcademicSampleRecord } from "@/lib/academic-lab";
 
 export function LabManageView() {
-  const [samples, setSamples] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedSample, setSelectedSample] = useState<any | null>(null);
+  const [samples, setSamples] = useState<AcademicSampleRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedSample, setSelectedSample] =
+    useState<AcademicSampleRecord | null>(null);
 
   // Filters
   const [filterTask, setFilterTask] = useState("");
   const [filterCriterion, setFilterCriterion] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
-  const fetchSamples = async () => {
-    setIsLoading(true);
+  const fetchSamples = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (filterTask) params.append("task_id", filterTask);
       if (filterCriterion) params.append("criterion", filterCriterion);
       if (filterStatus) params.append("status", filterStatus);
 
-      const res = await fetch(`/api/portal/academic/samples?${params.toString()}`);
-      const data = await res.json();
+      const res = await fetch(
+        `/api/portal/academic/samples?${params.toString()}`
+      );
+      const data = (await res.json()) as {
+        success?: boolean;
+        data?: { items?: AcademicSampleRecord[] };
+      };
       if (data.success && data.data?.items) {
         setSamples(data.data.items);
       } else {
@@ -93,15 +99,17 @@ export function LabManageView() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filterTask, filterCriterion, filterStatus]);
 
   useEffect(() => {
-    fetchSamples();
-  }, [filterTask, filterCriterion, filterStatus]);
+    // The callback starts a fetch and updates React state after its response resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchSamples();
+  }, [fetchSamples]);
 
   const toggleFavorite = (id: string) => {
     setSamples((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, isFavorite: !s.isFavorite } : s)),
+      prev.map((s) => (s.id === id ? { ...s, isFavorite: !s.isFavorite } : s))
     );
   };
 
@@ -112,7 +120,10 @@ export function LabManageView() {
         <div className="flex flex-wrap items-center gap-3">
           <select
             value={filterTask}
-            onChange={(e) => setFilterTask(e.target.value)}
+            onChange={(e) => {
+              setIsLoading(true);
+              setFilterTask(e.target.value);
+            }}
             className="text-xs font-semibold p-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
           >
             <option value="">Tất cả Task</option>
@@ -122,7 +133,10 @@ export function LabManageView() {
 
           <select
             value={filterCriterion}
-            onChange={(e) => setFilterCriterion(e.target.value)}
+            onChange={(e) => {
+              setIsLoading(true);
+              setFilterCriterion(e.target.value);
+            }}
             className="text-xs font-semibold p-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
           >
             <option value="">Tất cả Tiêu chí</option>
@@ -135,7 +149,10 @@ export function LabManageView() {
 
           <select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            onChange={(e) => {
+              setIsLoading(true);
+              setFilterStatus(e.target.value);
+            }}
             className="text-xs font-semibold p-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
           >
             <option value="">Tất cả Trạng thái</option>
@@ -145,7 +162,10 @@ export function LabManageView() {
         </div>
 
         <button
-          onClick={fetchSamples}
+          onClick={() => {
+            setIsLoading(true);
+            void fetchSamples();
+          }}
           className="px-4 py-1.5 text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1.5"
         >
           <span>↻</span> Làm mới danh sách
@@ -180,13 +200,18 @@ export function LabManageView() {
               {!isLoading && samples.length === 0 && (
                 <tr>
                   <td colSpan={9} className="p-12 text-center text-gray-400">
-                    Chưa có mẫu nào được lưu trong cơ sở dữ liệu. Hãy chuyển sang Tab 'Generate Sample' để tạo và chấm mẫu đầu tiên!
+                    Chưa có mẫu nào được lưu trong cơ sở dữ liệu. Hãy chuyển
+                    sang Tab &apos;Generate Sample&apos; để tạo và chấm mẫu đầu
+                    tiên!
                   </td>
                 </tr>
               )}
               {!isLoading &&
                 samples.map((sample) => (
-                  <tr key={sample.id} className="hover:bg-gray-50/80 transition-colors">
+                  <tr
+                    key={sample.id}
+                    className="hover:bg-gray-50/80 transition-colors"
+                  >
                     <td className="p-4 text-center">
                       <button
                         onClick={() => toggleFavorite(sample.id)}
@@ -196,14 +221,22 @@ export function LabManageView() {
                       </button>
                     </td>
                     <td className="p-4 text-gray-900 font-semibold">
-                      {new Date(sample.createdAt).toLocaleDateString("vi-VN")}
+                      {new Date(sample.createdAt || "").toLocaleDateString(
+                        "vi-VN"
+                      )}
                     </td>
                     <td className="p-4 uppercase font-bold text-slate-800">
                       {sample.taskId === "task_1" ? "Task 1" : "Task 2"}
                     </td>
-                    <td className="p-4 text-blue-700 font-semibold">{sample.criterion}</td>
-                    <td className="p-4 font-mono text-slate-700">{sample.errorCode}</td>
-                    <td className="p-4 font-mono text-purple-700">{sample.questionType}</td>
+                    <td className="p-4 text-blue-700 font-semibold">
+                      {sample.criterion}
+                    </td>
+                    <td className="p-4 font-mono text-slate-700">
+                      {sample.errorCode}
+                    </td>
+                    <td className="p-4 font-mono text-purple-700">
+                      {sample.questionType}
+                    </td>
                     <td className="p-4 capitalize">{sample.topic}</td>
                     <td className="p-4">
                       <span
@@ -237,12 +270,19 @@ export function LabManageView() {
           <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] shadow-2xl flex flex-col overflow-hidden">
             <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-gray-50">
               <div>
-                <h3 className="text-sm font-bold text-gray-900">Chi tiết Mẫu: {selectedSample.id}</h3>
+                <h3 className="text-sm font-bold text-gray-900">
+                  Chi tiết Mẫu: {selectedSample.id}
+                </h3>
                 <p className="text-xs text-gray-500">
-                  {selectedSample.taskId?.toUpperCase()} • {selectedSample.criterion} • {selectedSample.errorCode} • {selectedSample.topic}
+                  {selectedSample.taskId?.toUpperCase()} •{" "}
+                  {selectedSample.criterion} • {selectedSample.errorCode} •{" "}
+                  {selectedSample.topic}
                 </p>
               </div>
-              <button onClick={() => setSelectedSample(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg">
+              <button
+                onClick={() => setSelectedSample(null)}
+                className="text-gray-400 hover:text-gray-600 font-bold text-lg"
+              >
                 ✕
               </button>
             </div>
@@ -250,15 +290,23 @@ export function LabManageView() {
             <div className="p-6 overflow-y-auto space-y-4">
               {selectedSample.rejectReason && (
                 <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900">
-                  <span className="font-bold block mb-1">Lý do từ chối (Reject Reason):</span>
+                  <span className="font-bold block mb-1">
+                    Lý do từ chối (Reject Reason):
+                  </span>
                   <p>{selectedSample.rejectReason}</p>
                 </div>
               )}
 
               <div>
-                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Final Output (Dữ liệu huấn luyện đã duyệt):</h4>
+                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  Final Output (Dữ liệu huấn luyện đã duyệt):
+                </h4>
                 <pre className="p-4 bg-slate-900 text-slate-100 rounded-xl text-xs overflow-auto max-h-[400px] font-mono leading-relaxed">
-                  {JSON.stringify(selectedSample.finalOutput || selectedSample, null, 2)}
+                  {JSON.stringify(
+                    selectedSample.finalOutput || selectedSample,
+                    null,
+                    2
+                  )}
                 </pre>
               </div>
             </div>

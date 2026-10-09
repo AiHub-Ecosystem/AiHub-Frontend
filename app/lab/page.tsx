@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import Image from "next/image";
 import Link from "next/link";
 import { ClearStaleSession } from "@/components/clear-stale-session";
 import { LoginForm } from "@/components/auth/login-form";
@@ -9,7 +10,6 @@ import {
   isWebSessionId,
   WEB_SESSION_COOKIE,
 } from "@/lib/auth-session";
-import { getLoginErrorMessage } from "@/lib/auth-messages";
 import { AcademicLabView } from "./academic-lab-view";
 import "../aihub.css";
 import "../auth.css";
@@ -105,7 +105,7 @@ export default async function LabPage({ searchParams }: LabPageProps) {
 
         <div className="background-elements" aria-hidden="true">
           <div className="cloud-left ready show">
-            <img
+            <Image
               src="/assets/img/clouds-1.webp"
               alt=""
               width={420}
@@ -113,7 +113,7 @@ export default async function LabPage({ searchParams }: LabPageProps) {
             />
           </div>
           <div className="cloud-right ready show">
-            <img
+            <Image
               src="/assets/img/clouds-2.webp"
               alt=""
               width={382}
@@ -121,7 +121,7 @@ export default async function LabPage({ searchParams }: LabPageProps) {
             />
           </div>
           <div className="hero-castle ready show">
-            <img
+            <Image
               src="/assets/img/hero-castle.webp"
               alt=""
               width={1137}
@@ -129,7 +129,7 @@ export default async function LabPage({ searchParams }: LabPageProps) {
             />
           </div>
           <div className="hero-waterfall ready show">
-            <img
+            <Image
               src="/assets/img/hero-waterfall.webp"
               alt=""
               width={800}
@@ -137,7 +137,7 @@ export default async function LabPage({ searchParams }: LabPageProps) {
             />
           </div>
           <div className="hero-bg ready show">
-            <img
+            <Image
               alt=""
               src="/meltano-mirror/next/static/media/Mountainsback.1bef34c0.svg"
               className="full-width-img"
@@ -146,7 +146,7 @@ export default async function LabPage({ searchParams }: LabPageProps) {
             />
           </div>
           <div className="hero-bg ready show">
-            <img
+            <Image
               alt=""
               src="/meltano-mirror/next/static/media/Mountainsfront.f78aed9f.svg"
               className="full-width-img"

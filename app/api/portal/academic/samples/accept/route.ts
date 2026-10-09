@@ -22,13 +22,13 @@ export async function POST(request: Request) {
     );
     const data = await backendRes.json();
     return NextResponse.json(data, { status: backendRes.status });
-  } catch (err: any) {
+  } catch {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: "BACKEND_UNREACHABLE",
-          message: err.message || "Failed to reach backend service",
+          message: "Failed to reach backend service",
         },
       },
       { status: 502 }
