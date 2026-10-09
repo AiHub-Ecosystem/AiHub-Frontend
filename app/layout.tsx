@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { HydrationMarker } from "@/components/hydration-marker";
+import { AccountAvatarMenu } from "@/components/account-avatar-menu";
 import { MirrorInteractions } from "@/components/mirror-interactions";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import "./meltano-source.css";
@@ -21,6 +22,7 @@ export default function RootLayout({
       <body>
         <MirrorInteractions />
         <SiteHeader />
+        <AccountAvatarMenu />
         {children}
         <SiteFooter />
         <HydrationMarker />

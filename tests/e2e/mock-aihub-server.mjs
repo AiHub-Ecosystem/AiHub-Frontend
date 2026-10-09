@@ -5,6 +5,7 @@ const host = "127.0.0.1";
 const port = 3101;
 const requests = [];
 const authRequests = [];
+const avatarRequests = [];
 const organizationRequests = [];
 const speakingRequests = [];
 const speakingAssertions = [];
@@ -44,6 +45,17 @@ let authMode = {
   forgotDown: false,
   resetDown: false,
 };
+let avatarConfig = {
+  username: "test-user",
+  avatar: null,
+  uploadStatus: 201,
+  uploadErrorCode: "AVATAR_UPLOAD_DENIED",
+  completeStatus: 201,
+  completeErrorCode: "AVATAR_CONFIRMATION_FAILED",
+  deleteStatus: 204,
+  deleteErrorCode: "AVATAR_REMOVE_FAILED",
+};
+let avatarUploadSequence = 0;
 let latestBrowserBindingHash = null;
 
 function browserBindingHash(value) {
@@ -92,8 +104,25 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "GET" && pathname === "/__test__/avatar/requests") {
+    sendJson(response, 200, { requests: avatarRequests });
+    return;
+  }
+
   if (request.method === "POST" && pathname === "/__test__/auth/reset") {
     authRequests.length = 0;
+    avatarRequests.length = 0;
+    avatarConfig = {
+      username: "test-user",
+      avatar: null,
+      uploadStatus: 201,
+      uploadErrorCode: "AVATAR_UPLOAD_DENIED",
+      completeStatus: 201,
+      completeErrorCode: "AVATAR_CONFIRMATION_FAILED",
+      deleteStatus: 204,
+      deleteErrorCode: "AVATAR_REMOVE_FAILED",
+    };
+    avatarUploadSequence = 0;
     latestBrowserBindingHash = null;
     webSessions.clear();
     authMode = {
@@ -133,6 +162,12 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "POST" && pathname === "/__test__/avatar/config") {
+    avatarConfig = { ...avatarConfig, ...(await readJson(request)) };
+    response.writeHead(204).end();
+    return;
+  }
+
   if (
     request.method === "GET" &&
     pathname === "/__test__/organizations/requests"
@@ -161,6 +196,118 @@ const server = createServer(async (request, response) => {
     pathname === "/__test__/organizations/state"
   ) {
     sendJson(response, 200, { organizations: organizationConfig.roster });
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/v1/me") {
+    avatarRequests.push({ method: "GET", path: "identity" });
+    sendJson(
+      response,
+      200,
+      {
+        data: { username: avatarConfig.username },
+        meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+      },
+      { "Cache-Control": "no-store" }
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/v1/me/avatar") {
+    avatarRequests.push({ method: "GET", path: "avatar" });
+    sendJson(
+      response,
+      200,
+      {
+        data: { avatar: avatarConfig.avatar },
+        meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+      },
+      { "Cache-Control": "no-store" }
+    );
+    return;
+  }
+
+  if (request.method === "POST" && pathname === "/v1/me/avatar/uploads") {
+    const body = await readJson(request);
+    avatarRequests.push({
+      method: "POST",
+      path: "upload-grant",
+      contentType: body.content_type,
+      byteSize: body.byte_size,
+      hasAuthorization: Boolean(request.headers.authorization),
+    });
+    if (avatarConfig.uploadStatus !== 201) {
+      sendJson(response, avatarConfig.uploadStatus, {
+        error: { code: avatarConfig.uploadErrorCode },
+      });
+      return;
+    }
+    const assetId = `ava_${String(++avatarUploadSequence).padStart(26, "0")}`;
+    avatarConfig.pendingUpload = {
+      assetId,
+      contentType: body.content_type,
+      byteSize: body.byte_size,
+    };
+    sendJson(response, 201, {
+      data: {
+        asset_id: assetId,
+        upload_url:
+          avatarConfig.uploadUrl ?? `https://s3.wispace.app/upload/${assetId}`,
+        method: "PUT",
+        headers: {
+          "Content-Type": body.content_type,
+          "Content-Length": String(body.byte_size),
+          "Cache-Control": "public, max-age=3600",
+        },
+        expires_at: new Date(Date.now() + 5 * 60_000).toISOString(),
+      },
+      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+    });
+    return;
+  }
+
+  const avatarCompleteMatch = pathname.match(
+    /^\/v1\/me\/avatar\/uploads\/([^/]+)\/complete$/
+  );
+  if (request.method === "POST" && avatarCompleteMatch) {
+    const assetId = decodeURIComponent(avatarCompleteMatch[1]);
+    avatarRequests.push({ method: "POST", path: "complete", assetId });
+    if (avatarConfig.completeStatus !== 201) {
+      sendJson(response, avatarConfig.completeStatus, {
+        error: { code: avatarConfig.completeErrorCode },
+      });
+      return;
+    }
+    const pending = avatarConfig.pendingUpload;
+    if (!pending || pending.assetId !== assetId) {
+      sendJson(response, 404, { error: { code: "NOT_FOUND" } });
+      return;
+    }
+    avatarConfig.avatar = {
+      asset_id: assetId,
+      content_type: pending.contentType,
+      byte_size: pending.byteSize,
+      accepted_at: new Date().toISOString(),
+      url: `https://s3.wispace.app/${assetId}.webp`,
+    };
+    avatarConfig.pendingUpload = null;
+    sendJson(response, 201, {
+      data: avatarConfig.avatar,
+      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+    });
+    return;
+  }
+
+  if (request.method === "DELETE" && pathname === "/v1/me/avatar") {
+    avatarRequests.push({ method: "DELETE", path: "avatar" });
+    if (avatarConfig.deleteStatus !== 204) {
+      sendJson(response, avatarConfig.deleteStatus, {
+        error: { code: avatarConfig.deleteErrorCode },
+      });
+      return;
+    }
+    avatarConfig.avatar = null;
+    response.writeHead(204, { "Cache-Control": "no-store" }).end();
     return;
   }
 

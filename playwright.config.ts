@@ -12,6 +12,7 @@ const speakingEnv = {
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  outputDir: "./test-results/playwright-artifacts",
   fullyParallel: false,
   // ponytail: mock state is global; add per-worker mock instances before raising workers.
   workers: 1,
