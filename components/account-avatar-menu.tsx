@@ -168,7 +168,7 @@ export function AccountAvatarMenu() {
       };
 
       const signedHeaders = new Headers(grant.headers);
-      // Fetch controls Content-Length; the File body supplies the signed byte size.
+      // Fetch controls Content-Length; completion checks the stored file size.
       signedHeaders.delete("Content-Length");
       const storageResponse = await fetch(grant.upload_url, {
         method: grant.method,
