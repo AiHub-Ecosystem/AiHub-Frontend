@@ -1,6 +1,7 @@
 import { API_KEY_SCOPE_CATALOG } from "@/lib/api-key-scopes";
 import { API_KEY_ENVIRONMENTS } from "@/lib/api-keys";
 import { validatedOrganizationName } from "@/lib/organizations";
+import { rejectedWebSessionCookie } from "@/lib/auth-session";
 
 export const apiKeyNoStore = { "Cache-Control": "no-store" };
 
@@ -167,13 +168,20 @@ export async function forwardApiKeyResponse(
   const responseText = new TextDecoder().decode(bytes);
   if (!upstream.ok) {
     const code = errorCode(upstream.status, responseText);
+    const clearCookie = rejectedWebSessionCookie(upstream);
     console.warn("[api-keys] upstream request failed", {
       status: upstream.status,
       code,
     });
     return Response.json(
       { error: { code } },
-      { status: upstream.status, headers: apiKeyNoStore }
+      {
+        status: upstream.status,
+        headers: {
+          ...apiKeyNoStore,
+          ...(clearCookie ? { "Set-Cookie": clearCookie } : {}),
+        },
+      }
     );
   }
   if (upstream.status === 204)

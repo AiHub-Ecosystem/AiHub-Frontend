@@ -1,4 +1,5 @@
 import "server-only";
+import { redirect } from "next/navigation";
 import { customerWebOrigin, WEB_SESSION_COOKIE } from "@/lib/auth-session";
 import {
   parseOrganizationApiKeyList,
@@ -12,8 +13,9 @@ import {
 export async function readOrganizationRoster(
   sessionId: string
 ): Promise<OrganizationMembership[] | null> {
+  let response: Response;
   try {
-    const response = await fetch(
+    response = await fetch(
       new URL("/api/organizations/me/members", customerWebOrigin()),
       {
         headers: { Cookie: `${WEB_SESSION_COOKIE}=${sessionId}` },
@@ -21,7 +23,12 @@ export async function readOrganizationRoster(
         signal: AbortSignal.timeout(8_000),
       }
     );
-    if (!response.ok) return null;
+  } catch {
+    return null;
+  }
+  if (response.status === 401) redirect("/login?error=session");
+  if (!response.ok) return null;
+  try {
     return parseOrganizationRoster(await response.json());
   } catch {
     return null;
@@ -33,8 +40,9 @@ export async function readOrganizationApiKeys(
   sessionId: string,
   organizationId: string
 ): Promise<OrganizationApiKey[] | null> {
+  let response: Response;
   try {
-    const response = await fetch(
+    response = await fetch(
       new URL(
         `/api/organizations/${encodeURIComponent(organizationId)}/api-keys`,
         customerWebOrigin()
@@ -45,7 +53,12 @@ export async function readOrganizationApiKeys(
         signal: AbortSignal.timeout(8_000),
       }
     );
-    if (!response.ok) return null;
+  } catch {
+    return null;
+  }
+  if (response.status === 401) redirect("/login?error=session");
+  if (!response.ok) return null;
+  try {
     return parseOrganizationApiKeyList(await response.json());
   } catch {
     return null;

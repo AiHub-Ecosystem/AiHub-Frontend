@@ -1,45 +1,39 @@
 import {
+  getCurrentWebSession,
   isWebSessionId,
   originIsAllowed,
-  touchWebSession,
   WEB_SESSION_TTL_SECONDS,
-  webSessionIdFromRequest,
   webSessionCookie,
+  webSessionIdFromRequest,
 } from "@/lib/auth-session";
+
+const noStore = { "Cache-Control": "no-store" };
 
 export async function POST(request: Request) {
   if (!originIsAllowed(request))
-    return new Response(null, {
-      status: 403,
-      headers: { "Cache-Control": "no-store" },
-    });
-  const sessionId = webSessionIdFromRequest(request);
+    return new Response(null, { status: 403, headers: noStore });
+  const token = webSessionIdFromRequest(request);
 
-  if (!isWebSessionId(sessionId)) {
+  if (!isWebSessionId(token))
     return new Response(null, {
       status: 401,
-      headers: {
-        "Cache-Control": "no-store",
-        "Set-Cookie": webSessionCookie("", 0),
-      },
+      headers: { ...noStore, "Set-Cookie": webSessionCookie("", 0) },
     });
-  }
+
   try {
-    const active = await touchWebSession(sessionId);
+    if (!(await getCurrentWebSession(token)))
+      return new Response(null, {
+        status: 401,
+        headers: { ...noStore, "Set-Cookie": webSessionCookie("", 0) },
+      });
     return new Response(null, {
-      status: active ? 204 : 401,
+      status: 204,
       headers: {
-        "Cache-Control": "no-store",
-        "Set-Cookie": webSessionCookie(
-          active ? sessionId : "",
-          active ? WEB_SESSION_TTL_SECONDS : 0
-        ),
+        ...noStore,
+        "Set-Cookie": webSessionCookie(token, WEB_SESSION_TTL_SECONDS),
       },
     });
   } catch {
-    return new Response(null, {
-      status: 503,
-      headers: { "Cache-Control": "no-store" },
-    });
+    return new Response(null, { status: 503, headers: noStore });
   }
 }

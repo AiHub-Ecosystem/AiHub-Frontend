@@ -1,5 +1,6 @@
 import {
   authenticatedAihubFetch,
+  rejectedWebSessionCookie,
   requireWebSession,
   webSessionIdFromRequest,
 } from "@/lib/auth-session";
@@ -14,11 +15,22 @@ export async function GET(request: Request) {
       "/v1/organizations/me/members"
     );
     if (!upstream.ok) {
+      const clearCookie = rejectedWebSessionCookie(upstream);
       return Response.json(
-        { success: false, error: { code: "ORGANIZATION_ROSTER_UNAVAILABLE" } },
         {
-          status: upstream.status === 401 ? 401 : 503,
-          headers: { "Cache-Control": "no-store" },
+          success: false,
+          error: {
+            code: clearCookie
+              ? "AUTH_REQUIRED"
+              : "ORGANIZATION_ROSTER_UNAVAILABLE",
+          },
+        },
+        {
+          status: clearCookie ? 401 : 503,
+          headers: {
+            "Cache-Control": "no-store",
+            ...(clearCookie ? { "Set-Cookie": clearCookie } : {}),
+          },
         }
       );
     }

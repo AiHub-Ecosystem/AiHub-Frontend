@@ -76,16 +76,18 @@ Giao diện phòng Lab được thiết kế đồng nhất 100% với phong cá
 
 ## Đăng nhập Customer Web
 
-Luồng `/login` dùng email/mật khẩu AIHub và giữ User Access JWT cùng Refresh Token trong Web Session tại Redis riêng. Chỉ cookie Web Session dạng opaque được gửi tới trình duyệt. Cấu hình server-only:
+AIHUB sở hữu Web Session. Trình duyệt chỉ nhận token opaque trong cookie `HttpOnly`; BFF đổi token server-to-server lấy User Access JWT 15 phút và chỉ cache JWT trong memory của từng process. Frontend không cần session Redis. Người dùng đăng nhập lại một lần sau cutover vì Redis session cũ không được migrate.
+
+Cấu hình runtime server-only:
 
 ```text
 AIHUB_BASE_URL=https://<aihub-api-origin>
 CUSTOMER_WEB_ORIGIN=https://<customer-web-origin>
-REDIS_URL=rediss://<credentials>@<dedicated-session-redis-host>:6379
+AIHUB_WEB_SESSION_CLIENT_SECRET=<same-value-provisioned-from-Vault>
 ```
 
-Redis này phải tách biệt Redis của control plane, bật AOF persistence, không publish port ra host/public network và chỉ cho container `aihub-frontend` truy cập qua private network. VPS compose được quản lý ngoài repository. Chưa rollout rộng cho tài khoản cũ cho đến khi issue #4 có luồng reset mật khẩu.
+`AIHUB_WEB_SESSION_CLIENT_SECRET` bắt buộc ở production và staging; provision cùng secret từ Vault trước khi cutover. Không đưa secret vào browser hay commit vào repository. Logout luôn xóa cookie; AIHUB revoke được gọi best-effort, nên outage có thể khiến token đã copy còn exchangeable tới khi session hết hạn hoặc được revoke.
 
 Luồng đăng ký và xác minh email dùng `/register`, `/verify-email` và các BFF route `/api/auth/*`. Token xác minh được xóa khỏi URL trước khi gửi tới BFF; cấu hình reverse proxy/access log trên VPS phải bỏ hoặc che query string cho `/verify-email`.
 
-Playwright auth tests khởi chạy Redis 7 cô lập bằng Docker cùng AIHUB mock và Next.js trên loopback; không cần thông tin đăng nhập hay endpoint production.
+Playwright auth tests dùng AIHUB mock và hai Next.js instance trên loopback, không cần Redis, Docker hay endpoint production. VPS Compose được quản lý ngoài repository; xóa service Redis đang chạy là một thao tác ops riêng sau cutover. Xem [ADR-0016](docs/adr/0016-aihub-owned-web-sessions.md).

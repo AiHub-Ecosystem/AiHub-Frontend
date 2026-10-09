@@ -67,6 +67,10 @@ export function OrganizationIdentityForm({
         }
       );
       const result = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        router.replace("/login?error=session");
+        return;
+      }
       if (response.status === 403) {
         setIssuer("");
         setJwksUrl("");

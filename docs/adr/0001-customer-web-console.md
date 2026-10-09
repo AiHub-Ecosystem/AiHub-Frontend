@@ -4,6 +4,8 @@
 - Date: 2026-09-23
 - Issue: [#1](https://github.com/AiHub-Ecosystem/AiHub-Frontend/issues/1)
 
+> **Update (2026-10-09):** The session-storage decision below is superseded by [ADR-0016](0016-aihub-owned-web-sessions.md). The Customer Web still uses an opaque HttpOnly session cookie, but AIHUB owns the Web Session and the frontend no longer requires dedicated Redis.
+
 ## Context
 
 This repository is the AIHUB Customer Web: the public site, API documentation, demos, and signed-in Console served from one origin. The repository planned as `aihub-sandbox-demo` was not restored; `AiHub-Frontend` is the Customer Web repository.
@@ -16,7 +18,7 @@ ADR-0046 also describes the sandbox as invite-only and says public sign-up is no
 
 - Treat `AiHub-Frontend` as the AIHUB Customer Web. The Customer Web includes public registration and a signed-in Console where a User Account manages Organizations, members, and API keys.
 - Allow public User Account registration and email verification, and allow a User Account to create a Self-serve Organization in the Console. This is an intentional Customer Web product decision that replaces the invite-only sandbox sign-up policy described in ADR-0046; it does not change the backend's identity, membership, or authorization contracts.
-- Keep all credentials out of the browser. The browser receives only an opaque Web Session cookie; the BFF holds the User Access JWT and Refresh Token in a Web Session stored in a dedicated Redis instance, separate from the control-plane Redis. API keys remain server-side and are never returned to the browser.
+- **Superseded by [ADR-0016](0016-aihub-owned-web-sessions.md):** keep credentials out of the browser and use a dedicated Redis instance for Customer Web sessions. API keys remain server-side and are never returned to the browser.
 - Place the signed-in Console under `/console`. Include the Organization identifier in Organization routes, shaped as `/console/orgs/[organizationId]/...`.
 - Keep email-link pages at `/verify-email`, `/reset-password`, and `/invite`, matching the paths used by backend emails.
 - Use the already-installed Tailwind v4 and add no component library.
@@ -25,7 +27,7 @@ ADR-0046 also describes the sandbox as invite-only and says public sign-up is no
 ## Consequences
 
 - Future Console slices must route credentialed AIHUB requests through the BFF and use the server-side Web Session; browser code must never receive access tokens, refresh tokens, or API keys.
-- Dedicated Redis is required for Web Session storage and must not be shared with the control-plane Redis.
+- The dedicated Redis session requirement above is superseded by ADR-0016; Customer Web no longer requires Redis for Web Sessions.
 - Public registration and Self-serve Organization creation are Customer Web product policy. They intentionally differ from ADR-0046's invite-only sandbox language; the remaining applicable backend identity and session boundaries are retained.
 - The email-link route paths are part of the integration contract and must stay aligned with backend-generated links.
 

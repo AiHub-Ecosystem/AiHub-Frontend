@@ -1,161 +1,21 @@
-import { randomBytes, randomUUID } from "node:crypto";
-import { createClient } from "redis";
-import { isWebSessionId, webSessionIdFromRequest } from "@/lib/auth-cookies";
+import {
+  isWebSessionId,
+  webSessionCookie,
+  webSessionIdFromRequest,
+} from "@/lib/auth-cookies";
 
-export const AIHUB_REFRESH_COOKIE = "__Host-aihub_refresh";
-export const WEB_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 export * from "@/lib/auth-cookies";
+
+export const WEB_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
+const ACCESS_TOKEN_EARLY_MS = 60_000;
 
 type WebSession = {
   accessToken: string;
   accessTokenExpiresAt: number;
-  refreshToken: string;
 };
 
-const SESSION_PREFIX = "customer-web:session:";
-const REFRESH_LOCK_PREFIX = "customer-web:refresh-lock:";
-const REFRESH_EARLY_MS = 60_000;
-const REFRESH_LOCK_MS = 15_000;
-const REFRESH_WAIT_MS = 12_000;
-
-let redisClient: ReturnType<typeof createClient> | undefined;
-let redisConnection: Promise<ReturnType<typeof createClient>> | undefined;
-let redisErrorLogged = false;
-
-async function redis() {
-  const url = process.env.REDIS_URL;
-  if (!url) throw new Error("REDIS_URL is required");
-
-  if (!redisClient) {
-    redisClient = createClient({
-      url,
-      socket: { connectTimeout: 5_000, reconnectStrategy: false },
-    });
-    redisClient.on("error", () => {
-      if (!redisErrorLogged) console.error("[auth] Redis connection error");
-      redisErrorLogged = true;
-    });
-    redisClient.on("ready", () => {
-      redisErrorLogged = false;
-    });
-  }
-  if (!redisClient.isReady) {
-    redisConnection ??= redisClient
-      .connect()
-      .then(() => redisClient!)
-      .finally(() => {
-        redisConnection = undefined;
-      });
-    await redisConnection;
-  }
-  return redisClient;
-}
-
-function sessionKey(id: string) {
-  return `${SESSION_PREFIX}${id}`;
-}
-
-export async function getWebSession(id: string): Promise<WebSession | null> {
-  if (!isWebSessionId(id)) return null;
-  const stored = await (await redis()).get(sessionKey(id));
-  if (!stored) return null;
-  try {
-    const session = JSON.parse(stored) as WebSession;
-    return typeof session.accessToken === "string" &&
-      session.accessToken.length > 0 &&
-      Number.isFinite(session.accessTokenExpiresAt) &&
-      typeof session.refreshToken === "string" &&
-      session.refreshToken.length > 0
-      ? session
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-export async function requireWebSession(request: Request) {
-  const sessionId = webSessionIdFromRequest(request);
-  const headers = {
-    "Cache-Control": "no-store",
-    "Content-Type": "application/json",
-  };
-
-  if (!isWebSessionId(sessionId)) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: { code: "AUTH_REQUIRED", message: "Sign-in required." },
-      }),
-      { status: 401, headers }
-    );
-  }
-
-  try {
-    if (await getWebSession(sessionId)) return null;
-  } catch {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: { code: "AUTH_UNAVAILABLE", message: "Sign-in is unavailable." },
-      }),
-      { status: 503, headers }
-    );
-  }
-
-  return new Response(
-    JSON.stringify({
-      success: false,
-      error: { code: "AUTH_REQUIRED", message: "Sign-in required." },
-    }),
-    { status: 401, headers }
-  );
-}
-
-async function saveWebSession(id: string, session: WebSession) {
-  await (
-    await redis()
-  ).set(sessionKey(id), JSON.stringify(session), {
-    expiration: { type: "EX", value: WEB_SESSION_TTL_SECONDS },
-  });
-}
-
-async function saveRefreshedWebSession(
-  id: string,
-  session: WebSession,
-  lockKey: string,
-  lockValue: string
-) {
-  return (
-    (await (
-      await redis()
-    ).eval(
-      "if redis.call('GET', KEYS[2]) == ARGV[2] and redis.call('EXISTS', KEYS[1]) == 1 then return redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[3]) else return 0 end",
-      {
-        keys: [sessionKey(id), lockKey],
-        arguments: [
-          JSON.stringify(session),
-          lockValue,
-          String(WEB_SESSION_TTL_SECONDS),
-        ],
-      }
-    )) === "OK"
-  );
-}
-
-export async function createWebSession(session: WebSession): Promise<string> {
-  const id = randomBytes(32).toString("base64url");
-  await saveWebSession(id, session);
-  return id;
-}
-
-export async function deleteWebSession(id: string) {
-  await (await redis()).del(sessionKey(id));
-}
-
-export async function touchWebSession(id: string) {
-  if (!(await getWebSession(id))) return false;
-  return (await redis()).expire(sessionKey(id), WEB_SESSION_TTL_SECONDS);
-}
+const sessions = new Map<string, WebSession>();
+const exchanges = new Map<string, Promise<WebSession | null>>();
 
 export function safeLocalPath(
   value: string | null | undefined,
@@ -203,115 +63,158 @@ export function aihubUrl(path: string) {
   return `${base.replace(/\/$/, "")}${path}`;
 }
 
-export function extractRefreshToken(headers: Headers) {
-  const setCookies =
-    typeof headers.getSetCookie === "function"
-      ? headers.getSetCookie()
-      : [headers.get("set-cookie") ?? ""];
-  const cookie = setCookies.find((value) =>
-    value.startsWith(`${AIHUB_REFRESH_COOKIE}=`)
-  );
-  const pair = cookie?.split(";", 1)[0];
-  const value = pair?.slice(AIHUB_REFRESH_COOKIE.length + 1);
-  return value && /^[\x21-\x3A\x3C-\x7E]+$/.test(value) ? value : null;
+function clientSecret() {
+  const secret = process.env.AIHUB_WEB_SESSION_CLIENT_SECRET;
+  const required =
+    process.env.NODE_ENV === "production" ||
+    ["production", "staging"].includes(
+      process.env.APP_ENV?.toLowerCase() ?? ""
+    );
+  if (required && !secret)
+    throw new Error("AIHUB Web Session secret is required");
+  return secret;
 }
 
-async function refreshWebSession(
-  id: string,
-  previousAccessToken?: string
-): Promise<WebSession | null> {
-  const lockKey = `${REFRESH_LOCK_PREFIX}${id}`;
-  const lockValue = randomUUID();
-  const redisClient = await redis();
-  const deadline = Date.now() + REFRESH_WAIT_MS;
+export async function postAihubWebSession(path: string, body: unknown) {
+  const secret = clientSecret();
+  return fetch(aihubUrl(path), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(secret ? { "X-AIHUB-Client-Secret": secret } : {}),
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+    signal: AbortSignal.timeout(8_000),
+  });
+}
 
-  while (Date.now() < deadline) {
-    const locked = await redisClient.set(lockKey, lockValue, {
-      condition: "NX",
-      expiration: { type: "PX", value: REFRESH_LOCK_MS },
-    });
-
-    if (locked) {
-      try {
-        const latest = await getWebSession(id);
-        if (!latest) return null;
-        if (previousAccessToken && latest.accessToken !== previousAccessToken)
-          return latest;
-        if (
-          !previousAccessToken &&
-          latest.accessTokenExpiresAt > Date.now() + REFRESH_EARLY_MS
-        )
-          return latest;
-
-        const response = await fetch(aihubUrl("/v1/auth/refresh"), {
-          method: "POST",
-          headers: { Cookie: `${AIHUB_REFRESH_COOKIE}=${latest.refreshToken}` },
-          cache: "no-store",
-          signal: AbortSignal.timeout(8_000),
-        });
-        if (response.status === 401) {
-          await deleteWebSession(id);
-          return null;
-        }
-        if (!response.ok)
-          throw new Error(`AIHUB refresh failed (${response.status})`);
-
-        const body = (await response.json()) as {
-          data?: { access_token?: unknown; expires_in?: unknown };
-        };
-        const refreshToken = extractRefreshToken(response.headers);
-        if (
-          typeof body.data?.access_token !== "string" ||
-          !body.data.access_token ||
-          typeof body.data.expires_in !== "number" ||
-          !Number.isFinite(body.data.expires_in) ||
-          body.data.expires_in <= 0 ||
-          body.data.expires_in > 900 ||
-          !refreshToken
-        ) {
-          throw new Error("AIHUB refresh response is invalid");
-        }
-
-        const updated = {
-          accessToken: body.data.access_token,
-          accessTokenExpiresAt: Date.now() + body.data.expires_in * 1000,
-          refreshToken,
-        };
-        if (!(await saveRefreshedWebSession(id, updated, lockKey, lockValue)))
-          return null;
-        return updated;
-      } finally {
-        await redisClient.eval(
-          "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end",
-          { keys: [lockKey], arguments: [lockValue] }
-        );
-      }
-    }
-
-    const latest = await getWebSession(id);
-    if (!latest) return null;
-    if (previousAccessToken && latest.accessToken !== previousAccessToken)
-      return latest;
-    if (
-      !previousAccessToken &&
-      latest.accessTokenExpiresAt > Date.now() + REFRESH_EARLY_MS
-    )
-      return latest;
-    await new Promise((resolve) => setTimeout(resolve, 50));
+export async function readCreatedWebSession(response: Response) {
+  const body = (await response.json()) as {
+    data?: { web_session_token?: unknown; expires_at?: unknown };
+  };
+  const token = body.data?.web_session_token;
+  const expiresAt = body.data?.expires_at;
+  if (
+    typeof token !== "string" ||
+    !isWebSessionId(token) ||
+    typeof expiresAt !== "string" ||
+    !Number.isFinite(Date.parse(expiresAt))
+  ) {
+    throw new Error("AIHUB Web Session response is invalid");
   }
-  throw new Error("Timed out waiting for AIHUB token refresh");
+  return token;
 }
 
-export async function getCurrentWebSession(id: string) {
-  const session = await getWebSession(id);
-  if (!session) return null;
-  return session.accessTokenExpiresAt <= Date.now() + REFRESH_EARLY_MS
-    ? refreshWebSession(id)
-    : session;
+async function exchangeWebSession(token: string): Promise<WebSession | null> {
+  if (!isWebSessionId(token)) return null;
+  let response: Response;
+  try {
+    response = await postAihubWebSession("/v1/auth/web-sessions/exchange", {
+      web_session_token: token,
+    });
+  } catch {
+    throw new Error("AIHUB Web Session exchange failed");
+  }
+  if (response.status === 401) {
+    sessions.delete(token);
+    return null;
+  }
+  if (!response.ok) throw new Error("AIHUB Web Session exchange failed");
+
+  const body = (await response.json()) as {
+    data?: { access_token?: unknown; expires_in?: unknown };
+  };
+  const accessToken = body.data?.access_token;
+  const expiresIn = body.data?.expires_in;
+  if (
+    typeof accessToken !== "string" ||
+    !accessToken ||
+    typeof expiresIn !== "number" ||
+    !Number.isFinite(expiresIn) ||
+    expiresIn <= 0 ||
+    expiresIn > 900
+  ) {
+    throw new Error("AIHUB Web Session response is invalid");
+  }
+  const session = {
+    accessToken,
+    accessTokenExpiresAt: Date.now() + expiresIn * 1000,
+  };
+  sessions.set(token, session);
+  return session;
+}
+
+export async function getCurrentWebSession(token: string) {
+  if (!isWebSessionId(token)) return null;
+  const cached = sessions.get(token);
+  if (
+    cached &&
+    cached.accessTokenExpiresAt > Date.now() + ACCESS_TOKEN_EARLY_MS
+  )
+    return cached;
+
+  let exchange = exchanges.get(token);
+  if (!exchange) {
+    exchange = exchangeWebSession(token).finally(() => exchanges.delete(token));
+    exchanges.set(token, exchange);
+  }
+  return exchange;
+}
+
+export function clearWebSessionCache(token: string) {
+  sessions.delete(token);
+}
+
+export async function requireWebSession(request: Request) {
+  const token = webSessionIdFromRequest(request);
+  const headers = {
+    "Cache-Control": "no-store",
+    "Content-Type": "application/json",
+  };
+
+  if (!isWebSessionId(token)) return authRequired(headers);
+
+  try {
+    if (await getCurrentWebSession(token)) return null;
+  } catch {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: { code: "AUTH_UNAVAILABLE", message: "Sign-in is unavailable." },
+      }),
+      { status: 503, headers }
+    );
+  }
+  return authRequired(headers);
+}
+
+export function rejectedWebSessionCookie(response: Response) {
+  const cookie = webSessionCookie("", 0);
+  return response.status === 401 &&
+    response.headers.get("set-cookie") === cookie
+    ? cookie
+    : null;
+}
+
+function authRequired(headers: Record<string, string>) {
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error: { code: "AUTH_REQUIRED", message: "Sign-in required." },
+    }),
+    {
+      status: 401,
+      headers: {
+        ...headers,
+        "Set-Cookie": webSessionCookie("", 0),
+      },
+    }
+  );
 }
 
 export async function authenticatedAihubFetch(
-  id: string,
+  token: string,
   path: string,
   init: RequestInit = {}
 ) {
@@ -319,8 +222,12 @@ export async function authenticatedAihubFetch(
   if (destination.origin !== new URL(aihubUrl("/")).origin)
     throw new Error("AIHUB path must be same-origin");
 
-  let session = await getCurrentWebSession(id);
-  if (!session) return new Response(null, { status: 401 });
+  let session = await getCurrentWebSession(token);
+  if (!session)
+    return authRequired({
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json",
+    });
   const send = (accessToken: string) => {
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${accessToken}`);
@@ -334,22 +241,23 @@ export async function authenticatedAihubFetch(
   const response = await send(session.accessToken);
   if (response.status !== 401) return response;
 
-  session = await refreshWebSession(id, session.accessToken);
-  return session ? send(session.accessToken) : response;
+  sessions.delete(token);
+  session = await getCurrentWebSession(token);
+  return session
+    ? send(session.accessToken)
+    : authRequired({
+        "Cache-Control": "no-store",
+        "Content-Type": "application/json",
+      });
 }
 
-export async function logoutFromAihub(refreshToken: string) {
-  return fetch(aihubUrl("/v1/auth/logout"), {
-    method: "POST",
-    headers: { Cookie: `${AIHUB_REFRESH_COOKIE}=${refreshToken}` },
-    cache: "no-store",
-    signal: AbortSignal.timeout(8_000),
-  });
-}
-
-export async function logoutFromAihubBestEffort(refreshToken: string) {
+export async function logoutFromAihubBestEffort(token: string) {
+  if (!isWebSessionId(token)) return;
+  clearWebSessionCache(token);
   try {
-    const response = await logoutFromAihub(refreshToken);
+    const response = await postAihubWebSession("/v1/auth/web-sessions/logout", {
+      web_session_token: token,
+    });
     if (!response.ok) console.warn("[auth] AIHUB logout returned non-success");
   } catch {
     console.warn("[auth] AIHUB logout request failed");

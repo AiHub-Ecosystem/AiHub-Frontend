@@ -36,7 +36,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       hasActiveSession = !!(await getCurrentWebSession(sessionId));
       clearStaleCookie = !hasActiveSession;
     } catch {
-      // Redis is unavailable: keep the sign-in form usable and let login report failures safely.
+      // AIHUB is unavailable: keep the sign-in form usable and retain the cookie.
     }
   }
   if (hasActiveSession) redirect(next);

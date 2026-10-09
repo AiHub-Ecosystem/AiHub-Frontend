@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const auth = vi.hoisted(() => ({
   authenticatedAihubFetch: vi.fn(),
   originIsAllowed: vi.fn(),
+  rejectedWebSessionCookie: vi.fn(),
   requireWebSession: vi.fn(),
   webSessionIdFromRequest: vi.fn(),
 }));
@@ -14,6 +15,8 @@ import { POST as createOrganization } from "@/app/api/organizations/route";
 import { PATCH as renameOrganization } from "@/app/api/organizations/[organizationId]/route";
 
 const sessionId = "s".repeat(43);
+const clearSessionCookie =
+  "__Host-aihub_web_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict";
 
 function request(
   method: string,
@@ -35,6 +38,12 @@ function request(
 beforeEach(() => {
   vi.resetAllMocks();
   auth.originIsAllowed.mockReturnValue(true);
+  auth.rejectedWebSessionCookie.mockImplementation((response: Response) =>
+    response.status === 401 &&
+    response.headers.get("set-cookie") === clearSessionCookie
+      ? clearSessionCookie
+      : null
+  );
   auth.requireWebSession.mockResolvedValue(null);
   auth.webSessionIdFromRequest.mockReturnValue(sessionId);
 });
@@ -137,6 +146,27 @@ describe("Organization BFF", () => {
     expect(await response.json()).toEqual({
       success: false,
       error: { code: "ORGANIZATION_ROSTER_UNAVAILABLE" },
+    });
+  });
+
+  it("forwards an expired Web Session signal and clears its browser cookie", async () => {
+    auth.authenticatedAihubFetch.mockResolvedValue(
+      Response.json(
+        {
+          success: false,
+          error: { code: "AUTH_REQUIRED", message: "Sign-in required." },
+        },
+        { status: 401, headers: { "Set-Cookie": clearSessionCookie } }
+      )
+    );
+
+    const response = await getRoster(request("GET"));
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("set-cookie")).toBe(clearSessionCookie);
+    expect(await response.json()).toEqual({
+      success: false,
+      error: { code: "AUTH_REQUIRED" },
     });
   });
 

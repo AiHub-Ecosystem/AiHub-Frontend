@@ -1,12 +1,12 @@
 import {
-  aihubUrl,
   customerWebOrigin,
   originIsAllowed,
+  postAihubWebSession,
+  readCreatedWebSession,
   safeLocalPath,
   WEB_SESSION_TTL_SECONDS,
   webSessionCookie,
 } from "@/lib/auth-session";
-import { createWebSessionFromAihubResponse } from "@/lib/auth-session-from-response";
 
 const noStore = { "Cache-Control": "no-store" };
 
@@ -70,12 +70,9 @@ export async function POST(request: Request) {
 
   let upstream: Response;
   try {
-    upstream = await fetch(aihubUrl("/v1/auth/login"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-      cache: "no-store",
-      signal: AbortSignal.timeout(8_000),
+    upstream = await postAihubWebSession("/v1/auth/web-sessions", {
+      email,
+      password,
     });
   } catch {
     return redirectToLogin("unavailable", undefined, next, returnTo);
@@ -95,13 +92,13 @@ export async function POST(request: Request) {
     return redirectToLogin("unavailable", undefined, next, returnTo);
 
   try {
-    const { sessionId } = await createWebSessionFromAihubResponse(upstream);
+    const sessionToken = await readCreatedWebSession(upstream);
     return new Response(null, {
       status: 303,
       headers: {
         ...noStore,
         Location: new URL(next, customerWebOrigin()).toString(),
-        "Set-Cookie": webSessionCookie(sessionId, WEB_SESSION_TTL_SECONDS),
+        "Set-Cookie": webSessionCookie(sessionToken, WEB_SESSION_TTL_SECONDS),
       },
     });
   } catch {

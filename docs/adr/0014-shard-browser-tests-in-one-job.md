@@ -7,7 +7,7 @@
 
 **This ADR records a decision that was measured, did not work, and was reverted.** It is kept because the reasoning was sound and the measurement still explains why the suite stays serial.
 
-The plan was to run three shards of the browser suite side by side inside one job. Each shard would get its own mock backend, app instance, second app instance, Redis, and build directory, so no shard could read another's state. The suite would stay serial _within_ a shard; the parallelism would be between shards.
+The plan was to run three shards of the browser suite side by side inside one job. Each shard would get its own mock backend, app instance, second app instance, and build directory, so no shard could read another's state. The suite would stay serial _within_ a shard; the parallelism would be between shards. AIHUB-owned Web Sessions supersede this plan's frontend Redis fixture; the current auth suite needs no Redis service.
 
 Measured on CI, this made the step slower, not faster: 420s against the 379s baseline it was meant to replace, with test time rising from 347s to 963.6s. The cause is CPU contention, not sharding logic. GitHub's `ubuntu-latest` runner has 4 cores, and three shards each start two `next dev` servers; individual tests slowed by 2.5-3.8x (`auth.spec.ts` went from 49.6s to 188.8s). Running the shards in parallel multiplies wall-clock here rather than dividing it.
 

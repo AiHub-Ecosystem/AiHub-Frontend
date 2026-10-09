@@ -45,6 +45,10 @@ export function OrganizationIdentityDialog({
     )
       .then(async (response) => {
         const result = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          router.replace("/login?error=session");
+          return;
+        }
         if (response.status === 403) {
           setForbidden(true);
           router.refresh();

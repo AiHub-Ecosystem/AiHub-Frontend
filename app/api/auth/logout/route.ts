@@ -1,12 +1,10 @@
 import {
-  deleteWebSession,
-  getWebSession,
-  isWebSessionId,
-  logoutFromAihub,
   customerWebOrigin,
+  isWebSessionId,
+  logoutFromAihubBestEffort,
   originIsAllowed,
-  webSessionIdFromRequest,
   webSessionCookie,
+  webSessionIdFromRequest,
 } from "@/lib/auth-session";
 
 export async function POST(request: Request) {
@@ -16,31 +14,8 @@ export async function POST(request: Request) {
       headers: { "Cache-Control": "no-store" },
     });
 
-  const sessionId = webSessionIdFromRequest(request);
-
-  if (isWebSessionId(sessionId)) {
-    let refreshToken: string | undefined;
-    try {
-      const session = await getWebSession(sessionId);
-      refreshToken = session?.refreshToken;
-    } catch {
-      console.warn("[auth] Could not read Web Session during logout");
-    }
-    try {
-      await deleteWebSession(sessionId);
-    } catch {
-      console.error("[auth] Could not delete Web Session during logout");
-    }
-    if (refreshToken) {
-      try {
-        const upstream = await logoutFromAihub(refreshToken);
-        if (!upstream.ok)
-          console.warn("[auth] AIHUB logout returned non-success");
-      } catch {
-        console.warn("[auth] AIHUB logout request failed");
-      }
-    }
-  }
+  const token = webSessionIdFromRequest(request);
+  if (isWebSessionId(token)) void logoutFromAihubBestEffort(token);
 
   return new Response(null, {
     status: 303,

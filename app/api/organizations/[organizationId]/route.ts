@@ -1,6 +1,7 @@
 import {
   authenticatedAihubFetch,
   originIsAllowed,
+  rejectedWebSessionCookie,
   requireWebSession,
   webSessionIdFromRequest,
 } from "@/lib/auth-session";
@@ -40,11 +41,13 @@ export async function PATCH(
     );
     if (upstream.status === 403 || upstream.status === 404)
       return new Response(null, { status: 404 });
+    const clearCookie = rejectedWebSessionCookie(upstream);
     return new Response(await upstream.text(), {
       status: upstream.status,
       headers: {
         "Cache-Control": "no-store",
         "Content-Type": "application/json",
+        ...(clearCookie ? { "Set-Cookie": clearCookie } : {}),
       },
     });
   } catch {

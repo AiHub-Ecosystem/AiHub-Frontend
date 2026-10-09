@@ -12,7 +12,6 @@ const speakingEnv = {
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: false,
   // ponytail: mock state is global; add per-worker mock instances before raising workers.
   workers: 1,
@@ -37,7 +36,7 @@ export default defineConfig({
         API_BASE_URL: mockUrl,
         AIHUB_BASE_URL: mockUrl,
         CUSTOMER_WEB_ORIGIN: appUrl,
-        REDIS_URL: "redis://127.0.0.1:3103",
+        AIHUB_WEB_SESSION_CLIENT_SECRET: "e2e-web-session-secret",
         E2E_TESTING: "1",
         NEXT_TELEMETRY_DISABLED: "1",
         ...speakingEnv,
@@ -53,7 +52,7 @@ export default defineConfig({
         API_BASE_URL: mockUrl,
         AIHUB_BASE_URL: mockUrl,
         CUSTOMER_WEB_ORIGIN: appUrl,
-        REDIS_URL: "redis://127.0.0.1:3103",
+        AIHUB_WEB_SESSION_CLIENT_SECRET: "e2e-web-session-secret",
         NEXT_DIST_DIR: ".next-e2e-secondary",
         NEXT_TELEMETRY_DISABLED: "1",
         ...speakingEnv,

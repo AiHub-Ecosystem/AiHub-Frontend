@@ -7,8 +7,13 @@ export async function requirePageWebSession(next: string) {
   const encodedNext = encodeURIComponent(next);
 
   if (!sessionId) redirect(`/login?next=${encodedNext}`);
-  if (!(await getCurrentWebSession(sessionId)))
-    redirect(`/login?error=session&next=${encodedNext}`);
+  let active: boolean;
+  try {
+    active = !!(await getCurrentWebSession(sessionId));
+  } catch {
+    redirect(`/login?error=unavailable&next=${encodedNext}`);
+  }
+  if (!active) redirect(`/login?error=session&next=${encodedNext}`);
 
   return sessionId;
 }

@@ -168,7 +168,6 @@ jobs:
           trap rollback ERR
 
           sudo -n docker tag "$app_image" aihub-frontend:latest
-          sudo -n docker compose -f "$COMPOSE_FILE" up -d --no-build --wait console-session-redis
           sudo -n docker compose -f "$COMPOSE_FILE" up -d --no-build --no-deps --force-recreate frontend
 
           for attempt in $(seq 1 30); do

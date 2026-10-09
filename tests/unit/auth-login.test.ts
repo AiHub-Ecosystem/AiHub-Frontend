@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/auth/login/route";
 import { POST as logout } from "@/app/api/auth/logout/route";
-import * as authSession from "@/lib/auth-session";
-import * as authSessionFromResponse from "@/lib/auth-session-from-response";
 
 const request = (
   values: Record<string, string>,
@@ -23,7 +21,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   delete process.env.CUSTOMER_WEB_ORIGIN;
   delete process.env.AIHUB_BASE_URL;
-  delete process.env.REDIS_URL;
+  delete process.env.AIHUB_WEB_SESSION_CLIENT_SECRET;
 });
 
 describe("Customer Web sign-in BFF", () => {
@@ -115,22 +113,17 @@ describe("Customer Web sign-in BFF", () => {
       process.env.CUSTOMER_WEB_ORIGIN = "http://localhost:3100";
       process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
       const sessionId = "a".repeat(43);
-      vi.spyOn(
-        authSessionFromResponse,
-        "createWebSessionFromAihubResponse"
-      ).mockResolvedValue({ sessionId, refreshToken: "refresh-secret" });
-      vi.spyOn(globalThis, "fetch").mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            data: { access_token: "server-only-token", expires_in: 900 },
-          }),
+      process.env.AIHUB_WEB_SESSION_CLIENT_SECRET = "server-only-secret";
+      const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        Response.json(
           {
-            headers: {
-              "Content-Type": "application/json",
-              "Set-Cookie":
-                "__Host-aihub_refresh=refresh-secret; Path=/; Secure; HttpOnly; SameSite=Strict",
+            data: {
+              web_session_token: sessionId,
+              expires_at: "2026-11-08T00:00:00.000Z",
             },
-          }
+            meta: { request_id: "req-test" },
+          },
+          { status: 201 }
         )
       );
 
@@ -145,23 +138,33 @@ describe("Customer Web sign-in BFF", () => {
       expect(cookie).toContain(
         "Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict"
       );
-      expect(cookie).not.toContain("refresh-secret");
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(fetch).toHaveBeenCalledWith(
+        "http://127.0.0.1:3101/v1/auth/web-sessions",
+        expect.objectContaining({
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-AIHUB-Client-Secret": "server-only-secret",
+          },
+          body: JSON.stringify({
+            email: "user@example.com",
+            password: "secret",
+          }),
+          cache: "no-store",
+        })
+      );
+      expect(cookie).not.toContain("server-only-secret");
     }
   );
 
   it("clears the local cookie and tries upstream logout during an outage", async () => {
     process.env.CUSTOMER_WEB_ORIGIN = "http://localhost:3100";
     const sessionId = "a".repeat(43);
-    vi.spyOn(authSession, "getWebSession").mockResolvedValue({
-      accessToken: "server-only-token",
-      accessTokenExpiresAt: Date.now() + 60_000,
-      refreshToken: "refresh-secret",
-    });
-    const deleteSession = vi
-      .spyOn(authSession, "deleteWebSession")
-      .mockResolvedValue();
-    const logoutUpstream = vi
-      .spyOn(authSession, "logoutFromAihub")
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    process.env.AIHUB_WEB_SESSION_CLIENT_SECRET = "server-only-secret";
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
       .mockRejectedValue(new Error("AIHUB unavailable"));
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
@@ -180,7 +183,43 @@ describe("Customer Web sign-in BFF", () => {
     expect(response.headers.get("set-cookie")).toContain(
       "Max-Age=0; HttpOnly; Secure; SameSite=Strict"
     );
-    expect(deleteSession).toHaveBeenCalledWith(sessionId);
-    expect(logoutUpstream).toHaveBeenCalledWith("refresh-secret");
+    expect(fetch).toHaveBeenCalledWith(
+      "http://127.0.0.1:3101/v1/auth/web-sessions/logout",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-AIHUB-Client-Secret": "server-only-secret",
+        },
+        body: JSON.stringify({ web_session_token: sessionId }),
+      })
+    );
+  });
+
+  it("returns the browser logout response before remote revocation completes", async () => {
+    process.env.CUSTOMER_WEB_ORIGIN = "http://localhost:3100";
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    process.env.AIHUB_WEB_SESSION_CLIENT_SECRET = "server-only-secret";
+    let remoteFinished = false;
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      remoteFinished = true;
+      return new Response(null, { status: 204 });
+    });
+
+    const response = await logout(
+      new Request("http://localhost:3100/api/auth/logout", {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost:3100",
+          Cookie: `__Host-aihub_web_session=${"z".repeat(43)}`,
+        },
+      })
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(remoteFinished).toBe(false);
+    expect(fetch).toHaveBeenCalledOnce();
   });
 });

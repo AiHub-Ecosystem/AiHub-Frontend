@@ -38,6 +38,10 @@ export function OrganizationRenameForm({
           body: JSON.stringify({ name: form.get("name") }),
         }
       );
+      if (response.status === 401) {
+        router.replace("/login?error=session");
+        return;
+      }
       if (response.status === 403 || response.status === 404) {
         router.replace("/console/orgs/denied");
         return;

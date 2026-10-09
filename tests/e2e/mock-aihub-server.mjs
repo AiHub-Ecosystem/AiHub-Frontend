@@ -9,6 +9,8 @@ const organizationRequests = [];
 const speakingRequests = [];
 const speakingAssertions = [];
 let assertionSequence = 0;
+const webSessions = new Set();
+let webSessionSequence = 0;
 let organizationConfig = {
   roster: [],
   apiKeys: [],
@@ -33,7 +35,7 @@ let uncertainApiKeyRotationUsed = false;
 let apiKeySequence = 0;
 const knownForeignOrganizationIds = new Set(["foreign-org-known"]);
 let authMode = {
-  refreshUnauthorized: false,
+  sessionExchangeUnauthorized: false,
   logoutDown: false,
   registerDown: false,
   resendDown: false,
@@ -93,8 +95,9 @@ const server = createServer(async (request, response) => {
   if (request.method === "POST" && pathname === "/__test__/auth/reset") {
     authRequests.length = 0;
     latestBrowserBindingHash = null;
+    webSessions.clear();
     authMode = {
-      refreshUnauthorized: false,
+      sessionExchangeUnauthorized: false,
       logoutDown: false,
       registerDown: false,
       resendDown: false,
@@ -581,12 +584,14 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  if (request.method === "POST" && pathname === "/v1/auth/login") {
+  if (request.method === "POST" && pathname === "/v1/auth/web-sessions") {
     const body = await readJson(request);
     authRequests.push({
       path: "login",
       email: body.email,
       hasPassword: typeof body.password === "string",
+      clientSecretValid:
+        request.headers["x-aihub-client-secret"] === "e2e-web-session-secret",
     });
     if (body.email === "rate-limit@example.test") {
       sendJson(
@@ -606,25 +611,56 @@ const server = createServer(async (request, response) => {
       sendJson(response, 401, { error: { code: "AUTH_CREDENTIALS_INVALID" } });
       return;
     }
-    const loginNumber = authRequests.filter(
-      (entry) => entry.path === "login"
-    ).length;
-    const expiresIn = body.email === "expiring@example.test" ? 2 : 900;
+    const webSessionToken = createHash("sha256")
+      .update(`web-session-${++webSessionSequence}`)
+      .digest("base64url");
+    webSessions.add(webSessionToken);
+    sendJson(
+      response,
+      201,
+      {
+        data: {
+          web_session_token: webSessionToken,
+          expires_at: new Date(Date.now() + 30 * 86400_000).toISOString(),
+        },
+        meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+      },
+      { "Cache-Control": "no-store" }
+    );
+    return;
+  }
+
+  if (
+    request.method === "POST" &&
+    pathname === "/v1/auth/web-sessions/exchange"
+  ) {
+    const body = await readJson(request);
+    const exchangeNumber =
+      authRequests.filter((entry) => entry.path === "exchange").length + 1;
+    const sessionKnown = webSessions.has(body.web_session_token);
+    authRequests.push({
+      path: "exchange",
+      hasWebSessionToken: typeof body.web_session_token === "string",
+      sessionKnown,
+      clientSecretValid:
+        request.headers["x-aihub-client-secret"] === "e2e-web-session-secret",
+    });
+    if (authMode.sessionExchangeUnauthorized || !sessionKnown) {
+      sendJson(response, 401, { error: { code: "AUTH_WEB_SESSION_INVALID" } });
+      return;
+    }
     sendJson(
       response,
       200,
       {
         data: {
-          access_token: `access-token-${loginNumber}`,
+          access_token: `access-token-${exchangeNumber}`,
           token_type: "Bearer",
-          expires_in: expiresIn,
+          expires_in: 900,
         },
         meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
       },
-      {
-        "Cache-Control": "no-store",
-        "Set-Cookie": `__Host-aihub_refresh=refresh-token-${loginNumber}; Path=/; Max-Age=2592000; Secure; HttpOnly; SameSite=Strict`,
-      }
+      { "Cache-Control": "no-store" }
     );
     return;
   }
@@ -704,7 +740,10 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  if (request.method === "POST" && pathname === "/v1/auth/verify-email") {
+  if (
+    request.method === "POST" &&
+    pathname === "/v1/auth/web-sessions/verification"
+  ) {
     const body = await readJson(request);
     const browserBinding = browserBindingHash(body.browser_binding);
     const browserBindingMatches =
@@ -730,19 +769,21 @@ const server = createServer(async (request, response) => {
       const verificationNumber = authRequests.filter(
         (entry) => entry.path === "verify"
       ).length;
+      const webSessionToken = createHash("sha256")
+        .update(`verification-session-${++webSessionSequence}`)
+        .digest("base64url");
+      webSessions.add(webSessionToken);
       sendJson(
         response,
-        200,
+        201,
         {
           data: {
-            access_token: `access-token-verified-${verificationNumber}`,
-            expires_in: 900,
+            web_session_token: webSessionToken,
+            expires_at: new Date(Date.now() + 30 * 86400_000).toISOString(),
           },
+          meta: { request_id: `req-verify-${verificationNumber}` },
         },
-        {
-          "Cache-Control": "no-store",
-          "Set-Cookie": `__Host-aihub_refresh=verification-refresh-token-${verificationNumber}; Path=/; Secure; HttpOnly; SameSite=Strict`,
-        }
+        { "Cache-Control": "no-store" }
       );
       return;
     }
@@ -771,51 +812,24 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  if (request.method === "POST" && pathname === "/v1/auth/refresh") {
-    const hasRefreshCookie = (request.headers.cookie ?? "").includes(
-      "__Host-aihub_refresh="
-    );
-    authRequests.push({ path: "refresh", hasRefreshCookie });
-    if (authMode.refreshUnauthorized || !hasRefreshCookie) {
-      sendJson(response, 401, {
-        error: { code: "AUTH_REFRESH_TOKEN_INVALID" },
-      });
-      return;
-    }
-    const refreshNumber = authRequests.filter(
-      (entry) => entry.path === "refresh"
-    ).length;
-    await new Promise((resolve) => setTimeout(resolve, 120));
-    sendJson(
-      response,
-      200,
-      {
-        data: {
-          access_token: `access-token-refreshed-${refreshNumber}`,
-          token_type: "Bearer",
-          expires_in: 900,
-        },
-        meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
-      },
-      {
-        "Cache-Control": "no-store",
-        "Set-Cookie": `__Host-aihub_refresh=refresh-token-rotated-${refreshNumber}; Path=/; Max-Age=2592000; Secure; HttpOnly; SameSite=Strict`,
-      }
-    );
-    return;
-  }
-
-  if (request.method === "POST" && pathname === "/v1/auth/logout") {
+  if (
+    request.method === "POST" &&
+    pathname === "/v1/auth/web-sessions/logout"
+  ) {
+    const body = await readJson(request);
+    const sessionKnown = webSessions.has(body.web_session_token);
     authRequests.push({
       path: "logout",
-      hasRefreshCookie: (request.headers.cookie ?? "").includes(
-        "__Host-aihub_refresh="
-      ),
+      hasWebSessionToken: typeof body.web_session_token === "string",
+      sessionKnown,
+      clientSecretValid:
+        request.headers["x-aihub-client-secret"] === "e2e-web-session-secret",
     });
     if (authMode.logoutDown) {
       sendJson(response, 503, { error: { code: "LOCAL_MOCK_OUTAGE" } });
       return;
     }
+    webSessions.delete(body.web_session_token);
     response.writeHead(204, { "Cache-Control": "no-store" }).end();
     return;
   }

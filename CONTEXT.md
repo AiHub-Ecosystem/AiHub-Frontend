@@ -23,11 +23,11 @@ The public documentation page for one endpoint of an API product.
 _Avoid_: specs, spec page
 
 **BFF**:
-The Customer Web's own server routes and the only part of the app that talks to AIHUB. It holds the Web Session credentials and API keys; a newly issued raw API key passes to the browser once for immediate display.
+The Customer Web's own server routes and the only part of the app that talks to AIHUB. It exchanges the browser's opaque Web Session cookie for a short-lived User Access JWT and holds API keys; a newly issued raw API key passes to the browser once for immediate display.
 _Avoid_: proxy, gateway
 
 **Web Session**:
-The signed-in state of one browser, identified by an opaque cookie and backed by server-side storage of the User Access JWT and Refresh Token.
+An AIHUB-owned sign-in session for one browser, identified by an opaque HttpOnly cookie and exchanged server-to-server for a short-lived User Access JWT cached in process memory until shortly before expiry.
 _Avoid_: login, token, auth cookie
 
 ### Accounts and Organizations
@@ -56,7 +56,7 @@ A request to email password-reset instructions without revealing whether an addr
 _Avoid_: forgot-password request
 
 **Password Reset Token**:
-An expiring, one-time credential emailed for Password Recovery. A newer request replaces it, and a successful reset consumes it and revokes every existing AIHUB Refresh Token.
+An expiring, one-time credential emailed for Password Recovery. A newer request replaces it, and a successful reset consumes it and revokes every existing AIHUB Web Session.
 _Avoid_: Verification Token, recovery link
 
 **Organization**:

@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST as forgotPassword } from "@/app/api/auth/forgot-password/route";
 import { POST as resetPassword } from "@/app/api/auth/reset-password/route";
-import * as authSession from "@/lib/auth-session";
 
 const appOrigin = "http://localhost:3100";
 const sessionId = "a".repeat(43);
@@ -169,12 +168,9 @@ describe("Password Reset BFF", () => {
     });
   });
 
-  it("clears only the current Web Session and cookie after a 204", async () => {
+  it("clears the current browser cookie after a successful account-wide reset", async () => {
     process.env.CUSTOMER_WEB_ORIGIN = appOrigin;
     process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
-    const deleteSession = vi
-      .spyOn(authSession, "deleteWebSession")
-      .mockResolvedValue();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 204 })
     );
@@ -198,7 +194,6 @@ describe("Password Reset BFF", () => {
     expect(response.headers.get("set-cookie")).toContain(
       "__Host-aihub_web_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict"
     );
-    expect(deleteSession).toHaveBeenCalledWith(sessionId);
     expect(fetch).toHaveBeenCalledOnce();
   });
 

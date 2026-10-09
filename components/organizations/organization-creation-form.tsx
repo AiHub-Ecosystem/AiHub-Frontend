@@ -136,7 +136,9 @@ export function OrganizationCreationForm({
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
-        if (result.error?.code === "IDEMPOTENCY_CONFLICT") {
+        if (response.status === 401) {
+          router.replace("/login?error=session");
+        } else if (result.error?.code === "IDEMPOTENCY_CONFLICT") {
           setError(
             "Yêu cầu đang được xử lý. Hãy thử lại sau với cùng tên Organization."
           );

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { getWebSession, WEB_SESSION_COOKIE } from "@/lib/auth-session";
+import { getCurrentWebSession, WEB_SESSION_COOKIE } from "@/lib/auth-session";
 
 /**
  * Header và footer giống hệt nhau từng byte trên cả 14 trang mirror, nên ta
@@ -290,9 +290,9 @@ export async function SiteHeader() {
   let signedIn = false;
   if (sessionId) {
     try {
-      signedIn = !!(await getWebSession(sessionId));
+      signedIn = !!(await getCurrentWebSession(sessionId));
     } catch {
-      // Redis trouble should not make public pages unavailable.
+      // AIHUB trouble should not make public pages unavailable.
     }
   }
   if (chrome) {

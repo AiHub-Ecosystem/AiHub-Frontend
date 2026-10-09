@@ -383,7 +383,7 @@ test("email verification removes its token from the URL and offers generic recov
     (await page.context().cookies()).some(
       (cookie) => cookie.name === "__Host-aihub_signup"
     )
-  ).toBe(true);
+  ).toBe(false);
 
   await signedInPage.goto(
     `${appUrl}/verify-email?token=resent-verification-token`
@@ -601,7 +601,14 @@ test("a matching verification binding signs in and replaces the existing session
   ).requests;
   expect(
     authRequests.filter((entry: { path: string }) => entry.path === "logout")
-  ).toEqual([{ path: "logout", hasRefreshCookie: true }]);
+  ).toEqual([
+    {
+      path: "logout",
+      hasWebSessionToken: true,
+      sessionKnown: true,
+      clientSecretValid: true,
+    },
+  ]);
   expect(
     authRequests.filter((entry: { path: string }) => entry.path === "verify")
   ).toEqual([
@@ -837,8 +844,7 @@ test("credential failures share one message and rate limits show a retry delay",
   );
 });
 
-test("rejects foreign or missing Origin and coordinates refresh across app instances", async ({
-  page,
+test("rejects foreign or missing Origin and shares AIHUB sessions across app instances", async ({
   request,
 }) => {
   await resetAuthMock(request);
@@ -891,7 +897,6 @@ test("rejects foreign or missing Origin and coordinates refresh across app insta
   });
   expect(touched.status()).toBe(204);
   expect(touched.headers()["set-cookie"]).toContain("Max-Age=2592000");
-  await page.waitForTimeout(2_100);
   const cookieHeader = { Cookie: cookie };
   const [first, second] = await Promise.all([
     request.get(`${appUrl}/console`, { headers: cookieHeader }),
@@ -904,21 +909,28 @@ test("rejects foreign or missing Origin and coordinates refresh across app insta
 
   const logged = await request.get(`${mockUrl}/__test__/auth/requests`);
   const authRequests = (await logged.json()).requests;
+  const exchanges = authRequests.filter(
+    (entry: { path: string }) => entry.path === "exchange"
+  );
+  expect(exchanges.length).toBeGreaterThanOrEqual(2);
   expect(
-    authRequests.filter((entry: { path: string }) => entry.path === "refresh")
-  ).toHaveLength(1);
+    exchanges.every(
+      (entry: { sessionKnown: boolean; clientSecretValid: boolean }) =>
+        entry.sessionKnown && entry.clientSecretValid
+    )
+  ).toBe(true);
   expect(
     authRequests.filter((entry: { path: string }) => entry.path === "login")
   ).toHaveLength(1);
 });
 
-test("a rejected refresh ends the session and logout clears it during an AIHUB outage", async ({
+test("a rejected session exchange ends the session and logout clears it during an AIHUB outage", async ({
   page,
   request,
 }) => {
   await resetAuthMock(request);
   await request.post(`${mockUrl}/__test__/auth/mode`, {
-    data: { refreshUnauthorized: true },
+    data: { sessionExchangeUnauthorized: true },
   });
   await page.goto("/login");
   await waitForHydration(page);
@@ -936,9 +948,6 @@ test("a rejected refresh ends the session and logout clears it during an AIHUB o
 
   await resetAuthMock(request);
   await signIn(page, request);
-  const logoutCookie = (await page.context().cookies()).find(
-    (cookie) => cookie.name === "__Host-aihub_web_session"
-  );
   await request.post(`${mockUrl}/__test__/auth/mode`, {
     data: { logoutDown: true },
   });
@@ -950,12 +959,6 @@ test("a rejected refresh ends the session and logout clears it during an AIHUB o
       (cookie) => cookie.name === "__Host-aihub_web_session"
     )
   ).toBe(false);
-  const protectedPage = await request.get(`${appUrl}/console`, {
-    headers: { Cookie: `${logoutCookie!.name}=${logoutCookie!.value}` },
-  });
-  expect(protectedPage.status()).toBe(200);
-  expect(await protectedPage.text()).toContain("Đăng nhập");
-
   const logged = await request.get(`${mockUrl}/__test__/auth/requests`);
   const authRequests = (await logged.json()).requests;
   expect(
@@ -963,33 +966,18 @@ test("a rejected refresh ends the session and logout clears it during an AIHUB o
   ).toBe(true);
 });
 
-test("sign-out during token refresh cannot recreate the Web Session", async ({
+test("logout revokes the Web Session across frontend instances", async ({
   request,
 }) => {
   await resetAuthMock(request);
-  const cookie = await createSession(request, "expiring@example.test");
-  await new Promise((resolve) => setTimeout(resolve, 2_100));
-
-  const consoleResponse = request.get(`${appUrl}/console`, {
-    headers: { Cookie: cookie },
-  });
-  await expect
-    .poll(async () => {
-      const response = await request.get(`${mockUrl}/__test__/auth/requests`);
-      return (await response.json()).requests.filter(
-        (entry: { path: string }) => entry.path === "refresh"
-      ).length;
-    })
-    .toBe(1);
-
+  const cookie = await createSession(request, "valid@example.test");
   const logout = await request.post(`${appUrl}/api/auth/logout`, {
     headers: { Origin: appUrl, Cookie: cookie },
     maxRedirects: 0,
   });
   expect(logout.status()).toBe(303);
-  expect(await (await consoleResponse).text()).toContain("Đăng nhập");
 
-  const protectedPage = await request.get(`${appUrl}/console`, {
+  const protectedPage = await request.get(`${secondAppUrl}/console`, {
     headers: { Cookie: cookie },
   });
   expect(await protectedPage.text()).toContain("Đăng nhập");

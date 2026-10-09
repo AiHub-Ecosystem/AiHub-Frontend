@@ -1,149 +1,175 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-const redisState = vi.hoisted(() => ({
-  session: null as string | null,
-  lock: null as string | null,
-}));
-const evalRedis = vi.hoisted(() =>
-  vi.fn(
-    async (
-      _script: string,
-      options: { keys: string[]; arguments: string[] }
-    ) => {
-      if (options.keys.length === 2) {
-        if (
-          redisState.lock !== options.arguments[1] ||
-          redisState.session === null
-        )
-          return 0;
-        redisState.session = options.arguments[0];
-        return "OK";
-      }
-      if (redisState.lock === options.arguments[0]) {
-        redisState.lock = null;
-        return 1;
-      }
-      return 0;
-    }
-  )
-);
-const redisClient = vi.hoisted(() => ({
-  isReady: true,
-  on: vi.fn(),
-  connect: vi.fn(),
-  get: vi.fn(async (_key: string) => {
-    void _key;
-    return redisState.session;
-  }),
-  set: vi.fn(
-    async (_key: string, value: string, options?: { condition?: string }) => {
-      void _key;
-      if (options?.condition === "NX" && redisState.lock !== null) return null;
-      redisState.lock = value;
-      return "OK";
-    }
-  ),
-  del: vi.fn(async (_key: string) => {
-    void _key;
-    const existed = redisState.session !== null;
-    redisState.session = null;
-    return Number(existed);
-  }),
-  expire: vi.fn(async () => 1),
-  eval: evalRedis,
-}));
-
-vi.mock("redis", () => ({ createClient: () => redisClient }));
-
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { POST as createOrganization } from "@/app/api/organizations/route";
+import { POST as activity } from "@/app/api/auth/session/route";
 import {
   authenticatedAihubFetch,
-  getCurrentWebSession,
+  clearWebSessionCache,
 } from "@/lib/auth-session";
 
-const sessionId = "a".repeat(43);
-beforeEach(() => {
-  redisState.session = null;
-  redisState.lock = null;
-  process.env.REDIS_URL = "redis://localhost:6379";
-  process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
-});
+const origin = "http://localhost:3100";
+const token = "w".repeat(43);
+
+function sessionRequest() {
+  return new Request(`${origin}/api/auth/session`, {
+    method: "POST",
+    headers: {
+      Origin: origin,
+      Cookie: `__Host-aihub_web_session=${token}`,
+      "Content-Type": "application/json",
+    },
+    body: "{}",
+  });
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
-  delete process.env.REDIS_URL;
+  for (const sessionToken of [
+    token,
+    "x".repeat(43),
+    "o".repeat(43),
+    "r".repeat(43),
+  ])
+    clearWebSessionCache(sessionToken);
   delete process.env.AIHUB_BASE_URL;
+  delete process.env.AIHUB_WEB_SESSION_CLIENT_SECRET;
+  delete process.env.CUSTOMER_WEB_ORIGIN;
 });
 
-describe("server-held Web Session refresh", () => {
-  it("refreshes and retries a protected AIHUB request after a 401", async () => {
-    redisState.session = JSON.stringify({
-      accessToken: "expired-access-token",
-      accessTokenExpiresAt: Date.now() + 5 * 60_000,
-      refreshToken: "refresh-token",
-    });
-    const authorization: string[] = [];
-    const refreshCookies: string[] = [];
-    let refreshCalls = 0;
-    let protectedCalls = 0;
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-      if (String(input).endsWith("/v1/auth/refresh")) {
-        refreshCookies.push(new Headers(init?.headers).get("cookie") ?? "");
-        refreshCalls += 1;
-        return new Response(
-          JSON.stringify({
-            data: {
-              access_token: `new-access-token-${refreshCalls}`,
-              expires_in: 900,
-            },
-          }),
-          {
-            headers: {
-              "Content-Type": "application/json",
-              "Set-Cookie": `__Host-aihub_refresh=rotated-refresh-token-${refreshCalls}; Path=/; Secure; HttpOnly; SameSite=Strict`,
-            },
-          }
-        );
-      }
-      authorization.push(new Headers(init?.headers).get("authorization") ?? "");
-      protectedCalls += 1;
-      return protectedCalls % 2 === 1
-        ? new Response(null, { status: 401 })
-        : Response.json({ ok: true });
-    });
+describe("AIHUB Web Session BFF", () => {
+  it("exchanges the HttpOnly cookie server-side and renews its browser lifetime", async () => {
+    process.env.CUSTOMER_WEB_ORIGIN = origin;
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    process.env.AIHUB_WEB_SESSION_CLIENT_SECRET = "server-only-secret";
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        Response.json({
+          data: { access_token: "jwt-server-only", expires_in: 900 },
+        })
+      );
 
-    const response = await authenticatedAihubFetch(sessionId, "/v1/protected");
-    const secondResponse = await authenticatedAihubFetch(
-      sessionId,
-      "/v1/protected"
+    const response = await activity(sessionRequest());
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("set-cookie")).toContain(
+      `__Host-aihub_web_session=${token}; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict`
     );
-
-    expect(response.status).toBe(200);
-    expect(secondResponse.status).toBe(200);
-    expect(authorization).toEqual([
-      "Bearer expired-access-token",
-      "Bearer new-access-token-1",
-      "Bearer new-access-token-1",
-      "Bearer new-access-token-2",
-    ]);
-    expect(refreshCookies).toEqual([
-      "__Host-aihub_refresh=refresh-token",
-      "__Host-aihub_refresh=rotated-refresh-token-1",
-    ]);
+    expect(fetch).toHaveBeenCalledWith(
+      "http://127.0.0.1:3101/v1/auth/web-sessions/exchange",
+      expect.objectContaining({
+        headers: {
+          "Content-Type": "application/json",
+          "X-AIHUB-Client-Secret": "server-only-secret",
+        },
+        body: JSON.stringify({ web_session_token: token }),
+        cache: "no-store",
+      })
+    );
+    expect(response.headers.get("set-cookie")).not.toContain("jwt-server-only");
   });
 
-  it("deletes the Web Session when AIHUB rejects a refresh", async () => {
-    redisState.session = JSON.stringify({
-      accessToken: "expired-access-token",
-      accessTokenExpiresAt: Date.now() - 1,
-      refreshToken: "refresh-token",
+  it("clears a rejected session cookie on 401 and preserves it on 503", async () => {
+    process.env.CUSTOMER_WEB_ORIGIN = origin;
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+
+    const expired = await activity(sessionRequest());
+    const unavailable = await activity(
+      new Request(`${origin}/api/auth/session`, {
+        method: "POST",
+        headers: {
+          Origin: origin,
+          Cookie: `__Host-aihub_web_session=${"x".repeat(43)}`,
+        },
+      })
+    );
+
+    expect(expired.status).toBe(401);
+    expect(expired.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(unavailable.status).toBe(503);
+    expect(unavailable.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("uses the exchanged JWT only for the authenticated AIHUB request", async () => {
+    process.env.CUSTOMER_WEB_ORIGIN = origin;
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    process.env.AIHUB_WEB_SESSION_CLIENT_SECRET = "server-only-secret";
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, init) => {
+        if (String(input).endsWith("/web-sessions/exchange"))
+          return Response.json({
+            data: { access_token: "jwt-server-only", expires_in: 900 },
+          });
+        expect(String(input)).toBe("http://127.0.0.1:3101/v1/organizations");
+        expect(new Headers(init?.headers).get("authorization")).toBe(
+          "Bearer jwt-server-only"
+        );
+        return Response.json(
+          { data: { organization_id: "org-1" } },
+          { status: 201 }
+        );
+      });
+
+    const response = await createOrganization(
+      new Request(`${origin}/api/organizations`, {
+        method: "POST",
+        headers: {
+          Origin: origin,
+          Cookie: `__Host-aihub_web_session=${"o".repeat(43)}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": "9f6a9dd3-80d3-4f2b-a7bf-625a75d0a38a",
+        },
+        body: JSON.stringify({ name: "Test organization" }),
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({
+      data: { organization_id: "org-1" },
     });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears the browser cookie when a protected request and session exchange reject it", async () => {
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        Response.json({
+          data: { access_token: "jwt-server-only", expires_in: 900 },
+        })
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(new Response(null, { status: 401 }));
+
+    const response = await authenticatedAihubFetch(
+      "r".repeat(43),
+      "/v1/organizations/me/members"
+    );
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(await response.json()).toEqual({
+      success: false,
+      error: { code: "AUTH_REQUIRED", message: "Sign-in required." },
+    });
+  });
+
+  it("clears the cookie when the first exchange rejects the Web Session", async () => {
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 401 })
     );
 
-    const session = await getCurrentWebSession(sessionId);
+    const response = await authenticatedAihubFetch(
+      "r".repeat(43),
+      "/v1/organizations/me/members"
+    );
 
-    expect(session).toBeNull();
-    expect(await getCurrentWebSession(sessionId)).toBeNull();
+    expect(response.status).toBe(401);
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
   });
 });

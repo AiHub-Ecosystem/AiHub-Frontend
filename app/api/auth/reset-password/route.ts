@@ -3,13 +3,7 @@ import {
   postAihubAuth,
   readAihubAuthError,
 } from "@/lib/auth-bff";
-import {
-  deleteWebSession,
-  isWebSessionId,
-  originIsAllowed,
-  webSessionIdFromRequest,
-  webSessionCookie,
-} from "@/lib/auth-session";
+import { originIsAllowed, webSessionCookie } from "@/lib/auth-session";
 
 export async function POST(request: Request) {
   if (!originIsAllowed(request))
@@ -55,16 +49,6 @@ export async function POST(request: Request) {
     );
 
   if (upstream.status === 204) {
-    const sessionId = webSessionIdFromRequest(request);
-    if (isWebSessionId(sessionId)) {
-      try {
-        await deleteWebSession(sessionId);
-      } catch {
-        console.warn(
-          "[auth] Could not delete Web Session during password reset"
-        );
-      }
-    }
     return new Response(null, {
       status: 204,
       headers: {

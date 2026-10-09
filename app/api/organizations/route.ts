@@ -1,6 +1,7 @@
 import {
   authenticatedAihubFetch,
   originIsAllowed,
+  rejectedWebSessionCookie,
   requireWebSession,
   webSessionIdFromRequest,
 } from "@/lib/auth-session";
@@ -70,9 +71,16 @@ export async function POST(request: Request) {
       const parsed = JSON.parse(responseText) as { error?: { code?: unknown } };
       if (typeof parsed.error?.code === "string") code = parsed.error.code;
     } catch {}
+    const clearCookie = rejectedWebSessionCookie(upstream);
     return Response.json(
       { error: { code } },
-      { status: upstream.status, headers: noStore }
+      {
+        status: upstream.status,
+        headers: {
+          ...noStore,
+          ...(clearCookie ? { "Set-Cookie": clearCookie } : {}),
+        },
+      }
     );
   } catch {
     return Response.json(

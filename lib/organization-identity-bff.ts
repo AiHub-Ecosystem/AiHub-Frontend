@@ -4,6 +4,7 @@ import {
   parseOrganizationIdentityConfig,
   parseOrganizationIdentityInput,
 } from "@/lib/organization-identity";
+import { rejectedWebSessionCookie } from "@/lib/auth-session";
 
 export const identityNoStore = { "Cache-Control": "no-store" };
 const knownReasons = new Set([
@@ -35,19 +36,27 @@ export async function forwardIdentityResponse(upstream: Response) {
           { status: 502, headers: identityNoStore }
         );
   }
+  const clearCookie = rejectedWebSessionCookie(upstream);
   const code = (payload as { error?: { code?: unknown } } | null)?.error?.code;
   return Response.json(
     {
       error: {
-        code:
-          typeof code === "string" && knownReasons.has(code)
+        code: clearCookie
+          ? "AUTH_REQUIRED"
+          : typeof code === "string" && knownReasons.has(code)
             ? code
             : upstream.status === 403
               ? "FORBIDDEN"
               : "IDENTITY_CONFIG_REQUEST_FAILED",
       },
     },
-    { status: upstream.status, headers: identityNoStore }
+    {
+      status: upstream.status,
+      headers: {
+        ...identityNoStore,
+        ...(clearCookie ? { "Set-Cookie": clearCookie } : {}),
+      },
+    }
   );
 }
 

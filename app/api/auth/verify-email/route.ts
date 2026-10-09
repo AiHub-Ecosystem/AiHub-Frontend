@@ -1,17 +1,12 @@
-import {
-  AUTH_NO_STORE,
-  postAihubAuth,
-  readAihubAuthError,
-} from "@/lib/auth-bff";
-import { createWebSessionFromAihubResponse } from "@/lib/auth-session-from-response";
+import { AUTH_NO_STORE, readAihubAuthError } from "@/lib/auth-bff";
 import {
   customerWebOrigin,
-  deleteWebSession,
-  extractRefreshToken,
-  getWebSession,
+  getCurrentWebSession,
   isWebSessionId,
   logoutFromAihubBestEffort,
   originIsAllowed,
+  postAihubWebSession,
+  readCreatedWebSession,
   signupBindingCookie,
   signupBindingFromRequest,
   webSessionCookie,
@@ -19,10 +14,13 @@ import {
   WEB_SESSION_TTL_SECONDS,
 } from "@/lib/auth-session";
 
-function unavailable() {
+function unavailable(clearSignupBinding = false) {
+  const headers = new Headers(AUTH_NO_STORE);
+  if (clearSignupBinding)
+    headers.append("Set-Cookie", signupBindingCookie("", 0));
   return Response.json(
     { error: { code: "UNAVAILABLE" } },
-    { status: 503, headers: AUTH_NO_STORE }
+    { status: 503, headers }
   );
 }
 
@@ -47,73 +45,43 @@ async function requestToken(request: Request): Promise<string | Response> {
     : invalidToken();
 }
 
-async function verifyOnly(request: Request) {
-  const sessionId = webSessionIdFromRequest(request);
-  let hasSession = false;
-  if (isWebSessionId(sessionId)) {
-    try {
-      hasSession = !!(await getWebSession(sessionId));
-    } catch {
-      return unavailable();
-    }
-  }
-  const location = hasSession ? "/console" : "/login?verified=1";
-  return new Response(null, {
-    status: 303,
-    headers: {
-      ...AUTH_NO_STORE,
-      Location: new URL(location, customerWebOrigin()).toString(),
-    },
-  });
+function redirectTo(path: string, cookies: string[]) {
+  const headers = new Headers(AUTH_NO_STORE);
+  headers.set("Location", new URL(path, customerWebOrigin()).toString());
+  for (const cookie of cookies) headers.append("Set-Cookie", cookie);
+  return new Response(null, { status: 303, headers });
 }
 
-async function discardNewSession(sessionId: string, refreshToken: string) {
-  try {
-    await deleteWebSession(sessionId);
-  } catch {
-    console.error("[auth] Could not delete uncommitted Web Session");
+async function verifyOnly(request: Request) {
+  const oldToken = webSessionIdFromRequest(request);
+  const cookies = [signupBindingCookie("", 0)];
+  if (isWebSessionId(oldToken)) {
+    try {
+      if (await getCurrentWebSession(oldToken))
+        return redirectTo("/console", cookies);
+    } catch {
+      return unavailable(true);
+    }
+    cookies.push(webSessionCookie("", 0));
   }
-  await logoutFromAihubBestEffort(refreshToken);
+  return redirectTo("/login?verified=1", cookies);
 }
 
 async function verificationSignIn(request: Request, upstream: Response) {
-  const oldSessionId = webSessionIdFromRequest(request);
-  let oldRefreshToken: string | undefined;
-  if (isWebSessionId(oldSessionId)) {
-    try {
-      oldRefreshToken = (await getWebSession(oldSessionId))?.refreshToken;
-    } catch {
-      const refreshToken = extractRefreshToken(upstream.headers);
-      if (refreshToken) await logoutFromAihubBestEffort(refreshToken);
-      return unavailable();
-    }
-  }
-
-  let newSession: Awaited<ReturnType<typeof createWebSessionFromAihubResponse>>;
+  let newToken: string;
   try {
-    newSession = await createWebSessionFromAihubResponse(upstream);
+    newToken = await readCreatedWebSession(upstream);
   } catch {
     return unavailable();
   }
 
-  if (isWebSessionId(oldSessionId)) {
-    try {
-      await deleteWebSession(oldSessionId);
-    } catch {
-      await discardNewSession(newSession.sessionId, newSession.refreshToken);
-      return unavailable();
-    }
-  }
-  if (oldRefreshToken) await logoutFromAihubBestEffort(oldRefreshToken);
+  const oldToken = webSessionIdFromRequest(request);
+  if (isWebSessionId(oldToken)) void logoutFromAihubBestEffort(oldToken);
 
-  const headers = new Headers(AUTH_NO_STORE);
-  headers.set("Location", new URL("/console", customerWebOrigin()).toString());
-  headers.append(
-    "Set-Cookie",
-    webSessionCookie(newSession.sessionId, WEB_SESSION_TTL_SECONDS)
-  );
-  headers.append("Set-Cookie", signupBindingCookie("", 0));
-  return new Response(null, { status: 303, headers });
+  return redirectTo("/console", [
+    webSessionCookie(newToken, WEB_SESSION_TTL_SECONDS),
+    signupBindingCookie("", 0),
+  ]);
 }
 
 async function verificationFailure(upstream: Response) {
@@ -149,12 +117,16 @@ export async function POST(request: Request) {
   if (token instanceof Response) return token;
 
   const browserBinding = signupBindingFromRequest(request);
-  const upstream = await postAihubAuth("/v1/auth/verify-email", {
-    token,
-    ...(browserBinding ? { browser_binding: browserBinding } : {}),
-  });
-  if (!upstream) return unavailable();
+  let upstream: Response;
+  try {
+    upstream = await postAihubWebSession("/v1/auth/web-sessions/verification", {
+      token,
+      ...(browserBinding ? { browser_binding: browserBinding } : {}),
+    });
+  } catch {
+    return unavailable();
+  }
   if (upstream.status === 204) return verifyOnly(request);
-  if (upstream.status === 200) return verificationSignIn(request, upstream);
+  if (upstream.status === 201) return verificationSignIn(request, upstream);
   return verificationFailure(upstream);
 }
