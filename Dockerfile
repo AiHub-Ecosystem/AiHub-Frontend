@@ -2,7 +2,9 @@
 # AiHub Frontend Multi-stage Dockerfile
 # ==========================================
 
-FROM node:20-slim AS builder
+ARG NODE_IMAGE=node:20-slim
+
+FROM ${NODE_IMAGE} AS builder
 
 WORKDIR /app
 
@@ -15,11 +17,17 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL=https://api.aihubproduction.com
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_BUILD_ID
 
-RUN npm run build
+RUN --mount=type=secret,id=next_server_actions_key,required=false \
+    if [ -f /run/secrets/next_server_actions_key ]; then \
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(cat /run/secrets/next_server_actions_key)" npm run build; \
+    else \
+      npm run build; \
+    fi
 RUN npm prune --omit=dev
 
-FROM node:20-slim AS runner
+FROM ${NODE_IMAGE} AS runner
 
 WORKDIR /app
 

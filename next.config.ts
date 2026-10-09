@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
+const buildId = process.env.NEXT_BUILD_ID;
+
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  ...(buildId ? { generateBuildId: async () => buildId } : {}),
   logging: {
     incomingRequests: {
       ignore: [/^\/verify-email(?:\?.*)?$/, /^\/reset-password(?:\?.*)?$/],
