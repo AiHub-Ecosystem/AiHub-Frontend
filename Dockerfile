@@ -11,6 +11,10 @@ ARG NEXT_BUILD_ID
 ARG SOURCE_DATE_EPOCH
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Two installs on purpose. The first brings the dev tree for the build; the
+# second reinstalls node_modules as production-only. `npm prune --omit=dev`
+# removed the dev entry points but left their transitive tree behind, so the
+# runtime image was still carrying eslint, tailwind and playwright.
 RUN --mount=type=bind,target=/source \
     --mount=type=secret,id=next_server_actions_key,required=false \
     --mount=type=secret,id=next_preview_info,required=false \
@@ -29,7 +33,7 @@ RUN --mount=type=bind,target=/source \
     else \
       npm run build; \
     fi; \
-    npm prune --omit=dev --libc=glibc; \
+    npm ci --omit=dev --ignore-scripts --libc=glibc; \
     if [ -n "${SOURCE_DATE_EPOCH:-}" ]; then \
       rm -rf /app/.next/cache/turbopack /app/.next/cache/.tsbuildinfo /app/.next/trace /app/.next/trace-build /app/.next/next-server.js.nft.json; \
       mkdir -p /app/.next/cache; \
