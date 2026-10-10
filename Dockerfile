@@ -30,7 +30,7 @@ RUN --mount=type=bind,target=/source \
       npm run build; \
     fi; \
     npm prune --omit=dev --libc=glibc; \
-    if [ -n "$SOURCE_DATE_EPOCH" ]; then \
+    if [ -n "${SOURCE_DATE_EPOCH:-}" ]; then \
       rm -rf /app/.next/cache/turbopack /app/.next/cache/.tsbuildinfo /app/.next/trace /app/.next/trace-build /app/.next/next-server.js.nft.json; \
       mkdir -p /app/.next/cache; \
     fi; \
