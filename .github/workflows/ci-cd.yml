@@ -136,18 +136,6 @@ jobs:
             exit 1
           fi
 
-      - name: Trace node_modules across the stage boundary
-        run: |
-          set -euo pipefail
-          docker build --target deps -t aihub-frontend:deps-trace . \
-            --build-arg NEXT_BUILD_ID=${{ github.sha }}
-          echo "=== deps stage:"
-          docker run --rm --entrypoint sh aihub-frontend:deps-trace -c \
-            'du -sh /app/node_modules; ls -1 /app/node_modules | wc -l; node -p "Object.keys(require(\"/app/node_modules/.package-lock.json\").packages).length"; npm config get omit'
-          echo "=== runtime image:"
-          docker run --rm --entrypoint sh "$IMAGE_NAME:ci" -c \
-            'du -sh /app/node_modules; ls -1 /app/node_modules | tr "\n" " "; echo'
-
       - name: Assert image carries no build-time dependencies
         run: |
           set -euo pipefail

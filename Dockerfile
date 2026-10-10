@@ -5,6 +5,11 @@ ARG NODE_IMAGE=node:20-slim
 # Production dependencies, installed into an empty tree. The build below installs
 # the dev tree into /app and leaves it there; installing over it does not produce
 # a clean result, so the runtime dependencies get a tree that starts empty.
+#
+# npm drops the unscoped dev entry points but leaves the scoped ones behind, so
+# the tree is then trimmed to what the lockfile marks as production. That list is
+# derived from the lockfile rather than written out here, so a new dev dependency
+# is picked up automatically instead of needing an edit to this file.
 FROM ${NODE_IMAGE} AS deps
 
 WORKDIR /app
@@ -12,6 +17,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 RUN npm ci --omit=dev --ignore-scripts --libc=glibc; \
+    node -e 'const fs=require("fs"),l=require("/app/package-lock.json").packages;const keep=new Set(Object.keys(l).filter(k=>!l[k].dev&&!l[k].devOptional).map(k=>k.replace(/^node_modules\//,"").split("/node_modules/")[0]));const rm=(p)=>fs.rmSync(p,{recursive:true,force:true});for(const d of fs.readdirSync("/app/node_modules")){if(d[0]===".")continue;if(d[0]==="@"){const p="/app/node_modules/"+d;for(const s of fs.readdirSync(p))if(!keep.has(d+"/"+s))rm(p+"/"+s);if(!fs.readdirSync(p).length)rm(p);}else if(!keep.has(d))rm("/app/node_modules/"+d);}'; \
     rm -rf /root/.npm
 
 FROM ${NODE_IMAGE} AS builder
