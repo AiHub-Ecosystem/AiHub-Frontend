@@ -34,7 +34,7 @@ RUN --mount=type=bind,target=/source \
       rm -rf /app/.next/cache/turbopack /app/.next/cache/.tsbuildinfo /app/.next/trace /app/.next/trace-build /app/.next/next-server.js.nft.json; \
       mkdir -p /app/.next/cache; \
     fi; \
-    npm cache clean --force; \
+    rm -rf /root/.npm; \
     find /app -mindepth 1 -maxdepth 1 ! -name package.json ! -name package-lock.json ! -name node_modules ! -name public ! -name .next ! -name data -exec rm -rf {} +; \
     find /app/data -mindepth 1 -maxdepth 1 ! -name mirror -exec rm -rf {} +
 
