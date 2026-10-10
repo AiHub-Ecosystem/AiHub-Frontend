@@ -142,7 +142,7 @@ jobs:
           context: .
           provenance: false
           no-cache: true
-          cache-to: type=gha,mode=max,scope=${{ env.PARITY_CACHE_SCOPE }}-prod
+          cache-to: type=gha,mode=min,scope=${{ env.PARITY_CACHE_SCOPE }}-prod
           build-args: |
             NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
             NEXT_BUILD_ID=${{ github.sha }}
@@ -165,11 +165,11 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          load: true
+          outputs: type=docker,compression=zstd
           provenance: false
           tags: aihub-frontend:validation-cache-warm
           cache-from: type=gha,scope=${{ env.PARITY_CACHE_SCOPE }}-prod
-          cache-to: type=gha,mode=max,scope=${{ env.PARITY_CACHE_SCOPE }}-prod
+          cache-to: type=gha,mode=min,scope=${{ env.PARITY_CACHE_SCOPE }}-prod
           build-args: |
             NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
             NEXT_BUILD_ID=${{ github.sha }}
@@ -190,7 +190,7 @@ jobs:
           context: .
           provenance: false
           no-cache: true
-          cache-to: type=gha,mode=max,scope=${{ env.PARITY_CACHE_SCOPE }}-parity
+          cache-to: type=gha,mode=min,scope=${{ env.PARITY_CACHE_SCOPE }}-parity
           build-args: |
             NODE_IMAGE=${{ env.PARITY_NODE_IMAGE }}
             NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
@@ -213,9 +213,9 @@ jobs:
           context: .
           provenance: false
           tags: aihub-frontend:parity-cached
-          outputs: type=docker,rewrite-timestamp=true
+          outputs: type=docker,compression=zstd,rewrite-timestamp=true
           cache-from: type=gha,scope=${{ env.PARITY_CACHE_SCOPE }}-parity
-          cache-to: type=gha,mode=max,scope=${{ env.PARITY_CACHE_SCOPE }}-parity
+          cache-to: type=gha,mode=min,scope=${{ env.PARITY_CACHE_SCOPE }}-parity
           build-args: |
             NODE_IMAGE=${{ env.PARITY_NODE_IMAGE }}
             NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
@@ -246,7 +246,7 @@ jobs:
           provenance: false
           no-cache: true
           tags: aihub-frontend:parity-uncached
-          outputs: type=docker,rewrite-timestamp=true
+          outputs: type=docker,compression=zstd,rewrite-timestamp=true
           build-args: |
             NODE_IMAGE=${{ env.PARITY_NODE_IMAGE }}
             NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
@@ -313,10 +313,10 @@ jobs:
         continue-on-error: true
         with:
           context: .
-          load: true
+          outputs: type=docker,compression=zstd
           tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           cache-from: type=gha,scope=aihub-frontend-prod
-          cache-to: type=gha,mode=max,scope=aihub-frontend-prod,ignore-error=true
+          cache-to: type=gha,mode=min,scope=aihub-frontend-prod,ignore-error=true
           build-args: |
             NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
             NEXT_BUILD_ID=${{ github.sha }}
@@ -326,7 +326,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          load: true
+          outputs: type=docker,compression=zstd
           tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           build-args: |
             NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
