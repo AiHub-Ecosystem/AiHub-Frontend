@@ -20,6 +20,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # optional peer, so the lockfile marks the subtree devOptional and --omit=dev
 # keeps it. --omit=optional would drop it along with the @next/swc binary Next
 # needs to run, so only the test runner is removed.
+#
+# The build artefacts below are removed for every build, not just the
+# reproducible ones. The Turbopack cache was previously left in production
+# images, which the server never reads but the VPS still had to download.
 RUN --mount=type=bind,target=/source \
     --mount=type=secret,id=next_server_actions_key,required=false \
     --mount=type=secret,id=next_preview_info,required=false \
@@ -40,10 +44,8 @@ RUN --mount=type=bind,target=/source \
     fi; \
     npm ci --omit=dev --ignore-scripts --libc=glibc; \
     rm -rf /app/node_modules/@playwright /app/node_modules/playwright /app/node_modules/playwright-core; \
-    if [ -n "${SOURCE_DATE_EPOCH:-}" ]; then \
-      rm -rf /app/.next/cache/turbopack /app/.next/cache/.tsbuildinfo /app/.next/trace /app/.next/trace-build /app/.next/next-server.js.nft.json; \
-      mkdir -p /app/.next/cache; \
-    fi; \
+    rm -rf /app/.next/cache/turbopack /app/.next/cache/.tsbuildinfo /app/.next/trace /app/.next/trace-build /app/.next/next-server.js.nft.json; \
+    mkdir -p /app/.next/cache; \
     rm -rf /root/.npm; \
     find /app -mindepth 1 -maxdepth 1 ! -name package.json ! -name package-lock.json ! -name node_modules ! -name public ! -name .next ! -name data -exec rm -rf {} +; \
     find /app/data -mindepth 1 -maxdepth 1 ! -name mirror -exec rm -rf {} +

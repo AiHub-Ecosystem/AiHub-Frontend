@@ -129,8 +129,10 @@ jobs:
           echo "Runtime image: ${image_bytes} bytes"
           echo "SSH transfer payload: ${payload_bytes} bytes"
           # Issue #48 baseline: 1,447,074,312 bytes, ~70s to transfer.
-          if [ "$image_bytes" -gt 800000000 ]; then
-            echo "::error::Runtime image is ${image_bytes} bytes, over the 800000000 ceiling"
+          baseline_bytes=1447074312
+          ceiling_bytes=$((baseline_bytes * 70 / 100))
+          if [ "$image_bytes" -gt "$ceiling_bytes" ]; then
+            echo "::error::Runtime image is ${image_bytes} bytes, over 70% of the ${baseline_bytes} byte baseline"
             exit 1
           fi
 
