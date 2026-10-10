@@ -2,7 +2,19 @@
 
 ARG NODE_IMAGE=node:20-slim
 
-FROM ${NODE_IMAGE}
+# Production dependencies, installed into an empty tree. The build below installs
+# the dev tree into /app and leaves it there; installing over it does not produce
+# a clean result, so the runtime dependencies get a tree that starts empty.
+FROM ${NODE_IMAGE} AS deps
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+
+RUN npm ci --omit=dev --ignore-scripts --libc=glibc; \
+    rm -rf /root/.npm
+
+FROM ${NODE_IMAGE} AS builder
 
 WORKDIR /app
 
@@ -11,19 +23,14 @@ ARG NEXT_BUILD_ID
 ARG SOURCE_DATE_EPOCH
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Two installs on purpose. The first brings the dev tree for the build; the
-# second reinstalls node_modules as production-only. `npm prune --omit=dev`
-# removed the dev entry points but left their transitive tree behind, so the
-# image was still carrying eslint, tailwind and playwright.
+# `npm prune --omit=dev` was what this used to do. It removed the dev entry points
+# and left their transitive tree behind, so the image still carried eslint,
+# tailwind, vitest and playwright. Nothing from this stage is copied into the
+# runtime image any more, so the dev tree only costs build time here.
 #
-# The playwright directories go afterwards: next declares @playwright/test as an
-# optional peer, so the lockfile marks the subtree devOptional and --omit=dev
-# keeps it. --omit=optional would drop it along with the @next/swc binary Next
-# needs to run, so only the test runner is removed.
-#
-# The build artefacts below are removed for every build, not just the
-# reproducible ones. The Turbopack cache was previously left in production
-# images, which the server never reads but the VPS still had to download.
+# The build artefacts are dropped for every build, not only the reproducible ones.
+# The Turbopack cache was previously left in production images, which the server
+# never reads but the VPS still had to download.
 RUN --mount=type=bind,target=/source \
     --mount=type=secret,id=next_server_actions_key,required=false \
     --mount=type=secret,id=next_preview_info,required=false \
@@ -42,14 +49,24 @@ RUN --mount=type=bind,target=/source \
     else \
       npm run build; \
     fi; \
-    npm ci --omit=dev --ignore-scripts --libc=glibc; \
-    rm -rf /app/node_modules/@playwright /app/node_modules/playwright /app/node_modules/playwright-core; \
     rm -rf /app/.next/cache/turbopack /app/.next/cache/.tsbuildinfo /app/.next/trace /app/.next/trace-build /app/.next/next-server.js.nft.json; \
     mkdir -p /app/.next/cache; \
-    rm -rf /root/.npm; \
-    find /app -mindepth 1 -maxdepth 1 ! -name package.json ! -name package-lock.json ! -name node_modules ! -name public ! -name .next ! -name data -exec rm -rf {} +; \
-    find /app/data -mindepth 1 -maxdepth 1 ! -name mirror -exec rm -rf {} +
+    rm -rf /root/.npm
 
+# The server reads the build output, the production dependencies, public/ and the
+# mirrored pages. Everything else in the build tree stays behind.
+FROM ${NODE_IMAGE} AS runtime
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/data ./data
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package-lock.json ./package-lock.json
+
+ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV PORT=3000
 

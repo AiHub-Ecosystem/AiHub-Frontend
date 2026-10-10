@@ -142,7 +142,10 @@ jobs:
           modules="$(docker run --rm --entrypoint sh "$IMAGE_NAME:ci" -c 'ls -1 /app/node_modules')"
           echo "Runtime image /app/node_modules:"
           echo "$modules"
-          if grep -qx -e typescript -e eslint -e vitest -e playwright -e playwright-core -e prettier <<<"$modules"; then
+          if grep -qx -e typescript -e eslint -e vitest -e playwright -e playwright-core -e prettier \
+            -e '@eslint' -e '@eslint-community' -e '@humanfs' -e '@humanwhocodes' -e '@typescript-eslint' \
+            -e '@vitest' -e '@tailwindcss' -e '@babel' -e '@types' -e '@rolldown' -e '@oxc-project' \
+            -e '@unrs' -e '@jridgewell' -e '@nodelib' -e '@rtsao' -e '@alloc' <<<"$modules"; then
             echo "::error::Build-time dependency present in the runtime image"
             exit 1
           fi
@@ -410,8 +413,13 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           set -euo pipefail
-          docker run --rm --entrypoint sh "${IMAGE_NAME}:${IMAGE_TAG}" -c \
-            '! ls /app/node_modules | grep -qx -e typescript -e eslint -e vitest -e playwright -e prettier'
+          modules="$(docker run --rm --entrypoint sh "${IMAGE_NAME}:${IMAGE_TAG}" -c 'ls -1 /app/node_modules')"
+          if grep -qx -e typescript -e eslint -e vitest -e playwright -e playwright-core -e prettier \
+                -e '@eslint' -e '@typescript-eslint' -e '@vitest' -e '@tailwindcss' -e '@babel' -e '@types' \
+                -e '@rolldown' -e '@oxc-project' -e '@unrs' -e '@playwright' <<<"$modules"; then
+            echo "::error::Build-time dependency present in the image about to be deployed"
+            exit 1
+          fi
 
       - name: Configure SSH
         env:
