@@ -132,8 +132,14 @@ jobs:
       - name: Assert image carries no build-time dependencies
         run: |
           set -euo pipefail
-          docker run --rm --entrypoint sh "$IMAGE_NAME:ci" -c \
-            '! ls /app/node_modules | grep -qx -e typescript -e eslint -e vitest -e playwright -e prettier'
+          modules="$(docker run --rm --entrypoint sh "$IMAGE_NAME:ci" -c 'ls -1 /app/node_modules')"
+          echo "Runtime image /app/node_modules:"
+          echo "$modules"
+          if grep -qx -e typescript -e eslint -e vitest -e playwright -e playwright-core -e prettier <<<"$modules"; then
+            echo "::error::Build-time dependency present in the runtime image"
+            exit 1
+          fi
+          echo "No build-time dependency in the runtime image"
 
       - name: Smoke test the runtime image
         run: |
