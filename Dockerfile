@@ -55,12 +55,6 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/data/mirror ./data/mirror
 
-# SOURCE_DATE_EPOCH is set only by the one-off cached/uncached parity check.
-ARG SOURCE_DATE_EPOCH
-RUN if [ -n "$SOURCE_DATE_EPOCH" ]; then \
-      find /app -depth \( -type d -o -type f -o -type l \) -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} +; \
-    fi
-
 USER node
 
 EXPOSE 3000

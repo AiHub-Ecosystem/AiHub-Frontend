@@ -136,14 +136,12 @@ jobs:
       - name: Start production cache-fill timer
         run: echo "CACHE_FILL_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
 
-      - name: Build production image with cold GHA cache
+      - name: Fill production GHA cache with a cold build
         uses: docker/build-push-action@v6
         with:
           context: .
-          load: true
           provenance: false
           no-cache: true
-          tags: aihub-frontend:validation-cache-fill
           cache-to: type=gha,mode=min,scope=${{ env.PARITY_CACHE_SCOPE }}-prod
           build-args: |
             NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
@@ -154,10 +152,11 @@ jobs:
         run: |
           set -euo pipefail
           elapsed=$(($(date +%s) - CACHE_FILL_STARTED_AT))
-          image_id="$(docker image inspect --format '{{.Id}}' aihub-frontend:validation-cache-fill)"
           echo "CACHE_FILL_SECONDS=$elapsed" >> "$GITHUB_ENV"
-          echo "Production cold-cache build: ${elapsed}s; Image ID ${image_id}"
-          docker image rm aihub-frontend:validation-cache-fill
+          echo "Production cache-fill build: ${elapsed}s (limit 128s)"
+
+      - name: Clear local BuildKit cache before production warm build
+        run: docker buildx prune --all --force
 
       - name: Start production warm-cache timer
         run: echo "PRODUCTION_WARM_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
@@ -202,6 +201,9 @@ jobs:
             next_preview_info=${{ runner.temp }}/issue-47-preview-info
             next_rsc_info=${{ runner.temp }}/issue-47-rsc-info
 
+      - name: Clear local BuildKit cache before parity warm build
+        run: docker buildx prune --all --force
+
       - name: Start parity warm-cache timer
         run: echo "PARITY_WARM_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
 
@@ -209,9 +211,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          load: true
           provenance: false
           tags: aihub-frontend:parity-cached
+          outputs: type=docker,rewrite-timestamp=true
           cache-from: type=gha,scope=${{ env.PARITY_CACHE_SCOPE }}-parity
           cache-to: type=gha,mode=min,scope=${{ env.PARITY_CACHE_SCOPE }}-parity
           build-args: |
@@ -241,10 +243,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          load: true
           provenance: false
           no-cache: true
           tags: aihub-frontend:parity-uncached
+          outputs: type=docker,rewrite-timestamp=true
           build-args: |
             NODE_IMAGE=${{ env.PARITY_NODE_IMAGE }}
             NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
@@ -266,10 +268,28 @@ jobs:
           echo "Cached Image ID: ${PARITY_CACHED_IMAGE_ID}"
           echo "Uncached Image ID: ${uncached_id}"
 
-          test "$CACHE_FILL_SECONDS" -le 128
-          test "$PRODUCTION_WARM_SECONDS" -lt 60
-          test "$PARITY_WARM_SECONDS" -lt 60
-          test "$PARITY_CACHED_IMAGE_ID" = "$uncached_id"
+          failed=0
+          if [ "$CACHE_FILL_SECONDS" -gt 128 ]; then
+            echo "Cold cache fill exceeded 128s"
+            failed=1
+          fi
+          if [ "$PRODUCTION_WARM_SECONDS" -ge 60 ]; then
+            echo "Production warm-cache build took at least 60s"
+            failed=1
+          fi
+          if [ "$PARITY_WARM_SECONDS" -ge 60 ]; then
+            echo "Parity warm-cache build took at least 60s"
+            failed=1
+          fi
+          if [ "$PARITY_CACHED_IMAGE_ID" != "$uncached_id" ]; then
+            echo "Cached and uncached image metadata:"
+            for image in aihub-frontend:parity-cached aihub-frontend:parity-uncached; do
+              docker image inspect --format '{{.Id}} created={{.Created}} layers={{json .RootFS.Layers}} config={{json .Config}}' "$image"
+              docker history --no-trunc --format '{{.CreatedAt}} {{.CreatedBy}}' "$image"
+            done
+            failed=1
+          fi
+          exit "$failed"
 
   deploy:
     name: Deploy production
