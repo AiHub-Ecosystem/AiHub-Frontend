@@ -2,7 +2,7 @@
 
 ARG NODE_IMAGE=node:20-slim
 
-FROM ${NODE_IMAGE} AS builder
+FROM ${NODE_IMAGE}
 
 WORKDIR /app
 
@@ -14,7 +14,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Two installs on purpose. The first brings the dev tree for the build; the
 # second reinstalls node_modules as production-only. `npm prune --omit=dev`
 # removed the dev entry points but left their transitive tree behind, so the
-# runtime image was still carrying eslint, tailwind and playwright.
+# image was still carrying eslint, tailwind and playwright.
+#
+# The playwright directories go afterwards: next declares @playwright/test as an
+# optional peer, so the lockfile marks the subtree devOptional and --omit=dev
+# keeps it. --omit=optional would drop it along with the @next/swc binary Next
+# needs to run, so only the test runner is removed.
 RUN --mount=type=bind,target=/source \
     --mount=type=secret,id=next_server_actions_key,required=false \
     --mount=type=secret,id=next_preview_info,required=false \
@@ -34,6 +39,7 @@ RUN --mount=type=bind,target=/source \
       npm run build; \
     fi; \
     npm ci --omit=dev --ignore-scripts --libc=glibc; \
+    rm -rf /app/node_modules/@playwright /app/node_modules/playwright /app/node_modules/playwright-core; \
     if [ -n "${SOURCE_DATE_EPOCH:-}" ]; then \
       rm -rf /app/.next/cache/turbopack /app/.next/cache/.tsbuildinfo /app/.next/trace /app/.next/trace-build /app/.next/next-server.js.nft.json; \
       mkdir -p /app/.next/cache; \
@@ -42,15 +48,6 @@ RUN --mount=type=bind,target=/source \
     find /app -mindepth 1 -maxdepth 1 ! -name package.json ! -name package-lock.json ! -name node_modules ! -name public ! -name .next ! -name data -exec rm -rf {} +; \
     find /app/data -mindepth 1 -maxdepth 1 ! -name mirror -exec rm -rf {} +
 
-# The builder above never reaches the VPS: only the pruned tree below ships,
-# so build-time dependencies and source stay out of the transferred image.
-FROM ${NODE_IMAGE} AS runtime
-
-WORKDIR /app
-
-COPY --from=builder /app /app
-
-ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV PORT=3000
 

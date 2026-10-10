@@ -121,13 +121,18 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
             NEXT_BUILD_ID=${{ github.sha }}
 
-      - name: Report the payload the VPS transfer sends
+      - name: Report and bound the payload the VPS transfer sends
         run: |
           set -euo pipefail
           image_bytes="$(docker image inspect --format '{{.Size}}' "$IMAGE_NAME:ci")"
           payload_bytes="$(docker save "$IMAGE_NAME:ci" | gzip -1 | wc -c)"
           echo "Runtime image: ${image_bytes} bytes"
-          echo "SSH transfer payload: ${payload_bytes} bytes (issue #48 baseline: ~70s)"
+          echo "SSH transfer payload: ${payload_bytes} bytes"
+          # Issue #48 baseline: 1,447,074,312 bytes, ~70s to transfer.
+          if [ "$image_bytes" -gt 800000000 ]; then
+            echo "::error::Runtime image is ${image_bytes} bytes, over the 800000000 ceiling"
+            exit 1
+          fi
 
       - name: Assert image carries no build-time dependencies
         run: |
