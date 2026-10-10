@@ -2,7 +2,7 @@
 
 ARG NODE_IMAGE=node:20-slim
 
-FROM ${NODE_IMAGE}
+FROM ${NODE_IMAGE} AS builder
 
 WORKDIR /app
 
@@ -38,6 +38,15 @@ RUN --mount=type=bind,target=/source \
     find /app -mindepth 1 -maxdepth 1 ! -name package.json ! -name package-lock.json ! -name node_modules ! -name public ! -name .next ! -name data -exec rm -rf {} +; \
     find /app/data -mindepth 1 -maxdepth 1 ! -name mirror -exec rm -rf {} +
 
+# The builder above never reaches the VPS: only the pruned tree below ships,
+# so build-time dependencies and source stay out of the transferred image.
+FROM ${NODE_IMAGE} AS runtime
+
+WORKDIR /app
+
+COPY --from=builder /app /app
+
+ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV PORT=3000
 
