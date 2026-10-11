@@ -1,327 +1,780 @@
-/* AIHub portal tokens: the workbench keeps the existing light design system. */
-.aihub-speaking.speaking-page {
-  --background: 210 40% 98%;
-  --foreground: 216 25% 17%;
-  --border: 214 20% 90%;
-  --input: 214 20% 84%;
-  --ring: 228 94% 60%;
-  --card: 0 0% 100%;
-  --card-foreground: 216 25% 17%;
-  --primary: 228 94% 60%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 228 100% 97%;
-  --secondary-foreground: 216 25% 17%;
-  --muted: 214 20% 94%;
-  --muted-foreground: 215 16% 45%;
-  --accent: 161 57% 41%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 1 73% 40%;
-  --destructive-foreground: 0 0% 100%;
-  --app-font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
-  --app-font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
-  --radius: 16px;
-  --shadow-sm: 0 4px 20px -2px rgb(29 40 56 / 0.05);
-  --shadow-md: 0 12px 32px rgb(29 40 56 / 0.08);
-  background: var(--aihub-surface, #f1f5f9);
-  color: var(--aihub-ink, #1d2838);
-}
-.aihub-speaking.speaking-page .topbar,
-.aihub-speaking.speaking-page .app-shell {
-  font-family: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
-}
-.aihub-speaking.speaking-page .main-card,
-.aihub-speaking.speaking-page .setup-card {
-  border-radius: var(--aihub-radius, 16px);
-  box-shadow: 0 4px 20px -2px rgb(29 40 56 / 0.05);
-}
-.aihub-speaking.speaking-page .console,
-.aihub-speaking.speaking-page .feedback-dashboard {
-  background: #080808;
-}
-.aihub-speaking.speaking-page .console {
-  border-color: #262626;
-}
-.aihub-speaking.speaking-page .btn-primary {
-  background: var(--aihub-brand, #3a64fa);
-  border-color: var(--aihub-brand, #3a64fa);
-}
-.aihub-speaking.speaking-page .btn-primary:hover {
-  background: #3157dc;
-  border-color: #3157dc;
-}
-.aihub-speaking.speaking-page .quick-step.active,
-.aihub-speaking.speaking-page .console-tab.active {
-  background: var(--aihub-ink, #1d2838);
-  border-color: var(--aihub-ink, #1d2838);
-}
-.aihub-speaking.speaking-page .quick-step.active span {
-  background: var(--aihub-brand, #3a64fa);
-}
-.aihub-speaking.speaking-page .question-option.active,
-.aihub-speaking.speaking-page .filter-chip.active {
-  color: var(--aihub-brand, #3a64fa);
-  border-color: rgb(58 100 250 / 0.35);
-  background: rgb(58 100 250 / 0.08);
-}
-.aihub-speaking.speaking-page .question-options {
-  z-index: 30;
-}
-.aihub-speaking.speaking-page .setup-card {
-  z-index: 10;
-}
-@media (max-width: 720px) {
-  .aihub-speaking.speaking-page .app-shell { padding: 10px 10px 30px; }
-}
+/*
+ * Speaking demo only.
+ *
+ * The shell, controls, result panel, highlighted-span mechanism and criterion
+ * scale live in ../demo-workbench.css, shared with the Writing grading demo.
+ * What remains here is what only recording and grading an audio answer does.
+ */
 
-/* Keep the copied layout on the AIHub token layer. */
-.aihub-speaking.speaking-page {
-  --background: 210 40% 98%;
-  --foreground: 216 25% 17%;
-  --border: 214 20% 90%;
-  --input: 214 20% 84%;
-  --ring: 228 94% 60%;
-  --primary: 228 94% 60%;
-  --secondary: 228 100% 97%;
-  --secondary-foreground: 216 25% 17%;
-  --muted: 214 20% 94%;
-  --muted-foreground: 215 16% 45%;
-  --destructive: 1 73% 40%;
-  --app-font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
-  --app-font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
-  --radius: 16px;
-  --shadow-sm: 0 4px 20px -2px rgb(29 40 56 / 0.05);
-  --shadow-md: 0 12px 32px rgb(29 40 56 / 0.08);
-  background: var(--aihub-surface, #f1f5f9);
-  color: var(--aihub-ink, #1d2838);
-}
+@import "../demo-workbench.css";
 
-/* Ported from artifacts/ielts-speaking-api; page-scoped tokens keep the customer shell untouched. */
-.aihub-speaking.speaking-page{
-  --background: 210 40% 98%;
-  --foreground: 216 25% 17%;
-  --border: 214 20% 90%;
-  --input: 214 20% 84%;
-  --ring: 228 94% 60%;
-  --card: 0 0% 100%;
-  --card-foreground: 216 25% 17%;
-  --primary: 228 94% 60%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 228 100% 97%;
-  --secondary-foreground: 216 25% 17%;
-  --muted: 214 20% 94%;
-  --muted-foreground: 215 16% 45%;
-  --accent: 161 57% 41%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 1 73% 40%;
-  --destructive-foreground: 0 0% 100%;
-  --app-font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
-  --app-font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
-  --radius: 16px;
-  --shadow-sm: 0 4px 20px -2px rgb(29 40 56 / 0.05);
-  --shadow-md: 0 12px 32px rgb(29 40 56 / 0.08);
-  min-height: 100dvh;
-  background: hsl(var(--background));
+.aihub-speaking .topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.aihub-speaking .identity-link {
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+}
+.aihub-speaking .identity-link:hover {
+  color: hsl(var(--primary));
+}
+.aihub-speaking .nav-signin {
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
   color: hsl(var(--foreground));
-  color-scheme: light;
-  font-family: var(--app-font-sans);
-  -webkit-font-smoothing: antialiased;
+  padding: 7px 12px;
+  text-decoration: none;
 }
-.aihub-speaking.speaking-page .topbar-actions{ display: flex; align-items: center; gap: 14px; }
-.aihub-speaking.speaking-page .identity-link{ color: hsl(var(--muted-foreground)); text-decoration: none; }
-.aihub-speaking.speaking-page .identity-link:hover{ color: hsl(var(--primary)); }
-.aihub-speaking.speaking-page .nav-signin{ border: 1px solid hsl(var(--border)); border-radius: 999px; color: hsl(var(--foreground)); padding: 7px 12px; text-decoration: none; }
-.aihub-speaking.speaking-page .setup-card{ overflow: visible; position: relative; z-index: 1; }
-.aihub-speaking.speaking-page .step-content-content{ position: relative; z-index: 2; }
-.aihub-speaking.speaking-page .question-options{ z-index: 20; }
-.aihub-speaking.speaking-page .inline-error a{ color: inherit; display: block; margin-top: 4px; }
+.aihub-speaking .account-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: hsl(221 24% 37%);
+  text-decoration: none;
+}
+.aihub-speaking .account-link:hover {
+  color: hsl(var(--primary));
+}
+.aihub-speaking .setup-card {
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+.aihub-speaking .step-content-content {
+  position: relative;
+  z-index: 2;
+}
+.aihub-speaking .question-options {
+  z-index: 20;
+}
 
-.aihub-speaking .app-shell{ min-height: 100dvh; padding: 20px 24px 42px; }
-.aihub-speaking .app-container{ width: min(1450px, 100%); margin: 0 auto; }
-.aihub-speaking .topbar{
-  height: 42px; display: flex; align-items: center; justify-content: space-between;
-  color: hsl(var(--muted-foreground)); font-size: 11px; letter-spacing: -0.01em;
+/* Setup wizard ------------------------------------------------------------- */
+
+.aihub-speaking .step-row {
+  width: 100%;
+  min-height: 48px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  text-align: left;
+  transition: background 0.16s ease;
 }
-.aihub-speaking .crumbs{ display: flex; align-items: center; gap: 9px; }
-.aihub-speaking .crumbs strong{ color: hsl(var(--primary)); font-weight: 700; }
-.aihub-speaking .crumb-sep{ color: hsl(215 16% 71%); }
-.aihub-speaking .account-link{ display:flex; align-items:center; gap:6px; color:hsl(221 24% 37%); text-decoration:none; }
-.aihub-speaking .account-link:hover{ color:hsl(var(--primary)); }
-.aihub-speaking .lab-layout{ display: grid; grid-template-columns: 288px minmax(0, 1fr); gap: 16px; align-items: start; }
-.aihub-speaking .card{
-  background: hsl(var(--card)); border: 1px solid hsl(var(--border));
-  border-radius: 12px; box-shadow: var(--shadow-sm);
+.aihub-speaking .step-row:hover {
+  background: hsl(var(--secondary) / 0.65);
 }
-.aihub-speaking .setup-intro{ padding: 22px 20px 16px; }
-.aihub-speaking.speaking-page .eyebrow{ color:hsl(var(--muted-foreground)); font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
-.aihub-speaking .setup-intro h1{ margin: 8px 0 10px; font-size: 21px; letter-spacing: -0.055em; line-height: 1.08; }
-.aihub-speaking .setup-intro p{ margin:0; color:hsl(var(--muted-foreground)); font-size:11px; line-height:1.7; }
-.aihub-speaking .step-row{
-  width: 100%; min-height: 48px; padding: 9px 12px; display:flex; align-items:center; gap:10px;
-  background: transparent; border:0; border-top:1px solid hsl(var(--border)); color:hsl(var(--foreground));
-  text-align:left; transition: background .16s ease;
+.aihub-speaking .step-row.locked {
+  cursor: not-allowed;
+  background: hsl(var(--background) / 0.55);
+  color: hsl(var(--muted-foreground));
+  opacity: 0.62;
 }
-.aihub-speaking .step-row:hover{ background: hsl(var(--secondary) / .65); }
-.aihub-speaking .step-row.locked{ cursor:not-allowed; background:hsl(var(--background) / .55); color:hsl(var(--muted-foreground)); opacity:.62; }
-.aihub-speaking .step-row.locked:hover{ background:transparent; }
-.aihub-speaking .step-row.complete .step-num{ background:hsl(151 55% 40%); }
-.aihub-speaking .step-num{ display:inline-flex; flex:0 0 auto; width:18px; height:18px; align-items:center; justify-content:center; border-radius:50%; background:hsl(var(--primary)); color:white; font-size:10px; font-weight:800; }
-.aihub-speaking .step-label{ flex:1; font-size:11px; font-weight:700; }
-.aihub-speaking .step-lock{ color:hsl(var(--muted-foreground)); font-family:var(--app-font-mono); font-size:7px; letter-spacing:.05em; }
-.aihub-speaking .chevron{ color:hsl(var(--muted-foreground)); transition: transform .18s ease; }
-.aihub-speaking .chevron.open{ transform:rotate(180deg); }
-.aihub-speaking .step-content{ padding: 0 12px 14px 42px; border-top:1px solid hsl(var(--border)); }
-.aihub-speaking .step-content p{ margin: 11px 0 10px; color:hsl(var(--muted-foreground)); font-size:10px; line-height:1.5; }
-.aihub-speaking .step-content-content{ padding-top: 10px; }
-.aihub-speaking .step-content .mini-label{ display:block; margin-bottom:6px; color:hsl(var(--muted-foreground)); font-size:10px; font-weight:700; }
-.aihub-speaking .question-combobox{ position:relative; margin-top:8px; }
-.aihub-speaking .question-combobox-input{ width:100%; border:1px solid hsl(var(--input)); background:hsl(0 0% 100%); color:hsl(var(--foreground)); border-radius:7px; padding:8px 31px 8px 27px; font-size:11px; outline:none; }
-.aihub-speaking .question-combobox-input:focus{ border-color:hsl(var(--primary)); box-shadow:0 0 0 3px hsl(var(--primary) / .12); }
-.aihub-speaking .question-combobox-search{ position:absolute; left:9px; top:9px; color:hsl(var(--muted-foreground)); pointer-events:none; }
-.aihub-speaking .question-combobox-toggle{ position:absolute; right:0; top:0; height:100%; width:30px; display:flex; align-items:center; justify-content:center; border:0; background:transparent; color:hsl(var(--muted-foreground)); }
-.aihub-speaking .question-options{ position:absolute; z-index:5; top:calc(100% + 4px); left:0; right:0; display:grid; gap:3px; max-height:205px; overflow:auto; padding:5px; border:1px solid hsl(var(--border)); border-radius:8px; background:hsl(var(--card)); box-shadow:0 12px 28px hsl(221 30% 15% / .14); }
-.aihub-speaking .question-option{ width:100%; padding:8px; border:1px solid transparent; border-radius:6px; background:hsl(var(--background)); color:hsl(var(--muted-foreground)); text-align:left; font-size:10px; line-height:1.35; }
+.aihub-speaking .step-row.locked:hover {
+  background: transparent;
+}
+.aihub-speaking .step-row.complete .step-num {
+  background: hsl(151 55% 40%);
+}
+.aihub-speaking .step-num {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+}
+.aihub-speaking .step-label {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 700;
+}
+.aihub-speaking .step-lock {
+  color: hsl(var(--muted-foreground));
+  font-family: var(--app-font-mono);
+  font-size: 7px;
+  letter-spacing: 0.05em;
+}
+.aihub-speaking .chevron {
+  color: hsl(var(--muted-foreground));
+  transition: transform 0.18s ease;
+}
+.aihub-speaking .chevron.open {
+  transform: rotate(180deg);
+}
+.aihub-speaking .step-content {
+  padding: 0 12px 14px 42px;
+  border-top: 1px solid hsl(var(--border));
+}
+.aihub-speaking .step-content p {
+  margin: 11px 0 10px;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  line-height: 1.5;
+}
+.aihub-speaking .step-content-content {
+  padding-top: 10px;
+}
+.aihub-speaking .step-content .mini-label {
+  display: block;
+  margin-bottom: 6px;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  font-weight: 700;
+}
+.aihub-speaking .question-combobox {
+  position: relative;
+  margin-top: 8px;
+}
+.aihub-speaking .question-combobox-search {
+  position: absolute;
+  left: 9px;
+  top: 9px;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+}
+.aihub-speaking .question-combobox-toggle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+.aihub-speaking .question-options {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 3px;
+  max-height: 205px;
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--card));
+  box-shadow: 0 12px 28px hsl(221 30% 15% / 0.14);
+}
+.aihub-speaking .question-option {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: hsl(var(--background));
+  color: hsl(var(--muted-foreground));
+  text-align: left;
+  font-size: 10px;
+  line-height: 1.35;
+}
 .aihub-speaking .question-option:hover,
-.aihub-speaking .question-option.active{ border-color:hsl(var(--primary) / .35); background:hsl(var(--primary) / .08); color:hsl(var(--primary)); }
-.aihub-speaking .question-option span{ display:block; margin-bottom:3px; color:inherit; opacity:.7; font-size:9px; }
-.aihub-speaking .question-option-empty{ padding:15px 10px; color:hsl(var(--muted-foreground)); font-family:var(--app-font-mono); font-size:9px; text-align:center; }
-.aihub-speaking .filter-chips{ display:flex; gap:5px; margin-top:9px; }
-.aihub-speaking .filter-chip{ border:1px solid hsl(var(--border)); background:hsl(var(--background)); color:hsl(var(--muted-foreground)); border-radius:5px; padding:5px 8px; font-size:10px; }
-.aihub-speaking .filter-chip.active{ background:hsl(var(--primary) / .1); color:hsl(var(--primary)); border-color:hsl(var(--primary) / .25); font-weight:700; }
-.aihub-speaking .part-selector{ margin-top:0; }
-.aihub-speaking .audio-box{ margin-top:8px; border:1px dashed hsl(var(--border)); border-radius:8px; padding:10px; }
-.aihub-speaking .audio-box strong{ display:block; font-size:11px; }
-.aihub-speaking .audio-box p{ margin:4px 0 10px; font-size:9px; }
-.aihub-speaking .btn-row{ display:flex; gap:7px; flex-wrap:wrap; }
-.aihub-speaking .btn{
-  border:1px solid hsl(var(--border)); border-radius:7px; background:hsl(var(--card)); color:hsl(var(--foreground));
-  padding:8px 11px; display:inline-flex; align-items:center; justify-content:center; gap:6px; font-size:10px; font-weight:700;
-  transition: transform .16s ease, background .16s ease, border-color .16s ease;
+.aihub-speaking .question-option.active {
+  border-color: var(--demo-brand);
+  background: hsl(228 94% 60% / 0.08);
+  color: var(--demo-brand);
 }
-.aihub-speaking .btn:hover{ transform:translateY(-1px); border-color:hsl(var(--primary) / .35); background:hsl(var(--secondary)); }
-.aihub-speaking .btn:active{ transform:translateY(0); }
-.aihub-speaking .btn-primary{ color:white; background:hsl(var(--primary)); border-color:hsl(var(--primary)); }
-.aihub-speaking .btn-primary:hover{ background:hsl(221 83% 48%); border-color:hsl(221 83% 48%); }
-.aihub-speaking .btn-dark{ color:white; background:hsl(223 28% 16%); border-color:hsl(223 28% 16%); }
-.aihub-speaking .btn-dark:hover{ background:hsl(224 29% 23%); border-color:hsl(224 29% 23%); }
-.aihub-speaking .btn-danger{ color:hsl(var(--destructive)); border-color:hsl(var(--destructive) / .25); background:hsl(var(--destructive) / .04); }
-.aihub-speaking .btn-sm{ padding:6px 8px; font-size:9px; }
-.aihub-speaking .btn[disabled]{ cursor:not-allowed; opacity:.5; transform:none; }
-.aihub-speaking .confirm-actions{ display:flex; gap:7px; align-items:center; flex-wrap:wrap; margin-top:12px; }
-.aihub-speaking .audio-player{ display:block; width:100%; height:30px; margin-top:10px; }
-.aihub-speaking .inline-error{ margin-top:9px; padding:7px 8px; border:1px solid hsl(var(--destructive) / .26); border-radius:6px; background:hsl(var(--destructive) / .06); color:hsl(var(--destructive)); font-size:9px; line-height:1.4; }
-.aihub-speaking .recording-line{ display:flex; align-items:center; justify-content:space-between; margin-top:9px; font-family:var(--app-font-mono); font-size:11px; color:hsl(var(--destructive)); }
-.aihub-speaking .recording-dot{ width:7px; height:7px; background:hsl(var(--destructive)); border-radius:50%; animation:aihub-speaking-pulse 1.1s infinite; }
-.aihub-speaking .recording-actions{ display:flex; align-items:center; gap:7px; }
-.aihub-speaking .result-mini{ border:1px solid hsl(151 45% 75%); background:hsl(145 50% 97%); border-radius:8px; margin-top:10px; padding:10px; }
-.aihub-speaking .result-mini-top{ display:flex; align-items:center; gap:7px; color:hsl(155 58% 31%); font-size:10px; font-weight:800; }
-.aihub-speaking .result-mini p{ color:hsl(155 30% 37%); margin:6px 0 8px; }
-.aihub-speaking .mini-tags{ display:flex; gap:5px; flex-wrap:wrap; }
-.aihub-speaking .mini-tag{ padding:4px 6px; border-radius:4px; border:1px solid hsl(151 45% 81%); background:white; color:hsl(155 38% 35%); font-size:9px; }
-.aihub-speaking .main-card{ min-width:0; padding:22px 20px 20px; }
-.aihub-speaking .main-heading{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
-.aihub-speaking .main-heading h2{ margin:0; font-size:17px; letter-spacing:-.045em; }
-.aihub-speaking .main-heading h2 .stable-badge{ display:inline-block; vertical-align:2px; margin-left:5px; }
-.aihub-speaking .main-heading p{ margin:5px 0 0; color:hsl(var(--muted-foreground)); font-size:10px; }
-.aihub-speaking .stable-badge{ white-space:nowrap; border:1px solid hsl(150 42% 74%); background:hsl(145 51% 95%); color:hsl(156 57% 34%); border-radius:5px; padding:4px 7px; font-size:9px; font-weight:800; }
-.aihub-speaking .main-status{ display:flex; align-items:center; gap:5px; white-space:nowrap; color:hsl(155 38% 35%); font-family:var(--app-font-mono); font-size:8px; }
-.aihub-speaking .quick-steps{ display:flex; gap:6px; margin-top:13px; flex-wrap:wrap; }
-.aihub-speaking .quick-step{ display:inline-flex; align-items:center; gap:5px; padding:5px 9px; border:1px solid hsl(var(--border)); border-radius:16px; background:transparent; color:hsl(var(--muted-foreground)); font-size:9px; font-weight:700; }
-.aihub-speaking .quick-step span{ display:inline-flex; width:15px; height:15px; align-items:center; justify-content:center; border-radius:50%; background:hsl(var(--secondary)); color:hsl(var(--muted-foreground)); font-size:8px; }
-.aihub-speaking .quick-step.active{ border-color:hsl(223 28% 17%); background:hsl(223 28% 17%); color:white; }
-.aihub-speaking .quick-step.active span{ background:hsl(221 83% 58%); color:white; }
-.aihub-speaking .quick-step:disabled{ cursor:not-allowed; opacity:.45; }
-.aihub-speaking .callout{ margin-top:14px; display:flex; align-items:flex-start; gap:8px; border:1px solid hsl(220 57% 83%); border-radius:8px; background:hsl(220 71% 96%); color:hsl(220 29% 38%); padding:9px 10px; font-size:10px; line-height:1.5; }
-.aihub-speaking .callout svg{ color:hsl(var(--primary)); flex:0 0 auto; margin-top:1px; }
-.aihub-speaking .console-tabs{ display:flex; gap:6px; margin-top:12px; }
-.aihub-speaking .console-tab{ padding:5px 10px; font-size:9px; border-radius:15px; border:1px solid hsl(var(--border)); background:white; color:hsl(var(--muted-foreground)); font-weight:700; }
-.aihub-speaking .console-tab.active{ background:hsl(223 28% 17%); border-color:hsl(223 28% 17%); color:white; }
-.aihub-speaking .console{ margin-top:10px; border-radius:9px; overflow:hidden; background:#15151f; color:#d6dae8; border:1px solid #272836; }
-.aihub-speaking .console-empty{ min-height:450px; display:flex; align-items:center; justify-content:center; margin:15px; padding:28px; border:1px dashed #52586c; border-radius:7px; color:#9297a9; font-family:var(--app-font-mono); font-size:10px; line-height:1.6; text-align:center; }
-.aihub-speaking .console-header{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid #2d2e3c; color:#9297a9; font-family:var(--app-font-mono); font-size:9px; }
-.aihub-speaking .console-header span{ display:flex; align-items:center; gap:6px; }
-.aihub-speaking .console-header svg{ color:#7699ff; }
-.aihub-speaking .console-copy{ border:0; background:transparent; color:#a8aec0; padding:0; display:flex; align-items:center; gap:5px; font-size:9px; }
-.aihub-speaking .console-copy:hover{ color:#fff; }
-.aihub-speaking .json-view{ min-height: 450px; max-height: 730px; overflow:auto; padding:14px 15px 18px; font-family:var(--app-font-mono); font-size:10px; line-height:1.65; white-space:pre-wrap; word-break:break-word; }
-.aihub-speaking .feedback-dashboard{ background:#1a1b25; padding:15px; }
-.aihub-speaking .feedback-header{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding-bottom:13px; border-bottom:1px solid #30313d; }
-.aihub-speaking .feedback-header h3{ margin:0; font-size:12px; color:#f0f1f7; letter-spacing:-.02em; }
-.aihub-speaking .feedback-header p{ margin:4px 0 0; color:#8d92a5; font-size:9px; }
-.aihub-speaking .score-badge{ border:1px solid #34567e; background:#1f304b; color:#a9c5ff; padding:5px 8px; border-radius:5px; font-family:var(--app-font-mono); font-size:9px; white-space:nowrap; }
-.aihub-speaking .feedback-meta{ display:flex; gap:7px; flex-wrap:wrap; margin-top:9px; color:#9ca2b5; font-family:var(--app-font-mono); font-size:8px; }
-.aihub-speaking .feedback-meta span{ padding:4px 6px; border:1px solid #30313d; border-radius:4px; background:#22232e; }
-.aihub-speaking .relevance{ display:flex; gap:8px; margin:12px 0; padding:10px; border:1px solid #754d38; background:#2e241e; color:#dcc0a2; border-radius:7px; font-size:9px; line-height:1.45; }
-.aihub-speaking .relevance.warning{ border-color:#86514e; background:#322425; color:#e4c2b9; }
-.aihub-speaking .relevance svg{ color:#eda95d; flex:0 0 auto; }
-.aihub-speaking .feedback-grid{ display:grid; grid-template-columns: 1fr 1fr 1fr 1.15fr; gap:7px; }
-.aihub-speaking .score-card{ border:1px solid #30313d; background:#22232e; border-radius:7px; padding:10px; }
-.aihub-speaking .score-card .score-label{ display:flex; align-items:center; justify-content:space-between; color:#8e94a7; font-size:8px; text-transform:uppercase; letter-spacing:.04em; }
-.aihub-speaking .score-card .score-value{ margin-top:5px; color:#f4f5fb; font-family:var(--app-font-mono); font-size:19px; }
-.aihub-speaking .score-card .score-value em{ font-style:normal; color:#77a1ff; font-size:10px; }
-.aihub-speaking .score-card .score-note{ margin-top:3px; color:#9aa0b2; font-size:8px; line-height:1.4; }
-.aihub-speaking .progress-bar{ height:3px; border-radius:3px; background:#343746; margin-top:8px; overflow:hidden; }
-.aihub-speaking .progress-bar i{ display:block; height:100%; border-radius:inherit; background:#739aff; }
-.aihub-speaking .transcript-section{ margin-top:13px; border-top:1px solid #30313d; padding-top:12px; }
-.aihub-speaking .section-kicker{ color:#8d92a5; font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
-.aihub-speaking .transcript{ margin-top:8px; color:#d9dce7; font-family:var(--app-font-mono); font-size:10px; line-height:2.2; }
-.aihub-speaking .word-chip{ position:relative; display:inline-block; margin-right:3px; border-radius:3px; padding:0 4px; color:#dce3f7; cursor:help; transition:background .14s ease, color .14s ease; }
-.aihub-speaking .word-chip:hover{ background:#324a7e; color:white; }
-.aihub-speaking .word-chip.warn{ color:#f1bd82; background:#3e3027; }.aihub-speaking .word-chip.good{ color:#a8d9ad; background:#263a2a; }.aihub-speaking .word-chip.fair{ color:#f1c276; background:#3d3224; }.aihub-speaking .word-chip.poor{ color:#eca9ae; background:#41272f; }
-.aihub-speaking .word-chip small{ margin-left:2px; color:inherit; font-size:7px; opacity:.72; }
-.aihub-speaking .word-chip[title]::after{ content:attr(title); position:absolute; z-index:3; pointer-events:none; left:50%; bottom:calc(100% + 5px); transform:translateX(-50%) translateY(3px); opacity:0; min-width:120px; padding:6px 7px; border:1px solid #4b4d5b; border-radius:5px; background:#101117; color:#cbd0de; font:8px/1.35 var(--app-font-sans); text-align:left; transition:opacity .14s ease, transform .14s ease; }
-.aihub-speaking .word-chip[title]:hover::after{ opacity:1; transform:translateX(-50%) translateY(0); }
-.aihub-speaking .section-kicker span{ margin-left:6px; color:#667087; font-family:var(--app-font-mono); font-weight:500; text-transform:none; letter-spacing:0; }
-.aihub-speaking .count-row{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
-.aihub-speaking .count{ padding:4px 6px; border-radius:4px; font-size:8px; }
-.aihub-speaking .good-count{ color:#a8d9ad; background:#263a2a; }.aihub-speaking .fair-count{ color:#f1c276; background:#3d3224; }.aihub-speaking .poor-count{ color:#eca9ae; background:#41272f; }
-.aihub-speaking .analysis-panel{ border:1px solid #30313d; background:#22232e; border-radius:7px; padding:10px; }
-.aihub-speaking .language-analysis{ margin-top:13px; }
-.aihub-speaking .analysis-tabs{ display:flex; gap:4px; border-bottom:1px solid #30313d; padding-bottom:7px; }
-.aihub-speaking .analysis-tabs button{ padding:5px 7px; border:0; border-radius:4px; background:transparent; color:#8d92a5; font-size:8px; font-weight:700; }
-.aihub-speaking .analysis-tabs button span{ font-weight:500; opacity:.7; }
-.aihub-speaking .analysis-tabs button.active{ background:#303b5b; color:#dce6ff; }
-.aihub-speaking .grammar-error{ padding-top:10px; }
-.aihub-speaking .sentence{ color:#c9cdd9; font-size:10px; line-height:1.6; }
-.aihub-speaking .sentence del{ color:#ee9da3; text-decoration-color:#ee777f; background:#492b33; padding:1px 3px; }
-.aihub-speaking .sentence ins{ color:#a8d9ad; background:#263a2a; padding:1px 3px; text-decoration:none; }
-.aihub-speaking .analysis-badges{ display:flex; gap:5px; flex-wrap:wrap; margin-top:8px; }
-.aihub-speaking .analysis-badges span{ padding:3px 5px; border:1px solid #4a4e5e; border-radius:4px; color:#aeb5c6; font-family:var(--app-font-mono); font-size:7px; }
-.aihub-speaking .grammar-error blockquote{ margin:8px 0 0; padding:7px 9px; border-left:2px solid #b88562; color:#a6acba; font-size:8px; line-height:1.5; }
-.aihub-speaking .vocab-list{ display:grid; gap:7px; padding-top:9px; }
-.aihub-speaking .vocab-card{ padding:8px; border:1px solid #30313d; border-radius:6px; background:#1e1f29; }
-.aihub-speaking .vocab-card > div:first-child{ display:flex; align-items:center; gap:7px; color:#e1e3ea; font-size:9px; }
-.aihub-speaking .vocab-card > div:first-child span{ color:#b88562; }
-.aihub-speaking .vocab-card .upgrade{ color:#a8d9ad; }
-.aihub-speaking .vocab-card p{ margin:7px 0 0; color:#9ca2b5; font-size:8px; line-height:1.45; }
-.aihub-speaking .rubric-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:8px; }
-.aihub-speaking .rubric-card{ border:1px solid #30313d; background:#22232e; border-radius:7px; padding:10px; }
-.aihub-speaking .rubric-card .section-kicker{ display:flex; align-items:center; gap:5px; color:#b9c0d1; }
-.aihub-speaking .rubric-card .section-kicker svg{ color:#77a1ff; }
-.aihub-speaking .rubric-card p{ margin:7px 0 0; color:#a4aabd; font-size:8px; line-height:1.45; }
-.aihub-speaking .timing-footer{ justify-content:space-between; gap:10px; flex-wrap:wrap; }
-.aihub-speaking .timing-footer svg{ vertical-align:-2px; margin-right:4px; color:#e4bc84; }
-.aihub-speaking .console-footer{ padding:9px 12px; border-top:1px solid #30313d; color:#858b9d; font-family:var(--app-font-mono); font-size:8px; display:flex; align-items:center; justify-content:space-between; }
-.aihub-speaking .console-footer strong{ color:#aad5b1; font-weight:500; }
-.aihub-speaking .empty-state{ padding:34px 18px; text-align:center; color:#9aa0b2; font-family:var(--app-font-mono); font-size:10px; }
-@keyframes aihub-speaking-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
-@media (max-width: 900px){ .aihub-speaking .lab-layout{ grid-template-columns: 250px minmax(0,1fr); }.aihub-speaking .feedback-grid{ grid-template-columns:1fr 1fr; } }
-@media (max-width: 720px){
-  .aihub-speaking .app-shell{ padding:10px 10px 30px; }.aihub-speaking .topbar{ height:auto; min-height:42px; align-items:flex-start; padding:5px 0 12px; gap:10px; }.aihub-speaking .account-link{ text-align:right; font-size:10px; }
-  .aihub-speaking .lab-layout{ grid-template-columns:1fr; }.aihub-speaking .setup-card{ order:1; }.aihub-speaking .main-card{ order:0; padding:18px 13px 14px; }.aihub-speaking .setup-intro{ padding:18px 16px 14px; }
-  .aihub-speaking .step-content{ padding-left:34px; }.aihub-speaking .main-heading h2{ font-size:16px; }.aihub-speaking .json-view{ min-height:350px; font-size:9px; }.aihub-speaking .feedback-dashboard{ padding:11px; }
+.aihub-speaking .question-option span {
+  display: block;
+  margin-bottom: 3px;
+  color: inherit;
+  opacity: 0.7;
+  font-size: 9px;
+}
+.aihub-speaking .question-option-empty {
+  padding: 15px 10px;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--app-font-mono);
+  font-size: 9px;
+  text-align: center;
+}
+.aihub-speaking .filter-chips {
+  display: flex;
+  gap: 5px;
+  margin-top: 9px;
+}
+.aihub-speaking .filter-chip {
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  color: hsl(var(--muted-foreground));
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-size: 10px;
+}
+.aihub-speaking .filter-chip.active {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary) / 0.25);
+  font-weight: 700;
+}
+.aihub-speaking .part-selector {
+  margin-top: 0;
 }
 
-/* The shared mirror stylesheet can color bare headings; keep this workbench legible. */
-.aihub-speaking.speaking-page .main-heading h2 {
-  color: var(--aihub-ink, #1d2838) !important;
+/* Recording ---------------------------------------------------------------- */
+
+.aihub-speaking .audio-box {
+  margin-top: 8px;
+  border: 1px dashed hsl(var(--border));
+  border-radius: 8px;
+  padding: 10px;
+}
+.aihub-speaking .audio-box strong {
+  display: block;
+  font-size: 11px;
+}
+.aihub-speaking .audio-box p {
+  margin: 4px 0 10px;
+  font-size: 9px;
+}
+.aihub-speaking .audio-player {
+  display: block;
+  width: 100%;
+  height: 30px;
+  margin-top: 10px;
+}
+.aihub-speaking .recording-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 9px;
+  font-family: var(--app-font-mono);
+  font-size: 11px;
+  color: hsl(var(--destructive));
+}
+.aihub-speaking .recording-dot {
+  width: 7px;
+  height: 7px;
+  background: hsl(var(--destructive));
+  border-radius: 50%;
+  animation: aihub-speaking-pulse 1.1s infinite;
+}
+.aihub-speaking .recording-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+@keyframes aihub-speaking-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Buttons only this demo uses --------------------------------------------- */
+
+.aihub-speaking .btn-row {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.aihub-speaking .btn-dark {
+  color: white;
+  background: hsl(223 28% 16%);
+  border-color: hsl(223 28% 16%);
+}
+.aihub-speaking .btn-dark:hover {
+  background: hsl(224 29% 23%);
+  border-color: hsl(224 29% 23%);
+}
+.aihub-speaking .btn-danger {
+  color: hsl(var(--destructive));
+  border-color: hsl(var(--destructive) / 0.25);
+  background: hsl(var(--destructive) / 0.04);
+}
+.aihub-speaking .confirm-actions {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.aihub-speaking .result-mini {
+  border: 1px solid hsl(151 45% 75%);
+  background: hsl(145 50% 97%);
+  border-radius: 8px;
+  margin-top: 10px;
+  padding: 10px;
+}
+.aihub-speaking .result-mini-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: hsl(155 58% 31%);
+  font-size: 10px;
+  font-weight: 800;
+}
+.aihub-speaking .result-mini p {
+  color: hsl(155 30% 37%);
+  margin: 6px 0 8px;
+}
+.aihub-speaking .mini-tags {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.aihub-speaking .mini-tag {
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid hsl(151 45% 81%);
+  background: white;
+  color: hsl(155 38% 35%);
+  font-size: 9px;
+}
+.aihub-speaking .quick-steps {
+  display: flex;
+  gap: 6px;
+  margin-top: 13px;
+  flex-wrap: wrap;
+}
+.aihub-speaking .quick-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 16px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 9px;
+  font-weight: 700;
+}
+.aihub-speaking .quick-step span {
+  display: inline-flex;
+  width: 15px;
+  height: 15px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: hsl(var(--secondary));
+  color: hsl(var(--muted-foreground));
+  font-size: 8px;
+}
+.aihub-speaking .quick-step.active {
+  border-color: hsl(223 28% 17%);
+  background: hsl(223 28% 17%);
+  color: white;
+}
+.aihub-speaking .quick-step.active span {
+  background: hsl(221 83% 58%);
+  color: white;
+}
+.aihub-speaking .quick-step:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.aihub-speaking .callout {
+  margin-top: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid hsl(220 57% 83%);
+  border-radius: 8px;
+  background: hsl(220 71% 96%);
+  color: hsl(220 29% 38%);
+  padding: 9px 10px;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.aihub-speaking .callout svg {
+  color: var(--demo-brand);
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.aihub-speaking .main-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.aihub-speaking .main-heading h2 {
+  margin: 0;
+  font-size: 17px;
+  letter-spacing: -0.045em;
+}
+.aihub-speaking .main-heading h2 .stable-badge {
+  display: inline-block;
+  vertical-align: 2px;
+  margin-left: 5px;
+}
+.aihub-speaking .main-heading p {
+  margin: 5px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+}
+.aihub-speaking .main-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  color: hsl(155 38% 35%);
+  font-family: var(--app-font-mono);
+  font-size: 8px;
+}
+
+/* Result surfaces this demo only ------------------------------------------ */
+
+.aihub-speaking .relevance {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid #754d38;
+  background: #2e241e;
+  color: #dcc0a2;
+  border-radius: 7px;
+  font-size: 9px;
+  line-height: 1.45;
+}
+.aihub-speaking .relevance.warning {
+  border-color: #86514e;
+  background: #322425;
+  color: #e4c2b9;
+}
+.aihub-speaking .relevance svg {
+  color: #eda95d;
+  flex: 0 0 auto;
+}
+.aihub-speaking .transcript-section {
+  margin-top: 13px;
+  border-top: 1px solid var(--demo-panel-border);
+  padding-top: 12px;
+}
+.aihub-speaking .transcript {
+  margin-top: 8px;
+  color: #d9dce7;
+  font-family: var(--app-font-mono);
+  font-size: 10px;
+  line-height: 2.2;
+}
+/* Pronunciation tones. The chip mechanism is shared; these three scales are
+   about how well a word was said, not which criterion it belongs to. */
+.aihub-speaking .word-chip.warn {
+  color: #f1bd82;
+  background: #3e3027;
+}
+.aihub-speaking .word-chip.good {
+  color: #a8d9ad;
+  background: #263a2a;
+}
+.aihub-speaking .word-chip.fair {
+  color: #f1c276;
+  background: #3d3224;
+}
+.aihub-speaking .word-chip.poor {
+  color: #eca9ae;
+  background: #41272f;
+}
+.aihub-speaking .count-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.aihub-speaking .count {
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 8px;
+}
+.aihub-speaking .good-count {
+  color: #a8d9ad;
+  background: #263a2a;
+}
+.aihub-speaking .fair-count {
+  color: #f1c276;
+  background: #3d3224;
+}
+.aihub-speaking .poor-count {
+  color: #eca9ae;
+  background: #41272f;
+}
+.aihub-speaking .analysis-panel {
+  border: 1px solid var(--demo-panel-border);
+  background: var(--demo-panel-raised);
+  border-radius: 7px;
+  padding: 10px;
+}
+.aihub-speaking .language-analysis {
+  margin-top: 13px;
+}
+.aihub-speaking .analysis-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--demo-panel-border);
+  padding-bottom: 7px;
+}
+.aihub-speaking .analysis-tabs button {
+  padding: 5px 7px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #8d92a5;
+  font-size: 8px;
+  font-weight: 700;
+}
+.aihub-speaking .analysis-tabs button span {
+  font-weight: 500;
+  opacity: 0.7;
+}
+.aihub-speaking .analysis-tabs button.active {
+  background: #303b5b;
+  color: #dce6ff;
+}
+.aihub-speaking .grammar-error {
+  padding-top: 10px;
+}
+.aihub-speaking .sentence {
+  color: #c9cdd9;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.aihub-speaking .sentence del {
+  color: #ee9da3;
+  text-decoration-color: #ee777f;
+  background: #492b33;
+  padding: 1px 3px;
+}
+.aihub-speaking .sentence ins {
+  color: #a8d9ad;
+  background: #263a2a;
+  padding: 1px 3px;
+  text-decoration: none;
+}
+.aihub-speaking .analysis-badges {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.aihub-speaking .analysis-badges span {
+  padding: 3px 5px;
+  border: 1px solid #4a4e5e;
+  border-radius: 4px;
+  color: #aeb5c6;
+  font-family: var(--app-font-mono);
+  font-size: 7px;
+}
+.aihub-speaking .grammar-error blockquote {
+  margin: 8px 0 0;
+  padding: 7px 9px;
+  border-left: 2px solid #b88562;
+  color: #a6acba;
+  font-size: 8px;
+  line-height: 1.5;
+}
+.aihub-speaking .vocab-list {
+  display: grid;
+  gap: 7px;
+  padding-top: 9px;
+}
+.aihub-speaking .vocab-card {
+  padding: 8px;
+  border: 1px solid var(--demo-panel-border);
+  border-radius: 6px;
+  background: #1e1f29;
+}
+.aihub-speaking .vocab-card > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #e1e3ea;
+  font-size: 9px;
+}
+.aihub-speaking .vocab-card > div:first-child span {
+  color: #b88562;
+}
+.aihub-speaking .vocab-card .upgrade {
+  color: #a8d9ad;
+}
+.aihub-speaking .vocab-card p {
+  margin: 7px 0 0;
+  color: #9ca2b5;
+  font-size: 8px;
+  line-height: 1.45;
+}
+.aihub-speaking .rubric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+.aihub-speaking .rubric-card {
+  border: 1px solid var(--demo-panel-border);
+  background: var(--demo-panel-raised);
+  border-radius: 7px;
+  padding: 10px;
+}
+.aihub-speaking .rubric-card .section-kicker {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #b9c0d1;
+}
+.aihub-speaking .rubric-card .section-kicker svg {
+  color: var(--demo-panel-accent);
+}
+.aihub-speaking .rubric-card p {
+  margin: 7px 0 0;
+  color: #a4aabd;
+  font-size: 8px;
+  line-height: 1.45;
+}
+.aihub-speaking .timing-footer {
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.aihub-speaking .timing-footer svg {
+  vertical-align: -2px;
+  margin-right: 4px;
+  color: #e4bc84;
+}
+
+/* Console. Speaking is the only demo that shows a raw JSON exchange. */
+.aihub-speaking .console-tabs {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+.aihub-speaking .console-tab {
+  padding: 5px 10px;
+  font-size: 9px;
+  border-radius: 15px;
+  border: 1px solid hsl(var(--border));
+  background: white;
+  color: hsl(var(--muted-foreground));
+  font-weight: 700;
+}
+.aihub-speaking .console-tab.active {
+  background: hsl(223 28% 17%);
+  border-color: hsl(223 28% 17%);
+  color: white;
+}
+.aihub-speaking .console {
+  margin-top: 10px;
+  border-radius: 9px;
+  overflow: hidden;
+  background: #15151f;
+  color: #d6dae8;
+  border: 1px solid #272836;
+}
+.aihub-speaking .console-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #2d2e3c;
+  background: #080808;
+  color: #9297a9;
+  font-family: var(--app-font-mono);
+  font-size: 9px;
+}
+.aihub-speaking .console-header span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.aihub-speaking .console-header svg {
+  color: #7699ff;
+}
+.aihub-speaking .console-copy {
+  border: 0;
+  background: transparent;
+  color: #a8aec0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+}
+.aihub-speaking .console-copy:hover {
+  color: #fff;
+}
+.aihub-speaking .console-empty {
+  min-height: 450px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 15px;
+  padding: 28px;
+  border: 1px dashed #52586c;
+  border-radius: 7px;
+  color: #9297a9;
+  font-family: var(--app-font-mono);
+  font-size: 10px;
+  line-height: 1.6;
+  text-align: center;
+}
+.aihub-speaking .json-view {
+  min-height: 450px;
+  max-height: 730px;
+  overflow: auto;
+  padding: 14px 15px 18px;
+  font-family: var(--app-font-mono);
+  font-size: 10px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.aihub-speaking .console-footer {
+  padding: 9px 12px;
+  border-top: 1px solid #2d2e3c;
+  color: #858b9d;
+  font-family: var(--app-font-mono);
+  font-size: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.aihub-speaking .console-footer strong {
+  color: #aad5b1;
+  font-weight: 500;
+}
+
+/* The shared mirror stylesheet can color bare headings; keep this legible. */
+.aihub-speaking .main-heading h2 {
+  color: var(--demo-ink) !important;
   text-align: left !important;
 }
-
-.aihub-speaking.speaking-page .main-heading p {
-  color: var(--aihub-body, #475467) !important;
+.aihub-speaking .main-heading p {
+  color: var(--demo-body) !important;
   text-align: left !important;
 }
-
-.aihub-speaking.speaking-page .stable-badge {
+.aihub-speaking .stable-badge {
   color: #28734a !important;
+}
+
+@media (max-width: 720px) {
+  .aihub-speaking .account-link {
+    text-align: right;
+    font-size: 10px;
+  }
+  .aihub-speaking .step-content {
+    padding-left: 34px;
+  }
+  .aihub-speaking .main-heading h2 {
+    font-size: 16px;
+  }
+  .aihub-speaking .json-view {
+    min-height: 350px;
+    font-size: 9px;
+  }
 }
