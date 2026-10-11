@@ -58,6 +58,24 @@ async function keepBrowserTrafficLocal(page: Page) {
   return () => expect(external).toEqual([]);
 }
 
+/**
+ * A custom property reads back as the authored hex while a computed style is
+ * rgb(). Converting here is what lets the assertion compare a rule against its
+ * own token rather than against a hard-coded literal.
+ */
+function hexToRgb(hex: string) {
+  const value = hex.replace("#", "");
+  const full =
+    value.length === 3
+      ? value
+          .split("")
+          .map((part) => part + part)
+          .join("")
+      : value;
+  const int = parseInt(full, 16);
+  return `rgb(${(int >> 16) & 255}, ${(int >> 8) & 255}, ${int & 255})`;
+}
+
 test.beforeEach(async ({ request }) => {
   await resetScoringLog(request);
 });
@@ -228,6 +246,139 @@ test("a rejected submission shows its code and no credential leaked", async ({
   const error = page.getByTestId("scoring-error");
   await expect(error).toBeVisible();
   await expect(error).toContainText("INVALID_REQUEST");
+});
+
+test("the Task 2 tab opens without a page load and survives a return visit", async ({
+  page,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring");
+  await waitForHydration(page);
+
+  // Nothing navigates: the switch is a client transition within one document.
+  await page.evaluate(() => {
+    (window as unknown as { __stayed: boolean }).__stayed = true;
+  });
+  await page.getByTestId("tab-task-2").click();
+  await expect(page).toHaveURL(/\/demo\/scoring\?task=2$/);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { __stayed?: boolean }).__stayed
+    )
+  ).toBe(true);
+
+  await page.reload();
+  await waitForHydration(page);
+  await expect(page.getByTestId("tab-task-2")).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
+  await expect(page.getByTestId("input-topic")).toBeVisible();
+});
+
+test("grades the prefilled Task 2 sample, sending topic and no Task 1 field", async ({
+  page,
+  request,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring?task=2");
+  await waitForHydration(page);
+
+  const essay = await page.getByTestId("input-essay").inputValue();
+  expect(essay.length).toBeGreaterThan(500);
+  expect(essay).toContain("Universities have traditionally focused");
+  await expect(page.getByTestId("input-topic")).toHaveValue("education");
+  await expect(page.getByTestId("input-question")).toHaveValue(/vocational/);
+
+  await page.getByTestId("button-grade").click();
+  await expect(page.getByTestId("scoring-report")).toBeVisible();
+
+  // One call, on the Task 2 path, carrying the topic and nothing from Task 1.
+  const log = await scoringLog(request);
+  expect(log.requests).toHaveLength(1);
+  expect(log.requests[0].task).toBe("2");
+  expect(log.requests[0].idempotencyKey).toBeTruthy();
+  expect(log.requests[0].body).toMatchObject({ topic: "education" });
+  expect(log.requests[0].body).not.toHaveProperty("chart_type");
+  expect(log.requests[0].body).not.toHaveProperty("image_url");
+});
+
+test("the Task 2 report leads with Task Response in Task Achievement's colour", async ({
+  page,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring?task=2");
+  await waitForHydration(page);
+  await page.getByTestId("button-grade").click();
+  await expect(page.getByTestId("scoring-report")).toBeVisible();
+
+  // Rendered in the order the response carried them.
+  await expect(
+    page.getByTestId("scoring-report").locator(".feedback-grid .score-card")
+  ).toHaveText([
+    /Task Response/,
+    /Coherence and Cohesion/,
+    /Lexical Resource/,
+    /Grammatical Range and Accuracy/,
+  ]);
+
+  // Task Response is the same rubric slot as Task Achievement, so it wears the
+  // same token — and the annotation on that criterion matches it. The mock
+  // returns that annotation second, so its chip is order 1.
+  const chip = page.getByTestId("annotation-chip-1");
+  await chip.click();
+  const detail = page.getByTestId("scoring-annotation-detail");
+  await expect(detail).toBeVisible();
+  await expect(detail).toContainText("E2E_ONLY_TASK_RESPONSE_ISSUE");
+
+  const responseRule = await chip.evaluate(
+    (el) => getComputedStyle(el).borderBottomColor
+  );
+  const achieveToken = await page
+    .locator("main.aihub-demo")
+    .first()
+    .evaluate((el) =>
+      getComputedStyle(el)
+        .getPropertyValue("--demo-criterion-achieve-rule")
+        .trim()
+    );
+  // The custom property reads back as authored hex; the computed style is rgb.
+  expect(responseRule).toBe(hexToRgb(achieveToken));
+  await expect(
+    page.locator(".scoring-criteria .criterion-card.tone-achieve").first()
+  ).toContainText("Task Response");
+});
+
+test("the Task 2 tab renders none of the Task 1 form", async ({ page }) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring?task=2");
+  await waitForHydration(page);
+
+  for (const testId of [
+    "select-chart-type",
+    "input-image-url",
+    "scoring-chart-preview",
+  ]) {
+    await expect(page.getByTestId(testId)).toHaveCount(0);
+  }
+  await expect(page.getByText(/Dịch vụ chấm tải biểu đồ/)).toHaveCount(0);
+});
+
+test("a Task 1 report does not reappear under the Task 2 tab", async ({
+  page,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring");
+  await waitForHydration(page);
+  await page.getByTestId("button-grade").click();
+  await expect(page.getByTestId("scoring-report")).toContainText(
+    "Báo cáo chấm bài Task 1"
+  );
+
+  await page.getByTestId("tab-task-2").click();
+  // A report belongs to the task that produced it.
+  await expect(page.getByTestId("scoring-report")).toHaveCount(0);
+  await expect(page.locator(".console-empty")).toContainText("Chấm bài Task 2");
 });
 
 test("the four criteria fit a phone without horizontal scrolling", async ({

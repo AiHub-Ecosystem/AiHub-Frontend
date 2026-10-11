@@ -1259,6 +1259,19 @@ const server = createServer(async (request, response) => {
             quote: annotationQuote,
             explanation: "E2E_ONLY_EXPLANATION",
           },
+          // Task 2's own first criterion carries an annotation so its colour
+          // can be checked against the Task 1 slot it shares. Task 1 keeps a
+          // single annotation: its indices are already asserted by name.
+          ...(task === "2"
+            ? [
+                {
+                  criterion: "task_response",
+                  issue: "E2E_ONLY_TASK_RESPONSE_ISSUE",
+                  quote: body.essay?.slice(24, 48) ?? "E2E_ONLY_QUOTE_2",
+                  explanation: "E2E_ONLY_TASK_RESPONSE_EXPLANATION",
+                },
+              ]
+            : []),
         ],
       },
       meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },

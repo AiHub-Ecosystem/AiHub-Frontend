@@ -144,6 +144,29 @@
   position: sticky;
   top: 20px;
 }
+/* Task tabs. The active task is a link so it is shareable and survives a
+   reload; these rules only read tokens, never a brand literal. */
+.aihub-scoring .scoring-task-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.aihub-scoring .scoring-task-tab {
+  border: 1px solid var(--demo-strong-border);
+  border-radius: 999px;
+  background: white;
+  color: var(--demo-body);
+  padding: 5px 13px;
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.aihub-scoring .scoring-task-tab[aria-selected="true"] {
+  border-color: var(--demo-brand);
+  background: var(--demo-brand);
+  color: white;
+}
+
 .aihub-scoring .scoring-form {
   padding: 0 20px 16px;
   display: grid;

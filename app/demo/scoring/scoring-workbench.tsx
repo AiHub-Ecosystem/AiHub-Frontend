@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
@@ -23,6 +24,7 @@ import {
   WRITING_TASK1_IMAGE_NOTE,
   WRITING_TASK1_REQUEST,
 } from "@/data/writing-task1-request";
+import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 
 /** The client budget. The real 90s, not a simulated delay. */
 const CLIENT_BUDGET_SECONDS = 90;
@@ -116,14 +118,16 @@ const INTEGRATION_STEPS = [
   },
   {
     step: "3",
-    title: "POST /v1/ielts/writing/task1/grade",
-    body: "Gửi question, essay, chart_type và image_url kèm Idempotency-Key.",
+    title: "Gửi kèm Idempotency-Key",
+    // The two tasks have disjoint bodies, so the step names both rather than
+    // describing whichever task happens to be open.
+    body: "Task 1 gửi question, essay, chart_type và image_url. Task 2 gửi question, essay và topic.",
     icon: Send,
   },
   {
     step: "4",
     title: "AIHUB chấm bài",
-    body: "Dịch vụ chấm tải biểu đồ, chấm theo 4 tiêu chí IELTS.",
+    body: "Chấm theo 4 tiêu chí IELTS.",
     icon: BarChart3,
   },
   {
@@ -134,7 +138,7 @@ const INTEGRATION_STEPS = [
   },
 ];
 
-function Overview() {
+function Overview({ task }: { task: 1 | 2 }) {
   return (
     <section className="scoring-overview" aria-label="Các bước tích hợp">
       <div className="scoring-overview-copy">
@@ -144,13 +148,13 @@ function Overview() {
         </h1>
         <p className="scoring-endpoint">
           <span className="method">POST</span>
-          <code>/v1/ielts/writing/task1/grade</code>
+          <code>/v1/ielts/writing/task{task}/grade</code>
         </p>
         <p className="scoring-overview-lede">
-          Bài làm được chấm bởi dịch vụ thật. Điểm về theo đúng bốn tiêu chí
-          Task Achievement, Coherence &amp; Cohesion, Lexical Resource và
-          Grammatical Range &amp; Accuracy, kèm trích dẫn nguyên văn những chỗ
-          cần sửa.
+          Bài làm được chấm bởi dịch vụ thật. Điểm về theo đúng bốn tiêu chí{" "}
+          {task === 1 ? "Task Achievement" : "Task Response"}, Coherence &amp;
+          Cohesion, Lexical Resource và Grammatical Range &amp; Accuracy, kèm
+          trích dẫn nguyên văn những chỗ cần sửa.
         </p>
       </div>
       <ol className="scoring-flow">
@@ -184,9 +188,11 @@ function CriterionBadge({ criterionId }: { criterionId: string }) {
 function GradeReport({
   result,
   essay,
+  task,
 }: {
   result: WritingGradingEnvelope;
   essay: string;
+  task: 1 | 2;
 }) {
   const { data } = result;
   const [selected, setSelected] = useState<number | null>(null);
@@ -237,7 +243,7 @@ function GradeReport({
     <div className="feedback-dashboard" data-testid="scoring-report">
       <div className="feedback-header">
         <div>
-          <h3>Báo cáo chấm bài Task 1</h3>
+          <h3>Báo cáo chấm bài Task {task}</h3>
           <p>
             AIHUB Writing rubric · ngôn ngữ {data.language} · request{" "}
             {result.meta.request_id}
@@ -371,13 +377,47 @@ function GradeReport({
   );
 }
 
+/**
+ * One draft per task. Each task's sample prefills its own fields, so a shared
+ * `question`/`essay` would show Task 1's essay on the Task 2 tab — and a
+ * switch must not discard the other task's typing either.
+ */
+type Draft = {
+  question: string;
+  essay: string;
+  chartType?: string;
+  imageUrl?: string;
+  topic?: string;
+};
+
+const SAMPLE_DRAFT: Record<1 | 2, Draft> = {
+  1: {
+    question: WRITING_TASK1_REQUEST.question,
+    essay: WRITING_TASK1_REQUEST.essay,
+    chartType: WRITING_TASK1_REQUEST.chart_type,
+    imageUrl: WRITING_TASK1_REQUEST.image_url,
+  },
+  2: {
+    question: WRITING_TASK2_REQUEST.question,
+    essay: WRITING_TASK2_REQUEST.essay,
+    topic: WRITING_TASK2_REQUEST.topic,
+  },
+};
+
 export default function ScoringWorkbench() {
-  const [question, setQuestion] = useState(WRITING_TASK1_REQUEST.question);
-  const [essay, setEssay] = useState(WRITING_TASK1_REQUEST.essay);
-  const [chartType, setChartType] = useState<string>(
-    WRITING_TASK1_REQUEST.chart_type
-  );
-  const [imageUrl, setImageUrl] = useState(WRITING_TASK1_REQUEST.image_url);
+  // The active task lives in the URL, so it survives a reload, a bookmark and
+  // a shared link. The page is force-dynamic, so this is available during the
+  // server render and needs no Suspense boundary.
+  const searchParams = useSearchParams();
+  const task = searchParams.get("task") === "2" ? 2 : 1;
+
+  const [drafts, setDrafts] = useState(SAMPLE_DRAFT);
+  const draft = drafts[task];
+  const setDraft = (patch: Partial<Draft>) =>
+    setDrafts((previous) => ({
+      ...previous,
+      [task]: { ...previous[task], ...patch },
+    }));
   // The key is random, so it cannot be produced during SSR without a hydration
   // mismatch: the server and the client would each render a different UUID.
   // `crypto` is the external system here, which is what an effect is for, so
@@ -390,7 +430,14 @@ export default function ScoringWorkbench() {
     "idle"
   );
   const [elapsed, setElapsed] = useState(0);
-  const [result, setResult] = useState<WritingGradingEnvelope | null>(null);
+  // A report belongs to the task that produced it. Tab state survives a
+  // switch, so without the task recorded here a Task 1 report would render
+  // under the Task 2 heading.
+  const [result, setResult] = useState<{
+    task: 1 | 2;
+    envelope: WritingGradingEnvelope;
+  } | null>(null);
+  const graded = result?.task === task ? result.envelope : null;
   const [error, setError] = useState<PublicError | null>(null);
   const [copied, setCopied] = useState(false);
   const startedAtRef = useRef(0);
@@ -403,6 +450,32 @@ export default function ScoringWorkbench() {
     );
     return () => window.clearInterval(timer);
   }, [status]);
+
+  const requestBody = useMemo(
+    () =>
+      // Exactly the fields the task's schema allows. Task 2 carries no chart
+      // type or image URL, so neither is sent rather than sent and stripped.
+      task === 2
+        ? {
+            task,
+            question: draft.question,
+            essay: draft.essay,
+            topic: draft.topic,
+          }
+        : {
+            task,
+            question: draft.question,
+            essay: draft.essay,
+            chart_type: draft.chartType,
+            image_url: draft.imageUrl,
+          },
+    [task, draft]
+  );
+
+  const requestPreview = useMemo(
+    () => JSON.stringify(requestBody, null, 2),
+    [requestBody]
+  );
 
   const submit = async () => {
     if (status === "submitting") return;
@@ -424,13 +497,7 @@ export default function ScoringWorkbench() {
           "Content-Type": "application/json",
           "Idempotency-Key": idempotencyKey,
         },
-        body: JSON.stringify({
-          task: 1,
-          question,
-          essay,
-          chart_type: chartType,
-          image_url: imageUrl,
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal,
       });
       const payload: unknown = await response.json().catch(() => null);
@@ -441,7 +508,7 @@ export default function ScoringWorkbench() {
           message: "Kết quả từ AIHUB không đúng định dạng.",
         } satisfies PublicError;
       }
-      setResult(payload);
+      setResult({ task, envelope: payload });
       setStatus("success");
       // A fresh key per submission: the button grades twice rather than
       // replaying a stored result.
@@ -467,80 +534,124 @@ export default function ScoringWorkbench() {
     }
   };
 
-  const requestPreview = useMemo(
-    () =>
-      JSON.stringify(
-        {
-          task: 1,
-          question,
-          essay,
-          chart_type: chartType,
-          image_url: imageUrl,
-        },
-        null,
-        2
-      ),
-    [question, essay, chartType, imageUrl]
-  );
-
   return (
     <main className="aihub-demo aihub-scoring scoring-page">
       <div className="app-shell">
         <div className="app-container">
-          <Overview />
+          <Overview task={task} />
 
           <div className="lab-layout">
             <aside className="card setup-card">
               <div className="setup-intro">
                 <div className="eyebrow">Bài làm mẫu</div>
-                <h2>Task 1 · Mô tả biểu đồ</h2>
+                <div
+                  aria-label="Chọn loại bài"
+                  className="scoring-task-tabs"
+                  role="tablist"
+                >
+                  {([1, 2] as const).map((value) => (
+                    <Link
+                      aria-selected={task === value}
+                      className="scoring-task-tab"
+                      data-testid={`tab-task-${value}`}
+                      href={
+                        value === 1 ? "/demo/scoring" : "/demo/scoring?task=2"
+                      }
+                      key={value}
+                      role="tab"
+                      scroll={false}
+                    >
+                      Task {value}
+                    </Link>
+                  ))}
+                </div>
+                <h2>
+                  {task === 1 ? "Task 1 · Mô tả biểu đồ" : "Task 2 · Bài luận"}
+                </h2>
                 <p>
-                  Biểu đồ, đề bài và bài làm đã điền sẵn từ ví dụ công bố của
-                  AIHUB, nên bấm nút là chấm được ngay.
+                  {task === 1
+                    ? "Biểu đồ, đề bài và bài làm đã điền sẵn từ ví dụ công bố của AIHUB, nên bấm nút là chấm được ngay."
+                    : "Đề bài, chủ đề và bài làm đã điền sẵn từ ví dụ công bố của AIHUB, nên bấm nút là chấm được ngay."}
                 </p>
               </div>
 
               <div className="scoring-form">
-                <label className="mini-label" htmlFor="chart-type">
-                  Loại biểu đồ
-                </label>
-                <select
-                  className="scoring-select"
-                  data-testid="select-chart-type"
-                  id="chart-type"
-                  onChange={(event) => setChartType(event.target.value)}
-                  value={chartType}
-                >
-                  {WRITING_TASK1_CHART_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-                <p className="scoring-help">
-                  Phân biệt hoa thường. Endpoint nhận đúng 7 giá trị này và
-                  &quot;bar chart&quot; sẽ bị từ chối với 400.
-                </p>
+                {task === 1 && (
+                  <>
+                    <label className="mini-label" htmlFor="chart-type">
+                      Loại biểu đồ
+                    </label>
+                    <select
+                      className="scoring-select"
+                      data-testid="select-chart-type"
+                      id="chart-type"
+                      onChange={(event) =>
+                        setDraft({ chartType: event.target.value })
+                      }
+                      value={draft.chartType}
+                    >
+                      {WRITING_TASK1_CHART_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="scoring-help">
+                      Phân biệt hoa thường. Endpoint nhận đúng 7 giá trị này và
+                      &quot;bar chart&quot; sẽ bị từ chối với 400.
+                    </p>
 
-                <label className="mini-label" htmlFor="image-url">
-                  Đường dẫn ảnh biểu đồ
-                </label>
-                <input
-                  className="question-combobox-input scoring-input"
-                  data-testid="input-image-url"
-                  id="image-url"
-                  onChange={(event) => setImageUrl(event.target.value)}
-                  type="url"
-                  value={imageUrl}
-                />
-                <p className="scoring-help">{WRITING_TASK1_IMAGE_NOTE}</p>
-                {imageUrl.trim() ? (
-                  <figure className="scoring-chart-preview">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img alt="Xem trước biểu đồ sẽ chấm" src={imageUrl} />
-                    <figcaption>Ảnh sẽ được dịch vụ chấm tải.</figcaption>
-                  </figure>
-                ) : null}
+                    <label className="mini-label" htmlFor="image-url">
+                      Đường dẫn ảnh biểu đồ
+                    </label>
+                    <input
+                      className="question-combobox-input scoring-input"
+                      data-testid="input-image-url"
+                      id="image-url"
+                      onChange={(event) =>
+                        setDraft({ imageUrl: event.target.value })
+                      }
+                      type="url"
+                      value={draft.imageUrl}
+                    />
+                    <p className="scoring-help">{WRITING_TASK1_IMAGE_NOTE}</p>
+                    {draft.imageUrl?.trim() ? (
+                      <figure
+                        className="scoring-chart-preview"
+                        data-testid="scoring-chart-preview"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          alt="Xem trước biểu đồ sẽ chấm"
+                          src={draft.imageUrl}
+                        />
+                        <figcaption>Ảnh sẽ được dịch vụ chấm tải.</figcaption>
+                      </figure>
+                    ) : null}
+                  </>
+                )}
+
+                {task === 2 && (
+                  <>
+                    <label className="mini-label" htmlFor="topic">
+                      Chủ đề
+                    </label>
+                    <input
+                      className="question-combobox-input scoring-input"
+                      data-testid="input-topic"
+                      id="topic"
+                      onChange={(event) =>
+                        setDraft({ topic: event.target.value })
+                      }
+                      type="text"
+                      value={draft.topic}
+                    />
+                    <p className="scoring-help">
+                      Môn chủ đề của bài luận, tối đa 200 ký tự — khác với loại
+                      biểu đồ của Task 1. Task 2 không có ảnh biểu đồ.
+                    </p>
+                  </>
+                )}
 
                 <label className="mini-label" htmlFor="question">
                   Đề bài
@@ -549,9 +660,11 @@ export default function ScoringWorkbench() {
                   className="scoring-textarea"
                   data-testid="input-question"
                   id="question"
-                  onChange={(event) => setQuestion(event.target.value)}
+                  onChange={(event) =>
+                    setDraft({ question: event.target.value })
+                  }
                   rows={4}
-                  value={question}
+                  value={draft.question}
                 />
 
                 <label className="mini-label" htmlFor="essay">
@@ -561,9 +674,9 @@ export default function ScoringWorkbench() {
                   className="scoring-textarea scoring-essay-input"
                   data-testid="input-essay"
                   id="essay"
-                  onChange={(event) => setEssay(event.target.value)}
+                  onChange={(event) => setDraft({ essay: event.target.value })}
                   rows={12}
-                  value={essay}
+                  value={draft.essay}
                 />
               </div>
 
@@ -598,7 +711,7 @@ export default function ScoringWorkbench() {
                   )}{" "}
                   {status === "submitting"
                     ? `Đang chấm… ${elapsed}s`
-                    : "Chấm bài Task 1"}
+                    : `Chấm bài Task ${task}`}
                 </button>
 
                 {status === "submitting" && (
@@ -656,23 +769,25 @@ export default function ScoringWorkbench() {
                   </p>
                 </div>
                 <span className="main-status">
-                  {result ? "live response" : "AIHUB gateway"}
+                  {graded ? "live response" : "AIHUB gateway"}
                 </span>
               </div>
 
               <div className="console">
-                {result ? (
-                  <GradeReport result={result} essay={essay} />
+                {graded ? (
+                  <GradeReport
+                    result={graded}
+                    essay={draft.essay}
+                    task={task}
+                  />
                 ) : (
                   <div className="console-empty">
-                    {
-                      "// Chưa có kết quả — bấm “Chấm bài Task 1” để gửi bài làm mẫu lên sandbox AIHUB."
-                    }
+                    {`// Chưa có kết quả — bấm “Chấm bài Task ${task}” để gửi bài làm mẫu lên sandbox AIHUB.`}
                   </div>
                 )}
               </div>
 
-              {result && (
+              {graded && (
                 <div className="console-footer">
                   <span>
                     <CircleCheck size={10} /> evaluation complete
@@ -681,7 +796,7 @@ export default function ScoringWorkbench() {
                     className="console-copy"
                     onClick={() => {
                       void navigator.clipboard?.writeText(
-                        JSON.stringify(result, null, 2)
+                        JSON.stringify(graded, null, 2)
                       );
                       setCopied(true);
                     }}
@@ -696,7 +811,7 @@ export default function ScoringWorkbench() {
                 <Info size={12} />
                 <span>
                   Request gửi đi: <code>POST /api/demo/scoring/grade</code> →
-                  <code>/v1/ielts/writing/task1/grade</code>
+                  <code>/v1/ielts/writing/task{task}/grade</code>
                 </span>
                 <button
                   className="console-copy"
@@ -716,8 +831,8 @@ export default function ScoringWorkbench() {
             <p>
               Cần tích hợp vào hệ thống của bạn? Đọc tài liệu endpoint và đăng
               ký API key tại{" "}
-              <Link href="/product/scoring/api/grade-task1">
-                tài liệu Chấm bài Task 1
+              <Link href={`/product/scoring/api/grade-task${task}`}>
+                tài liệu Chấm bài Task {task}
               </Link>
               .
             </p>

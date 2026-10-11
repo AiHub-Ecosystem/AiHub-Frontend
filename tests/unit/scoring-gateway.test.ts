@@ -79,6 +79,25 @@ describe("parseWritingRequest", () => {
       expect(parsed.chartType).toBe(chartType);
     }
   });
+
+  /**
+   * `topic` is the essay's subject as free text, unlike `chart_type` which is a
+   * fixed enum. The contract's only bounds are 1-200 characters and non-empty.
+   * An allowlist of subjects would refuse every real submission outside it —
+   * the same mistake as pinning an `image_url` host.
+   */
+  it("accepts any non-empty topic, not only the sample's subjects", async () => {
+    const parsed = await parseWritingRequest(
+      jsonRequest({
+        task: 2,
+        question: "Discuss both views.",
+        topic: "urban beekeeping",
+        essay: "Universities should offer vocational training.",
+      })
+    );
+
+    expect(parsed).toMatchObject({ task: 2, topic: "urban beekeeping" });
+  });
 });
 
 /**
@@ -157,6 +176,25 @@ const REJECTED: Array<[string, unknown]> = [
       topic: "education",
       essay: "Universities should offer vocational training.",
       chart_type: "Bar Chart",
+    },
+  ],
+  [
+    "a Task 2 body carrying image_url",
+    {
+      task: 2,
+      question: "Discuss both views.",
+      topic: "education",
+      essay: "Universities should offer vocational training.",
+      image_url: "https://s3.wispace.app/ielts-task1/ca95bd4ab522946d",
+    },
+  ],
+  [
+    "an essay over 20000 characters, Task 2",
+    {
+      task: 2,
+      question: "Discuss both views.",
+      topic: "education",
+      essay: "e".repeat(20_001),
     },
   ],
   [
