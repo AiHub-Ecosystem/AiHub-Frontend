@@ -56,21 +56,36 @@ The gateway forwards upstream `code`, `retryable`, and `retry_after_ms`, and der
 
 The client renders `{error.code, error.message}` inline, the way `speaking-workbench.tsx` does. No toast library exists in this repo and none is added.
 
+### Visual system
+
+The Scoring demo renders in the Speaking demo's visual language, not a new one. A visitor moving between `/demo/speaking` and `/demo/scoring` must not feel they left the product.
+
+That language is already in the repository and it is not what a generic mockup produces:
+
+- **Two token layers, bridged by fallback.** The demo page declares HSL triads at page scope (`--background: 210 40% 98%`, `--primary: 228 94% 60%`, `--radius: 16px`, `--app-font-sans`, `--app-font-mono`) while the global shell provides `--aihub-brand`, `--aihub-ink`, `--aihub-surface`, `--aihub-radius`. Speaking joins them with `var(--aihub-brand, #3a64fa)`. Scoring uses the same join.
+- **Dark panels, not light cards.** `.console` is `#15151f` and `.feedback-dashboard` is `#1a1b25`, both monospace-forward, both with a large dashed empty state. The band and criteria live inside that dark surface.
+- **Two-column workbench shell.** `.lab-layout` is `288px minmax(0, 1fr)` — a narrow setup column beside the main card — collapsing to one column at 720px with the main card ordered first.
+- **Numbers are monospace.** `.score-value` renders at 19px in `--app-font-mono`.
+
+Those base rules move to `app/demo/demo-workbench.css`, imported by both demos. `speaking.css` keeps only what is specific to recording, transcription and the console, and loses its three near-identical copies of the token block.
+
 ### Result layout
 
-Option A, chosen from three mockups. Reading order is band first, then detail:
+Option A, chosen from three mockups. Reading order is band first, then detail. Every part is an existing Speaking component rather than a new one:
 
-1. Overall band in a dark header block, with `summary` beneath it.
-2. Four criteria cards in one row, in the order the API returns them — Task 1 starts at `task_achievement`, Task 2 at `task_response`.
-3. The essay, with each `annotations[].quote` highlighted in place and the `issue` plus `explanation` attached beneath the containing sentence.
+1. **Overall band** — the `.feedback-header` / `.score-badge` pair, with `summary` in the muted paragraph beneath it.
+2. **Four criteria** — the `.feedback-grid` row of `.score-card`s, in the order the API returns them (Task 1 starts at `task_achievement`, Task 2 at `task_response`). Each card carries `.score-label`, the `.score-value` band, `.score-note` for `band_reason`, and `.progress-bar` for the band scaled to 9. Strengths and improvements follow as lists.
+3. **The essay** — the `.transcript-section` surface, with each `annotations[].quote` wrapped in a `.word-chip` carrying its criterion tone, the `issue` in the tooltip, and the `explanation` attached beneath the containing sentence.
 
-Cards are `data-criteria`-keyed so a criterion card and its annotations read as one unit. `suggestions` and `next_steps` render as lists after the essay.
+`suggestions` and `next_steps` render as lists after the essay.
 
 The annotation `issue` values in the published response examples (`imprecise_word_choice`, `underdeveloped_example`) are **not** in `ERROR_CODES` in `data/aiwriting.ts`. The demo renders `issue` as the plain string it is and does not attempt a lookup that would half-fail.
 
 ### Form
 
 One workbench, two tabs, one form each. Fields are prefilled from `data/writing-task1-request.ts` and `data/writing-task2-request.ts`, so the page is runnable with no typing. Task 1 additionally shows `WRITING_TASK1_IMAGE_NOTE` under the URL field.
+
+Inputs use `.question-combobox-input` and the `.btn` / `.btn-primary` family; failures use the existing `.inline-error`, which the gateway's error codes already feed.
 
 Nothing is persisted. No history, no draft storage — every page load starts from the samples.
 
@@ -82,10 +97,12 @@ Nothing is persisted. No history, no draft storage — every page load starts fr
 | `lib/speaking-gateway.ts`                | Imports the extracted transport. No behaviour change.                                                                            |
 | `lib/scoring-gateway.ts`                 | New. Per-task validation, idempotency, upstream call, error mapping.                                                             |
 | `data/scoring-response.ts`               | New. `WritingGradingData` / `WritingGradingEnvelope` plus a hand-written envelope parser, mirroring `data/speaking-response.ts`. |
+| `app/demo/demo-workbench.css`            | New. Token block and base components shared by both demos.                                                                       |
+| `app/demo/speaking/speaking.css`         | Imports the shared stylesheet. Keeps only recording, transcript and console rules. Drops its three duplicate token blocks.       |
 | `app/api/demo/scoring/grade/route.ts`    | New. `runtime = "nodejs"`, `dynamic = "force-dynamic"`, `maxDuration = 90`.                                                      |
 | `app/demo/scoring/page.tsx`              | New. ~15-line server shell, same shape as `app/demo/speaking/page.tsx`.                                                          |
-| `app/demo/scoring/scoring-workbench.tsx` | New. Tabs, form, layout A.                                                                                                       |
-| `app/demo/scoring/scoring.css`           | New. Demo-local styles.                                                                                                          |
+| `app/demo/scoring/scoring-workbench.tsx` | New. Tabs, form, layout A in the Speaking visual language.                                                                       |
+| `app/demo/scoring/scoring.css`           | New. Writing-specific rules only — task tabs, chart preview. Nothing that belongs to the shared layer.                           |
 | `data/api-products.ts`                   | `hasDemo`, `demoReady` → `true` (lines 57-58).                                                                                   |
 | `tests/unit/scoring-gateway.test.ts`     | New. Table-driven cases for the parser.                                                                                          |
 
@@ -123,6 +140,8 @@ parse envelope → { data, meta } → layout A
 - task 2 body carrying `chart_type` rejected — the contract 400s rather than ignoring it
 
 `tests/unit/speaking-gateway.test.ts` must stay green after the extraction. That is the regression check for the refactor.
+
+The stylesheet extraction is checked visually, not by a snapshot: `/demo/speaking` renders identically before and after. The existing `tests/e2e/speaking.spec.ts` must still pass unchanged.
 
 An e2e spec is deliberately out of scope. The mock upstream plumbing (`AIHUB_SANDBOX_E2E_MOCK_BASE_URL`, `__test__/speaking/*`) would carry it cheaply, but no behaviour is specified at the page level that the unit parser does not already cover.
 
