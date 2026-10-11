@@ -49,7 +49,7 @@ jobs:
       - name: Lint Dockerfile
         # DL3006 cannot see through the NODE_IMAGE build arg. The base is tagged by
         # default and the reproducible-image job overrides it with a digest.
-        run: docker run --rm -v "$PWD:/repo" -w /repo hadolint/hadolint:2.12.0 --ignore DL3006 Dockerfile
+        run: docker run --rm -v "$PWD:/repo" -w /repo --entrypoint hadolint hadolint/hadolint:2.12.0 --ignore DL3006 Dockerfile
 
       - name: Lint workflows
         run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7
