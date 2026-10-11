@@ -10,3 +10,4 @@ build/
 playwright-report/
 test-results/*
 !test-results/docs-captures/
+.superpowers/
