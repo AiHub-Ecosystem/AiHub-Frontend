@@ -55,7 +55,9 @@ The backend schemas are `additionalProperties: false`, so an unknown field is a 
 - Task 2: `topic` required, 1–200 characters. The backend takes any non-empty string here, so the demo restricts it to the published `TOPICS` as a form affordance rather than as a contract rule.
 - `language` is accepted but optional, and the only value the backend allows is `vi`. The demo does not send it and renders no language switcher; `data.language` is hardcoded to `vi` by the backend adapter.
 
-`Idempotency-Key` is `randomUUID()` per submit. Clicking "Chấm lại" is deliberately a new paid grade — the demo must not silently replay a stored result.
+`Idempotency-Key` is minted in the browser and validated at the boundary: required, 1–255 UTF-8 bytes after trim, then forwarded verbatim. The page shows the key it is about to send, which is the point — the commonest integration mistake is not knowing that one submission means one key, and a key the server minted would have nothing honest to display. This also matches how a customer actually integrates: their server generates the key, their app can show it.
+
+Pressing the button twice is deliberately a new key and therefore a new paid grade. The demo never silently replays a stored result.
 
 No automatic retry. A retry cannot reuse the key across two submits without re-keying, and re-keying turns a retry into a second charge. Failures surface; the user presses the button again.
 
@@ -173,13 +175,14 @@ Nothing is persisted. No history, no draft storage — every page load starts fr
 ```
 scoring-workbench.tsx  ('use client')
   │  POST /api/demo/scoring/grade
-  │  { task: 1|2, question, essay, chart_type?, image_url?, topic? }
+  │  header: Idempotency-Key (minted in the page, shown to the visitor)
+  │  body: { task: 1|2, question, essay, chart_type?, image_url?, topic? }
   ▼
 app/api/demo/scoring/grade/route.ts
   │  gradeWriting(request, requestId)        lib/scoring-gateway.ts
   │    assertSameOrigin · body ≤ 256 KB · per-task allowlist
   │    question ≤ 2000 · essay ≤ 20000 · topic ≤ 200 · image_url ≤ 2000 https
-  │    chart_type ∈ 7 (case-sensitive) · Idempotency-Key = randomUUID()
+  │    chart_type ∈ 7 (case-sensitive) · Idempotency-Key 1–255 bytes
   ▼
 POST {sandbox}/v1/ielts/writing/task{task}/grade
   X-API-Key · X-User-Identity (declared user id) · X-Correlation-Id · Idempotency-Key
