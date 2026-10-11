@@ -14,13 +14,23 @@ const lock = JSON.parse(
   readFileSync(new URL("../package-lock.json", import.meta.url), "utf8")
 );
 
-const productionDirectories = new Set(
+// Two sets from one derivation. Pruning compares whole package names
+// (`@radix-ui/react-dialog`), because that is the level the lockfile is keyed at.
+// The printable listing collapses them to directories (`@radix-ui`), because that
+// is what `ls node_modules` shows. Using the collapsed set for pruning deletes
+// every package inside every scope.
+const productionPackages = new Set(
   Object.entries(lock.packages)
     .filter(([path, entry]) => path && !entry.dev && !entry.devOptional)
     .map(
       ([path]) => path.replace(/^node_modules\//, "").split("/node_modules/")[0]
     )
-    .map((name) => (name.startsWith("@") ? name.split("/")[0] : name))
+);
+
+const productionDirectories = new Set(
+  [...productionPackages].map((name) =>
+    name.startsWith("@") ? name.split("/")[0] : name
+  )
 );
 
 if (process.argv.includes("--prune")) {
@@ -32,13 +42,13 @@ if (process.argv.includes("--prune")) {
     if (entry.startsWith(".")) continue;
 
     if (!entry.startsWith("@")) {
-      if (!productionDirectories.has(entry)) remove(entry);
+      if (!productionPackages.has(entry)) remove(entry);
       continue;
     }
 
     const scope = new URL(`${entry}/`, modules);
     for (const name of readdirSync(scope)) {
-      if (!productionDirectories.has(`${entry}/${name}`))
+      if (!productionPackages.has(`${entry}/${name}`))
         remove(`${entry}/${name}`);
     }
     if (readdirSync(scope).length === 0) remove(entry);
