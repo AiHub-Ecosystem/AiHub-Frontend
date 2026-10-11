@@ -2,7 +2,7 @@
 
 - Date: 2026-10-11
 - Status: Approved in design review, awaiting spec review.
-- Related: `docs/superpowers/specs/2026-09-27-sample-request-design.md` (§ Writing Scoring catalog), `app/demo/speaking/speaking-workbench.tsx`, `lib/speaking-gateway.ts`, the team's `Desktop · Prototype tương tác — Tổng quan + 5 bước` mockup (design reference for Task 1, not production code)
+- Related: `docs/superpowers/specs/2026-09-27-sample-request-design.md` (§ Writing Scoring catalog), `app/demo/speaking/speaking-workbench.tsx`, `lib/speaking-gateway.ts`, the team's `Desktop · Prototype tương tác — Tổng quan + 5 bước` mockup (design reference for Task 1, not production code). Field limits, identity behaviour and sandbox ceilings in this spec were verified against the `aihub-be` source, not against this repository's reference tables, which had drifted.
 
 ## Problem
 
@@ -26,23 +26,34 @@ Speaking needs two routes because its two upstream operations have different req
 
 ### Gateway split
 
-`lib/speaking-gateway.ts` mixes two concerns: sandbox transport (host pinning, assertion minting, same-origin, upstream status mapping) and Speaking-specific validation (audio fields, parts, extensions). Writing needs the first and not the second.
+`lib/speaking-gateway.ts` mixes two concerns: sandbox transport (host pinning, env resolution, same-origin, upstream status mapping) and Speaking-specific work (audio fields, parts, extensions, signed-assertion minting). Writing needs the first and none of the second.
 
 Extract the transport into `lib/sandbox-gateway.ts`. Both gateways import it; neither re-implements host pinning. The extraction is a pure move — no behaviour change — and `tests/unit/speaking-gateway.test.ts` is the check that it stayed that way.
 
-`INTERNAL_USER_ID` moves with it and is shared by both demos. It is a declared user id for public demo traffic, not a per-user identity. Its derivation string stays exactly as it is — rewriting it would hand Speaking a different upstream identity, which is a behaviour change the extraction is not supposed to cause.
+`mintSandboxAssertion` **stays in the Speaking gateway**. It is not shared, and the backend is explicit about why: `POST /v1/sandbox/assertions` is guarded by an allowlist check rather than a scope check, the Writing module never imports that controller, and ADR-0056 records that customer keys never mint assertions. If the allowlist is empty the route 404s. Writing has no business on that path.
+
+`INTERNAL_USER_ID` moves with it. Its derivation string stays exactly as it is — rewriting it would hand Speaking a different upstream identity, which is a behaviour change the extraction is not supposed to cause.
+
+### Identity: a declared user id, not a minted assertion
+
+Writing sends `X-User-Identity` as plain declared-user-id text. The backend resolves it through the same `UserIdentityGuard` as Speaking, and `writing-user-identity.controller.spec.ts` confirms Task 1 grades a plain `student_456` with a 200.
+
+That is the whole identity story for this demo, and it is simpler than Speaking's by design: the demo is public and unowned, so there is no end user to assert. The declared id must satisfy the backend's shape — 1 to 256 visible ASCII characters, no spaces — which a `cu_`-prefixed base64url digest already does.
+
+The demo does not expose identity configuration, does not sign anything, and never asks the visitor for a user id.
 
 ### Validation happens in the BFF
 
-The contract rejects unknown fields rather than dropping them, and writes require an `Idempotency-Key`. Both are enforced at the boundary, never trusted from the browser.
+The backend schemas are `additionalProperties: false`, so an unknown field is a 400 rather than something quietly dropped, and `Idempotency-Key` is a required header. Both are enforced at the boundary, never trusted from the browser.
 
 - `assertSameOrigin` — CSRF guard, same as Speaking.
 - Body at most 256 KB → `PAYLOAD_TOO_LARGE`. Measured on the raw text via `request.text()` before `JSON.parse`, so an oversized body is rejected without being parsed. Matches the endpoint's own limit.
-- Per-task field allowlist. Task 1 accepts `task`, `question`, `essay`, `chart_type`, `image_url`. Task 2 accepts `task`, `question`, `essay`, `topic`. Any other key → `INVALID_REQUEST`.
-- `question` and `essay` required. `essay` is **1–20 000 characters**, the limit the endpoint documents (`data/api-reference.ts:624` for Task 1, `:672` for Task 2). `question` is capped at the same order — a few thousand characters — well clear of the 256 KB body ceiling.
-- Task 1: `chart_type` must be one of the seven `WRITING_TASK1_CHART_TYPES` values — the match is case-sensitive and `"bar chart"` is a 400.
-- Task 1: `image_url` must parse as `https:` with no embedded username or password. **Not pinned to a host.** Speaking pins `s3.wispace.app` because AIHUB publishes that audio; a Task 1 chart is the user's own image on their own host, and pinning would reject every real submission.
-- Task 2: `topic` must be one of `TOPICS`.
+- Per-task field allowlist. Task 1 accepts `task`, `question`, `essay`, `chart_type`, `image_url`, and optional `language`. Task 2 accepts `task`, `question`, `essay`, `topic`, and optional `language`. Any other key → `INVALID_REQUEST`. The mirrors of the backend's own schemas.
+- `question` required, 1–2 000 characters. `essay` required, 1–20 000 characters.
+- Task 1: `chart_type` must be one of the seven `WRITING_TASK1_CHART_TYPES` values. The match is case-sensitive and `"bar chart"` is a 400.
+- Task 1: `image_url` required, 1–2 000 characters, must parse as an `https:` URL with no embedded username or password. **Not pinned to a host.** The backend pins Speaking audio to `s3.wispace.app` because AIHUB publishes it; Writing has no host allowlist at all, and its own tests assert a customer-hosted chart URL is forwarded unchanged. Pinning would reject every real submission.
+- Task 2: `topic` required, 1–200 characters. The backend takes any non-empty string here, so the demo restricts it to the published `TOPICS` as a form affordance rather than as a contract rule.
+- `language` is accepted but optional, and the only value the backend allows is `vi`. The demo does not send it and renders no language switcher; `data.language` is hardcoded to `vi` by the backend adapter.
 
 `Idempotency-Key` is `randomUUID()` per submit. Clicking "Chấm lại" is deliberately a new paid grade — the demo must not silently replay a stored result.
 
@@ -144,7 +155,7 @@ Nothing is persisted. No history, no draft storage — every page load starts fr
 
 | File                                     | Change                                                                                                                           |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `lib/sandbox-gateway.ts`                 | New. Transport extracted from `lib/speaking-gateway.ts`.                                                                         |
+| `lib/sandbox-gateway.ts`                 | New. Transport extracted from `lib/speaking-gateway.ts`. Excludes assertion minting, which is Speaking-only.                     |
 | `lib/speaking-gateway.ts`                | Imports the extracted transport. No behaviour change.                                                                            |
 | `lib/scoring-gateway.ts`                 | New. Per-task validation, idempotency, upstream call, error mapping.                                                             |
 | `data/scoring-response.ts`               | New. `WritingGradingData` / `WritingGradingEnvelope` plus a hand-written envelope parser, mirroring `data/speaking-response.ts`. |
@@ -167,13 +178,13 @@ scoring-workbench.tsx  ('use client')
 app/api/demo/scoring/grade/route.ts
   │  gradeWriting(request, requestId)        lib/scoring-gateway.ts
   │    assertSameOrigin · body ≤ 256 KB · per-task allowlist
-  │    chart_type ∈ 7 · image_url https · topic ∈ TOPICS
-  │    Idempotency-Key = randomUUID()
+  │    question ≤ 2000 · essay ≤ 20000 · topic ≤ 200 · image_url ≤ 2000 https
+  │    chart_type ∈ 7 (case-sensitive) · Idempotency-Key = randomUUID()
   ▼
 POST {sandbox}/v1/ielts/writing/task{task}/grade
-  X-API-Key · X-User-Identity (minted) · X-Correlation-Id · Idempotency-Key
+  X-API-Key · X-User-Identity (declared user id) · X-Correlation-Id · Idempotency-Key
   ▼
-parse envelope → { data, meta } → layout A
+parse envelope → { data, meta } → result layout
 ```
 
 `meta` is rebuilt by the gateway as `{request_id, correlation_id, service: "writing", operation}`, matching what Speaking returns.
@@ -182,13 +193,14 @@ parse envelope → { data, meta } → layout A
 
 `tests/unit/scoring-gateway.test.ts`, table-driven over `parseWritingRequest`:
 
-- unknown field rejected, per task
+- `unknown field rejected, per task — the backend schemas are additionalProperties: false, so a stray field is a 400 rather than something ignored`
 - `chart_type` case-sensitivity (`"Bar Chart"` passes, `"bar chart"` fails)
 - `image_url` on `http://` rejected; any https host accepted; credentials in the URL rejected
-- `topic` outside `TOPICS` rejected
-- `question` / `essay` missing, blank, or outside 1–20 000 characters rejected
+- `question` over 2 000 characters rejected; `essay` over 20 000 rejected; `topic` over 200 rejected
+- `image_url` over 2 000 characters rejected
 - body over 256 KB rejected
 - task 2 body carrying `chart_type` rejected — the contract 400s rather than ignoring it
+- the declared user id sent upstream is a valid end-user id: 1–256 visible ASCII characters, no spaces
 
 `tests/unit/speaking-gateway.test.ts` must stay green after the extraction. That is the regression check for the refactor.
 
@@ -212,6 +224,8 @@ An e2e spec is deliberately out of scope. The mock upstream plumbing (`AIHUB_SAN
 
 ## Risks
 
-- The sandbox may not expose `task1/grade` or `task2/grade`. `api-products.ts` documents the endpoints, not their sandbox availability. If they are absent, the failure is `404 NOT_FOUND` surfaced through the normal error path, and the sandbox key may need the `writing.grade` scope (`403 FORBIDDEN`). Both are distinguishable in the UI, which is why the codes pass through instead of collapsing.
-- The sandbox key may lack `writing.grade` entirely.
-- The exact essay character limit of 20 000 is taken from this repository's own reference tables and has not been confirmed against a live response.
+- **The sandbox has ceilings.** A public demo shares one Organization with every other visitor. The sandbox tier allows 5 requests per minute per key, 1 in-flight request per Organization, 25 dispatches per month per Organization, and 500 per month for the whole environment. A popular demo will hit these, and `QUOTA_EXCEEDED` is the code that says so — which is exactly why the codes pass through instead of collapsing into "service busy". The rate limit and the concurrency limit are the two a visitor will actually meet.
+- **The sandbox key may lack `writing.grade`.** A Sandbox key is issued only with exactly that scope, so this should hold; if it does not, the demo fails on its first request with `403 FORBIDDEN` and the fix is an Operations task, not a code change.
+- `criteria` arrives in the documented order, but nothing enforces it. The order comes from a lexicographic sort of the downstream service's numbered keys. The demo renders whatever order it receives rather than re-sorting, so a change upstream shows up rather than being masked.
+- The exact field limits are taken from the backend schemas rather than from this repository's reference tables, which had drifted from them.
+- On a 4xx the backend deletes the idempotency record, on a 5xx it marks it failed and reclaimable only by an identical body. With a fresh key per submit the demo never encounters either, which is the reason for that choice.
