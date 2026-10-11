@@ -58,21 +58,38 @@ The client renders `{error.code, error.message}` inline, the way `speaking-workb
 
 ### Visual system
 
-Every colour the demo uses is a token. That rule exists because the reference mockup and this repository disagree on the palette:
+`#5B5FEF` is the new brand. `app/aihub.css` still carries `#3a64fa` from the repository's first commit and has never been changed, so the two coexist:
 
-|       | `app/aihub.css` (repo) | reference mockup |
-| ----- | ---------------------- | ---------------- |
-| brand | `#3a64fa`              | `#5B5FEF`        |
-| ink   | `#1d2838`              | `#14152B`        |
-| body  | `#475467`              | `#5C5D77`        |
-| line  | `#e4e7ec`              | `#E4E4EC`        |
+| role                        | `app/aihub.css` (current site) | new brand, per the mockup |
+| --------------------------- | ------------------------------ | ------------------------- |
+| brand                       | `#3a64fa`                      | `#5B5FEF`                 |
+| brand hover                 | `#3157dc`                      | `#4547C9`                 |
+| brand tint background       | —                              | `#EDEBFE`                 |
+| brand tint border           | —                              | `#D5D1FB`                 |
+| ink                         | `#1d2838`                      | `#14152B`                 |
+| body                        | `#475467`                      | `#5C5D77`                 |
+| muted / disabled            | —                              | `#9C9DC2`                 |
+| line                        | `#e4e7ec`                      | `#E4E4EC`                 |
+| surface                     | `#f1f5f9`                      | `#F7F7FB`                 |
+| strong border               | —                              | `#C7C7D9`                 |
+| success                     | —                              | `#0F6B4C`                 |
+| warning background / border | —                              | `#FFF4E5` / `#F5D3A6`     |
+| warning text                | —                              | `#8A4307`                 |
+| code / emphasis             | —                              | `#9A3B12`                 |
+| error text                  | —                              | `#B3261E`                 |
+| console surface             | `#15151f`                      | `#14152B`                 |
+| console header              | `#080808`                      | `#1E2040`                 |
+| console border              | `#272836`                      | `#33355A`                 |
+| console text                | `#d6dae8`                      | `#F3F3FA`                 |
 
-The mockup's own README calls it a reference mockup, not a brand decision. `app/aihub.css` is the product's colour source of truth, and adopting `#5B5FEF` would be a site-wide rebrand including the live Speaking demo — a different piece of work with a different owner. So the demo uses the repository tokens.
+The Scoring demo ships on the new brand. The rest of the site stays on `#3a64fa` until its own migration, which is separate work with a different owner.
 
-What is taken from the mockup is its **system**, which is palette-independent:
+That split is only safe if the brand is a **token the page sets**, never a value baked into a rule. `app/demo/demo-workbench.css` declares every colour in terms of `--demo-brand`, `--demo-ink`, `--demo-surface` and the rest. Speaking sets them to the current site values; Scoring sets them to the new brand. When the rest of the site migrates, the demo's page-level block is deleted and the new values become the defaults — one change, no component rule edited.
 
-- **Two token layers, bridged by fallback.** The demo page declares HSL triads at page scope (`--background: 210 40% 98%`, `--primary: 228 94% 60%`, `--radius: 16px`, `--app-font-sans`, `--app-font-mono`) while the global shell provides `--aihub-brand`, `--aihub-ink`, `--aihub-surface`, `--aihub-radius`. Speaking joins them with `var(--aihub-brand, #3a64fa)`. Scoring uses the same join.
-- **Dark panels, not light cards.** `.console` is `#15151f` and `.feedback-dashboard` is `#1a1b25`, both monospace-forward, both with a large dashed empty state.
+What is taken from the mockup beyond the palette, and is independent of it:
+
+- **Two token layers, bridged by fallback.** The demo page declares HSL triads at page scope while the global shell provides `--aihub-brand`, `--aihub-ink`, `--aihub-surface`, `--aihub-radius`. Speaking joins them with `var(--aihub-brand, #3a64fa)`. Scoring uses the same join, pointed at the new brand.
+- **Dark panels, not light cards.** The console and feedback surfaces are monospace-forward with a large dashed empty state.
 - **Two-column workbench shell.** `.lab-layout` is `288px minmax(0, 1fr)`, collapsing to one column at 720px with the main card ordered first.
 - **Numbers are monospace.** `.score-value` renders at 19px in `--app-font-mono`.
 
@@ -85,9 +102,7 @@ Plus one thing the repository does not have: a **criterion colour scale**. Each 
 | Lexical Resource                 | `#D9F2F0`  | `#0B5F59` | `#0F7A73` |
 | Grammatical Range & Accuracy     | `#F1E4FA`  | `#6E2F91` | `#8A3FB0` |
 
-These twelve values become tokens in the shared layer. They are a categorical scale, not brand colours, so they survive a future palette change.
-
-If the design owner later confirms the mockup's palette is the new brand, this demo changes by editing token values alone. Nothing structural depends on the choice.
+These twelve values are a categorical scale, not brand colours, so they are identical under either palette and move to the shared layer unchanged.
 
 The shared rules move to `app/demo/demo-workbench.css`, imported by both demos. `speaking.css` keeps only what is specific to recording, transcription and the console, and loses its three near-identical copies of the token block.
 
@@ -192,12 +207,11 @@ An e2e spec is deliberately out of scope. The mock upstream plumbing (`AIHUB_SAN
 - Result history, draft persistence, per-user identity.
 - Automatic retry.
 - An e2e Playwright spec.
-- A site-wide rebrand to the mockup's palette.
+- The rest of the site migrating to `#5B5FEF`. The Scoring demo ships on the new brand; every other surface stays on `#3a64fa` until that work happens. The shared stylesheet is built so this costs one block of token values when it does.
 - Grading other Writing products (`exercise-generation`, `learning-path`) that are also unbuilt.
 
 ## Risks
 
 - The sandbox may not expose `task1/grade` or `task2/grade`. `api-products.ts` documents the endpoints, not their sandbox availability. If they are absent, the failure is `404 NOT_FOUND` surfaced through the normal error path, and the sandbox key may need the `writing.grade` scope (`403 FORBIDDEN`). Both are distinguishable in the UI, which is why the codes pass through instead of collapsing.
 - The sandbox key may lack `writing.grade` entirely.
-- The reference mockup's palette is unconfirmed as a brand decision. If it turns out to be one, the demo is correct but off-brand until the tokens are updated — a value-only change, tracked separately.
 - The exact essay character limit of 20 000 is taken from this repository's own reference tables and has not been confirmed against a live response.
