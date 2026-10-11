@@ -169,6 +169,7 @@ Nothing is persisted. No history, no draft storage — every page load starts fr
 | `app/demo/scoring/scoring.css`           | New. Writing-specific rules only — task tabs, chart preview. Nothing that belongs to the shared layer.                           |
 | `data/api-products.ts`                   | `hasDemo`, `demoReady` → `true` (lines 57-58).                                                                                   |
 | `tests/unit/scoring-gateway.test.ts`     | New. Table-driven cases for the parser.                                                                                          |
+| `tests/e2e/scoring.spec.ts`              | New. The page-level wiring the parser cannot reach.                                                                              |
 
 ## Data flow
 
@@ -209,7 +210,7 @@ parse envelope → { data, meta } → result layout
 
 The stylesheet extraction is checked visually, not by a snapshot: `/demo/speaking` renders identically before and after. The existing `tests/e2e/speaking.spec.ts` must still pass unchanged.
 
-An e2e spec is deliberately out of scope. The mock upstream plumbing (`AIHUB_SANDBOX_E2E_MOCK_BASE_URL`, `__test__/speaking/*`) would carry it cheaply, but no behaviour is specified at the page level that the unit parser does not already cover.
+An e2e spec was scoped out on the grounds that no page-level behaviour was specified that the unit parser did not already cover. Building the page falsified that: what only a browser can see is the wiring the parser cannot reach — that the demo is reachable with no login, that no credential reaches the page, that the report renders the criteria in the order the response carried, and that Task Achievement and Task Response wear the same colour. `tests/e2e/scoring.spec.ts` covers those, on the existing mock upstream (`AIHUB_SANDBOX_E2E_MOCK_BASE_URL`, `__test__/scoring/*`).
 
 ## Out of scope
 
@@ -221,7 +222,6 @@ An e2e spec is deliberately out of scope. The mock upstream plumbing (`AIHUB_SAN
 - **A response-language toggle.** `language` is `vi` in the published responses; whether an `en` variant exists is unverified, so no toggle is built on an assumption.
 - Result history, draft persistence, per-user identity.
 - Automatic retry.
-- An e2e Playwright spec.
 - The rest of the site migrating to `#5B5FEF`. The Scoring demo ships on the new brand; every other surface stays on `#3a64fa` until that work happens. The shared stylesheet is built so this costs one block of token values when it does.
 - Grading other Writing products (`exercise-generation`, `learning-path`) that are also unbuilt.
 

@@ -141,13 +141,18 @@ export function parseWritingGradingEnvelope(
   input: unknown
 ): WritingGradingEnvelope | null {
   if (!isRecord(input)) return null;
+  // `request_id` is what the report prints, so it is required rather than cast:
+  // an envelope without it is not one this demo can render.
+  if (!isRecord(input.meta)) return null;
+  const requestId = input.meta.request_id;
+  if (typeof requestId !== "string") return null;
   const data = parseData(input.data);
   if (!data) return null;
-  const meta = isRecord(input.meta) ? input.meta : {};
+  const meta = input.meta;
   return {
     data,
     meta: {
-      request_id: meta.request_id as string,
+      request_id: requestId,
       ...(typeof meta.correlation_id === "string"
         ? { correlation_id: meta.correlation_id }
         : {}),

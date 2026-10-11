@@ -532,6 +532,32 @@ describe("upstream error pass-through", () => {
     ).rejects.toMatchObject({ code: "AI_SERVICE_CONTRACT_VIOLATION" });
   });
 
+  // The report prints `meta.request_id`, so an envelope without one is not
+  // renderable. Casting it would type a value that is not there.
+  it("rejects a 200 whose envelope carries no request_id", async () => {
+    stubUpstream(
+      () =>
+        new Response(
+          JSON.stringify({ ...UPSTREAM_GRADING, meta: { request_id: 7 } }),
+          { status: 200 }
+        )
+    );
+
+    await expect(
+      gradeWriting(jsonRequest(TASK1_BODY), "req_test")
+    ).rejects.toMatchObject({ code: "AI_SERVICE_CONTRACT_VIOLATION" });
+  });
+
+  // A 429 the demo cannot name is still a rate limit, and the sandbox returns
+  // one a visitor will meet. Speaking maps it the same way.
+  it("reports a bodyless 429 as throttled rather than a generic failure", async () => {
+    stubUpstream(() => new Response("too many", { status: 429 }));
+
+    await expect(
+      gradeWriting(jsonRequest(TASK1_BODY), "req_test")
+    ).rejects.toMatchObject({ code: "AI_SERVICE_THROTTLED" });
+  });
+
   it("maps an unreachable upstream to unavailable rather than a made-up code", async () => {
     vi.stubEnv("AIHUB_SANDBOX_BASE_URL", "https://sandbox.aihubproduction.com");
     vi.stubGlobal(

@@ -514,6 +514,9 @@ export default function ScoringWorkbench() {
       // replaying a stored result.
       setIdempotencyKey(newIdempotencyKey());
     } catch (caught) {
+      // Only our own 90s abort is a timeout. Anything else that never reached
+      // the route is a transport failure, and calling that a timeout tells the
+      // visitor something untrue about a 0.4s offline request.
       const nextError =
         typeof caught === "object" &&
         caught !== null &&
@@ -522,10 +525,16 @@ export default function ScoringWorkbench() {
         typeof caught.code === "string" &&
         typeof caught.message === "string"
           ? (caught as PublicError)
-          : {
-              code: "AI_SERVICE_TIMEOUT",
-              message: `Yêu cầu mất quá ${CLIENT_BUDGET_SECONDS} giây. Bấm lại nút chấm để thử lại bằng một lần chấm mới.`,
-            };
+          : controller.signal.aborted
+            ? {
+                code: "AI_SERVICE_TIMEOUT",
+                message: `Yêu cầu mất quá ${CLIENT_BUDGET_SECONDS} giây. Bấm lại nút chấm để thử lại bằng một lần chấm mới.`,
+              }
+            : {
+                code: "AI_SERVICE_UNAVAILABLE",
+                message:
+                  "Không gửi được yêu cầu. Kiểm tra kết nối rồi bấm lại nút chấm.",
+              };
       setError(nextError);
       setStatus("idle");
       setIdempotencyKey(newIdempotencyKey());
@@ -748,7 +757,14 @@ export default function ScoringWorkbench() {
                         {error.retryable === false
                           ? "Không tự thử lại được"
                           : "Có thể thử lại sau"}{" "}
-                        {Math.round(error.retry_after_ms / 60_000)} phút.
+                        {/* A rate limit's hint is seconds, not minutes. Rounding
+                            2000ms into minutes would read "0 phút", which tells
+                            the visitor nothing. */}
+                        {error.retry_after_ms < 60_000
+                          ? `${Math.round(error.retry_after_ms / 1000)} giây.`
+                          : `${Math.round(
+                              error.retry_after_ms / 60_000
+                            )} phút.`}
                       </span>
                     )}
                   </div>

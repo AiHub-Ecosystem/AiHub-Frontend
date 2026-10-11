@@ -228,11 +228,13 @@ function readUpstreamError(payload: unknown, status: number) {
     throw new ScoringBoundaryError(
       status === 413
         ? "PAYLOAD_TOO_LARGE"
-        : status === 504
-          ? "AI_SERVICE_TIMEOUT"
-          : status === 503
-            ? "AI_SERVICE_UNAVAILABLE"
-            : "AI_SERVICE_ERROR"
+        : status === 429
+          ? "AI_SERVICE_THROTTLED"
+          : status === 504
+            ? "AI_SERVICE_TIMEOUT"
+            : status === 503
+              ? "AI_SERVICE_UNAVAILABLE"
+              : "AI_SERVICE_ERROR"
     );
   }
 

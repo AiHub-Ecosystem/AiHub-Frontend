@@ -287,6 +287,16 @@
   font-size: 10px;
   line-height: 1.6;
 }
+/* The result-panel card. Its `display`/`padding` came from rules scoped to
+   `.aihub-speaking`, so here the four criteria stacked as unbordered blocks.
+   Set before the tone rules below so a criterion's own background still wins
+   at equal specificity. */
+.aihub-scoring .rubric-card {
+  border: 1px solid var(--demo-console-border);
+  background: var(--demo-panel-raised);
+  border-radius: 7px;
+  padding: 10px;
+}
 .aihub-scoring .console-footer {
   display: flex;
   align-items: center;
@@ -455,6 +465,30 @@
   margin-top: 12px;
   grid-template-columns: 1fr 1fr;
 }
+/* The mirror stylesheet colours bare `h2` white, which is invisible on this
+   page's light card. Speaking carries the same override for the same reason. */
+.aihub-scoring .main-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.aihub-scoring .main-heading h2 {
+  margin: 0;
+  color: var(--demo-ink);
+  font-size: 17px;
+  letter-spacing: -0.045em;
+}
+.aihub-scoring .main-heading h2 .stable-badge {
+  display: inline-block;
+  vertical-align: 2px;
+  margin-left: 5px;
+}
+.aihub-scoring .main-heading p {
+  margin: 5px 0 0;
+  color: var(--demo-body);
+  font-size: 10px;
+}
 .aihub-scoring .rubric-card p {
   color: var(--demo-panel-body);
   font-size: 10px;
@@ -475,6 +509,8 @@
   line-height: 1.65;
 }
 .aihub-scoring .rubric-grid {
+  display: grid;
+  gap: 8px;
   margin-top: 12px;
 }
 
