@@ -1,0 +1,538 @@
+/*
+ * Writing grading demo only.
+ *
+ * The shell, controls, result panel and the highlighted-span mechanism live in
+ * ../demo-workbench.css. What is here is what only grading a written essay
+ * does: the integration overview, the task form, and the criterion colour
+ * tones.
+ *
+ * No rule below names a brand or criterion colour literal. The brand block at
+ * the top is the single place the palette changes — every rule reads a token,
+ * so switching this page back to the site palette is a block edit and nothing
+ * else.
+ */
+
+@import "../demo-workbench.css";
+
+/* The new brand. Speaking leaves the shared defaults alone and stays on
+   #3a64fa; changing this page's palette is editing this block alone. */
+.aihub-scoring {
+  --demo-brand: #5b5fef;
+  --demo-brand-hover: #4547c9;
+  --demo-ink: #14152b;
+  --demo-body: #5c5d77;
+  --demo-line: #e4e4ec;
+  --demo-surface: #f7f7fb;
+  --demo-muted: #9c9dc2;
+  --demo-strong-border: #c7c7d9;
+  --demo-brand-tint: #edebfe;
+  --demo-brand-tint-border: #d5d1fb;
+
+  --demo-console: #14152b;
+  --demo-console-header: #1e2040;
+  --demo-console-border: #33355a;
+
+  /* The panel tokens the shared file exposes, pointed at the new brand so the
+     grading panel reads as one product. */
+  --demo-panel: var(--demo-console);
+  --demo-panel-raised: #1b1d3a;
+  --demo-panel-border: var(--demo-console-border);
+  --demo-panel-ink: #f3f3fa;
+  --demo-panel-body: #b9bbd6;
+  --demo-panel-muted: #8f92b8;
+  --demo-panel-accent: #9a9cff;
+  --demo-panel-track: #2b2d52;
+  --demo-panel-fill: #5b5fef;
+}
+
+/* Overview ---------------------------------------------------------------- */
+
+.aihub-scoring .scoring-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  border: 1px solid var(--demo-line);
+  border-radius: 16px;
+  background: hsl(var(--card));
+  padding: 22px 24px;
+  margin-bottom: 16px;
+}
+.aihub-scoring .scoring-overview h1 {
+  margin: 8px 0 10px;
+  font-size: 22px;
+  letter-spacing: -0.055em;
+  line-height: 1.1;
+  color: var(--demo-ink);
+}
+.aihub-scoring .scoring-endpoint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.aihub-scoring .scoring-endpoint .method {
+  border-radius: 5px;
+  background: var(--demo-brand);
+  color: white;
+  padding: 4px 7px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.aihub-scoring .scoring-endpoint code {
+  font-family: var(--app-font-mono);
+  font-size: 11px;
+  color: var(--demo-ink);
+}
+.aihub-scoring .scoring-overview-lede {
+  margin: 0;
+  color: var(--demo-body);
+  font-size: 11px;
+  line-height: 1.75;
+}
+.aihub-scoring .scoring-flow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+}
+.aihub-scoring .scoring-flow-step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--demo-line);
+  border-radius: 9px;
+  background: var(--demo-brand-tint);
+  padding: 9px 11px;
+}
+.aihub-scoring .scoring-flow-num {
+  flex: none;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--demo-brand);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 800;
+  font-family: var(--app-font-mono);
+}
+.aihub-scoring .scoring-flow-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.aihub-scoring .scoring-flow-text strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--demo-ink);
+}
+.aihub-scoring .scoring-flow-text span {
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--demo-body);
+}
+
+/* Form -------------------------------------------------------------------- */
+
+.aihub-scoring .setup-card {
+  position: sticky;
+  top: 20px;
+}
+.aihub-scoring .scoring-form {
+  padding: 0 20px 16px;
+  display: grid;
+  gap: 6px;
+}
+.aihub-scoring .mini-label {
+  color: var(--demo-muted);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 8px;
+}
+.aihub-scoring .scoring-help {
+  margin: 0 0 4px;
+  color: var(--demo-body);
+  font-size: 9px;
+  line-height: 1.6;
+}
+.aihub-scoring .scoring-select,
+.aihub-scoring .scoring-textarea {
+  width: 100%;
+  border: 1px solid var(--demo-strong-border);
+  border-radius: 7px;
+  background: white;
+  color: var(--demo-ink);
+  padding: 8px 9px;
+  font-family: inherit;
+  font-size: 11px;
+  outline: none;
+}
+.aihub-scoring .scoring-select:focus,
+.aihub-scoring .scoring-textarea:focus {
+  border-color: var(--demo-brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--demo-brand) 12%, transparent);
+}
+.aihub-scoring .scoring-textarea {
+  resize: vertical;
+  line-height: 1.6;
+}
+.aihub-scoring .scoring-input {
+  padding: 8px 9px;
+}
+.aihub-scoring .scoring-chart-preview {
+  margin: 4px 0 6px;
+  border: 1px solid var(--demo-line);
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--demo-surface);
+}
+.aihub-scoring .scoring-chart-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 190px;
+  object-fit: contain;
+}
+.aihub-scoring .scoring-chart-preview figcaption {
+  border-top: 1px solid var(--demo-line);
+  padding: 6px 8px;
+  color: var(--demo-body);
+  font-size: 8px;
+}
+
+.aihub-scoring .scoring-submit {
+  border-top: 1px solid var(--demo-line);
+  padding: 14px 20px 20px;
+}
+.aihub-scoring .scoring-idempotency {
+  display: block;
+  border: 1px dashed var(--demo-strong-border);
+  border-radius: 7px;
+  background: var(--demo-surface);
+  color: var(--demo-ink);
+  padding: 8px 9px;
+  font-family: var(--app-font-mono);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.aihub-scoring .scoring-submit-btn {
+  width: 100%;
+  margin-top: 10px;
+}
+.aihub-scoring .scoring-progress {
+  margin-top: 10px;
+}
+.aihub-scoring .scoring-progress .progress-bar {
+  background: var(--demo-line);
+  margin-top: 0;
+}
+.aihub-scoring .scoring-progress .progress-bar i {
+  background: var(--demo-brand);
+}
+.aihub-scoring .inline-error span {
+  display: block;
+  margin-top: 3px;
+  font-weight: 400;
+}
+
+/* Result panel ------------------------------------------------------------ */
+
+.aihub-scoring .scoring-result {
+  position: sticky;
+  top: 20px;
+}
+.aihub-scoring .console {
+  background: var(--demo-console);
+  border: 1px solid var(--demo-console-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.aihub-scoring .console-empty {
+  background: var(--demo-console);
+  color: #8f92b8;
+  padding: 40px 16px;
+  text-align: center;
+  font-family: var(--app-font-mono);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.aihub-scoring .console-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--demo-console-border);
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+  background: var(--demo-console-header);
+  color: #8f92b8;
+  padding: 8px 11px;
+  font-family: var(--app-font-mono);
+  font-size: 9px;
+}
+.aihub-scoring .console-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--demo-console-border);
+  border-radius: 6px;
+  background: transparent;
+  color: #f3f3fa;
+  padding: 5px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.aihub-scoring .console-copy:hover {
+  border-color: var(--demo-panel-accent);
+  color: var(--demo-panel-accent);
+}
+.aihub-scoring .main-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--demo-body);
+  font-family: var(--app-font-mono);
+  font-size: 9px;
+}
+.aihub-scoring .feedback-grid {
+  margin-top: 12px;
+}
+.aihub-scoring .score-badge {
+  background: var(--demo-panel-raised);
+  color: var(--demo-panel-accent);
+  border-color: var(--demo-console-border);
+}
+.aihub-scoring .transcript-section {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+.aihub-scoring .scoring-essay {
+  border: 1px solid var(--demo-console-border);
+  border-radius: 8px;
+  background: var(--demo-panel-raised);
+  padding: 11px 12px;
+  color: var(--demo-panel-ink);
+  font-size: 11px;
+  line-height: 2;
+  max-height: 340px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+.aihub-scoring .scoring-annotation {
+  border: 1px solid var(--demo-console-border);
+  border-radius: 8px;
+  background: var(--demo-panel-raised);
+  padding: 11px 12px;
+}
+.aihub-scoring .scoring-annotation blockquote {
+  margin: 8px 0;
+  border-left: 2px solid currentColor;
+  padding-left: 9px;
+  color: var(--demo-panel-ink);
+  font-size: 11px;
+  font-style: italic;
+}
+.aihub-scoring .scoring-annotation p {
+  margin: 0;
+  color: var(--demo-panel-body);
+  font-size: 10px;
+  line-height: 1.65;
+}
+.aihub-scoring .scoring-annotation-issue {
+  color: var(--demo-panel-body);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+/* Criterion tones. These read the shared criterion scale; they do not restate
+   it. `.word-chip` is the shared mechanism — Speaking owns its pronunciation
+   tones, this page owns the criterion tones, and the two scales never merge. */
+.aihub-scoring .criterion-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 15px;
+  border-radius: 4px;
+  padding: 0 4px;
+  font-family: var(--app-font-mono);
+  font-size: 8px;
+  font-weight: 700;
+}
+.aihub-scoring .criterion-card {
+  border-left-width: 3px;
+  border-left-style: solid;
+}
+.aihub-scoring .criterion-chip {
+  border: 0;
+  border-bottom: 2px solid;
+  border-radius: 2px;
+  padding: 0 2px;
+  font: inherit;
+  text-align: left;
+}
+.aihub-scoring .criterion-chip[aria-pressed="true"] {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+.aihub-scoring .tone-achieve {
+  background: var(--demo-criterion-achieve-bg);
+  color: var(--demo-criterion-achieve-ink);
+}
+.aihub-scoring .tone-achieve.criterion-card,
+.aihub-scoring .tone-achieve.criterion-chip {
+  border-left-color: var(--demo-criterion-achieve-rule);
+  border-bottom-color: var(--demo-criterion-achieve-rule);
+}
+.aihub-scoring .tone-coherence {
+  background: var(--demo-criterion-coherence-bg);
+  color: var(--demo-criterion-coherence-ink);
+}
+.aihub-scoring .tone-coherence.criterion-card,
+.aihub-scoring .tone-coherence.criterion-chip {
+  border-left-color: var(--demo-criterion-coherence-rule);
+  border-bottom-color: var(--demo-criterion-coherence-rule);
+}
+.aihub-scoring .tone-lexical {
+  background: var(--demo-criterion-lexical-bg);
+  color: var(--demo-criterion-lexical-ink);
+}
+.aihub-scoring .tone-lexical.criterion-card,
+.aihub-scoring .tone-lexical.criterion-chip {
+  border-left-color: var(--demo-criterion-lexical-rule);
+  border-bottom-color: var(--demo-criterion-lexical-rule);
+}
+.aihub-scoring .tone-grammar {
+  background: var(--demo-criterion-grammar-bg);
+  color: var(--demo-criterion-grammar-ink);
+}
+.aihub-scoring .tone-grammar.criterion-card,
+.aihub-scoring .tone-grammar.criterion-chip {
+  border-left-color: var(--demo-criterion-grammar-rule);
+  border-bottom-color: var(--demo-criterion-grammar-rule);
+}
+/* A card sitting on the dark panel needs a panel-coloured border. `:where()`
+   keeps this at lower specificity than the tone rules above, so the
+   criterion's left rule colour still wins — that colour is the whole point of
+   tying a card to its badge and annotation. */
+.aihub-scoring :where(.feedback-dashboard) .criterion-card {
+  border: 1px solid var(--demo-console-border);
+  border-left-width: 3px;
+}
+.aihub-scoring .scoring-criteria {
+  margin-top: 12px;
+  grid-template-columns: 1fr 1fr;
+}
+.aihub-scoring .rubric-card p {
+  color: var(--demo-panel-body);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.aihub-scoring .scoring-criterion-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+.aihub-scoring .scoring-criterion-lists ul,
+.aihub-scoring .scoring-plain-list {
+  margin: 5px 0 0;
+  padding-left: 15px;
+  color: var(--demo-panel-body);
+  font-size: 9.5px;
+  line-height: 1.65;
+}
+.aihub-scoring .rubric-grid {
+  margin-top: 12px;
+}
+
+/* Request note and footer ------------------------------------------------- */
+
+.aihub-scoring .scoring-request-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  border: 1px solid var(--demo-line);
+  border-radius: 8px;
+  background: var(--demo-surface);
+  color: var(--demo-body);
+  padding: 9px 11px;
+  font-size: 10px;
+}
+.aihub-scoring .scoring-request-note span {
+  flex: 1;
+  min-width: 0;
+}
+.aihub-scoring .scoring-request-note code {
+  font-family: var(--app-font-mono);
+  font-size: 9.5px;
+  color: var(--demo-ink);
+}
+.aihub-scoring .scoring-footer {
+  margin-top: 16px;
+  border: 1px solid var(--demo-line);
+  border-radius: 14px;
+  background: hsl(var(--card));
+  padding: 18px 20px;
+  color: var(--demo-body);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.aihub-scoring .scoring-footer p {
+  margin: 0 0 12px;
+}
+.aihub-scoring .scoring-footer a {
+  color: var(--demo-brand);
+  font-weight: 700;
+}
+.aihub-scoring .scoring-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.aihub-scoring .scoring-footer-actions .btn {
+  text-decoration: none;
+}
+
+@media (max-width: 1080px) {
+  .aihub-scoring .scoring-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 720px) {
+  .aihub-scoring .scoring-overview {
+    padding: 18px 14px;
+  }
+  .aihub-scoring .scoring-overview h1 {
+    font-size: 19px;
+  }
+  .aihub-scoring .scoring-form,
+  .aihub-scoring .scoring-submit {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  /* Sticky is a desktop affordance; a phone has no room for it. */
+  .aihub-scoring .setup-card,
+  .aihub-scoring .scoring-result {
+    position: static;
+  }
+  /* The four criteria must not need horizontal scrolling on a phone. */
+  .aihub-scoring .feedback-grid,
+  .aihub-scoring .scoring-criteria,
+  .aihub-scoring .scoring-criterion-lists {
+    grid-template-columns: 1fr;
+  }
+  .aihub-scoring .scoring-request-note {
+    flex-wrap: wrap;
+  }
+}
