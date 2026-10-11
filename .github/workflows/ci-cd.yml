@@ -136,20 +136,21 @@ jobs:
             exit 1
           fi
 
-      - name: Assert image carries no build-time dependencies
+      - name: Assert the image ships exactly the production dependency tree
         run: |
           set -euo pipefail
-          modules="$(docker run --rm --entrypoint sh "$IMAGE_NAME:ci" -c 'ls -1 /app/node_modules')"
-          echo "Runtime image /app/node_modules:"
-          echo "$modules"
-          if grep -qx -e typescript -e eslint -e vitest -e playwright -e playwright-core -e prettier \
-            -e '@eslint' -e '@eslint-community' -e '@humanfs' -e '@humanwhocodes' -e '@typescript-eslint' \
-            -e '@vitest' -e '@tailwindcss' -e '@babel' -e '@types' -e '@rolldown' -e '@oxc-project' \
-            -e '@unrs' -e '@jridgewell' -e '@nodelib' -e '@rtsao' -e '@alloc' <<<"$modules"; then
-            echo "::error::Build-time dependency present in the runtime image"
+          # Allowlist, not a denylist. A denylist of known dev package names passes
+          # on any dev dependency nobody thought to list, which is how a tree full
+          # of @eslint, @vitest and @tailwindcss once passed this step.
+          expected="$(node scripts/prod-dependencies.mjs --list)"
+          actual="$(docker run --rm --entrypoint sh "$IMAGE_NAME:ci" -c 'ls -1 /app/node_modules' | sort)"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Runtime image node_modules differ from the lockfile production set"
+            echo "--- expected (<) and actual (>):"
+            diff <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") || true
             exit 1
           fi
-          echo "No build-time dependency in the runtime image"
+          echo "Image node_modules match the lockfile production set"
 
       - name: Smoke test the runtime image
         run: |
@@ -408,18 +409,20 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
             NEXT_BUILD_ID=${{ github.sha }}
 
-      - name: Assert image carries no build-time dependencies
+      - name: Assert the image ships exactly the production dependency tree
         env:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           set -euo pipefail
-          modules="$(docker run --rm --entrypoint sh "${IMAGE_NAME}:${IMAGE_TAG}" -c 'ls -1 /app/node_modules')"
-          if grep -qx -e typescript -e eslint -e vitest -e playwright -e playwright-core -e prettier \
-                -e '@eslint' -e '@typescript-eslint' -e '@vitest' -e '@tailwindcss' -e '@babel' -e '@types' \
-                -e '@rolldown' -e '@oxc-project' -e '@unrs' -e '@playwright' <<<"$modules"; then
-            echo "::error::Build-time dependency present in the image about to be deployed"
+          expected="$(node scripts/prod-dependencies.mjs --list)"
+          actual="$(docker run --rm --entrypoint sh "${IMAGE_NAME}:${IMAGE_TAG}" -c 'ls -1 /app/node_modules' | sort)"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Image about to be deployed differs from the lockfile production set"
+            echo "--- expected (<) and actual (>):"
+            diff <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") || true
             exit 1
           fi
+          echo "Image node_modules match the lockfile production set"
 
       - name: Configure SSH
         env:
