@@ -1,9 +1,16 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { MAX_SPEAKING_BYTES } from "@/data/speaking-contract";
 import {
   parseSpeakingGradingEnvelope,
   type SpeakingGradingEnvelope,
 } from "@/data/speaking-response";
+import {
+  INTERNAL_USER_ID,
+  isSameOrigin,
+  resolveSandboxBaseUrl,
+  resolveSandboxConfig,
+  SandboxBoundaryError,
+} from "@/lib/sandbox-gateway";
 
 const MAX_TEXT_BYTES = 64 * 1024;
 const MAX_JSON_BYTES = 256 * 1024;
@@ -27,10 +34,6 @@ const ALLOWED_JSON_FIELDS = new Set([
   "transcript",
 ]);
 const SPEAKING_AUDIO_URL_HOST = "s3.wispace.app";
-const SANDBOX_HOST = "sandbox.aihubproduction.com";
-const INTERNAL_USER_ID = `cu_${createHash("sha256")
-  .update("aihub-internal\0speaking-demo", "utf8")
-  .digest("base64url")}`;
 
 export type SpeakingErrorCode =
   | "INVALID_REQUEST"
@@ -75,54 +78,31 @@ function invalidRequest() {
   return new SpeakingBoundaryError("INVALID_REQUEST");
 }
 
-function required(name: string) {
-  const value = process.env[name]?.trim();
-  if (!value) throw new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
-  return value;
-}
-
+/**
+ * The host allowlist lives in the shared transport. Speaking keeps its own
+ * signature so callers — and the gateway's tests — keep seeing a Speaking
+ * boundary error when the sandbox is not configured.
+ */
 export function getSandboxBaseUrl() {
-  const rawBaseUrl = required("AIHUB_SANDBOX_BASE_URL").replace(/\/+$/, "");
-  let baseUrl: URL;
   try {
-    baseUrl = new URL(rawBaseUrl);
-  } catch {
-    throw new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
+    return resolveSandboxBaseUrl();
+  } catch (error) {
+    if (error instanceof SandboxBoundaryError) {
+      throw new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
+    }
+    throw error;
   }
-
-  const isPinnedSandbox =
-    baseUrl.protocol === "https:" &&
-    baseUrl.hostname.toLowerCase() === SANDBOX_HOST &&
-    baseUrl.port === "";
-  const e2eMockBaseUrl =
-    process.env.AIHUB_SANDBOX_E2E_MOCK_BASE_URL?.trim().replace(/\/+$/, "");
-  const isConfiguredMock =
-    process.env.NODE_ENV === "development" &&
-    rawBaseUrl === e2eMockBaseUrl &&
-    baseUrl.protocol === "http:" &&
-    baseUrl.hostname === "127.0.0.1" &&
-    !baseUrl.username &&
-    !baseUrl.password;
-
-  if (
-    (!isPinnedSandbox && !isConfiguredMock) ||
-    baseUrl.pathname !== "/" ||
-    baseUrl.username ||
-    baseUrl.password ||
-    baseUrl.search ||
-    baseUrl.hash
-  ) {
-    throw new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
-  }
-
-  return rawBaseUrl;
 }
 
 function getSandboxConfig() {
-  const baseUrl = getSandboxBaseUrl();
-  const apiKey = required("AIHUB_SANDBOX_API_KEY");
-  required("AIHUB_SANDBOX_ORGANIZATION_ID");
-  return { baseUrl, apiKey };
+  try {
+    return resolveSandboxConfig();
+  } catch (error) {
+    if (error instanceof SandboxBoundaryError) {
+      throw new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
+    }
+    throw error;
+  }
 }
 
 function getSingleText(
@@ -146,23 +126,7 @@ function getSingleText(
 }
 
 function assertSameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  if (!origin) return;
-
-  try {
-    const requestUrl = new URL(request.url);
-    const forwardedProto = request.headers
-      .get("x-forwarded-proto")
-      ?.split(",")[0]
-      ?.trim();
-    const protocol = forwardedProto || requestUrl.protocol.slice(0, -1);
-    const host = request.headers.get("host") || requestUrl.host;
-    const effectiveOrigin = new URL(`${protocol}://${host}`).origin;
-    if (new URL(origin).origin !== effectiveOrigin) throw invalidRequest();
-  } catch (error) {
-    if (error instanceof SpeakingBoundaryError) throw error;
-    throw invalidRequest();
-  }
+  if (!isSameOrigin(request)) throw invalidRequest();
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
