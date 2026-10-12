@@ -571,32 +571,42 @@ test("a scrolled report clears the fixed site header instead of hiding behind it
 
   await page.evaluate(() => window.scrollTo(0, 900));
 
-  // The header is 120px at rest and shrinks to 72px once the page scrolls. A
-  // sticky panel only ever exists in that second state, so the measurement has
-  // to wait for it — a fixed sleep catches the transition and asserts against
-  // a height that is on its way out.
+  // The header animates from 120px down to 72px as the page scrolls. A fixed
+  // sleep, and a threshold like "under 100px", both catch it mid-transition and
+  // then compare against a height that is on its way out — which is how this
+  // test passed while the panel sat 8px behind the header. Two identical
+  // readings in a row is what settling actually looks like.
+  const read = () =>
+    page.evaluate(() => {
+      const header = document.querySelector("header");
+      const panel = document.querySelector(".scoring-result");
+      if (!header || !panel) throw new Error("the header or panel is missing");
+      return {
+        position: getComputedStyle(header).position,
+        height: Math.round(header.getBoundingClientRect().height),
+        headerBottom: Math.round(header.getBoundingClientRect().bottom),
+        panelTop: Math.round(panel.getBoundingClientRect().top),
+      };
+    });
+
+  // First wait for the shrink to begin at all. Two readings taken in a row can
+  // agree at the resting height simply because the scroll handler's animation
+  // frame has not run yet, which reads as "settled" and measures 120px.
   await expect
-    .poll(
-      () =>
-        page.evaluate(() =>
-          Math.round(
-            document.querySelector("header")!.getBoundingClientRect().height
-          )
-        ),
-      { timeout: 5000 }
-    )
+    .poll(async () => (await read()).height, { timeout: 5000 })
     .toBeLessThan(100);
 
-  const geometry = await page.evaluate(() => {
-    const header = document.querySelector("header");
-    const panel = document.querySelector(".scoring-result");
-    if (!header || !panel) throw new Error("the header or panel is missing");
-    return {
-      position: getComputedStyle(header).position,
-      headerBottom: Math.round(header.getBoundingClientRect().bottom),
-      panelTop: Math.round(panel.getBoundingClientRect().top),
-    };
-  });
+  // Then wait for it to stop moving for a continuous stretch. Two readings in a
+  // row can match mid-transition — the header passes through 96px on its way
+  // from 120 to 72 — so a single repeat is not proof of settling.
+  let geometry = await read();
+  let stableFor = 0;
+  for (let attempt = 0; attempt < 40 && stableFor < 300; attempt++) {
+    await page.waitForTimeout(100);
+    const next = await read();
+    stableFor = next.height === geometry.height ? stableFor + 100 : 0;
+    geometry = next;
+  }
   // If the header stops being fixed, this test would be measuring nothing.
   expect(geometry.position).toBe("fixed");
 

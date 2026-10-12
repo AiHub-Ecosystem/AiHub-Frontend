@@ -379,6 +379,14 @@ function stubUpstream(
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      // The gateway mints an identity assertion before grading. It is not the
+      // graded call, so it is answered here and never recorded in `calls`.
+      if (String(url).includes("/v1/sandbox/assertions")) {
+        return new Response(
+          JSON.stringify({ data: { assertion: "assertion.jwt" } }),
+          { status: 200 }
+        );
+      }
       const headers = new Headers(init?.headers);
       calls.push({
         url: String(url),
@@ -429,21 +437,24 @@ describe("gradeWriting upstream call", () => {
   });
 
   /**
-   * Writing sends a plain declared user id. It does not mint an assertion:
-   * that route is allowlist-guarded and customer keys never use it.
+   * The identity is a Signed User Assertion, not a declared user id.
+   *
+   * The resolver accepts a declared id only while the Organization has no
+   * active identity configuration; once one exists it verifies the value as an
+   * assertion and rejects a plain id outright. The sandbox Organization has
+   * one, which is why the demo answered 401 INVALID_USER_IDENTITY.
    */
-  it("identifies as a plain declared user id and mints nothing", async () => {
+  it("identifies as a minted assertion, not a plain declared user id", async () => {
     const calls = stubUpstream();
 
     await gradeWriting(jsonRequest(TASK1_BODY), "req_test");
 
     expect(calls).toHaveLength(1);
+    expect(calls[0].headers.get("x-user-identity")).toBe("assertion.jwt");
+    // The mint is a separate call that must never reach the graded endpoint.
     expect(calls.map((call) => call.url)).not.toContain(
       "https://sandbox.aihubproduction.com/v1/sandbox/assertions"
     );
-    const identity = calls[0].headers.get("x-user-identity");
-    // The backend's rule: 1-256 visible ASCII characters, no spaces.
-    expect(identity).toMatch(/^[\x21-\x7e]{1,256}$/);
   });
 
   it("mints its own idempotency key when the browser sends none", async () => {

@@ -5,8 +5,8 @@ import {
   type SpeakingGradingEnvelope,
 } from "@/data/speaking-response";
 import {
-  INTERNAL_USER_ID,
   isSameOrigin,
+  mintSandboxAssertion,
   resolveSandboxBaseUrl,
   resolveSandboxConfig,
   SandboxBoundaryError,
@@ -311,44 +311,6 @@ function toUpstreamForm(request: SpeakingRequest) {
   return form;
 }
 
-async function mintSandboxAssertion(apiKey: string, baseUrl: string) {
-  let response: Response;
-  try {
-    response = await fetch(`${baseUrl}/v1/sandbox/assertions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
-      body: JSON.stringify({ user_id: INTERNAL_USER_ID }),
-      cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
-    });
-  } catch {
-    throw new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
-  }
-
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
-  }
-
-  if (
-    !response.ok ||
-    typeof payload !== "object" ||
-    payload === null ||
-    !("data" in payload) ||
-    typeof payload.data !== "object" ||
-    payload.data === null ||
-    !("assertion" in payload.data) ||
-    typeof payload.data.assertion !== "string" ||
-    !payload.data.assertion.trim()
-  ) {
-    throw new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
-  }
-
-  return payload.data.assertion;
-}
-
 function upstreamError(status: number) {
   if (status === 413) return new SpeakingBoundaryError("PAYLOAD_TOO_LARGE");
   if (status === 429) return new SpeakingBoundaryError("AI_SERVICE_THROTTLED");
@@ -365,7 +327,7 @@ async function callSpeakingGrading(
   body: FormData | string
 ): Promise<SpeakingGradingEnvelope> {
   const { baseUrl, apiKey } = getSandboxConfig();
-  const assertion = await mintSandboxAssertion(apiKey, baseUrl);
+  const assertion = await mintSandboxAssertion(baseUrl, apiKey);
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort("speaking-timeout"),

@@ -91,6 +91,52 @@ export function resolveSandboxConfig() {
 }
 
 /**
+ * The Signed User Assertion the sandbox expects in `X-User-Identity`.
+ *
+ * An Organization with an active identity configuration demands one, and the
+ * resolver rejects a declared id outright rather than falling back — so a
+ * declared id works only while that configuration is absent. Minting is the
+ * only shape that holds either way, which is why both demo gateways do it.
+ *
+ * The mint route is allowlist-guarded and 404s when the sandbox has no
+ * assertion key configured; both are reported as one boundary failure rather
+ * than passed through, since neither tells a visitor anything useful.
+ */
+export async function mintSandboxAssertion(
+  baseUrl: string,
+  apiKey: string
+): Promise<string> {
+  let payload: unknown;
+  try {
+    const response = await fetch(`${baseUrl}/v1/sandbox/assertions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
+      body: JSON.stringify({ user_id: INTERNAL_USER_ID }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (response.ok) payload = await response.json();
+  } catch {
+    throw new SandboxBoundaryError();
+  }
+
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    !("data" in payload) ||
+    typeof payload.data !== "object" ||
+    payload.data === null ||
+    !("assertion" in payload.data) ||
+    typeof payload.data.assertion !== "string" ||
+    !payload.data.assertion.trim()
+  ) {
+    throw new SandboxBoundaryError();
+  }
+
+  return payload.data.assertion;
+}
+
+/**
  * CSRF guard. Returns true when the request is same-origin, and also when it
  * carries no Origin header at all — a non-browser client has none to forge,
  * and the demo pages are public.

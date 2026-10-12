@@ -30,17 +30,19 @@ Speaking needs two routes because its two upstream operations have different req
 
 Extract the transport into `lib/sandbox-gateway.ts`. Both gateways import it; neither re-implements host pinning. The extraction is a pure move — no behaviour change — and `tests/unit/speaking-gateway.test.ts` is the check that it stayed that way.
 
-`mintSandboxAssertion` **stays in the Speaking gateway**. It is not shared, and the backend is explicit about why: `POST /v1/sandbox/assertions` is guarded by an allowlist check rather than a scope check, the Writing module never imports that controller, and ADR-0056 records that customer keys never mint assertions. If the allowlist is empty the route 404s. Writing has no business on that path.
+`mintSandboxAssertion` moves into the shared transport. This reverses the original decision, which kept it Speaking-only on the reasoning that Writing had no business on an allowlist-guarded path. That reasoning was wrong about the consequence: the mint is not optional for Writing, because the resolver treats an Organization's identity configuration as authoritative.
 
 `INTERNAL_USER_ID` moves with it. Its derivation string stays exactly as it is — rewriting it would hand Speaking a different upstream identity, which is a behaviour change the extraction is not supposed to cause.
 
-### Identity: a declared user id, not a minted assertion
+### Identity: a minted assertion, not a declared user id
 
-Writing sends `X-User-Identity` as plain declared-user-id text. The backend resolves it through the same `UserIdentityGuard` as Speaking, and `writing-user-identity.controller.spec.ts` confirms Task 1 grades a plain `student_456` with a 200.
+**This section previously specified a plain declared user id and was wrong.** It cited `writing-user-identity.controller.spec.ts` grading `student_456` with a 200, which is true of the _declared_ code path and irrelevant: that test's own configuration has no active identity config, which is the only case where a declared id is accepted.
 
-That is the whole identity story for this demo, and it is simpler than Speaking's by design: the demo is public and unowned, so there is no end user to assert. The declared id must satisfy the backend's shape — 1 to 256 visible ASCII characters, no spaces — which a `cu_`-prefixed base64url digest already does.
+`UserIdentityResolver.resolve` reads the Organization's configuration first. When one is active it verifies the header value as a Signed User Assertion and rejects anything else, with no fallback. Only the absence of a configuration admits a declared id. The sandbox Organization has one, so the demo answered `401 INVALID_USER_IDENTITY` on every grade.
 
-The demo does not expose identity configuration, does not sign anything, and never asks the visitor for a user id.
+The rule is therefore about the Organization's state, not the value's shape, and no choice of declared id survives it. Writing mints an assertion for the same `INTERNAL_USER_ID` Speaking uses, and the identity is whichever the configuration demands. This holds whether or not a configuration exists, which a declared id cannot.
+
+The demo still exposes nothing: no identity configuration, no signing, no user id asked of the visitor. The assertion is minted in the BFF from the same constant.
 
 ### Validation happens in the BFF
 
@@ -159,7 +161,7 @@ Nothing is persisted. No history, no draft storage — every page load starts fr
 
 | File                                     | Change                                                                                                                           |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `lib/sandbox-gateway.ts`                 | New. Transport extracted from `lib/speaking-gateway.ts`. Excludes assertion minting, which is Speaking-only.                     |
+| `lib/sandbox-gateway.ts`                 | New. Transport extracted from `lib/speaking-gateway.ts`, including assertion minting, which both gateways need.                  |
 | `lib/speaking-gateway.ts`                | Imports the extracted transport. No behaviour change.                                                                            |
 | `lib/scoring-gateway.ts`                 | New. Per-task validation, idempotency, upstream call, error mapping.                                                             |
 | `data/scoring-response.ts`               | New. `WritingGradingData` / `WritingGradingEnvelope` plus a hand-written envelope parser, mirroring `data/speaking-response.ts`. |
@@ -188,7 +190,7 @@ app/api/demo/scoring/grade/route.ts
   │    chart_type ∈ 7 (case-sensitive) · Idempotency-Key 1–255 bytes
   ▼
 POST {sandbox}/v1/ielts/writing/task{task}/grade
-  X-API-Key · X-User-Identity (declared user id) · X-Correlation-Id · Idempotency-Key
+  X-API-Key · X-User-Identity (minted assertion) · X-Correlation-Id · Idempotency-Key
   ▼
 parse envelope → { data, meta } → result layout
 ```
@@ -208,7 +210,7 @@ parse envelope → { data, meta } → result layout
 - task 2 body carrying `chart_type` rejected — the contract 400s rather than ignoring it
 - a `language` field rejected on both tasks, rather than accepted and dropped
 - a criteria array that is short, empty, repeated or carries an unknown id rejected as a contract violation rather than rendered as a grade
-- the declared user id sent upstream is a valid end-user id: 1–256 visible ASCII characters, no spaces
+- the upstream identity is a Signed User Assertion minted for the declared user id
 
 `tests/unit/speaking-gateway.test.ts` must stay green after the extraction. That is the regression check for the refactor.
 

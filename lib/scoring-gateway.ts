@@ -6,8 +6,8 @@ import {
   type WritingGradingEnvelope,
 } from "@/data/scoring-response";
 import {
-  INTERNAL_USER_ID,
   isSameOrigin,
+  mintSandboxAssertion,
   resolveSandboxConfig,
   SandboxBoundaryError,
 } from "@/lib/sandbox-gateway";
@@ -251,6 +251,7 @@ export async function gradeWriting(
 ): Promise<WritingGradingEnvelope> {
   const input = await parseWritingRequest(request);
   const { baseUrl, apiKey } = getSandboxConfig();
+  const assertion = await mintSandboxAssertion(baseUrl, apiKey);
 
   // Minted here rather than taken from the browser. The demo page is a reader,
   // not an integration: a visitor has no key and a hex string in the form
@@ -279,9 +280,11 @@ export async function gradeWriting(
           Accept: "application/json",
           "Content-Type": "application/json",
           "X-API-Key": apiKey,
-          // A plain declared user id. Writing does not mint an assertion: that
-          // route is allowlist-guarded and customer keys never mint.
-          "X-User-Identity": INTERNAL_USER_ID,
+          // A Signed User Assertion, minted for the same declared user id
+          // Speaking uses. An Organization with an active identity configuration
+          // rejects a declared id outright rather than falling back, so this is
+          // the only shape that works whether or not that configuration exists.
+          "X-User-Identity": assertion,
           "X-Correlation-Id": requestId,
           "Idempotency-Key": idempotencyKey,
         },
