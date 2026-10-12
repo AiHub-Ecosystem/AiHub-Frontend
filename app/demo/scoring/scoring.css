@@ -58,12 +58,21 @@
   position: sticky;
   top: var(--demo-sticky-top);
 }
+/* This intro holds only the eyebrow and the task tabs; the heading and lede
+   that used to sit under them are gone. The shared bottom padding was sized for
+   a paragraph beneath it, and stacked with the tab and label margins it left a
+   32px hole here, while the eyebrow and the tabs themselves touched with no
+   space at all. Scoped here so Speaking keeps the padding its own intro needs. */
+.aihub-scoring .setup-intro {
+  padding-bottom: 10px;
+}
 /* Task tabs. The active task is a link so it is shareable and survives a
    reload; these rules only read tokens, never a brand literal. */
 .aihub-scoring .scoring-task-tabs {
   display: flex;
   gap: 6px;
-  margin-bottom: 8px;
+  margin-top: 8px;
+  margin-bottom: 0;
 }
 .aihub-scoring .scoring-task-tab {
   border: 1px solid var(--demo-strong-border);

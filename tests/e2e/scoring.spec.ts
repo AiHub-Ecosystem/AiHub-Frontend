@@ -710,3 +710,37 @@ test("an essay with nothing to quote says so, rather than showing a count of zer
     await setScoringConfig(request, { noAnnotations: false });
   }
 });
+
+/**
+ * The intro used to hold a heading and a lede under the task tabs. Removing
+ * them left the eyebrow glued to the tabs and stacked three margins into a 32px
+ * hole above the first field, both of which read as a layout fault rather than
+ * a deliberate rhythm.
+ */
+test("the sidebar reads as one block, with no gap and no crowding", async ({
+  page,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring");
+  await waitForHydration(page);
+
+  const gaps = await page.evaluate(() => {
+    const box = (selector: string) =>
+      document.querySelector(selector)!.getBoundingClientRect();
+    return {
+      eyebrowToTabs: Math.round(
+        box(".scoring-task-tabs").top - box(".setup-intro .eyebrow").bottom
+      ),
+      tabsToFirstField: Math.round(
+        box(".scoring-form .mini-label").top - box(".scoring-task-tabs").bottom
+      ),
+    };
+  });
+
+  // The tabs must not touch the eyebrow above them.
+  expect(gaps.eyebrowToTabs).toBeGreaterThanOrEqual(6);
+  expect(gaps.eyebrowToTabs).toBeLessThanOrEqual(14);
+  // Nor leave a hole before the first field.
+  expect(gaps.tabsToFirstField).toBeGreaterThanOrEqual(12);
+  expect(gaps.tabsToFirstField).toBeLessThanOrEqual(24);
+});
