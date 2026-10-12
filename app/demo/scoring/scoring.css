@@ -174,12 +174,24 @@
 .aihub-scoring .scoring-result {
   position: sticky;
   top: var(--demo-sticky-top);
+  /* Fills the column so the page does not read as half-missing before a grade
+     is in. 70vh rather than the full row height on purpose: a sticky card
+     taller than the viewport stops being sticky at all, which is how the
+     report heading ended up behind the header in the first place. */
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+.aihub-scoring .scoring-result .console {
+  flex: 1;
 }
 .aihub-scoring .console {
   background: var(--demo-console);
   border: 1px solid var(--demo-console-border);
   border-radius: 10px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .aihub-scoring .console-empty {
   background: var(--demo-console);
@@ -189,6 +201,11 @@
   font-family: var(--app-font-mono);
   font-size: 10px;
   line-height: 1.6;
+  /* Centred in the filled panel rather than stranded at the top of it. */
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 /* The result-panel card. Its `display`/`padding` came from rules scoped to
    `.aihub-speaking`, so here the four criteria stacked as unbordered blocks.
