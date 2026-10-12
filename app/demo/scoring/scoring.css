@@ -153,6 +153,37 @@
   color: var(--demo-body);
   font-size: 8px;
 }
+.aihub-scoring .scoring-chart-warning {
+  display: flex;
+  gap: 7px;
+  margin: 0 0 8px;
+  border: 1px solid var(--demo-line);
+  border-radius: 9px;
+  padding: 8px 9px;
+  background: var(--demo-surface);
+  color: var(--demo-ink);
+  font-size: 9px;
+  line-height: 1.6;
+}
+.aihub-scoring .scoring-chart-warning > svg {
+  flex: none;
+  margin-top: 2px;
+}
+.aihub-scoring .scoring-chart-warning p {
+  margin: 0;
+}
+.aihub-scoring .scoring-chart-override {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  margin-top: 6px;
+  color: var(--demo-body);
+  cursor: pointer;
+}
+.aihub-scoring .scoring-chart-override input {
+  margin: 0;
+  accent-color: var(--demo-brand);
+}
 
 .aihub-scoring .scoring-submit {
   border-top: 1px solid var(--demo-line);

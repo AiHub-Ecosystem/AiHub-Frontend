@@ -53,6 +53,19 @@ async function keepBrowserTrafficLocal(page: Page) {
     }
     // The chart preview points at the sample image; it never needs to load.
     if (url.hostname === "s3.wispace.app") {
+      // A path under /missing stands for the failure this page has to survive:
+      // a URL that is well formed and points at nothing. It has to be answered
+      // with an error document rather than a 404 carrying image bytes, because
+      // an <img> decodes what it is given and never asks for the status — a
+      // 404 full of PNG still fires `load`, and the guard would never arm.
+      if (url.pathname.startsWith("/missing")) {
+        await route.fulfill({
+          status: 404,
+          contentType: "text/html",
+          body: "<html><body>Not Found</body></html>",
+        });
+        return;
+      }
       await route.fulfill({
         status: 200,
         contentType: "image/png",
@@ -762,4 +775,99 @@ test("the workbench keeps its spacing, neither crowding nor gaping", async ({
       `${name} was ${actual}px, expected ${low}-${high}px`
     ).toBeLessThanOrEqual(high);
   }
+});
+
+/**
+ * A chart that cannot be loaded is the one failure this page can still prevent.
+ * `isFetchableImageUrl` checks the URL's shape — https, no credentials, within
+ * 2 000 characters — and cannot check that the image is there. So a dead one is
+ * forwarded, the grading service reads no chart, grades the essay anyway, and
+ * returns a confident band. The sandbox allows 25 dispatches per Organization
+ * per month and the demo does not retry, so that is 4% of the budget spent to
+ * learn nothing.
+ *
+ * The preview is the only request this page makes to the chart, so its load
+ * event is the only signal available that costs no quota.
+ */
+test("a chart that does not load stops the grade, and can be overridden on purpose", async ({
+  page,
+  request,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await resetScoringLog(request);
+  await page.goto("/demo/scoring");
+  await waitForHydration(page);
+
+  // The published chart loads, so the page says nothing about it.
+  await expect(page.getByTestId("chart-load-warning")).toBeHidden();
+  await expect(page.getByTestId("button-grade")).toBeEnabled();
+
+  await page
+    .getByTestId("input-image-url")
+    .fill("https://s3.wispace.app/missing-chart.png");
+
+  await expect(page.getByTestId("chart-load-warning")).toBeVisible();
+  await expect(page.getByTestId("button-grade")).toBeDisabled();
+
+  // The browser refusing to embed an image is not proof the grading service
+  // cannot fetch it, so overriding is an explicit act rather than a default.
+  await page.getByTestId("chart-load-override").check();
+  await expect(page.getByTestId("button-grade")).toBeEnabled();
+
+  await page.getByTestId("button-grade").click();
+  await expect(page.getByTestId("scoring-report")).toBeVisible();
+
+  // Overriding changes what the page is willing to do, not what it sends.
+  // `task` is absent because the endpoint identifies the task, not the body.
+  const { requests } = await scoringLog(request);
+  expect(requests).toHaveLength(1);
+  expect(requests[0].body).toEqual({
+    question: expect.any(String),
+    essay: expect.any(String),
+    chart_type: expect.any(String),
+    image_url: "https://s3.wispace.app/missing-chart.png",
+  });
+});
+
+test("correcting the chart URL clears the warning without an override", async ({
+  page,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring");
+  await waitForHydration(page);
+
+  await page
+    .getByTestId("input-image-url")
+    .fill("https://s3.wispace.app/missing-chart.png");
+  await expect(page.getByTestId("chart-load-warning")).toBeVisible();
+
+  await page
+    .getByTestId("input-image-url")
+    .fill("https://s3.wispace.app/ielts-task1/ca95bd4ab522946d");
+  await expect(page.getByTestId("chart-load-warning")).toBeHidden();
+  await expect(page.getByTestId("button-grade")).toBeEnabled();
+});
+
+test("a broken chart on Task 1 does not follow the visitor to Task 2", async ({
+  page,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring");
+  await waitForHydration(page);
+
+  await page
+    .getByTestId("input-image-url")
+    .fill("https://s3.wispace.app/missing-chart.png");
+  await expect(page.getByTestId("chart-load-warning")).toBeVisible();
+  await expect(page.getByTestId("button-grade")).toBeDisabled();
+
+  await page.getByTestId("tab-task-2").click();
+  await waitForHydration(page);
+
+  // Task 2 has no chart to load and nothing to warn about. Storing the verdict
+  // as a plain boolean would leave this button disabled with no warning visible
+  // to explain why, which is how a guard turns into a dead page.
+  await expect(page.getByTestId("input-image-url")).toBeHidden();
+  await expect(page.getByTestId("chart-load-warning")).toBeHidden();
+  await expect(page.getByTestId("button-grade")).toBeEnabled();
 });

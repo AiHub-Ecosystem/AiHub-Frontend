@@ -65,7 +65,25 @@ export default function ScoringWorkbench() {
   const graded = result?.task === task ? result.envelope : null;
   const [error, setError] = useState<PublicError | null>(null);
   const [copied, setCopied] = useState(false);
+  // Which URL failed to load, not whether one did. Keying on the URL means a
+  // corrected link clears the warning and a Task 2 tab — which has no chart at
+  // all — carries none of it, without either case needing a reset that would
+  // then have to be kept in step with the input's onChange.
+  const [unreachableChartUrl, setUnreachableChartUrl] = useState<string | null>(
+    null
+  );
+  const [overriddenChartUrl, setOverriddenChartUrl] = useState<string | null>(
+    null
+  );
   const startedAtRef = useRef(0);
+
+  const chartUrl = task === 1 ? (draft.imageUrl ?? null) : null;
+  const chartLoadFailed = chartUrl !== null && unreachableChartUrl === chartUrl;
+  // A browser refusing to embed an image is not proof the grading service
+  // cannot fetch it: hotlink protection and a Referer policy stop the first
+  // and not the second. So the page warns and asks, rather than refusing on a
+  // signal that does not mean what it looks like it means.
+  const chartBlocksSubmit = chartLoadFailed && overriddenChartUrl !== chartUrl;
 
   useEffect(() => {
     if (status !== "submitting") return;
@@ -232,7 +250,7 @@ export default function ScoringWorkbench() {
                       value={draft.imageUrl}
                     />
                     <p className="scoring-help">{WRITING_TASK1_IMAGE_NOTE}</p>
-                    {draft.imageUrl?.trim() ? (
+                    {chartUrl?.trim() ? (
                       <figure
                         className="scoring-chart-preview"
                         data-testid="scoring-chart-preview"
@@ -240,11 +258,54 @@ export default function ScoringWorkbench() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           alt="Xem trước biểu đồ sẽ chấm"
-                          src={draft.imageUrl}
+                          onError={() => setUnreachableChartUrl(chartUrl)}
+                          onLoad={() =>
+                            setUnreachableChartUrl((previous) =>
+                              previous === chartUrl ? null : previous
+                            )
+                          }
+                          src={chartUrl}
                         />
                         <figcaption>Ảnh sẽ được dịch vụ chấm tải.</figcaption>
                       </figure>
                     ) : null}
+
+                    {chartLoadFailed && (
+                      <div
+                        className="scoring-chart-warning"
+                        data-testid="chart-load-warning"
+                        role="alert"
+                      >
+                        <CircleAlert size={12} />
+                        <div>
+                          <p>
+                            Trình duyệt của bạn không tải được ảnh này. Hoặc URL
+                            sai, hoặc host chặn hiển thị ảnh từ trang khác — hai
+                            trường hợp này trông giống nhau. Dịch vụ vẫn chấm và
+                            vẫn trả điểm, nhưng không đọc được biểu đồ, và mỗi
+                            lần chấm như vậy là một lượt trong hạn mức mà bạn
+                            không thấy mất.
+                          </p>
+                          <label
+                            className="scoring-chart-override"
+                            htmlFor="chart-load-override"
+                          >
+                            <input
+                              checked={overriddenChartUrl === chartUrl}
+                              data-testid="chart-load-override"
+                              id="chart-load-override"
+                              onChange={(event) =>
+                                setOverriddenChartUrl(
+                                  event.target.checked ? chartUrl : null
+                                )
+                              }
+                              type="checkbox"
+                            />
+                            Tôi hiểu, vẫn chấm bài này.
+                          </label>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
 
@@ -312,7 +373,7 @@ export default function ScoringWorkbench() {
                 <button
                   className="btn btn-primary scoring-submit-btn"
                   data-testid="button-grade"
-                  disabled={status === "submitting"}
+                  disabled={status === "submitting" || chartBlocksSubmit}
                   onClick={submit}
                   type="button"
                 >
