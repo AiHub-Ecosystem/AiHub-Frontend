@@ -579,7 +579,14 @@ test("a scrolled report clears the fixed site header instead of hiding behind it
   // report exists it is taller than any viewport, and scrolling it past the
   // header is what a reader wants.
 
-  await page.evaluate(() => window.scrollTo(0, 900));
+  // A quarter of the way down, not a fixed pixel count: this lands inside the
+  // band where the panel is actually pinned, whatever the page's length. A
+  // hardcoded offset quietly falls past that band the day the page gets
+  // shorter, and the test then measures a panel that is no longer stuck.
+  await page.evaluate(() => {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    window.scrollTo(0, Math.round(max * 0.25));
+  });
 
   // The header animates from 120px down to 72px as the page scrolls. A fixed
   // sleep, and a threshold like "under 100px", both catch it mid-transition and

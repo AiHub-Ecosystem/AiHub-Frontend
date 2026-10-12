@@ -26,7 +26,6 @@ import {
   SAMPLE_DRAFT,
 } from "./scoring-client";
 import type { Draft, PublicError } from "./scoring-client";
-import { Overview } from "./scoring-overview";
 import { GradeReport } from "./scoring-report";
 
 export default function ScoringWorkbench() {
@@ -166,8 +165,6 @@ export default function ScoringWorkbench() {
     <main className="aihub-demo aihub-scoring scoring-page">
       <div className="app-shell">
         <div className="app-container">
-          <Overview task={task} />
-
           <div className="lab-layout">
             <aside className="card setup-card">
               <div className="setup-intro">

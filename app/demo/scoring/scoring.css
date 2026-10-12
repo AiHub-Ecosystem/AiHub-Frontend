@@ -3,8 +3,7 @@
  *
  * The shell, controls, result panel and the highlighted-span mechanism live in
  * ../demo-workbench.css. What is here is what only grading a written essay
- * does: the integration overview, the task form, and the criterion colour
- * tones.
+ * does: the task form and the criterion colour tones.
  *
  * No rule below names a brand or criterion colour literal. The brand block at
  * the top is the single place the palette changes — every rule reads a token,
@@ -51,99 +50,6 @@
   --demo-panel-accent: #9a9cff;
   --demo-panel-track: #2b2d52;
   --demo-panel-fill: #5b5fef;
-}
-
-/* Overview ---------------------------------------------------------------- */
-
-.aihub-scoring .scoring-overview {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
-  border: 1px solid var(--demo-line);
-  border-radius: 16px;
-  background: hsl(var(--card));
-  padding: 22px 24px;
-  margin-bottom: 16px;
-}
-.aihub-scoring .scoring-overview h1 {
-  margin: 8px 0 10px;
-  font-size: 22px;
-  letter-spacing: -0.055em;
-  line-height: 1.1;
-  color: var(--demo-ink);
-}
-.aihub-scoring .scoring-endpoint {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 12px;
-}
-.aihub-scoring .scoring-endpoint .method {
-  border-radius: 5px;
-  background: var(--demo-brand);
-  color: white;
-  padding: 4px 7px;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-}
-.aihub-scoring .scoring-endpoint code {
-  font-family: var(--app-font-mono);
-  font-size: 11px;
-  color: var(--demo-ink);
-}
-.aihub-scoring .scoring-overview-lede {
-  margin: 0;
-  color: var(--demo-body);
-  font-size: 11px;
-  line-height: 1.75;
-}
-.aihub-scoring .scoring-flow {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 7px;
-}
-.aihub-scoring .scoring-flow-step {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  border: 1px solid var(--demo-line);
-  border-radius: 9px;
-  background: var(--demo-brand-tint);
-  padding: 9px 11px;
-}
-.aihub-scoring .scoring-flow-num {
-  flex: none;
-  width: 19px;
-  height: 19px;
-  border-radius: 50%;
-  background: var(--demo-brand);
-  color: white;
-  display: grid;
-  place-items: center;
-  font-size: 9px;
-  font-weight: 800;
-  font-family: var(--app-font-mono);
-}
-.aihub-scoring .scoring-flow-text {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-.aihub-scoring .scoring-flow-text strong {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  color: var(--demo-ink);
-}
-.aihub-scoring .scoring-flow-text span {
-  font-size: 10px;
-  line-height: 1.6;
-  color: var(--demo-body);
 }
 
 /* Form -------------------------------------------------------------------- */
@@ -588,18 +494,7 @@
   text-decoration: none;
 }
 
-@media (max-width: 1080px) {
-  .aihub-scoring .scoring-overview {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
 @media (max-width: 720px) {
-  .aihub-scoring .scoring-overview {
-    padding: 18px 14px;
-  }
-  .aihub-scoring .scoring-overview h1 {
-    font-size: 19px;
-  }
   .aihub-scoring .scoring-form,
   .aihub-scoring .scoring-submit {
     padding-left: 14px;
