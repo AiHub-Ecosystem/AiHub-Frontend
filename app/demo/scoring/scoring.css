@@ -422,6 +422,9 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  /* The subtitle carries only a top margin, so without this the console butts
+     straight against it. */
+  margin-bottom: 14px;
 }
 .aihub-scoring .main-heading h2 {
   margin: 0;

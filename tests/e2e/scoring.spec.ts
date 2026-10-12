@@ -768,3 +768,27 @@ test("both tasks tell the reader that the question and the essay are one piece o
     await expect(note).toContainText("không tính theo đề");
   }
 });
+
+/**
+ * The result heading's subtitle carries only a top margin, so the console below
+ * it butted straight against it with no gap at all. Measured, not eyeballed:
+ * the gap was 0px before this rule and is 14px after.
+ */
+test("the report heading stands clear of the console beneath it", async ({
+  page,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring");
+  await waitForHydration(page);
+
+  const gap = await page.evaluate(() => {
+    const head = document.querySelector<HTMLElement>(".main-heading")!;
+    const console_ = document.querySelector<HTMLElement>(".console")!;
+    return Math.round(
+      console_.getBoundingClientRect().top - head.getBoundingClientRect().bottom
+    );
+  });
+
+  expect(gap).toBeGreaterThanOrEqual(10);
+  expect(gap).toBeLessThanOrEqual(24);
+});
