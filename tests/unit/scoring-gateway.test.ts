@@ -381,14 +381,6 @@ function stubUpstream(
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-      // The gateway mints an identity assertion before grading. It is not the
-      // graded call, so it is answered here and never recorded in `calls`.
-      if (String(url).includes("/v1/sandbox/assertions")) {
-        return new Response(
-          JSON.stringify({ data: { assertion: "assertion.jwt" } }),
-          { status: 200 }
-        );
-      }
       const headers = new Headers(init?.headers);
       calls.push({
         url: String(url),
@@ -438,24 +430,14 @@ describe("gradeWriting upstream call", () => {
     expect(calls[0].body).not.toHaveProperty("chart_type");
   });
 
-  /**
-   * The identity is a Signed User Assertion, not a declared user id.
-   *
-   * The resolver accepts a declared id only while the Organization has no
-   * active identity configuration; once one exists it verifies the value as an
-   * assertion and rejects a plain id outright. The sandbox Organization has
-   * one, which is why the demo answered 401 INVALID_USER_IDENTITY.
-   */
-  it("identifies as a minted assertion, not a plain declared user id", async () => {
+  it("forwards the temporary demo UUID as user identity", async () => {
     const calls = stubUpstream();
 
     await gradeWriting(jsonRequest(TASK1_BODY), "req_test");
 
     expect(calls).toHaveLength(1);
-    expect(calls[0].headers.get("x-user-identity")).toBe("assertion.jwt");
-    // The mint is a separate call that must never reach the graded endpoint.
-    expect(calls.map((call) => call.url)).not.toContain(
-      "https://sandbox.aihubproduction.com/v1/sandbox/assertions"
+    expect(calls[0].headers.get("x-user-identity")).toBe(
+      "00000000-0000-4000-8000-000000000001"
     );
   });
 

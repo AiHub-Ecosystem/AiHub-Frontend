@@ -63,6 +63,7 @@ export default function SpeakingWorkbench() {
   const {
     apiKey,
     setApiKey,
+    isCurrentApiKey,
     isScopeValidated,
     markScopeValidated,
     clearScopeValidation,
@@ -165,7 +166,8 @@ export default function SpeakingWorkbench() {
   };
 
   const validateKey = async () => {
-    if (!apiKey.trim()) {
+    const submittedKey = apiKey.trim();
+    if (!submittedKey) {
       setKeyError({ code: "UNAUTHORIZED", message: "Nhập API key Sandbox hoặc bỏ qua để dùng mẫu." });
       return;
     }
@@ -186,13 +188,16 @@ export default function SpeakingWorkbench() {
     try {
       const response = await fetch("/api/demo/key/validate", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Demo-API-Key": apiKey.trim() },
+        headers: { "Content-Type": "application/json", "X-Demo-API-Key": submittedKey },
         body: JSON.stringify({ scope: SCOPE }),
         cache: "no-store",
       });
+      // A changed input clears scope validation; ignore a response for the old key.
+      if (!isCurrentApiKey(submittedKey)) return;
       receivedHttpResponse = true;
       setKeyCheckTrace(httpTrace(response));
       const payload: unknown = await response.json().catch(() => null);
+      if (!isCurrentApiKey(submittedKey)) return;
       setKeyCheckResponse(payload);
       if (!response.ok) throw errorFromPayload(payload);
       if (typeof payload !== "object" || payload === null || !("data" in payload) || typeof payload.data !== "object" || payload.data === null || !("valid" in payload.data) || payload.data.valid !== true) {
@@ -205,6 +210,7 @@ export default function SpeakingWorkbench() {
       setQuestionResponse({ state: "pending", request: `/v1/ielts/speaking/questions?part=${part}` });
       setStep(2);
     } catch (caught) {
+      if (!isCurrentApiKey(submittedKey)) return;
       clearScopeValidation(SCOPE);
       const publicError = typeof caught === "object" && caught !== null && "code" in caught && "message" in caught
         ? (caught as PublicError)
@@ -236,6 +242,7 @@ export default function SpeakingWorkbench() {
   };
 
   const choosePart = (value: SpeakingPart) => {
+    if (value === part) return;
     setPart(value);
     if (step === 2 && liveReady) {
       setQuestionLoading(true);

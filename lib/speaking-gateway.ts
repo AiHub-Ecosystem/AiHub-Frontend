@@ -363,7 +363,7 @@ async function callSpeakingGrading(
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort("speaking-timeout"),
-    90_000
+    65_000
   );
   const abortRequest = () => controller.abort("request-aborted");
   request.signal.addEventListener("abort", abortRequest, { once: true });

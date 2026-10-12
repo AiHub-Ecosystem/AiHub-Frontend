@@ -15,6 +15,7 @@ export type DemoScope = "writing.grade" | "speaking.grade";
 type DemoSession = {
   apiKey: string;
   setApiKey: (value: string) => void;
+  isCurrentApiKey: (value: string) => boolean;
   isScopeValidated: (scope: DemoScope) => boolean;
   markScopeValidated: (scope: DemoScope) => void;
   clearScopeValidation: (scope: DemoScope) => void;
@@ -38,6 +39,10 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     }
     setApiKeyState(value);
   }, []);
+  const isCurrentApiKey = useCallback(
+    (value: string) => apiKeyRef.current.trim() === value,
+    [],
+  );
   const isScopeValidated = useCallback(
     (scope: DemoScope) => validScopes.has(scope),
     [validScopes],
@@ -61,6 +66,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     () => ({
       apiKey,
       setApiKey,
+      isCurrentApiKey,
       isScopeValidated,
       markScopeValidated,
       clearScopeValidation,
@@ -69,6 +75,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     [
       apiKey,
       setApiKey,
+      isCurrentApiKey,
       isScopeValidated,
       markScopeValidated,
       clearScopeValidation,

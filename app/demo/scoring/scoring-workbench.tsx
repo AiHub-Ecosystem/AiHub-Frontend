@@ -83,6 +83,7 @@ export default function ScoringWorkbench() {
   const {
     apiKey,
     setApiKey,
+    isCurrentApiKey,
     isScopeValidated,
     markScopeValidated,
     clearScopeValidation,
@@ -147,7 +148,8 @@ export default function ScoringWorkbench() {
   }, [gradeStatus]);
 
   const validateKey = async () => {
-    if (!apiKey.trim()) {
+    const submittedKey = apiKey.trim();
+    if (!submittedKey) {
       setKeyError({ code: "UNAUTHORIZED", message: "Nhập API key Sandbox hoặc bỏ qua để dùng mẫu." });
       return;
     }
@@ -160,13 +162,16 @@ export default function ScoringWorkbench() {
     try {
       const response = await fetch("/api/demo/key/validate", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Demo-API-Key": apiKey.trim() },
+        headers: { "Content-Type": "application/json", "X-Demo-API-Key": submittedKey },
         body: JSON.stringify({ scope: SCOPE }),
         cache: "no-store",
       });
+      // A changed input clears scope validation; ignore a response for the old key.
+      if (!isCurrentApiKey(submittedKey)) return;
       receivedTrace = httpTrace(response);
       setKeyCheckTrace(receivedTrace);
       const payload: unknown = await response.json().catch(() => null);
+      if (!isCurrentApiKey(submittedKey)) return;
       setKeyCheckResponse(payload);
       if (!response.ok) throw errorFromPayload(payload);
       if (
@@ -183,6 +188,7 @@ export default function ScoringWorkbench() {
       markScopeValidated(SCOPE);
       setStep(2);
     } catch (caught) {
+      if (!isCurrentApiKey(submittedKey)) return;
       clearScopeValidation(SCOPE);
       const publicError = typeof caught === "object" && caught !== null && "code" in caught && "message" in caught
           ? (caught as PublicError)
