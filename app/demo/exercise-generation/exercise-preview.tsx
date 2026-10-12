@@ -1,4 +1,5 @@
 import { EXERCISE_TYPE_LABELS, type ExerciseType } from "@/data/aiwriting";
+import { answerDetails, type AcademicExercise } from "@/lib/academic-lab";
 
 type ExerciseMeta = {
   id: string;
@@ -8,21 +9,12 @@ type ExerciseMeta = {
   difficulty: string;
   instruction: string;
   number_of_questions: number;
+  image?: string | null;
+  image_url?: string | null;
+  imageUrl?: string | null;
 };
 
-type ExerciseItem = {
-  questions_no?: number;
-  question_text?: string;
-  question_image?: string | null;
-  options?: Record<string, string>;
-  choices?: string[];
-  items?: string[];
-  correct?: any;
-  hint?: string[] | string;
-  ai_grading_rubric?: string;
-  explanation?: string;
-  [key: string]: any;
-};
+type ExerciseItem = AcademicExercise;
 
 function ExerciseQuestion({
   type,
@@ -36,23 +28,20 @@ function ExerciseQuestion({
   const questionsNo = item.questions_no || index + 1;
   const questionText = item.question_text || "";
   const questionImage =
-    item.question_image || item.image || item.image_url || item.imageUrl || item.chart || null;
+    item.question_image ||
+    item.image ||
+    item.image_url ||
+    item.imageUrl ||
+    item.chart ||
+    null;
 
   // Handle correct object (short_writing) or raw values
-  const sampleAns =
-    typeof item.correct === "object" && item.correct !== null
-      ? item.correct?.sample_answer
-      : item.correct;
+  const correctDetails = answerDetails(item.correct);
+  const sampleAns = correctDetails?.sample_answer ?? item.correct;
 
-  const rubric =
-    typeof item.correct === "object" && item.correct !== null
-      ? item.correct?.ai_grading_rubric
-      : item.ai_grading_rubric;
+  const rubric = correctDetails?.ai_grading_rubric ?? item.ai_grading_rubric;
 
-  const explanation =
-    (typeof item.correct === "object" && item.correct !== null
-      ? item.correct?.explanation
-      : undefined) || item.explanation;
+  const explanation = correctDetails?.explanation || item.explanation;
 
   return (
     <div
@@ -68,7 +57,14 @@ function ExerciseQuestion({
       }}
     >
       {/* Header câu hỏi */}
-      <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "12px" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: "8px",
+          marginBottom: "12px",
+        }}
+      >
         <span
           style={{
             display: "inline-flex",
@@ -101,145 +97,184 @@ function ExerciseQuestion({
 
       {questionImage && (
         <div style={{ margin: "10px 0" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- exercise image URLs can come from generated customer data. */}
           <img
             src={questionImage}
             alt={`Minh hoạ câu ${questionsNo}`}
-            style={{ maxWidth: "100%", borderRadius: "8px", border: "1px solid #e2e8f0" }}
+            style={{
+              maxWidth: "100%",
+              borderRadius: "8px",
+              border: "1px solid #e2e8f0",
+            }}
           />
         </div>
       )}
 
       {/* 1. Multiple Choice Single */}
-      {type === "multiple_choice_single" && item.options && typeof item.options === "object" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "12px 0" }}>
-          {Object.entries(item.options).map(([key, text]) => {
-            const isCorrect = key === item.correct;
-            return (
-              <div
-                key={key}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "10px",
-                  padding: "10px 14px",
-                  borderRadius: "8px",
-                  border: `1px solid ${isCorrect ? "#86efac" : "#e2e8f0"}`,
-                  background: isCorrect ? "#f0fdf4" : "#f8fafc",
-                  fontSize: "13.5px",
-                  lineHeight: "1.5",
-                  color: isCorrect ? "#166534" : "#334155",
-                  fontWeight: isCorrect ? 600 : 400,
-                  transition: "all 0.15s ease",
-                }}
-              >
-                <span
+      {type === "multiple_choice_single" &&
+        item.options &&
+        typeof item.options === "object" && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+              margin: "12px 0",
+            }}
+          >
+            {Object.entries(item.options).map(([key, text]) => {
+              const isCorrect = key === item.correct;
+              return (
+                <div
+                  key={key}
                   style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: "22px",
-                    height: "22px",
-                    borderRadius: "50%",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    background: isCorrect ? "#22c55e" : "#e2e8f0",
-                    color: isCorrect ? "#ffffff" : "#475467",
-                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "10px",
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    border: `1px solid ${isCorrect ? "#86efac" : "#e2e8f0"}`,
+                    background: isCorrect ? "#f0fdf4" : "#f8fafc",
+                    fontSize: "13.5px",
+                    lineHeight: "1.5",
+                    color: isCorrect ? "#166534" : "#334155",
+                    fontWeight: isCorrect ? 600 : 400,
+                    transition: "all 0.15s ease",
                   }}
                 >
-                  {key}
-                </span>
-                <div style={{ flex: 1 }}>{String(text)}</div>
-                {isCorrect && (
                   <span
                     style={{
-                      fontSize: "11px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "22px",
+                      height: "22px",
+                      borderRadius: "50%",
+                      fontSize: "12px",
                       fontWeight: 700,
-                      color: "#16a34a",
-                      background: "#dcfce7",
-                      padding: "2px 6px",
-                      borderRadius: "4px",
+                      background: isCorrect ? "#22c55e" : "#e2e8f0",
+                      color: isCorrect ? "#ffffff" : "#475467",
                       flexShrink: 0,
                     }}
                   >
-                    ✓ Đáp án đúng
+                    {key}
                   </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                  <div style={{ flex: 1 }}>{String(text)}</div>
+                  {isCorrect && (
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#16a34a",
+                        background: "#dcfce7",
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      ✓ Đáp án đúng
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
       {/* 2. Multiple Choice Multiple */}
-      {type === "multiple_choice_multiple" && item.options && typeof item.options === "object" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "12px 0" }}>
-          {Object.entries(item.options).map(([key, text]) => {
-            const correctArr = Array.isArray(item.correct) ? item.correct : [];
-            const isCorrect = correctArr.includes(key);
-            return (
-              <div
-                key={key}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "10px",
-                  padding: "10px 14px",
-                  borderRadius: "8px",
-                  border: `1px solid ${isCorrect ? "#86efac" : "#e2e8f0"}`,
-                  background: isCorrect ? "#f0fdf4" : "#f8fafc",
-                  fontSize: "13.5px",
-                  lineHeight: "1.5",
-                  color: isCorrect ? "#166534" : "#334155",
-                  fontWeight: isCorrect ? 600 : 400,
-                }}
-              >
-                <span
+      {type === "multiple_choice_multiple" &&
+        item.options &&
+        typeof item.options === "object" && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+              margin: "12px 0",
+            }}
+          >
+            {Object.entries(item.options).map(([key, text]) => {
+              const correctArr = Array.isArray(item.correct)
+                ? item.correct
+                : [];
+              const isCorrect = correctArr.includes(key);
+              return (
+                <div
+                  key={key}
                   style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: "22px",
-                    height: "22px",
-                    borderRadius: "4px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    background: isCorrect ? "#22c55e" : "#e2e8f0",
-                    color: isCorrect ? "#ffffff" : "#475467",
-                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "10px",
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    border: `1px solid ${isCorrect ? "#86efac" : "#e2e8f0"}`,
+                    background: isCorrect ? "#f0fdf4" : "#f8fafc",
+                    fontSize: "13.5px",
+                    lineHeight: "1.5",
+                    color: isCorrect ? "#166534" : "#334155",
+                    fontWeight: isCorrect ? 600 : 400,
                   }}
                 >
-                  {key}
-                </span>
-                <div style={{ flex: 1 }}>{String(text)}</div>
-                {isCorrect && (
                   <span
                     style={{
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      color: "#16a34a",
-                      background: "#dcfce7",
-                      padding: "2px 6px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "22px",
+                      height: "22px",
                       borderRadius: "4px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      background: isCorrect ? "#22c55e" : "#e2e8f0",
+                      color: isCorrect ? "#ffffff" : "#475467",
                       flexShrink: 0,
                     }}
                   >
-                    ✓ Đáp án
+                    {key}
                   </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                  <div style={{ flex: 1 }}>{String(text)}</div>
+                  {isCorrect && (
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#16a34a",
+                        background: "#dcfce7",
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      ✓ Đáp án
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
       {/* 3. Reorder */}
       {type === "reorder" && item.items && Array.isArray(item.items) && (
         <div style={{ margin: "12px 0" }}>
-          <p style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 700, color: "#64748b" }}>
+          <p
+            style={{
+              margin: "0 0 8px",
+              fontSize: "12px",
+              fontWeight: 700,
+              color: "#64748b",
+            }}
+          >
             CÁC CÂU CẦN SẮP XẾP:
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "12px" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "6px",
+              marginBottom: "12px",
+            }}
+          >
             {item.items.map((sent: string, i: number) => (
               <div
                 key={i}
@@ -298,10 +333,24 @@ function ExerciseQuestion({
               >
                 ✓ TRÌNH TỰ LOGIC CHUẨN:
               </span>
-              <ol style={{ margin: 0, paddingLeft: "18px", fontSize: "13px", color: "#14532d", lineHeight: "1.6" }}>
-                {item.correct.map((origIdx: number, pos: number) => (
+              <ol
+                style={{
+                  margin: 0,
+                  paddingLeft: "18px",
+                  fontSize: "13px",
+                  color: "#14532d",
+                  lineHeight: "1.6",
+                }}
+              >
+                {item.correct.map((origIdx, pos) => (
                   <li key={pos} style={{ marginBottom: "2px" }}>
-                    {String(item.items?.[origIdx] || "")}
+                    {String(
+                      item.items?.[
+                        typeof origIdx === "number"
+                          ? origIdx
+                          : Number.parseInt(origIdx, 10)
+                      ] || ""
+                    )}
                   </li>
                 ))}
               </ol>
@@ -324,7 +373,9 @@ function ExerciseQuestion({
             gap: "8px",
           }}
         >
-          <span style={{ fontSize: "12px", fontWeight: 700, color: "#166534" }}>Đáp án điền khuyết:</span>
+          <span style={{ fontSize: "12px", fontWeight: 700, color: "#166534" }}>
+            Đáp án điền khuyết:
+          </span>
           <span
             style={{
               background: "#ffffff",
@@ -342,38 +393,51 @@ function ExerciseQuestion({
       )}
 
       {/* 5. Choose From List */}
-      {type === "choose_from_list" && item.choices && Array.isArray(item.choices) && (
-        <div style={{ margin: "12px 0" }}>
-          <p style={{ margin: "0 0 6px", fontSize: "12px", fontWeight: 700, color: "#64748b" }}>
-            LỰA CHỌN TỪ DANH SÁCH:
-          </p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-            {item.choices.map((choice: string) => {
-              const isCorrect = choice === item.correct;
-              return (
-                <span
-                  key={choice}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    padding: "6px 12px",
-                    borderRadius: "6px",
-                    fontSize: "13px",
-                    fontWeight: isCorrect ? 700 : 500,
-                    border: `1px solid ${isCorrect ? "#86efac" : "#cbd5e1"}`,
-                    background: isCorrect ? "#f0fdf4" : "#f8fafc",
-                    color: isCorrect ? "#166534" : "#334155",
-                  }}
-                >
-                  {String(choice)}
-                  {isCorrect && <span style={{ color: "#16a34a", fontWeight: 800 }}>✓</span>}
-                </span>
-              );
-            })}
+      {type === "choose_from_list" &&
+        item.choices &&
+        Array.isArray(item.choices) && (
+          <div style={{ margin: "12px 0" }}>
+            <p
+              style={{
+                margin: "0 0 6px",
+                fontSize: "12px",
+                fontWeight: 700,
+                color: "#64748b",
+              }}
+            >
+              LỰA CHỌN TỪ DANH SÁCH:
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {item.choices.map((choice: string) => {
+                const isCorrect = choice === item.correct;
+                return (
+                  <span
+                    key={choice}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "6px 12px",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      fontWeight: isCorrect ? 700 : 500,
+                      border: `1px solid ${isCorrect ? "#86efac" : "#cbd5e1"}`,
+                      background: isCorrect ? "#f0fdf4" : "#f8fafc",
+                      color: isCorrect ? "#166534" : "#334155",
+                    }}
+                  >
+                    {String(choice)}
+                    {isCorrect && (
+                      <span style={{ color: "#16a34a", fontWeight: 800 }}>
+                        ✓
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* 6. Annotation */}
       {type === "annotation" && (
@@ -388,18 +452,43 @@ function ExerciseQuestion({
             color: "#92400e",
           }}
         >
-          <strong style={{ display: "block", marginBottom: "4px" }}>Vị trí / Cụm từ cần sửa:</strong>
-          <span style={{ fontWeight: 700, color: "#78350f" }}>“{String(item.correct || "")}”</span>
+          <strong style={{ display: "block", marginBottom: "4px" }}>
+            Vị trí / Cụm từ cần sửa:
+          </strong>
+          <span style={{ fontWeight: 700, color: "#78350f" }}>
+            “{String(item.correct || "")}”
+          </span>
         </div>
       )}
 
       {/* 7. Short Writing (Hints, Sample Answer, Grading Rubric) */}
       {type === "short_writing" && (
-        <div style={{ margin: "12px 0", display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div
+          style={{
+            margin: "12px 0",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+          }}
+        >
           {/* Hints */}
           {Array.isArray(item.hint) && item.hint.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" }}>
-              <span style={{ fontSize: "11.5px", fontWeight: 700, color: "#64748b", marginRight: "4px" }}>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "11.5px",
+                  fontWeight: 700,
+                  color: "#64748b",
+                  marginRight: "4px",
+                }}
+              >
                 💡 Gợi ý (Hints):
               </span>
               {item.hint.map((h: string) => (
@@ -433,7 +522,15 @@ function ExerciseQuestion({
                 color: "#166534",
               }}
             >
-              <strong style={{ display: "block", fontSize: "11.5px", fontWeight: 800, marginBottom: "4px", color: "#15803d" }}>
+              <strong
+                style={{
+                  display: "block",
+                  fontSize: "11.5px",
+                  fontWeight: 800,
+                  marginBottom: "4px",
+                  color: "#15803d",
+                }}
+              >
                 ✨ ĐÁP ÁN MẪU (BAND 8.5+):
               </strong>
               <span>{String(sampleAns)}</span>
@@ -453,7 +550,13 @@ function ExerciseQuestion({
                 lineHeight: "1.5",
               }}
             >
-              <strong style={{ display: "block", marginBottom: "3px", color: "#1e293b" }}>
+              <strong
+                style={{
+                  display: "block",
+                  marginBottom: "3px",
+                  color: "#1e293b",
+                }}
+              >
                 📋 Tiêu chí chấm điểm AI (Rubric):
               </strong>
               {String(rubric)}
@@ -476,7 +579,14 @@ function ExerciseQuestion({
             color: "#334155",
           }}
         >
-          <strong style={{ display: "block", marginBottom: "3px", color: "#1e293b", fontSize: "11.5px" }}>
+          <strong
+            style={{
+              display: "block",
+              marginBottom: "3px",
+              color: "#1e293b",
+              fontSize: "11.5px",
+            }}
+          >
             📘 Giải thích học thuật:
           </strong>
           {String(explanation)}
@@ -498,7 +608,15 @@ export function ExercisePreview({
   return (
     <div>
       {/* 1. Header Badges chuẩn theo phong cách Lab */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", marginBottom: "14px" }}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "8px",
+          alignItems: "center",
+          marginBottom: "14px",
+        }}
+      >
         <span
           style={{
             background: "#3a64fa",
@@ -509,7 +627,8 @@ export function ExercisePreview({
             fontWeight: 700,
           }}
         >
-          Dạng bài: {EXERCISE_TYPE_LABELS[meta?.type] || meta?.type || "Bài tập Writing"}
+          Dạng bài:{" "}
+          {EXERCISE_TYPE_LABELS[meta?.type] || meta?.type || "Bài tập Writing"}
         </span>
         <span
           style={{
@@ -573,7 +692,7 @@ export function ExercisePreview({
       )}
 
       {/* 2.1 Main Task / Chart Image if present */}
-      {Boolean((meta as any)?.image || (meta as any)?.image_url || (meta as any)?.imageUrl) && (
+      {Boolean(meta.image || meta.image_url || meta.imageUrl) && (
         <div
           style={{
             margin: "0 0 16px",
@@ -584,10 +703,16 @@ export function ExercisePreview({
             textAlign: "center",
           }}
         >
+          {/* eslint-disable-next-line @next/next/no-img-element -- exercise images can come from customer supplied URLs, so load them directly. */}
           <img
-            src={(meta as any)?.image || (meta as any)?.image_url || (meta as any)?.imageUrl}
+            src={meta.image || meta.image_url || meta.imageUrl || ""}
             alt="Đề bài / Biểu đồ Task"
-            style={{ maxWidth: "100%", maxHeight: "380px", objectFit: "contain", borderRadius: "8px" }}
+            style={{
+              maxWidth: "100%",
+              maxHeight: "380px",
+              objectFit: "contain",
+              borderRadius: "8px",
+            }}
           />
         </div>
       )}

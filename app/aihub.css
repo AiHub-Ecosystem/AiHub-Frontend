@@ -73,11 +73,12 @@
   margin-bottom: 24px;
 }
 
-.aihub-category-name {
+.aihub .aihub-category-name {
   font-size: 24px;
   font-weight: 700;
   margin: 0 0 8px;
   color: var(--aihub-ink);
+  text-align: left;
 }
 
 .aihub-category-desc {
@@ -478,6 +479,123 @@ a.aihub-card:hover {
   align-items: start;
   border: none;
   background: transparent;
+}
+
+/* Centered catalog used by the shared Demo entry point. */
+.aihub-demo-catalog {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.aihub-demo-catalog ::selection,
+.aihub-speaking ::selection {
+  background: rgb(58 100 250 / 0.18);
+  color: var(--aihub-ink);
+}
+
+.aihub-demo-intro {
+  max-width: 760px;
+  margin: 0 auto 48px;
+  text-align: center;
+}
+
+.aihub-demo-intro .aihub-crumb-static {
+  margin-bottom: 16px;
+  color: var(--aihub-brand);
+  font-weight: 700;
+}
+
+.aihub-demo-intro .aihub-title {
+  margin-bottom: 18px;
+  font-size: clamp(32px, 5vw, 56px);
+}
+
+.aihub-demo-intro .aihub-lede {
+  max-width: 64ch;
+  margin: 0 auto;
+}
+
+.aihub-demo-category-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.aihub-demo-category {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  min-width: 0;
+  padding: 28px;
+  background: var(--aihub-card);
+  border: 1px solid var(--aihub-line);
+  border-radius: var(--aihub-radius);
+  box-shadow: 0 4px 20px -2px rgb(29 40 56 / 0.05);
+}
+
+.aihub-demo-category-head h2 {
+  margin: 6px 0 10px;
+  color: var(--aihub-ink);
+  font-size: clamp(22px, 2.5vw, 30px);
+  line-height: 1.15;
+}
+
+.aihub-demo-category-head > p:last-child {
+  margin: 0;
+  color: var(--aihub-body);
+  line-height: 1.65;
+}
+
+.aihub-demo-product-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aihub-demo-product {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--aihub-line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.aihub-demo-product .aihub-card-name {
+  font-size: 17px;
+}
+
+.aihub-demo-product .aihub-card-desc {
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+.aihub-demo-product[data-status="coming-soon"] {
+  background: var(--aihub-surface);
+}
+
+.aihub-demo-product .aihub-cta {
+  flex: 0 0 auto;
+  text-decoration: none;
+}
+
+@media (max-width: 760px) {
+  .aihub-demo-intro {
+    margin-bottom: 32px;
+    text-align: left;
+  }
+
+  .aihub-demo-intro .aihub-lede {
+    margin-left: 0;
+  }
+
+  .aihub-demo-category-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .aihub-split-left {
@@ -1033,7 +1151,8 @@ a.aihub-card:hover {
    Lab Login Dynamic Animations & Effects
    ========================================================================== */
 @keyframes labCloudFloatLeft {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(0, 0) scale(1);
   }
   50% {
@@ -1042,7 +1161,8 @@ a.aihub-card:hover {
 }
 
 @keyframes labCloudFloatRight {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(0, 0) scale(1);
   }
   50% {
@@ -1051,7 +1171,8 @@ a.aihub-card:hover {
 }
 
 @keyframes labCastleFloat {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -1060,7 +1181,8 @@ a.aihub-card:hover {
 }
 
 @keyframes labWaterfallFloat {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -1069,7 +1191,8 @@ a.aihub-card:hover {
 }
 
 @keyframes labGlowPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.65;
     transform: translateX(-50%) scale(1);
   }
@@ -1225,3 +1348,246 @@ a.aihub-card:hover {
   color: #334155;
 }
 
+.lab-login-page {
+  min-height: calc(100vh - 72px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 108px 16px 72px;
+  box-sizing: border-box;
+}
+
+.lab-login-container {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+}
+
+.lab-login-card {
+  width: min(100%, 500px);
+  margin: 36px auto 52px;
+  padding: 38px clamp(24px, 5vw, 40px) 28px;
+  position: relative;
+  z-index: 20;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 22px;
+  background: rgb(21 17 31 / 94%);
+  box-shadow: 0 30px 70px -20px rgb(8 2 22 / 78%);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+
+.lab-login-accent {
+  height: 3px;
+  position: absolute;
+  inset: 0 0 auto;
+  background: linear-gradient(90deg, #3a64fa, #f963bc, #18c3fa, #3a64fa);
+  background-size: 200% 200%;
+}
+
+.lab-login-heading {
+  margin-bottom: 26px;
+}
+
+.lab-login-eyebrow {
+  margin: 0 0 12px;
+  color: #8ba5ff;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.lab-login-heading h1 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(25px, 5vw, 32px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.16;
+}
+
+.lab-login-heading > p:last-child {
+  max-width: 44ch;
+  margin: 12px 0 0;
+  color: #b3aac7;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.lab-login-footer {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  color: #b3aac7;
+  font-size: 13px;
+  text-align: center;
+}
+
+.lab-login-footer p {
+  margin: 0;
+}
+
+.lab-login-footer a {
+  color: #9db2ff;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.lab-login-footer a:hover {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.lab-login-footer .lab-login-back {
+  color: #b3aac7;
+  font-weight: 500;
+}
+
+.lab-login-page .background-elements {
+  pointer-events: none;
+}
+
+@media (max-width: 520px) {
+  .lab-login-page {
+    min-height: calc(100svh - 64px);
+    padding: 96px 16px 44px;
+  }
+
+  .lab-login-card {
+    margin: 20px auto 28px;
+    padding: 32px 22px 24px;
+    border-radius: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-login-card,
+  .lab-login-accent {
+    animation: none;
+  }
+}
+
+/* Trang /docs: mục lục trong trang, bảng cuộn ngang, danh sách gạch đầu dòng */
+
+.aihub-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 24px 0 0;
+  font-size: 14px;
+}
+
+.aihub-toc a {
+  color: var(--aihub-brand);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.aihub-toc a:hover {
+  color: var(--aihub-brand-dark);
+  text-decoration: underline;
+}
+
+.aihub-scroll {
+  overflow-x: auto;
+  margin-top: 12px;
+}
+
+.aihub-scroll .aihub-schema {
+  margin-top: 0;
+  min-width: 560px;
+}
+
+.aihub-scroll .aihub-schema td:first-child {
+  white-space: normal;
+}
+
+.aihub-sub {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--aihub-ink);
+  margin: 28px 0 8px;
+}
+
+.aihub-list {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--aihub-body);
+}
+
+.aihub-prose {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--aihub-body);
+  margin: 12px 0 0;
+}
+
+/* Header của site là fixed: chừa chỗ để anchor không bị che */
+.aihub-shell [id] {
+  scroll-margin-top: 140px;
+}
+
+/* Code block có nút sao chép: thanh trên có chiều cao cố định nên trạng thái không làm layout nhảy */
+.aihub-codeblock {
+  margin-top: 12px;
+}
+
+.aihub-codeblock-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  margin-bottom: 6px;
+}
+
+.aihub-codeblock-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--aihub-soft);
+  overflow-wrap: anywhere;
+}
+
+.aihub-copy-status {
+  flex: 1;
+  font-size: 12px;
+  color: var(--aihub-body);
+  min-width: 0;
+}
+
+.aihub-copy {
+  flex: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--aihub-brand);
+  background: var(--aihub-card);
+  border: 1px solid var(--aihub-line);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.aihub-copy:hover {
+  border-color: var(--aihub-brand);
+}
+
+.aihub-copy:focus-visible,
+.aihub-code:focus-visible {
+  outline: 2px solid var(--aihub-brand);
+  outline-offset: 2px;
+}
+
+/* Path dài trong văn xuôi (vd. PUT /v1/organizations/{id}/identity-config) phải ngắt được trên mobile */
+.aihub-shell code {
+  overflow-wrap: anywhere;
+}

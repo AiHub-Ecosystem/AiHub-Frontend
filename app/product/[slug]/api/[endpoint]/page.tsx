@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ALL_PRODUCTS, findProduct } from "@/data/api-products";
-import { COMMON_ERROR_RESPONSES, PRODUCT_DOCS } from "@/data/api-reference";
+import {
+  PRODUCT_DOCS,
+  type RequestHeader,
+  type SchemaField,
+} from "@/data/api-reference";
 import { ReferenceTabs } from "../reference-tabs";
 import "../../../../aihub.css";
 
@@ -12,7 +16,10 @@ export function generateStaticParams() {
   return ALL_PRODUCTS.flatMap((product) => {
     const docs = PRODUCT_DOCS[product.slug];
     if (!docs) return [];
-    return Object.keys(docs.reference).map((endpoint) => ({ slug: product.slug, endpoint }));
+    return Object.keys(docs.reference).map((endpoint) => ({
+      slug: product.slug,
+      endpoint,
+    }));
   });
 }
 
@@ -21,12 +28,43 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const product = findProduct(slug);
   const ref = PRODUCT_DOCS[slug]?.reference[endpoint];
   const meta = product?.endpoints.find((e) => e.slug === endpoint);
-  if (!product || !ref || !meta) return { title: "Không tìm thấy endpoint — AIHub" };
-  return { title: `${meta.name} — ${product.name} — AIHub`, description: meta.summary };
+  if (!product || !ref || !meta)
+    return { title: "Không tìm thấy endpoint — AIHub" };
+  return {
+    title: `${meta.name} — ${product.name} — AIHub`,
+    description: meta.summary,
+  };
 }
 
-function curl(method: string, url: string, body: unknown) {
-  return `curl -X ${method} '${url}' \\\n  -H 'Content-Type: application/json' \\\n  -d '${JSON.stringify(body, null, 2)}'`;
+/** Giá trị mẫu do tác giả viết, nên ký tự shell phải được vô hiệu hoá. */
+function escapeSampleValue(value: string) {
+  return value.replace(/([\\"$`])/g, "\\$1");
+}
+
+function curl(
+  method: string,
+  url: string,
+  headers: RequestHeader[],
+  body: unknown,
+  formFields: SchemaField[]
+) {
+  const lines = [`curl -X ${method} '${url}'`];
+  for (const header of headers) {
+    lines.push(`  -H "${header.name}: ${header.value}"`);
+  }
+  for (const field of formFields) {
+    // `formValue` is written to reference a shell variable, so it is left
+    // alone; a `sampleValue` is copied verbatim and must be quoted literally.
+    const value =
+      field.formValue ??
+      (field.sampleValue && escapeSampleValue(field.sampleValue));
+    if (value === undefined) continue;
+    lines.push(`  -F "${field.name}=${value}"`);
+  }
+  if (formFields.length === 0 && body !== null && body !== undefined) {
+    lines.push(`  -d '${JSON.stringify(body, null, 2)}'`);
+  }
+  return lines.join(" \\\n");
 }
 
 export default async function Page({ params }: Props) {
@@ -37,10 +75,34 @@ export default async function Page({ params }: Props) {
   const meta = product?.endpoints.find((e) => e.slug === endpoint);
   if (!product || !docs || !ref || !meta) notFound();
 
-  const baseUrlFact = docs.overview.facts.find((f) => f.label === "Base URL")?.value ?? "";
-  const fullUrl = meta.path.startsWith("/internal") ? meta.path : `https://${baseUrlFact}${meta.path}`;
-  const requestCode = curl(meta.method, fullUrl, ref.requestExample);
+  // The catalog documents a query parameter as `{name}`; the generated example
+  // substitutes the field's sample value so the command is runnable as written.
+  const examplePath = meta.path.replace(/\{(\w+)\}/g, (placeholder, name) => {
+    const field = ref.requestFields.find(
+      (candidate) => candidate.name === name
+    );
+    return field?.sampleValue ?? placeholder;
+  });
+  const fullUrl = meta.path.startsWith("/internal")
+    ? meta.path
+    : `https://${docs.overview.baseUrl}${examplePath}`;
+  const headers = ref.headers ?? docs.headers;
+  const multipartFields = ref.requestBody === "form" ? ref.requestFields : [];
+  // An endpoint that declares its own failures replaces the product's
+  // wholesale — including dropping the retry policy, which otherwise leaks
+  // through the shallow merge and would describe grading runs this operation
+  // cannot have.
+  const errors = ref.errors
+    ? { ...docs.errors, ...ref.errors, retryPolicy: ref.errors.retryPolicy }
+    : docs.errors;
+  const requestCode = [
+    ...(ref.requestPreamble ?? []),
+    curl(meta.method, fullUrl, headers, ref.requestExample, multipartFields),
+  ].join("\n");
   const responseCode = JSON.stringify(ref.responseExample, null, 2);
+  const showsSampleValues = ref.requestFields.some(
+    (field) => field.sampleValue !== undefined
+  );
 
   return (
     <div className="aihub">
@@ -59,7 +121,10 @@ export default async function Page({ params }: Props) {
           </span>
           <code className="aihub-path">{fullUrl}</code>
         </div>
-        <h1 className="aihub-title" style={{ fontSize: "clamp(24px, 3vw, 34px)" }}>
+        <h1
+          className="aihub-title"
+          style={{ fontSize: "clamp(24px, 3vw, 34px)" }}
+        >
           {meta.name}
         </h1>
         <p className="aihub-lede">{meta.summary}</p>
@@ -67,32 +132,40 @@ export default async function Page({ params }: Props) {
         <div className="aihub-refdetail">
           <div>
             <h2 className="aihub-category-name">Request</h2>
-            <table className="aihub-schema">
-              <thead>
-                <tr>
-                  <th>Field</th>
-                  <th>Type</th>
-                  <th>Bắt buộc</th>
-                  <th>Mô tả</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ref.requestFields.map((f) => (
-                  <tr key={f.name}>
-                    <td>{f.name}</td>
-                    <td>{f.type}</td>
-                    <td>
-                      {f.required ? (
-                        <span className="aihub-required">BẮT BUỘC</span>
-                      ) : (
-                        <span className="aihub-optional">tuỳ chọn</span>
-                      )}
-                    </td>
-                    <td>{f.description}</td>
+            <div className="aihub-scroll">
+              <table className="aihub-schema">
+                <thead>
+                  <tr>
+                    <th>Field</th>
+                    <th>Type</th>
+                    {showsSampleValues && <th>Giá trị mẫu</th>}
+                    <th>Bắt buộc</th>
+                    <th>Mô tả</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {ref.requestFields.map((f) => (
+                    <tr key={f.name}>
+                      <td>{f.name}</td>
+                      <td>{f.type}</td>
+                      {showsSampleValues && (
+                        <td>
+                          <code>{f.sampleValue ?? ""}</code>
+                        </td>
+                      )}
+                      <td>
+                        {f.required ? (
+                          <span className="aihub-required">BẮT BUỘC</span>
+                        ) : (
+                          <span className="aihub-optional">tuỳ chọn</span>
+                        )}
+                      </td>
+                      <td>{f.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             <h2 className="aihub-category-name" style={{ marginTop: 28 }}>
               Response
@@ -114,23 +187,38 @@ export default async function Page({ params }: Props) {
           </div>
 
           <div>
-            <ReferenceTabs requestCode={requestCode} responseCode={responseCode} />
+            <ReferenceTabs
+              requestCode={requestCode}
+              responseCode={responseCode}
+            />
           </div>
         </div>
 
         <section className="aihub-category">
           <div className="aihub-category-head">
             <h2 className="aihub-category-name">Lỗi thường gặp</h2>
-            <p className="aihub-category-desc">
-              Áp dụng chung cho các endpoint sinh bài tập trong docs/doc-api-micro.md.
-            </p>
+            <p className="aihub-category-desc">{errors.intro}</p>
           </div>
-          {COMMON_ERROR_RESPONSES.map((err) => (
-            <article className="aihub-endpoint" key={err.status}>
+          {errors.retryPolicy && (
+            <div className="aihub-endpoint">
+              <strong>Chính sách retry</strong>
+              <ul className="aihub-notes">
+                {errors.retryPolicy.map((rule) => (
+                  <li key={rule}>{rule}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {errors.items.map((err) => (
+            <article
+              className="aihub-endpoint"
+              key={`${err.status}:${err.code ?? ""}`}
+            >
               <div className="aihub-endpoint-head">
                 <span className="aihub-status" data-tone={err.tone}>
                   {err.status}
                 </span>
+                {err.code && <code>{err.code}</code>}
                 <strong>{err.title}</strong>
               </div>
               <p className="aihub-card-desc">{err.description}</p>

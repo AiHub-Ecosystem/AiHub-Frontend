@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { findErrorCode, TOPIC_LABELS, type Topic } from "@/data/aiwriting";
-import { generateExercise, validateGenerateRequest, type GenerateRequest } from "@/data/demo-mock";
+import {
+  generateExercise,
+  validateGenerateRequest,
+  type GenerateRequest,
+} from "@/data/demo-mock";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -13,21 +17,29 @@ export async function POST(request: Request) {
 
   // 1. Try calling the real Backend Exercise Generator
   try {
-    const backendUrl = process.env.API_BASE_URL || process.env.BACKEND_URL || "http://localhost:3020";
-    const backendRes = await fetch(`${backendUrl.replace(/\/$/, "")}/create-micro-exercise`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-client-id": "demo-sandbox",
-      },
-      body: JSON.stringify({
-        task_id: `task_${req.writingTask}`,
-        topic: req.topic,
-        criterion: req.criterion,
-        error_code: req.errorCode,
-        num_questions: (req as any).numQuestions || 3,
-      }),
-    });
+    const backendUrl =
+      process.env.API_BASE_URL ||
+      process.env.BACKEND_URL ||
+      "http://localhost:3020";
+    const backendRes = await fetch(
+      `${backendUrl.replace(/\/$/, "")}/create-micro-exercise`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-client-id": "demo-sandbox",
+        },
+        body: JSON.stringify({
+          task_id: `task_${req.writingTask}`,
+          topic: req.topic,
+          criterion: req.criterion,
+          error_code: req.errorCode,
+          num_questions:
+            (req as GenerateRequest & { numQuestions?: number }).numQuestions ||
+            3,
+        }),
+      }
+    );
 
     if (backendRes.ok) {
       const json = await backendRes.json();
@@ -42,5 +54,7 @@ export async function POST(request: Request) {
   // 2. Fallback to mock exercise generator
   const errorCode = findErrorCode(req.criterion, req.errorCode)!;
   await new Promise((resolve) => setTimeout(resolve, 300));
-  return NextResponse.json(generateExercise(req, TOPIC_LABELS[req.topic as Topic], errorCode));
+  return NextResponse.json(
+    generateExercise(req, TOPIC_LABELS[req.topic as Topic], errorCode)
+  );
 }

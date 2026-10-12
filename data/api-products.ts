@@ -128,18 +128,25 @@ export const API_CATEGORIES: ApiCategory[] = [
     slug: "ai-speaking",
     name: "Giải pháp AI Speaking",
     description:
-      "Bộ API luyện và chấm IELTS Speaking — nhận audio và trả về transcript cùng phân tích theo rubric.",
+      "Bộ API luyện và chấm IELTS Speaking — lấy câu hỏi theo Part, nhận audio và trả về transcript cùng phân tích theo rubric.",
     products: [
       {
         slug: "speaking",
         name: "Chấm Speaking",
         tagline: "Đánh giá câu trả lời IELTS qua audio",
         description:
-          "Gửi câu hỏi và bản ghi âm để nhận transcript, độ liên quan, band ước tính và gợi ý cải thiện.",
+          "Gửi câu hỏi và bản ghi âm để nhận transcript, độ liên quan, band ước tính và gợi ý cải thiện ngữ pháp, từ vựng, phát âm.",
         status: "stable",
         hasDemo: true,
         demoReady: true,
         endpoints: [
+          {
+            slug: "speaking-questions",
+            name: "Lấy câu hỏi theo Part",
+            method: "GET",
+            path: "/v1/ielts/speaking/questions?part={part}",
+            summary: "Lấy danh mục câu hỏi Speaking theo Part 1, 2 hoặc 3.",
+          },
           {
             slug: "speaking-grading",
             name: "Chấm câu trả lời",
@@ -148,6 +155,14 @@ export const API_CATEGORIES: ApiCategory[] = [
             summary:
               "Nhận audio và trả về transcript, band ước tính cùng feedback theo rubric.",
           },
+          {
+            slug: "speaking-grading-json",
+            name: "Chấm câu trả lời bằng URL audio",
+            method: "POST",
+            path: "/v1/ielts/speaking/grading-json",
+            summary:
+              "Dạng dự phòng khi không thể tải audio lên: nhận URL audio đã ký thay vì tệp tải lên.",
+          },
         ],
       },
     ],
@@ -155,7 +170,7 @@ export const API_CATEGORIES: ApiCategory[] = [
 ];
 
 export const ALL_PRODUCTS = API_CATEGORIES.flatMap((c) =>
-  c.products.map((p) => ({ ...p, category: c })),
+  c.products.map((p) => ({ ...p, category: c }))
 );
 
 export function findProduct(slug: string) {

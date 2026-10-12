@@ -1,0 +1,959 @@
+import { describe, expect, it } from "vitest";
+import {
+  isFetchableImageUrl,
+  WRITING_TASK1_CHART_TYPES,
+  WRITING_TASK1_REQUEST,
+  WRITING_TASK1_SAMPLE_IMAGE_URL,
+} from "@/data/writing-task1-request";
+import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
+import {
+  buildSampleRequests,
+  isRawKeyFor,
+  type SampleRequestKind,
+} from "@/lib/sample-request";
+import type { MintedOrganizationApiKey } from "@/lib/api-keys";
+
+const idempotencyKey = "6f1ed729-8d92-4fa6-8e87-0fe6e71e9a17";
+
+/**
+ * The real Speaking question AIHUB publishes, written out as literals rather
+ * than read from the shared example data, so moving the example question can
+ * never pass this suite by construction.
+ */
+const REAL_QUESTION_ID = "p1_do-you-enjoy-living-in-your-city-or-hometown";
+const REAL_PROMPT_TEXT = "Do you enjoy living in your city or hometown?";
+
+/**
+ * The Published sample answer AIHUB publishes for REAL_QUESTION_ID, written
+ * out as a literal rather than read from the shared example data, so moving
+ * the URL there can never pass this suite by construction.
+ */
+const PUBLISHED_SAMPLE_ANSWER_URL =
+  "https://s3.wispace.app/ielts-task1/speaking-answers/part-1/do-you-enjoy-living-in-your-city-or-hometown.webm";
+
+/** The multipart spellings a copied Speaking command must no longer carry. */
+const FILE_UPLOAD_SYNTAX = ["answer.wav", "-F", "--form", "audio=@"];
+
+function mintedKey(
+  overrides: Partial<MintedOrganizationApiKey> = {}
+): MintedOrganizationApiKey {
+  return {
+    id: "ak_01J00000000000000000000000",
+    name: "Production backend",
+    key_prefix: "aihub_sk_ABC123",
+    scopes: ["writing.grade"],
+    allowed_environments: ["production"],
+    status: "active",
+    expires_at: null,
+    last_used_at: null,
+    created_at: "2026-09-27T10:00:00.000Z",
+    api_key: `aihub_sk_${"A".repeat(43)}`,
+    ...overrides,
+  };
+}
+
+function sampleFor(
+  apiKey: MintedOrganizationApiKey,
+  kind: SampleRequestKind,
+  identityConfigured?: boolean
+) {
+  return buildSampleRequests({
+    apiKey,
+    identityConfigured,
+    idempotencyKey,
+  }).find((request) => request.kind === kind);
+}
+
+describe("Request identity", () => {
+  function kindsFor(apiKey: MintedOrganizationApiKey) {
+    return buildSampleRequests({
+      apiKey,
+      identityConfigured: false,
+      idempotencyKey,
+    }).map((request) => request.kind);
+  }
+
+  /**
+   * The tab list keys and identifies every request by its identity, so a second
+   * request arriving under a scope already in use must not reuse the first one's
+   * identity. Asserted on the real output, which is what the tab reads. The
+   * second Writing request itself is #32, and the collision this guards against
+   * can only be observed once it exists.
+   */
+  it("gives every request of a key a distinct identity", () => {
+    const kinds = kindsFor(
+      mintedKey({ scopes: ["speaking.grade", "writing.grade"] })
+    );
+
+    expect(kinds).toEqual(["writing-task1", "writing-task2", "speaking"]);
+    expect(new Set(kinds).size).toBe(kinds.length);
+  });
+
+  it("names each request from the request, not from its scope", () => {
+    const requests = buildSampleRequests({
+      apiKey: mintedKey({ scopes: ["speaking.grade", "writing.grade"] }),
+      identityConfigured: false,
+      idempotencyKey,
+    });
+
+    expect(requests.map((request) => [request.kind, request.label])).toEqual([
+      ["writing-task1", "Writing Task 1"],
+      ["writing-task2", "Writing Task 2"],
+      ["speaking", "Speaking"],
+    ]);
+    for (const request of requests)
+      expect(request.label).not.toBe(request.kind);
+  });
+});
+
+describe("Sample request tabs", () => {
+  it("gives a key one tab per scope it holds, Writing first", () => {
+    const apiKey = mintedKey({ scopes: ["speaking.grade", "writing.grade"] });
+
+    const samples = buildSampleRequests({
+      apiKey,
+      identityConfigured: false,
+      idempotencyKey,
+    });
+
+    expect(samples.map((sample) => [sample.kind, sample.label])).toEqual([
+      ["writing-task1", "Writing Task 1"],
+      ["writing-task2", "Writing Task 2"],
+      ["speaking", "Speaking"],
+    ]);
+  });
+
+  it("shows only the Speaking tab for a key without writing.grade", () => {
+    const samples = buildSampleRequests({
+      apiKey: mintedKey({ scopes: ["speaking.grade"] }),
+      identityConfigured: false,
+      idempotencyKey,
+    });
+
+    expect(samples).toHaveLength(1);
+    expect(samples[0]).toMatchObject({ kind: "speaking", label: "Speaking" });
+  });
+
+  it("shows only the Writing tab for a key without speaking.grade", () => {
+    const samples = buildSampleRequests({
+      apiKey: mintedKey({ scopes: ["writing.grade"] }),
+      identityConfigured: false,
+      idempotencyKey,
+    });
+
+    expect(samples.map((sample) => sample.kind)).toEqual([
+      "writing-task1",
+      "writing-task2",
+    ]);
+  });
+
+  it("shows no tab for a scope with no known endpoint", () => {
+    expect(
+      buildSampleRequests({
+        apiKey: mintedKey({ scopes: ["speech.toText"] }),
+        identityConfigured: false,
+        idempotencyKey,
+      })
+    ).toEqual([]);
+  });
+
+  it("keeps the known tabs and skips unknown scopes", () => {
+    const samples = buildSampleRequests({
+      apiKey: mintedKey({ scopes: ["speech.toText", "speaking.grade"] }),
+      identityConfigured: false,
+      idempotencyKey,
+    });
+
+    expect(samples.map((sample) => sample.kind)).toEqual(["speaking"]);
+  });
+});
+
+describe("Writing Task 1 Sample request", () => {
+  const task1 = () => sampleFor(mintedKey(), "writing-task1", false);
+
+  it("targets the Task 1 grading endpoint", () => {
+    expect(task1()?.url).toBe(
+      "https://api.aihubproduction.com/v1/ielts/writing/task1/grade"
+    );
+    expect(task1()?.command).toContain("/v1/ielts/writing/task1/grade");
+  });
+
+  it("orders the body rows exactly as the command sends the fields", () => {
+    expect(task1()?.body.map((field) => field.field)).toEqual(
+      Object.keys(WRITING_TASK1_REQUEST)
+    );
+    for (const field of task1()?.body ?? []) expect(field.required).toBe(true);
+  });
+
+  it("sends no field Task 1 rejects", () => {
+    const sent = Object.keys(WRITING_TASK1_REQUEST);
+
+    expect(sent).not.toContain("topic");
+    expect(sent).toEqual(["question", "chart_type", "image_url", "essay"]);
+  });
+
+  it("lists the seven chart types and says how they are matched", () => {
+    const meaning =
+      task1()?.body.find((field) => field.field === "chart_type")?.meaning ??
+      "";
+
+    for (const chartType of WRITING_TASK1_CHART_TYPES)
+      expect(meaning).toContain(chartType);
+    expect(meaning).toMatch(/HOA THƯỜNG/);
+    expect(meaning).toMatch(/environment/);
+  });
+
+  it("names the criterion Task 1 leads with, not Task 2's", () => {
+    expect(task1()?.firstCriterion).toBe("task_achievement");
+    expect(sampleFor(mintedKey(), "writing-task2", false)?.firstCriterion).toBe(
+      "task_response"
+    );
+  });
+
+  it("sends the chart AIHUB publishes, so the command runs as copied", () => {
+    const sample = task1();
+    const image = sample?.body.find((field) => field.field === "image_url");
+
+    expect(image?.sampleValue).toBe(
+      "https://s3.wispace.app/ielts-task1/ca95bd4ab522946d"
+    );
+    expect(sample?.command).toContain(
+      '"image_url": "https://s3.wispace.app/ielts-task1/ca95bd4ab522946d"'
+    );
+    expect(
+      sample?.body.find((field) => field.field === "question")?.sampleValue
+    ).toMatch(/telephone calls in the UK/);
+  });
+
+  it("says AIHUB's image works and that an unreachable replacement is not an error", () => {
+    const note = task1()?.note ?? "";
+
+    expect(note).not.toMatch(/URL giữ chỗ/);
+    expect(note).toMatch(/biểu đồ mẫu AIHUB công bố/);
+    expect(note).toMatch(/thay bằng ảnh biểu đồ của bạn/);
+    expect(note).toMatch(/không trả lỗi/);
+    expect(note).toMatch(/kết quả sẽ sai/);
+  });
+
+  it("keeps the image note off the Task 2 request", () => {
+    expect(sampleFor(mintedKey(), "writing-task2", false)?.note).not.toMatch(
+      /image_url/
+    );
+  });
+
+  it("shares the dialog's one idempotency key with Task 2", () => {
+    const requests = buildSampleRequests({
+      apiKey: mintedKey(),
+      identityConfigured: false,
+      idempotencyKey,
+    });
+    const keyOf = (kind: string) =>
+      requests
+        .find((request) => request.kind === kind)
+        ?.headers.find((header) => header.name === "Idempotency-Key")?.value;
+
+    expect(keyOf("writing-task1")).toBe(idempotencyKey);
+    expect(keyOf("writing-task1")).toBe(keyOf("writing-task2"));
+  });
+
+  it.each([true, undefined])(
+    "handles identity readiness %s the same way Task 2 does",
+    (identityConfigured) => {
+      const requests = buildSampleRequests({
+        apiKey: mintedKey(),
+        identityConfigured,
+        idempotencyKey,
+      });
+      const identityOf = (kind: string) =>
+        requests
+          .find((request) => request.kind === kind)
+          ?.headers.find((header) => header.name === "X-User-Identity")?.value;
+
+      expect(identityOf("writing-task1")).toBe(identityOf("writing-task2"));
+      expect(identityOf("writing-task1")).toBe(
+        identityConfigured === false ? "test-user-1" : "<user-assertion>"
+      );
+    }
+  );
+
+  it("targets the Sandbox host for a Sandbox key", () => {
+    const sandbox = sampleFor(
+      mintedKey({ allowed_environments: ["sandbox"] }),
+      "writing-task1",
+      false
+    );
+
+    expect(sandbox?.url).toBe(
+      "https://sandbox.aihubproduction.com/v1/ielts/writing/task1/grade"
+    );
+    expect(sandbox?.usageNote).toMatch(/miễn phí/);
+  });
+});
+
+describe("Writing Sample request", () => {
+  it("builds a copyable request from the shared Task 2 example", () => {
+    const apiKey = mintedKey();
+    const sample = sampleFor(apiKey, "writing-task2", false);
+
+    expect(sample).toMatchObject({
+      method: "POST",
+      url: "https://api.aihubproduction.com/v1/ielts/writing/task2/grade",
+      headers: [
+        { name: "X-API-Key", value: "aihub_sk_ABC123…" },
+        { name: "X-User-Identity", value: "test-user-1" },
+        { name: "Content-Type", value: "application/json" },
+        { name: "Idempotency-Key", value: idempotencyKey },
+      ],
+      body: [
+        {
+          field: "question",
+          sampleValue: WRITING_TASK2_REQUEST.question,
+          required: true,
+        },
+        {
+          field: "topic",
+          sampleValue: WRITING_TASK2_REQUEST.topic,
+          required: true,
+        },
+        {
+          field: "essay",
+          sampleValue: WRITING_TASK2_REQUEST.essay,
+          required: true,
+        },
+      ],
+    });
+    expect(sample?.command).toContain(
+      `API_KEY="\${API_KEY:?Chạy export API_KEY=<API key của bạn> trước}"`
+    );
+    expect(sample?.command).toContain(`Idempotency-Key: \${IDEMPOTENCY_KEY}`);
+    expect(sample?.command).toContain(
+      JSON.stringify(WRITING_TASK2_REQUEST, null, 2)
+    );
+  });
+
+  it("tells a rerun replays the stored result", () => {
+    expect(sampleFor(mintedKey(), "writing-task2", false)?.note).toMatch(
+      /phát lại kết quả.*24 giờ/
+    );
+  });
+
+  it("keeps the request details but omits the command without production", () => {
+    const sample = sampleFor(
+      mintedKey({ allowed_environments: ["staging"] }),
+      "writing-task2",
+      false
+    );
+
+    expect(sample?.url).toBe("/v1/ielts/writing/task2/grade");
+    expect(sample?.command).toBeNull();
+  });
+
+  it.each([true, undefined])(
+    "uses a User Assertion placeholder when identity readiness is %s",
+    (identityConfigured) => {
+      const sample = sampleFor(
+        mintedKey(),
+        "writing-task2",
+        identityConfigured
+      );
+
+      expect(sample?.headers[1]).toMatchObject({
+        name: "X-User-Identity",
+        value: "<user-assertion>",
+      });
+      expect(sample?.command).toContain("USER_IDENTITY='<user-assertion>'");
+    }
+  );
+});
+
+describe("Speaking Sample request", () => {
+  it("presents the JSON grading endpoint with a masked key", () => {
+    const sample = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    );
+
+    expect(sample).toMatchObject({
+      method: "POST",
+      url: "https://api.aihubproduction.com/v1/ielts/speaking/grading-json",
+      headers: [
+        { name: "X-API-Key", value: "aihub_sk_ABC123…" },
+        { name: "X-User-Identity", value: "test-user-1" },
+        { name: "Content-Type", value: "application/json" },
+      ],
+    });
+  });
+
+  it("carries no Idempotency-Key and warns that a rerun grades again", () => {
+    const sample = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    );
+
+    expect(
+      sample?.headers.some((header) => header.name === "Idempotency-Key")
+    ).toBe(false);
+    expect(sample?.command).not.toContain("Idempotency-Key");
+    expect(sample?.note).toMatch(/chưa hỗ trợ Idempotency-Key/);
+    expect(sample?.note).toMatch(/chấm.*(lần nữa|lại)/);
+  });
+
+  it("sends the Published sample answer, so every command runs as copied", () => {
+    const sample = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    );
+
+    expect(sample?.body[0]).toMatchObject({
+      field: "audio_url",
+      sampleValue: PUBLISHED_SAMPLE_ANSWER_URL,
+      required: true,
+    });
+    for (const command of [
+      sample?.command,
+      sample?.powershellCommand,
+      sample?.postmanCommand,
+    ]) {
+      expect(command).toContain(
+        `"audio_url": "${PUBLISHED_SAMPLE_ANSWER_URL}"`
+      );
+      // The published copy is unsigned, so it carries no signature query.
+      expect(command).not.toMatch(/"audio_url": "[^"]*\?/);
+      expect(command).toContain('"part": 1');
+      expect(command).toContain(`"question_id": "${REAL_QUESTION_ID}"`);
+      expect(command).toContain(`"prompt_text": "${REAL_PROMPT_TEXT}"`);
+      expect(command).toContain('"test_type": "Practice"');
+      for (const syntax of FILE_UPLOAD_SYNTAX)
+        expect(command).not.toContain(syntax);
+    }
+  });
+
+  it("says the answer is AIHUB's and how to grade your own audio", () => {
+    const note =
+      sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
+        ?.note ?? "";
+
+    expect(note).toMatch(/Published sample answer/);
+    // The multipart endpoint itself, not grading-json, which also starts so.
+    expect(note).toMatch(/POST \/v1\/ielts\/speaking\/grading(?!-json)/);
+    expect(note).toMatch(/audio_url.*s3\.wispace\.app/);
+  });
+
+  it("names a question in AIHUB's catalog and says where the IDs come from", () => {
+    const sample = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    );
+    const question = sample?.body.find(
+      (field) => field.field === "question_id"
+    );
+
+    expect(question).toMatchObject({ sampleValue: REAL_QUESTION_ID });
+    expect(question?.meaning).toMatch(/GET \/v1\/ielts\/speaking\/questions/);
+    expect(question?.meaning).toMatch(/thay bằng/);
+  });
+
+  it("shows the prompt that matches the question it names", () => {
+    const body =
+      sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
+        ?.body ?? [];
+
+    expect(
+      body.find((field) => field.field === "prompt_text")?.sampleValue
+    ).toBe(REAL_PROMPT_TEXT);
+  });
+
+  it("marks the fields the grading contract requires, not the demo's", () => {
+    const body =
+      sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
+        ?.body ?? [];
+
+    expect(body.map((field) => [field.field, field.required])).toEqual([
+      ["audio_url", true],
+      ["part", true],
+      ["question_id", true],
+      ["prompt_text", false],
+      ["test_type", false],
+      ["test_code", false],
+      ["transcript", false],
+    ]);
+  });
+
+  it("documents the fields the sample command does not send", () => {
+    const command = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    )?.command;
+
+    expect(command).not.toContain("test_code");
+    expect(command).not.toContain('"transcript"');
+  });
+
+  it("sends the content type its JSON body needs", () => {
+    const sample = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    );
+
+    expect(sample?.command).toContain(
+      '--header "Content-Type: application/json"'
+    );
+  });
+
+  it("ends both commands without a dangling line continuation", () => {
+    const speaking = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    );
+
+    expect(speaking?.command?.endsWith("\\")).toBe(false);
+    expect(
+      sampleFor(mintedKey(), "writing-task2", false)?.command?.endsWith("\\")
+    ).toBe(false);
+  });
+
+  it("shows the fields a successful response carries", () => {
+    const sample = sampleFor(
+      mintedKey({ scopes: ["speaking.grade"] }),
+      "speaking",
+      false
+    );
+
+    expect(sample?.expectedOutcomeFields).toEqual([
+      "scorability",
+      "estimated_band",
+      "transcript",
+    ]);
+  });
+
+  it("keeps the request details but omits the command without production", () => {
+    const sample = sampleFor(
+      mintedKey({
+        scopes: ["speaking.grade"],
+        allowed_environments: ["staging"],
+      }),
+      "speaking",
+      false
+    );
+
+    expect(sample?.url).toBe("/v1/ielts/speaking/grading-json");
+    expect(sample?.command).toBeNull();
+  });
+
+  it.each([true, undefined])(
+    "uses a User Assertion placeholder when identity readiness is %s",
+    (identityConfigured) => {
+      const sample = sampleFor(
+        mintedKey({ scopes: ["speaking.grade"] }),
+        "speaking",
+        identityConfigured
+      );
+
+      expect(sample?.headers[1]).toMatchObject({
+        name: "X-User-Identity",
+        value: "<user-assertion>",
+      });
+      expect(sample?.command).toContain("USER_IDENTITY='<user-assertion>'");
+    }
+  );
+});
+
+describe("Sandbox Environment", () => {
+  const sandboxKey = mintedKey({ allowed_environments: ["sandbox"] });
+
+  it("marks a Sandbox call free, a production call paid, and no command neither", () => {
+    const billingFor = (environment: string) =>
+      sampleFor(
+        mintedKey({ allowed_environments: [environment] }),
+        "writing-task2",
+        false
+      )?.billing;
+
+    expect(billingFor("sandbox")).toBe("free");
+    expect(billingFor("production")).toBe("paid");
+    expect(billingFor("staging")).toBeNull();
+  });
+
+  it("targets the Sandbox host and keeps a runnable command", () => {
+    const sample = sampleFor(sandboxKey, "writing-task2", false);
+
+    expect(sample?.url).toBe(
+      "https://sandbox.aihubproduction.com/v1/ielts/writing/task2/grade"
+    );
+    expect(sample?.command).toContain(
+      "https://sandbox.aihubproduction.com/v1/ielts/writing/task2/grade"
+    );
+  });
+
+  it("shows only the Writing tab, because a Sandbox key carries only writing.grade", () => {
+    const samples = buildSampleRequests({
+      apiKey: sandboxKey,
+      identityConfigured: false,
+      idempotencyKey,
+    });
+
+    expect(samples.map((sample) => sample.kind)).toEqual([
+      "writing-task1",
+      "writing-task2",
+    ]);
+  });
+
+  it("warns that the call is free, bounded, and counted per Organization", () => {
+    const usageNote =
+      sampleFor(sandboxKey, "writing-task2", false)?.usageNote ?? "";
+
+    expect(usageNote).toMatch(/miễn phí/);
+    expect(usageNote).toMatch(/không tính vào hạn mức trả phí/);
+    expect(usageNote).toMatch(/25 lần chấm mỗi tháng/);
+    expect(usageNote).toMatch(/tính theo Organization, không tính theo key/);
+    expect(usageNote).toMatch(/429 QUOTA_EXCEEDED/);
+    expect(usageNote).toMatch(/00:00 UTC/);
+  });
+
+  it("keeps the paid usage warning for a production key", () => {
+    expect(sampleFor(mintedKey(), "writing-task2", false)?.usageNote).toBe(
+      "Lệnh gửi request thật và tính vào hạn mức sử dụng của Organization."
+    );
+  });
+
+  it("carries no usage warning when no Environment has a public host", () => {
+    expect(
+      sampleFor(
+        mintedKey({ allowed_environments: ["staging"] }),
+        "writing-task2",
+        false
+      )?.usageNote
+    ).toBe("");
+  });
+
+  it("prefers Sandbox when a key allows both tiers, so the first call is free", () => {
+    const sample = sampleFor(
+      mintedKey({ allowed_environments: ["production", "sandbox"] }),
+      "writing-task2",
+      false
+    );
+
+    expect(sample?.url).toBe(
+      "https://sandbox.aihubproduction.com/v1/ielts/writing/task2/grade"
+    );
+  });
+
+  const casesWithoutAPublicHost: [string, string[]][] = [
+    ["an empty list", []],
+    ["an Environment the Console does not name", ["eu-west"]],
+    ["only staging", ["staging"]],
+  ];
+
+  it.each(casesWithoutAPublicHost)(
+    "yields no command and no warning for %s",
+    (_case, allowedEnvironments) => {
+      const sample = sampleFor(
+        mintedKey({ allowed_environments: allowedEnvironments }),
+        "writing-task2",
+        false
+      );
+
+      expect(sample?.command).toBeNull();
+      expect(sample?.usageNote).toBe("");
+    }
+  );
+});
+
+describe("Raw key", () => {
+  it("never appears in a Sample request, even one built from a freshly minted key", () => {
+    const apiKey = mintedKey({ scopes: ["writing.grade", "speaking.grade"] });
+    const samples = buildSampleRequests({
+      apiKey,
+      identityConfigured: false,
+      idempotencyKey,
+    });
+
+    expect(samples.map((sample) => sample.kind)).toEqual([
+      "writing-task1",
+      "writing-task2",
+      "speaking",
+    ]);
+    for (const sample of samples) {
+      expect(JSON.stringify(sample)).not.toContain(apiKey.api_key);
+      expect(sample.command).not.toContain("undefined");
+      expect(sample.command).toContain(
+        `API_KEY="\${API_KEY:?Chạy export API_KEY=<API key của bạn> trước}"`
+      );
+    }
+  });
+});
+
+describe("PowerShell command", () => {
+  const bashOnly = [" \\n", "<<'JSON'", "${"];
+
+  it("sends the same JSON request with curl.exe and reads the key from $env:API_KEY", () => {
+    const apiKey = mintedKey();
+    const sample = sampleFor(apiKey, "writing-task1", false);
+    const command = sample?.powershellCommand ?? "";
+
+    expect(command.startsWith("& {")).toBe(true);
+    expect(command).toContain("  $apiKey = $env:API_KEY");
+    expect(command).toContain(
+      `if (-not $apiKey) { throw 'Chạy $env:API_KEY = "<API key của bạn>" trước' }`
+    );
+    expect(command).toContain("  curl.exe --request POST `");
+    expect(command).toContain(
+      "[IO.File]::WriteAllText($bodyFile, $body, $utf8)"
+    );
+    expect(command).toContain('--data-binary "@$bodyFile"');
+    expect(command).toContain(
+      "'https://api.aihubproduction.com/v1/ielts/writing/task1/grade' `"
+    );
+    expect(command).toContain('--header "X-API-Key: $apiKey" `');
+    // A BOM would reach the server as the first bytes of the JSON body.
+    expect(command).toContain(
+      "$utf8 = New-Object System.Text.UTF8Encoding $false"
+    );
+    expect(command).toContain(`$idempotencyKey = '${idempotencyKey}'`);
+    expect(command).toContain(
+      `$body = @'\n${JSON.stringify(WRITING_TASK1_REQUEST, null, 2)}\n'@`
+    );
+    expect(command).not.toContain(apiKey.api_key);
+    for (const syntax of bashOnly) expect(command).not.toContain(syntax);
+  });
+
+  it("sends Speaking as a JSON body with curl.exe", () => {
+    const command =
+      sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
+        ?.powershellCommand ?? "";
+
+    expect(command).toContain(`"part": 1`);
+    expect(command).toContain("--header 'Content-Type: application/json'");
+    expect(command).toContain('--data-binary "@$bodyFile"');
+    expect(command).not.toContain("Idempotency-Key");
+    for (const syntax of [...bashOnly, ...FILE_UPLOAD_SYNTAX])
+      expect(command).not.toContain(syntax);
+  });
+
+  it("has no command where bash has none", () => {
+    expect(
+      sampleFor(
+        mintedKey({ allowed_environments: ["staging"] }),
+        "writing-task2",
+        false
+      )?.powershellCommand
+    ).toBeNull();
+  });
+});
+
+describe("A raw key the holder supplies", () => {
+  const apiKey = mintedKey({ key_prefix: "aihub_sk_AAAAAA" });
+  const rawKey = apiKey.api_key;
+
+  function withRawKey(kind: SampleRequestKind) {
+    return buildSampleRequests({
+      apiKey,
+      identityConfigured: false,
+      idempotencyKey,
+      rawKey,
+    }).find((request) => request.kind === kind);
+  }
+
+  it("goes inline into both commands, so they run as pasted", () => {
+    const sample = withRawKey("writing-task2");
+
+    expect(sample?.command?.split("\n")[0]).toBe(`API_KEY='${rawKey}'`);
+    expect(sample?.powershellCommand).toContain(`  $apiKey = '${rawKey}'`);
+    expect(sample?.powershellCommand).not.toContain("throw");
+    expect(sample?.powershellCommand).toContain(
+      '--header "X-API-Key: $apiKey" `'
+    );
+  });
+
+  it("stays out of the table, which still shows only the prefix", () => {
+    const header = withRawKey("writing-task2")?.headers.find(
+      (row) => row.name === "X-API-Key"
+    );
+
+    expect(header?.value).toBe("aihub_sk_AAAAAA…");
+  });
+
+  it("is accepted only in the key's own format and with its own prefix", () => {
+    expect(isRawKeyFor(apiKey, rawKey)).toBe(true);
+    expect(isRawKeyFor(apiKey, `  ${rawKey}  `)).toBe(true);
+    expect(isRawKeyFor(apiKey, `aihub_sk_${"B".repeat(43)}`)).toBe(false);
+    expect(isRawKeyFor(apiKey, `${rawKey}'; rm -rf ~ #`)).toBe(false);
+    expect(isRawKeyFor(apiKey, "aihub_sk_AAAAAA")).toBe(false);
+  });
+});
+
+describe("Postman command", () => {
+  const shellOnly = ["${", "<<'JSON'", "$env:", "curl.exe", "API_KEY="];
+
+  it("is a plain curl Postman can import, with {{API_KEY}} for the key", () => {
+    const sample = sampleFor(mintedKey(), "writing-task1", false);
+    const command = sample?.postmanCommand ?? "";
+
+    expect(command.split("\n")[0]).toBe(
+      "curl --request POST 'https://api.aihubproduction.com/v1/ielts/writing/task1/grade' \\"
+    );
+    expect(command).toContain("--header 'X-API-Key: {{API_KEY}}' \\");
+    expect(command).toContain("--header 'X-User-Identity: test-user-1' \\");
+    expect(command).toContain(
+      `--header 'Idempotency-Key: ${idempotencyKey}' \\`
+    );
+    expect(command).toContain(
+      `--data-raw '${JSON.stringify(WRITING_TASK1_REQUEST, null, 2)}'`
+    );
+    for (const syntax of shellOnly) expect(command).not.toContain(syntax);
+  });
+
+  it("inlines a raw key the holder supplies", () => {
+    const apiKey = mintedKey();
+    const command =
+      buildSampleRequests({
+        apiKey,
+        identityConfigured: false,
+        idempotencyKey,
+        rawKey: apiKey.api_key,
+      }).find((request) => request.kind === "writing-task2")?.postmanCommand ??
+      "";
+
+    expect(command).toContain(`--header 'X-API-Key: ${apiKey.api_key}' \\`);
+    expect(command).not.toContain("{{API_KEY}}");
+  });
+
+  it("sends Speaking as a JSON body Postman can import", () => {
+    const command =
+      sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
+        ?.postmanCommand ?? "";
+
+    expect(command).toContain("--data-raw '{");
+    expect(command).toContain("--header 'Content-Type: application/json'");
+    expect(command).not.toContain("Idempotency-Key");
+    for (const syntax of [...shellOnly, ...FILE_UPLOAD_SYNTAX])
+      expect(command).not.toContain(syntax);
+  });
+
+  it("has no command where the shells have none", () => {
+    expect(
+      sampleFor(
+        mintedKey({ allowed_environments: ["staging"] }),
+        "writing-task2",
+        false
+      )?.postmanCommand
+    ).toBeNull();
+  });
+});
+
+describe("Speaking with the holder's own audio file", () => {
+  const upload = () =>
+    sampleFor(mintedKey({ scopes: ["speaking.grade"] }), "speaking", false)
+      ?.upload;
+
+  it("uploads the file to the multipart grading endpoint", () => {
+    expect(upload()?.url).toBe(
+      "https://api.aihubproduction.com/v1/ielts/speaking/grading"
+    );
+    expect(upload()?.body.map((field) => field.field)).toEqual([
+      "audio",
+      "part",
+      "question_id",
+      "prompt_text",
+      "test_type",
+      "test_code",
+      "transcript",
+    ]);
+    expect(upload()?.body[0]).toMatchObject({
+      field: "audio",
+      sampleValue: "./answer.wav",
+    });
+  });
+
+  it("lets curl set the multipart Content-Type", () => {
+    expect(upload()?.headers.map((header) => header.name)).toEqual([
+      "X-API-Key",
+      "X-User-Identity",
+    ]);
+    expect(upload()?.note).toMatch(/Content-Type/);
+    expect(upload()?.note).toMatch(/tính phí thêm/);
+  });
+
+  it("sends the file as a form field in all three commands", () => {
+    const sample = upload();
+
+    expect(sample?.command).toContain("AUDIO_FILE='./answer.wav'");
+    expect(sample?.command).toContain('-F "audio=@${AUDIO_FILE}"');
+    expect(sample?.command).toContain(
+      '-F "question_id=p1_do-you-enjoy-living-in-your-city-or-hometown"'
+    );
+    expect(sample?.powershellCommand).toContain("$audioFile = './answer.wav'");
+    expect(sample?.powershellCommand).toContain('-F "audio=@$audioFile"');
+    expect(sample?.postmanCommand).toContain(`--form 'audio=@"answer.wav"'`);
+    for (const command of [
+      sample?.command,
+      sample?.powershellCommand,
+      sample?.postmanCommand,
+    ]) {
+      expect(command).toContain("/v1/ielts/speaking/grading");
+      expect(command).not.toContain("grading-json");
+      expect(command).not.toContain("Content-Type");
+      expect(command).not.toContain(PUBLISHED_SAMPLE_ANSWER_URL);
+    }
+  });
+
+  it("is offered only for Speaking", () => {
+    expect(
+      sampleFor(mintedKey(), "writing-task2", false)?.upload
+    ).toBeUndefined();
+  });
+
+  it("has no command where there is no public host", () => {
+    expect(
+      sampleFor(
+        mintedKey({
+          scopes: ["speaking.grade"],
+          allowed_environments: ["staging"],
+        }),
+        "speaking",
+        false
+      )?.upload?.command
+    ).toBeNull();
+  });
+});
+
+/**
+ * The shape rule the page and the BFF now share. It moved out of the gateway
+ * so the two answers cannot drift — and the drift that matters runs the
+ * dangerous way: a client that rejects a URL the endpoint accepts refuses a
+ * valid submission, while one that accepts a URL the endpoint rejects spends
+ * the visitor's patience to learn something the page could have said.
+ *
+ * Reachability is deliberately not here. Nothing short of fetching the chart
+ * knows, and that fetch is the endpoint's, and it is silent.
+ */
+describe("isFetchableImageUrl", () => {
+  it("accepts a plain https URL on any host", () => {
+    // Pinning a host would reject every chart served from the caller's own
+    // server, which is the common case.
+    expect(isFetchableImageUrl("https://my-company.example/chart.png")).toBe(
+      true
+    );
+    expect(isFetchableImageUrl(WRITING_TASK1_SAMPLE_IMAGE_URL)).toBe(true);
+  });
+
+  it("rejects what the endpoint's schema rejects", () => {
+    expect(isFetchableImageUrl("")).toBe(false);
+    expect(isFetchableImageUrl("http://s3.wispace.app/chart.png")).toBe(false);
+    expect(isFetchableImageUrl("https://user:pass@s3.wispace.app/c.png")).toBe(
+      false
+    );
+    expect(isFetchableImageUrl("https://s3.wispace.app/a b.png")).toBe(false);
+    expect(isFetchableImageUrl("not a url")).toBe(false);
+    expect(
+      isFetchableImageUrl(`https://example.test/${"a".repeat(2000)}`)
+    ).toBe(false);
+  });
+});

@@ -1,0 +1,14 @@
+# Warn Owners that a Disabled Identity Configuration Means Unsigned End-User IDs
+
+- Status: Accepted
+- Date: 2026-09-26
+- Issue: [#12](https://github.com/AiHub-Ecosystem/AiHub-Frontend/issues/12)
+- Related: [aihub-be ADR-0053](https://github.com/AiHub-Ecosystem/aihub-be/blob/main/docs/adr/0053-optional-user-identity-verification.md), [aihub-be #166](https://github.com/AiHub-Ecosystem/aihub-be/issues/166), [aihub-be #167](https://github.com/AiHub-Ecosystem/aihub-be/issues/167), ADR-0004, ADR-0005, ADR-0007
+
+A user-scoped grading request sends its end user in `X-User-Identity`, which is either a Signed User Assertion or a Declared User ID. The mode follows the saved Identity configuration: an Organization with an active configuration must sign, and an Organization with no configuration — or a `disabled` one — may send any value. A disabled configuration therefore no longer blocks grading; it puts the Organization in Declared User ID mode, where any holder of its API key can name any end user inside it.
+
+The Customer Web must say this, and it has one place to say it from: the identity form, where an owner reads and saves a configuration AIHUB disabled. Because only AIHUB can disable or reactivate a configuration (ADR-0007, aihub-be ADR-0049), the warning is bound to the owner's **save** action and states what is already true — the Organization is in declared mode, and saving cannot restore signed verification. A confirmation precedes every save on a disabled configuration, reusing the `role="alertdialog"` pattern of the API key revoke flow; an owner may open and edit the values, but cannot commit them without seeing the consequence.
+
+The Organization overview and API-key screen show a single readiness string that is correct for an Organization that has never configured identity and for one AIHUB disabled. Those two cases are indistinguishable in the roster, which carries only `identity_configured` and is deliberately not queried for private configuration (ADR-0004), so the shared string names the impersonation risk and recommends signed verification; the configuration-specific wording appears only inside the dialog, where the owner has already loaded the real status.
+
+Graded 2026-09-26. The Customer Web has no owner-initiated way to remove an identity configuration, and none is added here: the warning covers the only disable path that exists, so an owner-initiated removal is a separate decision with its own backend contract. For the same reason this ADR refines rather than replaces ADR-0007 — saving still does not restore signed verification, but it no longer leaves grading blocked. The public API reference documents exercise generation only, so no customer-facing endpoint page names the header; the rename touches the BFF and the readiness notice alone.

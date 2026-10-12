@@ -1,35 +1,83 @@
-# ==========================================
-# AiHub Frontend Multi-stage Dockerfile
-# ==========================================
+# AiHub Frontend Runtime Image
 
-FROM node:20-slim AS builder
+ARG NODE_IMAGE=node:20-slim
+
+# Production dependencies, installed into an empty tree. The build below installs
+# the dev tree into /app and leaves it there; installing over it does not produce
+# a clean result, so the runtime dependencies get a tree that starts empty.
+#
+# npm drops the unscoped dev entry points but leaves the scoped ones behind, so
+# the tree is trimmed to what the lockfile marks as production. That list is
+# derived from the lockfile rather than written out here, so a new dev dependency
+# is picked up automatically instead of needing an edit to this file. The same
+# script produces the expected listing that CI compares the built image against,
+# so the tree and its check cannot drift apart.
+FROM ${NODE_IMAGE} AS deps
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install --legacy-peer-deps --ignore-scripts
+COPY package.json package-lock.json ./
+COPY scripts/prod-dependencies.mjs ./scripts/
 
-COPY . .
+RUN npm ci --omit=dev --ignore-scripts --libc=glibc; \
+    node scripts/prod-dependencies.mjs --prune; \
+    rm -rf /root/.npm
 
-# Next.js build args
+FROM ${NODE_IMAGE} AS builder
+
+WORKDIR /app
+
 ARG NEXT_PUBLIC_API_URL=https://api.aihubproduction.com
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ARG NEXT_BUILD_ID
+ARG SOURCE_DATE_EPOCH
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN npm run build
+# `npm prune --omit=dev` was what this used to do. It removed the dev entry points
+# and left their transitive tree behind, so the image still carried eslint,
+# tailwind, vitest and playwright. Nothing from this stage is copied into the
+# runtime image any more, so the dev tree only costs build time here.
+#
+# The build artefacts are dropped for every build, not only the reproducible ones.
+# The Turbopack cache was previously left in production images, which the server
+# never reads but the VPS still had to download.
+RUN --mount=type=bind,target=/source \
+    --mount=type=secret,id=next_server_actions_key,required=false \
+    --mount=type=secret,id=next_preview_info,required=false \
+    --mount=type=secret,id=next_rsc_info,required=false \
+    set -eu; \
+    cp -a /source/. /app/; \
+    npm ci --ignore-scripts --libc=glibc; \
+    if [ -f /run/secrets/next_preview_info ]; then \
+      mkdir -p .next/cache && cp /run/secrets/next_preview_info .next/cache/.previewinfo; \
+    fi; \
+    if [ -f /run/secrets/next_rsc_info ]; then \
+      mkdir -p .next/cache && cp /run/secrets/next_rsc_info .next/cache/.rscinfo; \
+    fi; \
+    if [ -f /run/secrets/next_server_actions_key ]; then \
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(cat /run/secrets/next_server_actions_key)" npm run build; \
+    else \
+      npm run build; \
+    fi; \
+    rm -rf /app/.next/cache/turbopack /app/.next/cache/.tsbuildinfo /app/.next/trace /app/.next/trace-build /app/.next/next-server.js.nft.json; \
+    mkdir -p /app/.next/cache; \
+    rm -rf /root/.npm
 
-FROM node:20-slim AS runner
+# The server reads the build output, the production dependencies, public/ and the
+# mirrored pages. Everything else in the build tree stays behind.
+FROM ${NODE_IMAGE} AS runtime
 
 WORKDIR /app
 
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/data ./data
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package-lock.json ./package-lock.json
+
+ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV NEXT_TELEMETRY_DISABLED=1
-
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
 
 USER node
 

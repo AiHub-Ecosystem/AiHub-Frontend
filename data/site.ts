@@ -25,7 +25,7 @@ export const navProduct: NavGroup = {
     {
       label: "Interactive Demo",
       description: "Experience AiHub APIs directly in your browser",
-      href: "/demo/exercise-generation",
+      href: "/demo",
     },
     {
       label: "API Reference",

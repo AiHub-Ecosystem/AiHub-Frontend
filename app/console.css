@@ -1,0 +1,440 @@
+/* Pages inside one Organization: a shared header, section tabs, and cards. */
+
+.org-header {
+  margin-top: 8px;
+}
+
+.org-header-card {
+  margin-top: 14px;
+  border: 1px solid var(--aihub-line);
+  border-radius: var(--aihub-radius);
+  background: var(--aihub-card);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 4%);
+}
+
+.org-header-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 24px;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 26px 30px 22px;
+}
+
+.org-header-main {
+  min-width: 0;
+}
+
+.org-header .aihub-eyebrow {
+  margin: 0;
+}
+
+.org-header .aihub-title {
+  margin: 6px 0 12px;
+  font-size: clamp(28px, 3.6vw, 40px);
+  overflow-wrap: anywhere;
+}
+
+.org-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.org-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.org-badge {
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--aihub-badge-muted-bg);
+  color: #344054;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.org-badge--active {
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.org-badge--suspended {
+  background: #fff4ed;
+  color: #b54708;
+}
+
+/* Section tabs: where the caller is inside the Organization */
+
+.org-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 18px;
+  border-top: 1px solid var(--aihub-line);
+}
+
+.org-tab {
+  padding: 13px 12px 11px;
+  border-bottom: 2px solid transparent;
+  color: var(--aihub-body);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.org-tab:hover {
+  color: var(--aihub-ink);
+}
+
+.org-tab[aria-current="page"] {
+  border-bottom-color: var(--aihub-brand);
+  color: var(--aihub-brand);
+}
+
+.org-tab:focus-visible {
+  border-radius: 6px;
+  outline: 3px solid rgb(58 100 250 / 35%);
+}
+
+/* Overview cards */
+
+.org-suspended {
+  margin: 20px 0 0;
+  padding: 12px 16px;
+  border-left: 3px solid #f79009;
+  border-radius: 0 10px 10px 0;
+  background: #fffaeb;
+  color: #7a2e0e;
+}
+
+.org-cards {
+  display: grid;
+  gap: 20px;
+  margin-top: 24px;
+}
+
+@media (min-width: 960px) {
+  .org-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+.org-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+  border: 1px solid var(--aihub-line);
+  border-radius: 14px;
+  background: var(--aihub-card);
+}
+
+.org-card-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.org-card-heading .org-secondary-action {
+  min-height: 34px;
+  padding: 5px 12px;
+  font-size: 14px;
+}
+
+.org-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.org-chip {
+  padding: 2px 9px;
+  border-radius: 6px;
+  background: var(--aihub-badge-muted-bg);
+  color: var(--aihub-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.org-card h2 {
+  margin: 0;
+  color: var(--aihub-ink);
+  font-size: 18px;
+  text-align: left;
+}
+
+.org-card-text {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin: 0;
+  color: var(--aihub-body);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.org-card-muted {
+  color: var(--aihub-soft);
+}
+
+.org-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.org-card-primary {
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 16px;
+  text-decoration: none;
+}
+
+.org-secondary-action {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid #cfd5df;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--aihub-brand);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+}
+
+.org-secondary-action:hover {
+  border-color: var(--aihub-brand);
+}
+
+.org-secondary-action:focus-visible {
+  outline: 3px solid rgb(58 100 250 / 35%);
+  outline-offset: 2px;
+}
+
+.org-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translateY(-1px);
+}
+
+.org-dot--ok {
+  background: #12b76a;
+}
+
+.org-facts {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.org-facts dt {
+  color: var(--aihub-soft);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.org-facts dd {
+  margin: 2px 0 0;
+  color: var(--aihub-ink);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.org-facts code {
+  font-size: 12.5px;
+}
+
+/* The identity reminder, compact: a note, not a second page title */
+
+.org-card .identity-readiness,
+.org-header ~ .identity-readiness {
+  display: block;
+  margin: 0;
+  padding: 12px 14px;
+  border: 0;
+  border-left: 3px solid #f79009;
+  border-radius: 0 10px 10px 0;
+  background: #fffaeb;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.org-header ~ .identity-readiness {
+  margin-top: 20px;
+}
+
+.org-card .identity-readiness p,
+.org-header ~ .identity-readiness p {
+  margin: 4px 0 0;
+  color: #475467;
+}
+
+.org-card .identity-readiness > span,
+.org-header ~ .identity-readiness > span {
+  display: block;
+  margin-top: 6px;
+  color: #7a2e0e;
+  font-weight: 600;
+}
+
+/* Switching Organization from the header */
+
+.org-switcher {
+  position: relative;
+}
+
+.org-switcher > summary {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid #cfd5df;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--aihub-ink);
+  cursor: pointer;
+  font-weight: 650;
+  list-style: none;
+}
+
+.org-switcher > summary::-webkit-details-marker {
+  display: none;
+}
+
+.org-switcher > summary::after {
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentcolor;
+  border-bottom: 2px solid currentcolor;
+  content: "";
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.org-switcher[open] > summary::after {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+.org-switcher > summary:hover {
+  border-color: var(--aihub-brand);
+}
+
+.org-switcher > summary:focus-visible {
+  outline: 3px solid rgb(58 100 250 / 35%);
+  outline-offset: 2px;
+}
+
+.org-switcher-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(300px, calc(100vw - 32px));
+  padding: 6px;
+  border: 1px solid var(--aihub-line);
+  border-radius: 12px;
+  background: var(--aihub-card);
+  box-shadow: 0 12px 32px rgb(16 24 40 / 14%);
+}
+
+/* The site theme styles every nav > ul as its main menu; undo that here. */
+.org-switcher-menu > ul {
+  display: grid;
+  max-width: none;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.org-switcher-menu > ul > li {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.org-switcher-menu a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  color: var(--aihub-ink);
+  text-decoration: none;
+}
+
+.org-switcher-menu a:hover,
+.org-switcher-menu a:focus-visible {
+  background: #f2f4f7;
+  outline: none;
+}
+
+.org-switcher-menu a[aria-current="page"] {
+  color: var(--aihub-brand);
+  font-weight: 700;
+}
+
+/* The theme draws decorations on nav links; this menu has none. */
+.org-switcher-menu a::before,
+.org-switcher-menu a::after,
+.org-switcher-menu li::before,
+.org-switcher-menu li::after {
+  content: none;
+  display: none;
+}
+
+.org-switcher-check {
+  flex: none;
+}
+
+.org-switcher-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.org-switcher-note {
+  flex: none;
+  color: var(--aihub-soft);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.org-switcher-menu .org-switcher-all {
+  margin-top: 4px;
+  border-top: 1px solid var(--aihub-line);
+  border-radius: 0 0 8px 8px;
+  color: var(--aihub-brand);
+  font-weight: 650;
+}
+
+@media (max-width: 640px) {
+  /* The button sits at the left on a phone, so the menu opens rightwards. */
+  .org-switcher-menu {
+    right: auto;
+    left: 0;
+  }
+
+  .org-header-top {
+    padding: 20px 18px 16px;
+  }
+
+  .org-tabs {
+    padding: 0 8px;
+  }
+
+  .org-card {
+    padding: 18px;
+  }
+}

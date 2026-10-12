@@ -46,8 +46,8 @@ export default async function Page({ params }: Props) {
             <Link className="aihub-card" href="/demo">
               <h3 className="aihub-card-name">Chạy thử</h3>
               <p className="aihub-card-desc">
-                Thao tác từng bước trên trình duyệt và xem đúng những lệnh gọi mà backend
-                thực hiện.
+                Thao tác từng bước trên trình duyệt và xem đúng những lệnh gọi
+                mà backend thực hiện.
               </p>
               <span className="aihub-cta">Mở demo ›</span>
             </Link>
@@ -68,6 +68,12 @@ export default async function Page({ params }: Props) {
               <p className="aihub-category-desc">{docs.overview.summary}</p>
             </div>
             <ul className="aihub-facts">
+              <li>
+                <span className="aihub-facts-label">Base URL</span>
+                <span className="aihub-facts-value">
+                  {docs.overview.baseUrl}
+                </span>
+              </li>
               {docs.overview.facts.map((fact) => (
                 <li key={fact.label}>
                   <span className="aihub-facts-label">{fact.label}</span>
@@ -83,8 +89,8 @@ export default async function Page({ params }: Props) {
             <div className="aihub-category-head">
               <h2 className="aihub-category-name">2. Các bước tích hợp</h2>
               <p className="aihub-category-desc">
-                Luồng tích hợp {product.name.toLowerCase()} vào hệ thống của bạn, từ chọn tiêu
-                chí đến duyệt kết quả.
+                Luồng tích hợp {product.name.toLowerCase()} vào hệ thống của
+                bạn, theo từng bước dưới đây.
               </p>
             </div>
             <ol className="aihub-steps">
@@ -126,7 +132,11 @@ export default async function Page({ params }: Props) {
             return hasDetail ? (
               <Link
                 className="aihub-endpoint"
-                style={{ display: "block", textDecoration: "none", color: "inherit" }}
+                style={{
+                  display: "block",
+                  textDecoration: "none",
+                  color: "inherit",
+                }}
                 key={endpoint.slug}
                 href={`/product/${slug}/api/${endpoint.slug}`}
               >

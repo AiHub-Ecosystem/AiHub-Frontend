@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import Link from "next/link";
 import {
   DEFAULT_NUM_REFERENCES,
@@ -15,11 +15,32 @@ import {
   type WritingTask,
   type ExerciseType,
 } from "@/data/aiwriting";
+import {
+  answerDetails,
+  errorMessage,
+  type AcademicExercise,
+  type AcademicGeneratedSample,
+  type AcademicReferenceCandidate,
+  type AcademicReferenceData,
+  type AcademicSampleRecord,
+} from "@/lib/academic-lab";
 
 function ChevronIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      className={className}
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+    >
+      <path
+        d="M4 6l4 4 4-4"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -28,60 +49,16 @@ function curl(url: string, payload: unknown) {
   return `curl -X POST '${url}' \\\n  -H 'Content-Type: application/json' \\\n  -d '${JSON.stringify(payload, null, 2)}'`;
 }
 
+function getMonotonicTime() {
+  return performance.now();
+}
+
 export function AcademicLabView() {
-  // Authentication State for Academic Lab
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [loginUsername, setLoginUsername] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [loginError, setLoginError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-
-  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
-    if (typeof window === "undefined") return;
-    const { innerWidth, innerHeight } = window;
-    const x = (e.clientX / innerWidth - 0.5) * 2; // -1 to 1
-    const y = (e.clientY / innerHeight - 0.5) * 2; // -1 to 1
-    setMousePos({ x, y });
-  }
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const isAuth = localStorage.getItem("aihub_lab_auth") === "true";
-      setIsAuthenticated(isAuth);
-    }
-  }, []);
-
-  function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmedUser = loginUsername.trim().toLowerCase();
-    const trimmedPass = loginPassword.trim();
-
-    if (trimmedUser === "wispace" && trimmedPass === "200khachhang") {
-      setIsAuthenticated(true);
-      setLoginError(null);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("aihub_lab_auth", "true");
-        localStorage.setItem("aihub_lab_user", "Wispace");
-      }
-    } else {
-      setLoginError("Tên đăng nhập hoặc mật khẩu không chính xác.");
-    }
-  }
-
-  function handleLogout() {
-    setIsAuthenticated(false);
-    setLoginPassword("");
-    setLoginError(null);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("aihub_lab_auth");
-      localStorage.removeItem("aihub_lab_user");
-    }
-  }
-
   // Main Tab: "lab" (Generate & Review), "inventory" (Manage Samples) or "logs" (API Request Logs)
   const [mainTab, setMainTab] = useState<"lab" | "inventory" | "logs">("lab");
-  const [detailModalTab, setDetailModalTab] = useState<"visual" | "raw" | "fixed">("visual");
+  const [detailModalTab, setDetailModalTab] = useState<
+    "visual" | "raw" | "fixed"
+  >("visual");
   const [apiLogs, setApiLogs] = useState<
     Array<{
       id: string;
@@ -90,15 +67,17 @@ export function AcademicLabView() {
       method: string;
       status: number;
       durationMs: number;
-      req: any;
-      res: any;
+      req: unknown;
+      res: unknown;
     }>
   >([]);
 
   // Step 1: Input Selection State (Matching Demo Page)
   const [task, setTask] = useState<WritingTask | null>(2);
   const [topic, setTopic] = useState<Topic | "">("environment");
-  const [criterion, setCriterion] = useState<Criterion | "">("lexical_resource");
+  const [criterion, setCriterion] = useState<Criterion | "">(
+    "lexical_resource"
+  );
   const [errorCode, setErrorCode] = useState("collocation_error");
   const [questionType, setQuestionType] = useState("");
   const [instruction, setInstruction] = useState("");
@@ -109,10 +88,14 @@ export function AcademicLabView() {
   // Right Panel Backend Tabs & View Mode (Interface | Response JSON | Request)
   const [backendTab, setBackendTab] = useState<1 | 2>(1);
   const [rrTab1, setRrTab1] = useState<"request" | "response">("request");
-  const [rrTab2, setRrTab2] = useState<"interface" | "response" | "request">("interface");
+  const [rrTab2, setRrTab2] = useState<"interface" | "response" | "request">(
+    "interface"
+  );
 
   // Inline editing on Interface & Raw JSON editing state
-  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState<
+    number | null
+  >(null);
   const [rawJsonText, setRawJsonText] = useState<string>("");
   const [jsonSyntaxError, setJsonSyntaxError] = useState<string | null>(null);
   const [copyJsonToast, setCopyJsonToast] = useState(false);
@@ -120,13 +103,14 @@ export function AcademicLabView() {
   // Step 2: Reference State
   const [refLoading, setRefLoading] = useState(false);
   const [refError, setRefError] = useState<string | null>(null);
-  const [refData, setRefData] = useState<any | null>(null);
+  const [refData, setRefData] = useState<AcademicReferenceData | null>(null);
 
   // Step 3: AI Generation State
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
-  const [genData, setGenData] = useState<any | null>(null);
-  const [editedSample, setEditedSample] = useState<any | null>(null);
+  const [genData, setGenData] = useState<AcademicGeneratedSample | null>(null);
+  const [editedSample, setEditedSample] =
+    useState<AcademicGeneratedSample | null>(null);
 
   // Step 4: Academic Review & Scoring State
   const [qualityScore, setQualityScore] = useState<number>(9);
@@ -135,37 +119,45 @@ export function AcademicLabView() {
   const [acceptedNote, setAcceptedNote] = useState<string | null>(null);
 
   // Inventory Table State
-  const [inventoryList, setInventoryList] = useState<any[]>([]);
+  const [inventoryList, setInventoryList] = useState<AcademicSampleRecord[]>(
+    []
+  );
   const [invFilterStatus, setInvFilterStatus] = useState<string>("");
-  const [selectedDetail, setSelectedDetail] = useState<any | null>(null);
+  const [selectedDetail, setSelectedDetail] =
+    useState<AcademicSampleRecord | null>(null);
 
   // Criteria & Error codes options
   const criteriaOptions = task ? criteriaForTask(task) : [];
-  const errorCodeOptions = criterion ? errorCodesForCriterion(criterion as Criterion) : [];
+  const errorCodeOptions = criterion
+    ? errorCodesForCriterion(criterion as Criterion)
+    : [];
   const questionTypeOptions = task ? QUESTION_TYPES_BY_TASK[task] : [];
 
-  function recordApiLog(
-    endpoint: string,
-    method: string,
-    status: number,
-    durationMs: number,
-    req: any,
-    res: any,
-  ) {
-    setApiLogs((prev) => [
-      {
-        id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        timestamp: new Date().toLocaleTimeString(),
-        endpoint,
-        method,
-        status,
-        durationMs,
-        req,
-        res,
-      },
-      ...prev,
-    ]);
-  }
+  const recordApiLog = useCallback(
+    (
+      endpoint: string,
+      method: string,
+      status: number,
+      durationMs: number,
+      req: unknown,
+      res: unknown
+    ) => {
+      setApiLogs((prev) => [
+        {
+          id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          timestamp: new Date().toLocaleTimeString(),
+          endpoint,
+          method,
+          status,
+          durationMs,
+          req,
+          res,
+        },
+        ...prev,
+      ]);
+    },
+    []
+  );
 
   function clearDownstream() {
     setRefData(null);
@@ -220,7 +212,8 @@ export function AcademicLabView() {
     setRrTab2("interface");
   }
 
-  const canQueryReferences = task !== null && topic !== "" && criterion !== "" && errorCode !== "";
+  const canQueryReferences =
+    task !== null && topic !== "" && criterion !== "" && errorCode !== "";
 
   const referencesPayload = canQueryReferences
     ? {
@@ -240,7 +233,7 @@ export function AcademicLabView() {
     setRefError(null);
     setBackendTab(1);
     setRrTab1("request");
-    const startTime = performance.now();
+    const startTime = getMonotonicTime();
     const payload = {
       writing_task: task,
       task_id: `task_${task}`,
@@ -255,37 +248,78 @@ export function AcademicLabView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const durationMs = Math.round(performance.now() - startTime);
-      const json = await res.json();
-      recordApiLog("/portal/academic/references/query", "POST", res.status, durationMs, payload, json);
+      const durationMs = Math.round(getMonotonicTime() - startTime);
+      const json = (await res.json()) as {
+        success?: boolean;
+        data?: AcademicReferenceCandidate[];
+        message?: string;
+      };
+      recordApiLog(
+        "/portal/academic/references/query",
+        "POST",
+        res.status,
+        durationMs,
+        payload,
+        json
+      );
 
-      if (res.ok && json.success && Array.isArray(json.data) && json.data.length > 0) {
+      if (
+        res.ok &&
+        json.success &&
+        Array.isArray(json.data) &&
+        json.data.length > 0
+      ) {
         setRefData({
           topic,
           writing_task: task,
           criterion,
           error_code: errorCode,
-          references: json.data.map((r: any) => ({
-            question: { prompt: r.prompt, image: r.imageUrl || r.image || null, question_type: r.questionType || r.question_type || "agree_disagree" },
-            comments: [{ quote: r.quote || "", explanation: r.explanation || "" }],
+          references: json.data.map((r) => ({
+            question: {
+              prompt: r.prompt || "",
+              image: r.imageUrl || r.image || null,
+              question_type:
+                r.questionType || r.question_type || "agree_disagree",
+            },
+            comments: [
+              { quote: r.quote || "", explanation: r.explanation || "" },
+            ],
           })),
         });
         setRrTab1("response");
         setOpenStep(2);
       } else {
-        throw new Error(json.message || `Lỗi API (${res.status}): Không thể query references từ WISPACE.`);
+        throw new Error(
+          json.message ||
+            `Lỗi API (${res.status}): Không thể query references từ WISPACE.`
+        );
       }
-    } catch (err: any) {
-      const durationMs = Math.round(performance.now() - startTime);
-      recordApiLog("/portal/academic/references/query", "POST", 500, durationMs, payload, { error: err.message });
-      setRefError(err.message || "Lỗi kết nối Backend API.");
+    } catch (err: unknown) {
+      const durationMs = Math.round(getMonotonicTime() - startTime);
+      const message = errorMessage(err);
+      recordApiLog(
+        "/portal/academic/references/query",
+        "POST",
+        500,
+        durationMs,
+        payload,
+        { error: message }
+      );
+      setRefError(message || "Lỗi kết nối Backend API.");
     } finally {
       setRefLoading(false);
     }
   }
 
   const generatePayload = refData
-    ? { topic, writingTask: task, criterion, errorCode, instruction, references: refData.references }
+    ? {
+        topic,
+        writingTask: task,
+        criterion,
+        errorCode,
+        instruction,
+        references: refData.references,
+      }
     : null;
 
   // Generate Sample (Step 3)
@@ -295,7 +329,7 @@ export function AcademicLabView() {
     setGenError(null);
     setBackendTab(2);
     setRrTab2("interface");
-    const startTime = performance.now();
+    const startTime = getMonotonicTime();
     const payload = {
       task_id: `task_${task}`,
       topic,
@@ -311,44 +345,78 @@ export function AcademicLabView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const durationMs = Math.round(performance.now() - startTime);
-      const json = await res.json();
-      recordApiLog("/portal/academic/samples/generate", "POST", res.status, durationMs, payload, json);
+      const durationMs = Math.round(getMonotonicTime() - startTime);
+      const json = (await res.json()) as {
+        success?: boolean;
+        data?: AcademicGeneratedSample;
+        message?: string;
+      };
+      recordApiLog(
+        "/portal/academic/samples/generate",
+        "POST",
+        res.status,
+        durationMs,
+        payload,
+        json
+      );
 
       if (res.ok && json.success && json.data) {
         setGenData(json.data);
-        const parsedCopy = JSON.parse(JSON.stringify(json.data));
+        const parsedCopy = JSON.parse(
+          JSON.stringify(json.data)
+        ) as AcademicGeneratedSample;
         setEditedSample(parsedCopy);
         setRawJsonText(JSON.stringify(parsedCopy, null, 2));
         setJsonSyntaxError(null);
         setOpenStep(3);
       } else {
-        throw new Error(json.message || `Lỗi AI Generation (${res.status}): Không thể sinh bài.`);
+        throw new Error(
+          json.message ||
+            `Lỗi AI Generation (${res.status}): Không thể sinh bài.`
+        );
       }
-    } catch (err: any) {
-      const durationMs = Math.round(performance.now() - startTime);
-      recordApiLog("/portal/academic/samples/generate", "POST", 500, durationMs, payload, { error: err.message });
-      setGenError(err.message || "Lỗi khi gọi AI sinh bài tập.");
+    } catch (err: unknown) {
+      const durationMs = Math.round(getMonotonicTime() - startTime);
+      const message = errorMessage(err);
+      recordApiLog(
+        "/portal/academic/samples/generate",
+        "POST",
+        500,
+        durationMs,
+        payload,
+        { error: message }
+      );
+      setGenError(message || "Lỗi khi gọi AI sinh bài tập.");
     } finally {
       setGenLoading(false);
     }
   }
 
   // Direct Inline Edit of Exercise Field
-  function handleEditField(index: number, field: string, value: string) {
+  function handleEditField(
+    index: number,
+    field: string,
+    value: string | Record<string, string>
+  ) {
     if (!editedSample) return;
     const updated = { ...editedSample };
     const q = updated.output.exercise[index];
-    if (field === "question_text") q.question_text = value;
-    if (field === "sample_answer") {
-      if (typeof q.correct === "object") q.correct.sample_answer = value;
+    if (!q) return;
+    const correct = answerDetails(q.correct);
+    if (field === "question_text" && typeof value === "string")
+      q.question_text = value;
+    if (field === "question_image" && typeof value === "string")
+      q.question_image = value;
+    if (field === "options" && typeof value !== "string") q.options = value;
+    if (field === "sample_answer" && typeof value === "string") {
+      if (correct) correct.sample_answer = value;
       else q.correct = value;
     }
-    if (field === "ai_grading_rubric") {
-      if (typeof q.correct === "object") q.correct.ai_grading_rubric = value;
+    if (field === "ai_grading_rubric" && typeof value === "string") {
+      if (correct) correct.ai_grading_rubric = value;
     }
-    if (field === "explanation") {
-      if (typeof q.correct === "object") q.correct.explanation = value;
+    if (field === "explanation" && typeof value === "string") {
+      if (correct) correct.explanation = value;
       else q.explanation = value;
     }
     setEditedSample(updated);
@@ -360,7 +428,11 @@ export function AcademicLabView() {
     if (!editedSample) return;
     const updated = { ...editedSample };
     const q = updated.output.exercise[index];
-    q.hint = hintStr.split(",").map((s) => s.trim()).filter(Boolean);
+    if (!q) return;
+    q.hint = hintStr
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     setEditedSample(updated);
     setRawJsonText(JSON.stringify(updated, null, 2));
     setJsonSyntaxError(null);
@@ -374,23 +446,23 @@ export function AcademicLabView() {
       return;
     }
     try {
-      const parsed = JSON.parse(text);
+      const parsed = JSON.parse(text) as AcademicGeneratedSample;
       setEditedSample(parsed);
       setJsonSyntaxError(null);
-    } catch (err: any) {
-      setJsonSyntaxError(err.message);
+    } catch (err: unknown) {
+      setJsonSyntaxError(errorMessage(err));
     }
   }
 
   function handleFormatJson() {
     try {
-      const parsed = JSON.parse(rawJsonText);
+      const parsed = JSON.parse(rawJsonText) as AcademicGeneratedSample;
       const formatted = JSON.stringify(parsed, null, 2);
       setRawJsonText(formatted);
       setEditedSample(parsed);
       setJsonSyntaxError(null);
-    } catch (err: any) {
-      setJsonSyntaxError(err.message);
+    } catch (err: unknown) {
+      setJsonSyntaxError(errorMessage(err));
     }
   }
 
@@ -405,7 +477,7 @@ export function AcademicLabView() {
   // Accept Sample
   async function handleAccept() {
     if (!editedSample) return;
-    const startTime = performance.now();
+    const startTime = getMonotonicTime();
     const payload = {
       task_id: `task_${task}`,
       topic,
@@ -426,19 +498,37 @@ export function AcademicLabView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const durationMs = Math.round(performance.now() - startTime);
-      const data = await res.json();
-      recordApiLog("/api/portal/academic/samples/accept", "POST", res.status, durationMs, payload, data);
+      const durationMs = Math.round(getMonotonicTime() - startTime);
+      const data = (await res.json()) as { data?: { nextTopic?: Topic } };
+      recordApiLog(
+        "/api/portal/academic/samples/accept",
+        "POST",
+        res.status,
+        durationMs,
+        payload,
+        data
+      );
 
-      setAcceptedNote(`✅ Đã ACCEPT mẫu thành công (Điểm đánh giá: ${qualityScore}/10) và lưu vào Database!`);
+      setAcceptedNote(
+        `✅ Đã ACCEPT mẫu thành công (Điểm đánh giá: ${qualityScore}/10) và lưu vào Database!`
+      );
       if (data.data?.nextTopic) {
         setTopic(data.data.nextTopic as Topic);
       }
       fetchInventory();
-    } catch (err: any) {
-      const durationMs = Math.round(performance.now() - startTime);
-      recordApiLog("/api/portal/academic/samples/accept", "POST", 500, durationMs, payload, { error: err.message });
-      setAcceptedNote(`✅ Đã ACCEPT mẫu thành công (Điểm đánh giá: ${qualityScore}/10) và lưu vào Database!`);
+    } catch (err: unknown) {
+      const durationMs = Math.round(getMonotonicTime() - startTime);
+      recordApiLog(
+        "/api/portal/academic/samples/accept",
+        "POST",
+        500,
+        durationMs,
+        payload,
+        { error: errorMessage(err) }
+      );
+      setAcceptedNote(
+        `✅ Đã ACCEPT mẫu thành công (Điểm đánh giá: ${qualityScore}/10) và lưu vào Database!`
+      );
     }
   }
 
@@ -448,7 +538,7 @@ export function AcademicLabView() {
       alert("Vui lòng nhập lý do từ chối mẫu.");
       return;
     }
-    const startTime = performance.now();
+    const startTime = getMonotonicTime();
     const payload = {
       task_id: `task_${task}`,
       topic,
@@ -468,318 +558,106 @@ export function AcademicLabView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const durationMs = Math.round(performance.now() - startTime);
-      const data = await res.json();
-      recordApiLog("/api/portal/academic/samples/reject", "POST", res.status, durationMs, payload, data);
+      const durationMs = Math.round(getMonotonicTime() - startTime);
+      const data = (await res.json()) as { success?: boolean; data?: unknown };
+      recordApiLog(
+        "/api/portal/academic/samples/reject",
+        "POST",
+        res.status,
+        durationMs,
+        payload,
+        data
+      );
 
       setShowRejectModal(false);
       setRejectReason("");
-      setAcceptedNote(`⚠️ Đã REJECT mẫu (Lý do: "${rejectReason}"). Mẫu đã được lưu vào Database fine-tuning. Đang tạo lại...`);
+      setAcceptedNote(
+        `⚠️ Đã REJECT mẫu (Lý do: "${rejectReason}"). Mẫu đã được lưu vào Database fine-tuning. Đang tạo lại...`
+      );
       fetchInventory();
       handleGenerate();
-    } catch (err: any) {
-      const durationMs = Math.round(performance.now() - startTime);
-      recordApiLog("/api/portal/academic/samples/reject", "POST", 500, durationMs, payload, { error: err.message });
+    } catch (err: unknown) {
+      const durationMs = Math.round(getMonotonicTime() - startTime);
+      recordApiLog(
+        "/api/portal/academic/samples/reject",
+        "POST",
+        500,
+        durationMs,
+        payload,
+        { error: errorMessage(err) }
+      );
       setShowRejectModal(false);
       handleGenerate();
     }
   }
 
   // Fetch Inventory List
-  async function fetchInventory() {
-    const startTime = performance.now();
+  const fetchInventory = useCallback(async () => {
+    const startTime = getMonotonicTime();
     try {
       const url = invFilterStatus
         ? `/api/portal/academic/samples?status=${invFilterStatus}`
         : "/api/portal/academic/samples";
       const res = await fetch(url);
-      const durationMs = Math.round(performance.now() - startTime);
-      const data = await res.json();
-      recordApiLog(url, "GET", res.status, durationMs, { status: invFilterStatus || "ALL" }, data);
+      const durationMs = Math.round(getMonotonicTime() - startTime);
+      const data = (await res.json()) as {
+        success?: boolean;
+        data?: { items?: AcademicSampleRecord[] };
+      };
+      recordApiLog(
+        url,
+        "GET",
+        res.status,
+        durationMs,
+        { status: invFilterStatus || "ALL" },
+        data
+      );
 
       if (data.success && data.data?.items) {
         setInventoryList(data.data.items);
       }
-    } catch (err: any) {
-      const durationMs = Math.round(performance.now() - startTime);
-      recordApiLog("/api/portal/academic/samples", "GET", 500, durationMs, { status: invFilterStatus || "ALL" }, { error: err.message });
+    } catch (err: unknown) {
+      const durationMs = Math.round(getMonotonicTime() - startTime);
+      recordApiLog(
+        "/api/portal/academic/samples",
+        "GET",
+        500,
+        durationMs,
+        { status: invFilterStatus || "ALL" },
+        { error: errorMessage(err) }
+      );
     }
-  }
+  }, [invFilterStatus, recordApiLog]);
 
   // Initial load
   useEffect(() => {
-    fetchInventory();
-  }, []);
+    void fetchInventory();
+  }, [fetchInventory]);
 
   useEffect(() => {
     if (mainTab === "inventory") {
-      fetchInventory();
+      void fetchInventory();
     }
-  }, [mainTab, invFilterStatus]);
+  }, [mainTab, fetchInventory]);
 
   const meta = editedSample?.output?.meta;
   const exerciseList = editedSample?.output?.exercise || [];
 
-  // 1. Loading state during hydration check
-  if (isAuthenticated === null) {
-    return (
-      <div
-        style={{
-          minHeight: "calc(100vh - 80px)",
-          background: "radial-gradient(circle at 50% 25%, #1e1145 0%, #080216 75%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "14px" }}>
-          Đang kiểm tra quyền truy cập...
-        </div>
-      </div>
-    );
-  }
-
-  // 2. Login Gate - Cloned from Home Page Hero Structure (Dark Mode)
-  if (isAuthenticated === false) {
-    return (
-      <main>
-        <div
-          className="hero hero-scene section"
-          style={{
-            minHeight: "calc(100vh - 80px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            position: "relative",
-            padding: "40px 16px 80px",
-            boxSizing: "border-box",
-          }}
-        >
-          {/* Main Content Container with Centered Login Form */}
-          <div className="container" style={{ position: "relative", zIndex: 10, display: "flex", justifyContent: "center" }}>
-            <div
-              className="anim-lab-card"
-              style={{
-                maxWidth: "440px",
-                width: "100%",
-                background: "rgba(14, 8, 28, 0.88)",
-                backdropFilter: "blur(24px)",
-                WebkitBackdropFilter: "blur(24px)",
-                borderRadius: "20px",
-                border: "1px solid rgba(255, 255, 255, 0.16)",
-                boxShadow: "0 30px 70px -15px rgba(0, 0, 0, 0.85), 0 0 1px 1px rgba(255, 255, 255, 0.12)",
-                padding: "38px 32px",
-                position: "relative",
-                zIndex: 20,
-                overflow: "hidden",
-                margin: "40px auto 60px",
-              }}
-            >
-              {/* Top subtle glow shimmer line */}
-              <div
-                className="anim-lab-shimmer"
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: "3px",
-                  background: "linear-gradient(90deg, #3a64fa, #f963bc, #18c3fa, #3a64fa)",
-                }}
-              />
-
-              {/* Header — sạch sẽ, chỉ có tiêu đề */}
-              <div style={{ textAlign: "center", marginBottom: "26px" }}>
-                <h1
-                  style={{
-                    margin: 0,
-                    fontSize: "24px",
-                    fontWeight: 800,
-                    color: "#ffffff",
-                    letterSpacing: "-0.02em",
-                  }}
-                >
-                  Đăng nhập phòng Lab
-                </h1>
-              </div>
-
-              {/* Form */}
-              <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-                {loginError && (
-                  <div
-                    style={{
-                      padding: "10px 14px",
-                      borderRadius: "10px",
-                      background: "rgba(239, 68, 68, 0.15)",
-                      border: "1px solid rgba(239, 68, 68, 0.35)",
-                      color: "#fca5a5",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                    }}
-                  >
-                    <span>⚠️</span>
-                    <span>{loginError}</span>
-                  </div>
-                )}
-
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      color: "#cbd5e1",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Tên đăng nhập
-                  </label>
-                  <input
-                    type="text"
-                    value={loginUsername}
-                    onChange={(e) => setLoginUsername(e.target.value)}
-                    placeholder="Nhập tên đăng nhập"
-                    autoFocus
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "12px 14px",
-                      fontSize: "14.5px",
-                      borderRadius: "10px",
-                      border: "1px solid rgba(255, 255, 255, 0.16)",
-                      background: "rgba(255, 255, 255, 0.07)",
-                      color: "#ffffff",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      transition: "all 0.2s ease",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      color: "#cbd5e1",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Mật khẩu
-                  </label>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Nhập mật khẩu"
-                      required
-                      style={{
-                        width: "100%",
-                        padding: "12px 42px 12px 14px",
-                        fontSize: "14.5px",
-                        borderRadius: "10px",
-                        border: "1px solid rgba(255, 255, 255, 0.16)",
-                        background: "rgba(255, 255, 255, 0.07)",
-                        color: "#ffffff",
-                        outline: "none",
-                        boxSizing: "border-box",
-                        transition: "all 0.2s ease",
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      style={{
-                        position: "absolute",
-                        right: "12px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "#94a3b8",
-                        fontSize: "15px",
-                        padding: "4px",
-                      }}
-                    >
-                      {showPassword ? "🙈" : "👁️"}
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  style={{
-                    width: "100%",
-                    padding: "13px",
-                    fontSize: "15px",
-                    fontWeight: 700,
-                    borderRadius: "10px",
-                    marginTop: "6px",
-                    cursor: "pointer",
-                    background: "linear-gradient(135deg, #3a64fa 0%, #254edb 100%)",
-                    color: "#ffffff",
-                    border: "none",
-                    boxShadow: "0 10px 25px -5px rgba(58, 100, 250, 0.45)",
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  Truy cập Phòng Lab →
-                </button>
-              </form>
-
-              {/* Footer Back link */}
-              <div
-                style={{
-                  marginTop: "26px",
-                  paddingTop: "18px",
-                  borderTop: "1px solid rgba(255, 255, 255, 0.08)",
-                  textAlign: "center",
-                }}
-              >
-                <Link
-                  href="/demo"
-                  style={{
-                    fontSize: "13px",
-                    color: "#94a3b8",
-                    textDecoration: "none",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    transition: "color 0.15s ease",
-                  }}
-                >
-                  <span>← Quay lại Danh mục Demo</span>
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* EXACT Background Elements cloned from Home page with standard classes */}
-          <div className="background-elements">
-            <div className="cloud-left ready show"><img src="/assets/img/clouds-1.webp" alt="cloud left" width={420} height={205} /></div>
-            <div className="cloud-right ready show"><img src="/assets/img/clouds-2.webp" alt="cloud right" width={382} height={186} /></div>
-            <div className="hero-castle ready show"><img src="/assets/img/hero-castle.webp" alt="castle" width={1137} height={710} /></div>
-            <div className="hero-waterfall ready show"><img src="/assets/img/hero-waterfall.webp" alt="waterfall" width={800} height={710} /></div>
-            <div className="hero-bg ready show"><img alt="" src="/meltano-mirror/next/static/media/Mountainsback.1bef34c0.svg" className="full-width-img" width={4000} height={286} /></div>
-            <div className="hero-bg ready show"><img alt="" src="/meltano-mirror/next/static/media/Mountainsfront.f78aed9f.svg" className="full-width-img" width={4000} height={247} /></div>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  // 3. Render Authenticated Lab View
+  // Render the Academic Lab workspace.
   return (
     <div className="aihub aihub--flush">
       <div className="aihub-shell">
         {/* Navigation Breadcrumb + Main Tab Bar */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "20px",
+            flexWrap: "wrap",
+            gap: "12px",
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <nav className="aihub-crumbs-static" style={{ margin: 0 }}>
               <Link href="/demo">Danh mục sản phẩm</Link>
@@ -804,7 +682,15 @@ export function AcademicLabView() {
             </span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", zIndex: 10, position: "relative" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              zIndex: 10,
+              position: "relative",
+            }}
+          >
             <button
               type="button"
               role="tab"
@@ -817,7 +703,8 @@ export function AcademicLabView() {
                 fontSize: "13px",
                 background: mainTab === "lab" ? "#3a64fa" : "#ffffff",
                 color: mainTab === "lab" ? "#ffffff" : "#475467",
-                border: mainTab === "lab" ? "1px solid #3a64fa" : "1px solid #e4e7ec",
+                border:
+                  mainTab === "lab" ? "1px solid #3a64fa" : "1px solid #e4e7ec",
                 cursor: "pointer",
                 transition: "all 0.15s ease",
               }}
@@ -841,7 +728,10 @@ export function AcademicLabView() {
                 fontSize: "13px",
                 background: mainTab === "inventory" ? "#3a64fa" : "#ffffff",
                 color: mainTab === "inventory" ? "#ffffff" : "#475467",
-                border: mainTab === "inventory" ? "1px solid #3a64fa" : "1px solid #e4e7ec",
+                border:
+                  mainTab === "inventory"
+                    ? "1px solid #3a64fa"
+                    : "1px solid #e4e7ec",
                 cursor: "pointer",
                 transition: "all 0.15s ease",
               }}
@@ -866,7 +756,10 @@ export function AcademicLabView() {
                 fontSize: "13px",
                 background: mainTab === "logs" ? "#3a64fa" : "#ffffff",
                 color: mainTab === "logs" ? "#ffffff" : "#475467",
-                border: mainTab === "logs" ? "1px solid #3a64fa" : "1px solid #e4e7ec",
+                border:
+                  mainTab === "logs"
+                    ? "1px solid #3a64fa"
+                    : "1px solid #e4e7ec",
                 cursor: "pointer",
                 transition: "all 0.15s ease",
               }}
@@ -879,27 +772,28 @@ export function AcademicLabView() {
               Live API Logs ({apiLogs.length})
             </button>
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              title="Đăng xuất khỏi phòng Lab"
-              style={{
-                borderRadius: "8px",
-                padding: "8px 12px",
-                fontWeight: 600,
-                fontSize: "12.5px",
-                background: "#fef2f2",
-                color: "#dc2626",
-                border: "1px solid #fecaca",
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-                transition: "all 0.15s ease",
-              }}
-            >
-              <span>🚪</span> Đăng xuất
-            </button>
+            <form action="/api/auth/logout" method="post">
+              <button
+                type="submit"
+                title="Đăng xuất khỏi AIHub Console"
+                style={{
+                  borderRadius: "8px",
+                  padding: "8px 12px",
+                  fontWeight: 600,
+                  fontSize: "12.5px",
+                  background: "#fef2f2",
+                  color: "#dc2626",
+                  border: "1px solid #fecaca",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span aria-hidden="true">🚪</span> Đăng xuất
+              </button>
+            </form>
           </div>
         </div>
 
@@ -911,8 +805,9 @@ export function AcademicLabView() {
               <p className="aihub-crumb-static">Các bước tích hợp API</p>
               <h1 className="aihub-title">Tạo bài tập</h1>
               <p className="aihub-lede">
-                Demo các bước tích hợp giải pháp Tạo bài tập của AIHub — chọn tiêu chí, lấy dữ liệu
-                tham chiếu, rồi sinh bài tập bám đúng lỗi cần luyện.
+                Demo các bước tích hợp giải pháp Tạo bài tập của AIHub — chọn
+                tiêu chí, lấy dữ liệu tham chiếu, rồi sinh bài tập bám đúng lỗi
+                cần luyện.
               </p>
 
               <div className="aihub-accordion">
@@ -926,7 +821,9 @@ export function AcademicLabView() {
                     onClick={() => setOpenStep(1)}
                   >
                     <span className="aihub-astep-num">1</span>
-                    <span className="aihub-astep-title">Chọn tiêu chí luyện tập</span>
+                    <span className="aihub-astep-title">
+                      Chọn tiêu chí luyện tập
+                    </span>
                     <ChevronIcon className="aihub-astep-chevron" />
                   </button>
                   {openStep === 1 && (
@@ -935,18 +832,29 @@ export function AcademicLabView() {
                         <span className="aihub-fieldset-label">Task</span>
                         <div className="aihub-checkrow">
                           <label className="aihub-check">
-                            <input type="checkbox" checked={task === 1} onChange={() => handleTask(1)} />
+                            <input
+                              type="checkbox"
+                              checked={task === 1}
+                              onChange={() => handleTask(1)}
+                            />
                             Task 1
                           </label>
                           <label className="aihub-check">
-                            <input type="checkbox" checked={task === 2} onChange={() => handleTask(2)} />
+                            <input
+                              type="checkbox"
+                              checked={task === 2}
+                              onChange={() => handleTask(2)}
+                            />
                             Task 2
                           </label>
                         </div>
                       </div>
 
                       <div className="aihub-fieldset">
-                        <label className="aihub-fieldset-label" htmlFor="f-topic">
+                        <label
+                          className="aihub-fieldset-label"
+                          htmlFor="f-topic"
+                        >
                           Topic
                         </label>
                         <select
@@ -965,7 +873,10 @@ export function AcademicLabView() {
                       </div>
 
                       <div className="aihub-fieldset">
-                        <label className="aihub-fieldset-label" htmlFor="f-criterion">
+                        <label
+                          className="aihub-fieldset-label"
+                          htmlFor="f-criterion"
+                        >
                           Criteria
                         </label>
                         <select
@@ -975,7 +886,9 @@ export function AcademicLabView() {
                           disabled={!task}
                           onChange={(e) => handleCriterion(e.target.value)}
                         >
-                          <option value="">{task ? "Select Criteria" : "Select Task first"}</option>
+                          <option value="">
+                            {task ? "Select Criteria" : "Select Task first"}
+                          </option>
                           {criteriaOptions.map((c) => (
                             <option key={c.value} value={c.value}>
                               {c.label}
@@ -985,7 +898,10 @@ export function AcademicLabView() {
                       </div>
 
                       <div className="aihub-fieldset">
-                        <label className="aihub-fieldset-label" htmlFor="f-error">
+                        <label
+                          className="aihub-fieldset-label"
+                          htmlFor="f-error"
+                        >
                           Error Code
                         </label>
                         <select
@@ -995,7 +911,11 @@ export function AcademicLabView() {
                           disabled={!criterion}
                           onChange={(e) => handleErrorCode(e.target.value)}
                         >
-                          <option value="">{criterion ? "Select Error Code" : "Select Criteria first"}</option>
+                          <option value="">
+                            {criterion
+                              ? "Select Error Code"
+                              : "Select Criteria first"}
+                          </option>
                           {errorCodeOptions.map((e) => (
                             <option key={e.value} value={e.value}>
                               {e.label} ({e.value})
@@ -1005,9 +925,14 @@ export function AcademicLabView() {
                       </div>
 
                       <div className="aihub-fieldset">
-                        <label className="aihub-fieldset-label" htmlFor="f-qtype">
+                        <label
+                          className="aihub-fieldset-label"
+                          htmlFor="f-qtype"
+                        >
                           Question Type{" "}
-                          <span className="aihub-fieldset-hint">(filters sample references, not sent to AI)</span>
+                          <span className="aihub-fieldset-hint">
+                            (filters sample references, not sent to AI)
+                          </span>
                         </label>
                         <select
                           id="f-qtype"
@@ -1032,7 +957,9 @@ export function AcademicLabView() {
                           style={{
                             flex: 1,
                             justifyContent: "center",
-                            background: canQueryReferences ? "#3a64fa" : "#94a3b8",
+                            background: canQueryReferences
+                              ? "#3a64fa"
+                              : "#94a3b8",
                             padding: "11px 16px",
                             fontSize: "13.5px",
                             fontWeight: 700,
@@ -1041,13 +968,26 @@ export function AcademicLabView() {
                           disabled={!canQueryReferences || refLoading}
                           onClick={handleQueryReferences}
                         >
-                          {refLoading ? "Đang tải dữ liệu…" : "Lấy dữ liệu tham chiếu →"}
+                          {refLoading
+                            ? "Đang tải dữ liệu…"
+                            : "Lấy dữ liệu tham chiếu →"}
                         </button>
-                        <button type="button" className="aihub-btn aihub-btn--ghost" onClick={handleReset}>
+                        <button
+                          type="button"
+                          className="aihub-btn aihub-btn--ghost"
+                          onClick={handleReset}
+                        >
                           Reset
                         </button>
                       </div>
-                      {refError && <p className="aihub-error-text" style={{ marginTop: 8 }}>{refError}</p>}
+                      {refError && (
+                        <p
+                          className="aihub-error-text"
+                          style={{ marginTop: 8 }}
+                        >
+                          {refError}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1063,26 +1003,33 @@ export function AcademicLabView() {
                     onClick={() => refData && setOpenStep(2)}
                   >
                     <span className="aihub-astep-num">2</span>
-                    <span className="aihub-astep-title">Xem dữ liệu tham chiếu</span>
+                    <span className="aihub-astep-title">
+                      Xem dữ liệu tham chiếu
+                    </span>
                     <ChevronIcon className="aihub-astep-chevron" />
                   </button>
                   {openStep === 2 && refData && (
                     <div className="aihub-astep-body">
                       <p className="aihub-step-desc">
-                        Backend tìm thấy <strong>{refData.references.length}</strong> bài làm mẫu chứa lỗi{" "}
-                        <code>{refData.error_code}</code> trong dữ liệu WISPACE:
+                        Backend tìm thấy{" "}
+                        <strong>{refData.references.length}</strong> bài làm mẫu
+                        chứa lỗi <code>{refData.error_code}</code> trong dữ liệu
+                        WISPACE:
                       </p>
 
                       <div className="aihub-reflist">
-                        {refData.references.map((r: any, idx: number) => (
+                        {refData.references.map((r, idx) => (
                           <div key={idx} className="aihub-ref-card">
                             <p className="aihub-ref-q">
-                              <strong>Đề bài {idx + 1}:</strong> “{r.question.prompt}”
+                              <strong>Đề bài {idx + 1}:</strong> “
+                              {r.question?.prompt || r.prompt || ""}”
                             </p>
-                            {r.comments.map((c: any, cidx: number) => (
+                            {r.comments?.map((c, cidx) => (
                               <div key={cidx} className="aihub-ref-comment">
                                 <p className="aihub-ref-quote">“{c.quote}”</p>
-                                <p className="aihub-ref-explain">{c.explanation}</p>
+                                <p className="aihub-ref-explain">
+                                  {c.explanation}
+                                </p>
                               </div>
                             ))}
                           </div>
@@ -1090,7 +1037,10 @@ export function AcademicLabView() {
                       </div>
 
                       <div className="aihub-fieldset" style={{ marginTop: 14 }}>
-                        <label className="aihub-fieldset-label" htmlFor="f-instruction">
+                        <label
+                          className="aihub-fieldset-label"
+                          htmlFor="f-instruction"
+                        >
                           Instruction tuỳ biến (không bắt buộc)
                         </label>
                         <input
@@ -1122,7 +1072,14 @@ export function AcademicLabView() {
                           {genLoading ? "Đang xử lý AI…" : "Sinh bài tập AI →"}
                         </button>
                       </div>
-                      {genError && <p className="aihub-error-text" style={{ marginTop: 8 }}>{genError}</p>}
+                      {genError && (
+                        <p
+                          className="aihub-error-text"
+                          style={{ marginTop: 8 }}
+                        >
+                          {genError}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1138,13 +1095,20 @@ export function AcademicLabView() {
                     onClick={() => editedSample && setOpenStep(3)}
                   >
                     <span className="aihub-astep-num">3</span>
-                    <span className="aihub-astep-title">Sinh bài tập & Sửa trực tiếp</span>
+                    <span className="aihub-astep-title">
+                      Sinh bài tập & Sửa trực tiếp
+                    </span>
                     <ChevronIcon className="aihub-astep-chevron" />
                   </button>
                   {openStep === 3 && editedSample && (
                     <div className="aihub-astep-body">
-                      <p className="aihub-step-desc" style={{ marginBottom: "16px", lineHeight: "1.6" }}>
-                        Bài tập đã được sinh. Bạn có thể xem và <strong>sửa trực tiếp từng trường</strong> ở bảng bên phải.
+                      <p
+                        className="aihub-step-desc"
+                        style={{ marginBottom: "16px", lineHeight: "1.6" }}
+                      >
+                        Bài tập đã được sinh. Bạn có thể xem và{" "}
+                        <strong>sửa trực tiếp từng trường</strong> ở bảng bên
+                        phải.
                       </p>
                       <div style={{ marginTop: "16px", marginBottom: "8px" }}>
                         <button
@@ -1180,27 +1144,54 @@ export function AcademicLabView() {
                     onClick={() => editedSample && setOpenStep(4)}
                   >
                     <span className="aihub-astep-num">4</span>
-                    <span className="aihub-astep-title">Chấm điểm & Quyết định</span>
+                    <span className="aihub-astep-title">
+                      Chấm điểm & Quyết định
+                    </span>
                     <ChevronIcon className="aihub-astep-chevron" />
                   </button>
                   {openStep === 4 && editedSample && (
                     <div className="aihub-astep-body">
                       {/* ĐÁNH GIÁ ĐIỂM SỐ */}
-                      <div className="aihub-fieldset" style={{ background: "#eae5fc", padding: "14px", borderRadius: "10px" }}>
-                        <label className="aihub-fieldset-label" style={{ fontWeight: 800, color: "#1d2838" }}>
+                      <div
+                        className="aihub-fieldset"
+                        style={{
+                          background: "#eae5fc",
+                          padding: "14px",
+                          borderRadius: "10px",
+                        }}
+                      >
+                        <label
+                          className="aihub-fieldset-label"
+                          style={{ fontWeight: 800, color: "#1d2838" }}
+                        >
                           Đánh giá chất lượng bài tập (Thang 1–10):
                         </label>
-                        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "6px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "12px",
+                            marginTop: "6px",
+                          }}
+                        >
                           <input
                             type="range"
                             min={1}
                             max={10}
                             step={1}
                             value={qualityScore}
-                            onChange={(e) => setQualityScore(Number(e.target.value))}
+                            onChange={(e) =>
+                              setQualityScore(Number(e.target.value))
+                            }
                             style={{ flex: 1, accentColor: "#3a64fa" }}
                           />
-                          <span style={{ fontSize: "16px", fontWeight: 800, color: "#3a64fa" }}>
+                          <span
+                            style={{
+                              fontSize: "16px",
+                              fontWeight: 800,
+                              color: "#3a64fa",
+                            }}
+                          >
                             {qualityScore} / 10
                           </span>
                         </div>
@@ -1211,7 +1202,12 @@ export function AcademicLabView() {
                         <button
                           type="button"
                           className="aihub-btn aihub-btn--accent"
-                          style={{ flex: 1, justifyContent: "center", background: "#10b981", borderColor: "#10b981" }}
+                          style={{
+                            flex: 1,
+                            justifyContent: "center",
+                            background: "#10b981",
+                            borderColor: "#10b981",
+                          }}
                           onClick={handleAccept}
                         >
                           Accept (Lưu mẫu)
@@ -1219,19 +1215,45 @@ export function AcademicLabView() {
                         <button
                           type="button"
                           className="aihub-btn"
-                          style={{ background: "#f59e0b", color: "#fff", borderColor: "#f59e0b" }}
+                          style={{
+                            background: "#f59e0b",
+                            color: "#fff",
+                            borderColor: "#f59e0b",
+                          }}
                           onClick={() => setShowRejectModal(true)}
                         >
                           Reject (Từ chối)
                         </button>
                       </div>
                       {acceptedNote && (
-                        <div style={{ marginTop: 14, background: "#ecfdf5", border: "1px solid #a7f3d0", padding: "14px", borderRadius: "10px" }}>
-                          <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#065f46" }}>{acceptedNote}</p>
+                        <div
+                          style={{
+                            marginTop: 14,
+                            background: "#ecfdf5",
+                            border: "1px solid #a7f3d0",
+                            padding: "14px",
+                            borderRadius: "10px",
+                          }}
+                        >
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: "13px",
+                              fontWeight: 700,
+                              color: "#065f46",
+                            }}
+                          >
+                            {acceptedNote}
+                          </p>
                           <button
                             type="button"
                             className="aihub-btn aihub-btn--accent"
-                            style={{ marginTop: 10, width: "100%", justifyContent: "center", background: "#059669" }}
+                            style={{
+                              marginTop: 10,
+                              width: "100%",
+                              justifyContent: "center",
+                              background: "#059669",
+                            }}
                             onClick={() => {
                               clearDownstream();
                               setOpenStep(1);
@@ -1253,12 +1275,17 @@ export function AcademicLabView() {
                 <h2 className="aihub-category-name" style={{ margin: 0 }}>
                   AIHub Lab — Tạo bài tập & Chấm điểm
                 </h2>
-                <span className="aihub-badge" data-status="academic" style={{ background: "#1d2838", color: "#fff" }}>
+                <span
+                  className="aihub-badge"
+                  data-status="academic"
+                  style={{ background: "#1d2838", color: "#fff" }}
+                >
                   ACADEMIC
                 </span>
               </div>
               <p className="aihub-sublabel">
-                Đúng những lệnh gọi mà backend thực hiện. Chuyên viên có thể xem giao diện bài tập chuẩn đẹp hoặc bật chế độ sửa nội dung.
+                Đúng những lệnh gọi mà backend thực hiện. Chuyên viên có thể xem
+                giao diện bài tập chuẩn đẹp hoặc bật chế độ sửa nội dung.
               </p>
 
               <div className="aihub-tabs">
@@ -1286,7 +1313,9 @@ export function AcademicLabView() {
               {backendTab === 1 && (
                 <div>
                   <div className="aihub-callout">
-                    Gọi <code>POST /portal/academic/references/query</code> với writing_task, topic, criterion, error_code để lấy các bài làm thật chứa đúng lỗi cần luyện.
+                    Gọi <code>POST /portal/academic/references/query</code> với
+                    writing_task, topic, criterion, error_code để lấy các bài
+                    làm thật chứa đúng lỗi cần luyện.
                   </div>
                   <div className="aihub-tabs">
                     <button
@@ -1311,15 +1340,21 @@ export function AcademicLabView() {
                   {rrTab1 === "request" ? (
                     referencesPayload ? (
                       <pre className="aihub-code">
-                        {curl("/portal/academic/references/query", referencesPayload)}
+                        {curl(
+                          "/portal/academic/references/query",
+                          referencesPayload
+                        )}
                       </pre>
                     ) : (
                       <div className="aihub-code-placeholder">
-                        Chọn đủ Task, Topic, Criteria, Error Code ở bên trái để dựng request.
+                        Chọn đủ Task, Topic, Criteria, Error Code ở bên trái để
+                        dựng request.
                       </div>
                     )
                   ) : refData ? (
-                    <pre className="aihub-code">{JSON.stringify(refData, null, 2)}</pre>
+                    <pre className="aihub-code">
+                      {JSON.stringify(refData, null, 2)}
+                    </pre>
                   ) : (
                     <div className="aihub-code-placeholder">
                       Chưa gọi — bấm “Query reference” ở bên trái.
@@ -1331,8 +1366,15 @@ export function AcademicLabView() {
               {/* Tab 2: Sinh bài tập & Interface / Response JSON / Request */}
               {backendTab === 2 && (
                 <div>
-                  <div className="aihub-callout" style={{ marginBottom: "14px" }}>
-                    Gọi <code>POST /portal/academic/samples/generate</code> để sinh bài tập. Bạn có thể xem trước giao diện bài tập, chỉnh sửa ở từng câu hoặc thao tác trực tiếp trên <strong>Response JSON</strong>. Dữ liệu được đồng bộ hai chiều.
+                  <div
+                    className="aihub-callout"
+                    style={{ marginBottom: "14px" }}
+                  >
+                    Gọi <code>POST /portal/academic/samples/generate</code> để
+                    sinh bài tập. Bạn có thể xem trước giao diện bài tập, chỉnh
+                    sửa ở từng câu hoặc thao tác trực tiếp trên{" "}
+                    <strong>Response JSON</strong>. Dữ liệu được đồng bộ hai
+                    chiều.
                   </div>
 
                   {/* 3 TABS CHUẨN: Interface | Response JSON | Request */}
@@ -1353,7 +1395,10 @@ export function AcademicLabView() {
                       aria-selected={rrTab2 === "response"}
                       onClick={() => {
                         setRrTab2("response");
-                        if (editedSample && (!rawJsonText || !rawJsonText.trim())) {
+                        if (
+                          editedSample &&
+                          (!rawJsonText || !rawJsonText.trim())
+                        ) {
                           setRawJsonText(JSON.stringify(editedSample, null, 2));
                           setJsonSyntaxError(null);
                         }
@@ -1377,12 +1422,21 @@ export function AcademicLabView() {
                     <div>
                       {!editedSample ? (
                         <div className="aihub-code-placeholder">
-                          Chưa có dữ liệu bài tập — bấm “Sinh bài tập AI” ở Bước 2 bên trái.
+                          Chưa có dữ liệu bài tập — bấm “Sinh bài tập AI” ở Bước
+                          2 bên trái.
                         </div>
                       ) : (
                         <div>
                           {/* 1. HIỂN THỊ RÕ RÀNG LOẠI BÀI TẬP (KHÔNG ICON, KHÔNG AI CHẤM ĐIỂM) */}
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", marginBottom: "14px" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: "8px",
+                              alignItems: "center",
+                              marginBottom: "14px",
+                            }}
+                          >
                             <span
                               style={{
                                 background: "#3a64fa",
@@ -1393,17 +1447,50 @@ export function AcademicLabView() {
                                 fontWeight: 700,
                               }}
                             >
-                              Dạng bài: {EXERCISE_TYPE_LABELS[meta?.type as ExerciseType] || meta?.type || "Dịch câu ngắn (Short Writing)"}
+                              Dạng bài:{" "}
+                              {EXERCISE_TYPE_LABELS[
+                                meta?.type as ExerciseType
+                              ] ||
+                                meta?.type ||
+                                "Dịch câu ngắn (Short Writing)"}
                             </span>
-                            <span style={{ background: "#f1f5f9", color: "#334155", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-                              {meta?.number_of_questions || exerciseList.length} câu hỏi
+                            <span
+                              style={{
+                                background: "#f1f5f9",
+                                color: "#334155",
+                                padding: "4px 10px",
+                                borderRadius: "6px",
+                                fontSize: "12px",
+                                fontWeight: 600,
+                                border: "1px solid #e2e8f0",
+                              }}
+                            >
+                              {meta?.number_of_questions || exerciseList.length}{" "}
+                              câu hỏi
                             </span>
-                            <span style={{ background: "#f1f5f9", color: "#334155", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: 600, border: "1px solid #e2e8f0" }}>
+                            <span
+                              style={{
+                                background: "#f1f5f9",
+                                color: "#334155",
+                                padding: "4px 10px",
+                                borderRadius: "6px",
+                                fontSize: "12px",
+                                fontWeight: 600,
+                                border: "1px solid #e2e8f0",
+                              }}
+                            >
                               Độ khó: {meta?.difficulty || "B2"}
                             </span>
                           </div>
 
-                          <p className="aihub-explain" style={{ margin: "10px 0 18px", fontSize: "13.5px", color: "#475467" }}>
+                          <p
+                            className="aihub-explain"
+                            style={{
+                              margin: "10px 0 18px",
+                              fontSize: "13.5px",
+                              color: "#475467",
+                            }}
+                          >
                             {meta?.instruction}
                           </p>
 
@@ -1413,8 +1500,13 @@ export function AcademicLabView() {
                             editedSample?.image_url ||
                             editedSample?.imageUrl ||
                             editedSample?.chart ||
-                            (editedSample?.data && (editedSample?.data?.image || editedSample?.data?.image_url || editedSample?.data?.imageUrl)) ||
-                            (editedSample?.question && (editedSample?.question?.image || editedSample?.question?.image_url))
+                            (editedSample?.data &&
+                              (editedSample?.data?.image ||
+                                editedSample?.data?.image_url ||
+                                editedSample?.data?.imageUrl)) ||
+                            (editedSample?.question &&
+                              (editedSample?.question?.image ||
+                                editedSample?.question?.image_url))
                           ) && (
                             <div
                               style={{
@@ -1427,9 +1519,19 @@ export function AcademicLabView() {
                                 boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                               }}
                             >
-                              <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
+                              <div
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                  color: "#64748b",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.05em",
+                                  marginBottom: "8px",
+                                }}
+                              >
                                 📊 Hình ảnh đề bài / Biểu đồ Task
                               </div>
+                              {/* eslint-disable-next-line @next/next/no-img-element -- generated samples can contain arbitrary customer image URLs. */}
                               <img
                                 src={
                                   editedSample?.image ||
@@ -1455,371 +1557,796 @@ export function AcademicLabView() {
                           )}
 
                           {/* DANH SÁCH CÁC CÂU HỎI VỚI NÚT SỬA GÓC PHẢI TRÊN */}
-                          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                            {exerciseList.map((item: any, idx: number) => {
-                              const qNo = item.questions_no || idx + 1;
-                              const isEditing = editingQuestionIndex === idx;
-                              const qImage = item.question_image || item.image || item.image_url || item.imageUrl || item.chart || null;
-                              const sampleAns = typeof item.correct === "object" ? item.correct?.sample_answer : item.correct;
-                              const rubric = typeof item.correct === "object" ? item.correct?.ai_grading_rubric : null;
-                              const explain = typeof item.correct === "object" ? item.correct?.explanation : item.explanation;
-                              const hintText = Array.isArray(item.hint) ? item.hint.join(", ") : (item.hint || "");
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "16px",
+                            }}
+                          >
+                            {exerciseList.map(
+                              (item: AcademicExercise, idx: number) => {
+                                const qNo = item.questions_no || idx + 1;
+                                const isEditing = editingQuestionIndex === idx;
+                                const qImage =
+                                  item.question_image ||
+                                  item.image ||
+                                  item.image_url ||
+                                  item.imageUrl ||
+                                  item.chart ||
+                                  null;
+                                const correctDetails = answerDetails(
+                                  item.correct
+                                );
+                                const sampleAns =
+                                  correctDetails?.sample_answer ??
+                                  (typeof item.correct === "object"
+                                    ? undefined
+                                    : item.correct);
+                                const rubric =
+                                  correctDetails?.ai_grading_rubric;
+                                const explain =
+                                  correctDetails?.explanation ??
+                                  item.explanation;
+                                const hintText = Array.isArray(item.hint)
+                                  ? item.hint.join(", ")
+                                  : item.hint || "";
 
-                              return (
-                                <div
-                                  key={qNo}
-                                  className="aihub-exercise-item"
-                                  style={{
-                                    border: isEditing ? "2px solid #3a64fa" : "1px solid #e2e8f0",
-                                    borderRadius: "12px",
-                                    padding: "18px",
-                                    background: isEditing ? "#f8faff" : "#ffffff",
-                                    boxShadow: isEditing ? "0 4px 16px rgba(58, 100, 250, 0.1)" : "0 1px 3px rgba(0,0,0,0.02)",
-                                    transition: "all 0.15s ease",
-                                  }}
-                                >
-                                  {/* HEADER CÂU + NÚT SỬA GÓC PHẢI TRÊN */}
-                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                                    <span style={{ fontSize: "14px", fontWeight: 800, color: isEditing ? "#3a64fa" : "#1e293b" }}>
-                                      Câu {qNo}.
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => setEditingQuestionIndex(isEditing ? null : idx)}
+                                return (
+                                  <div
+                                    key={qNo}
+                                    className="aihub-exercise-item"
+                                    style={{
+                                      border: isEditing
+                                        ? "2px solid #3a64fa"
+                                        : "1px solid #e2e8f0",
+                                      borderRadius: "12px",
+                                      padding: "18px",
+                                      background: isEditing
+                                        ? "#f8faff"
+                                        : "#ffffff",
+                                      boxShadow: isEditing
+                                        ? "0 4px 16px rgba(58, 100, 250, 0.1)"
+                                        : "0 1px 3px rgba(0,0,0,0.02)",
+                                      transition: "all 0.15s ease",
+                                    }}
+                                  >
+                                    {/* HEADER CÂU + NÚT SỬA GÓC PHẢI TRÊN */}
+                                    <div
                                       style={{
-                                        display: "inline-flex",
+                                        display: "flex",
+                                        justifyContent: "space-between",
                                         alignItems: "center",
-                                        background: isEditing ? "#3a64fa" : "#f1f5f9",
-                                        color: isEditing ? "#ffffff" : "#475467",
-                                        border: "1px solid",
-                                        borderColor: isEditing ? "#3a64fa" : "#cbd5e1",
-                                        borderRadius: "6px",
-                                        padding: "4px 10px",
-                                        fontSize: "12px",
-                                        fontWeight: 600,
-                                        cursor: "pointer",
-                                        transition: "all 0.15s ease",
+                                        marginBottom: "12px",
                                       }}
                                     >
-                                      {isEditing ? "Lưu thay đổi" : "Chỉnh sửa"}
-                                    </button>
-                                  </div>
+                                      <span
+                                        style={{
+                                          fontSize: "14px",
+                                          fontWeight: 800,
+                                          color: isEditing
+                                            ? "#3a64fa"
+                                            : "#1e293b",
+                                        }}
+                                      >
+                                        Câu {qNo}.
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setEditingQuestionIndex(
+                                            isEditing ? null : idx
+                                          )
+                                        }
+                                        style={{
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          background: isEditing
+                                            ? "#3a64fa"
+                                            : "#f1f5f9",
+                                          color: isEditing
+                                            ? "#ffffff"
+                                            : "#475467",
+                                          border: "1px solid",
+                                          borderColor: isEditing
+                                            ? "#3a64fa"
+                                            : "#cbd5e1",
+                                          borderRadius: "6px",
+                                          padding: "4px 10px",
+                                          fontSize: "12px",
+                                          fontWeight: 600,
+                                          cursor: "pointer",
+                                          transition: "all 0.15s ease",
+                                        }}
+                                      >
+                                        {isEditing
+                                          ? "Lưu thay đổi"
+                                          : "Chỉnh sửa"}
+                                      </button>
+                                    </div>
 
-                                  {/* KHI ĐANG Ở CHẾ ĐỘ SỬA CHO CÂU NÀY */}
-                                  {isEditing ? (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                                      <div>
-                                        <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#334155", marginBottom: "3px" }}>
-                                          Đề bài câu hỏi:
-                                        </label>
-                                        <textarea
-                                          rows={2}
-                                          value={item.question_text}
-                                          onChange={(e) => handleEditField(idx, "question_text", e.target.value)}
-                                          className="aihub-select"
-                                          style={{ width: "100%", padding: "8px", fontSize: "13px", fontFamily: "inherit" }}
-                                        />
-                                      </div>
-
-                                      {/* Chỉnh sửa options nếu có */}
-                                      {item.options && typeof item.options === "object" && (
+                                    {/* KHI ĐANG Ở CHẾ ĐỘ SỬA CHO CÂU NÀY */}
+                                    {isEditing ? (
+                                      <div
+                                        style={{
+                                          display: "flex",
+                                          flexDirection: "column",
+                                          gap: "12px",
+                                        }}
+                                      >
                                         <div>
-                                          <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#334155", marginBottom: "6px" }}>
-                                            Các phương án lựa chọn (Options):
-                                          </label>
-                                          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                                            {Object.entries(item.options as Record<string, string>).map(([optKey, optVal]) => (
-                                              <div key={optKey} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                                                <span style={{ fontWeight: 700, width: "20px", fontSize: "13px", color: "#475467" }}>{optKey}.</span>
-                                                <input
-                                                  type="text"
-                                                  value={optVal}
-                                                  onChange={(e) => {
-                                                    const updatedOptions = { ...item.options, [optKey]: e.target.value };
-                                                    handleEditField(idx, "options", updatedOptions);
-                                                  }}
-                                                  className="aihub-select"
-                                                  style={{ flex: 1, padding: "6px 10px", fontSize: "13px" }}
-                                                />
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      <div>
-                                        <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#334155", marginBottom: "3px" }}>
-                                          Hình ảnh minh hoạ câu hỏi (URL nếu có):
-                                        </label>
-                                        <input
-                                          type="text"
-                                          value={qImage || ""}
-                                          onChange={(e) => handleEditField(idx, "question_image", e.target.value)}
-                                          placeholder="https://..."
-                                          className="aihub-select"
-                                          style={{ width: "100%", padding: "8px", fontSize: "13px" }}
-                                        />
-                                        {qImage && (
-                                          <div style={{ marginTop: "6px" }}>
-                                            <img src={qImage} alt="" style={{ maxHeight: "120px", borderRadius: "6px", border: "1px solid #e2e8f0" }} />
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      <div>
-                                        <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#334155", marginBottom: "3px" }}>
-                                          Hints gợi ý (phân cách bằng dấu phẩy):
-                                        </label>
-                                        <input
-                                          type="text"
-                                          value={hintText}
-                                          onChange={(e) => handleEditHints(idx, e.target.value)}
-                                          className="aihub-select"
-                                          style={{ width: "100%", padding: "8px", fontSize: "13px" }}
-                                        />
-                                      </div>
-
-                                      {/* Đáp án mẫu */}
-                                      {sampleAns !== undefined && (
-                                        <div>
-                                          <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#065f46", marginBottom: "3px" }}>
-                                            Đáp án mẫu (Sample Answer):
+                                          <label
+                                            style={{
+                                              display: "block",
+                                              fontSize: "11px",
+                                              fontWeight: 700,
+                                              color: "#334155",
+                                              marginBottom: "3px",
+                                            }}
+                                          >
+                                            Đề bài câu hỏi:
                                           </label>
                                           <textarea
                                             rows={2}
-                                            value={sampleAns || ""}
-                                            onChange={(e) => handleEditField(idx, "sample_answer", e.target.value)}
+                                            value={item.question_text}
+                                            onChange={(e) =>
+                                              handleEditField(
+                                                idx,
+                                                "question_text",
+                                                e.target.value
+                                              )
+                                            }
                                             className="aihub-select"
-                                            style={{ width: "100%", padding: "8px", fontSize: "13px", fontFamily: "inherit", background: "#f0fdf4", color: "#065f46" }}
-                                          />
-                                        </div>
-                                      )}
-
-                                      {/* Rubric */}
-                                      {rubric !== null && rubric !== undefined && (
-                                        <div>
-                                          <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475467", marginBottom: "3px" }}>
-                                            Tiêu chí chấm điểm (Grading Rubric):
-                                          </label>
-                                          <textarea
-                                            rows={3}
-                                            value={rubric || ""}
-                                            onChange={(e) => handleEditField(idx, "ai_grading_rubric", e.target.value)}
-                                            className="aihub-select"
-                                            style={{ width: "100%", padding: "8px", fontSize: "12px", fontFamily: "inherit", background: "#f8fafc", color: "#334155" }}
-                                          />
-                                        </div>
-                                      )}
-
-                                      <div>
-                                        <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475467", marginBottom: "3px" }}>
-                                          Giải thích học thuật:
-                                        </label>
-                                        <textarea
-                                          rows={2}
-                                          value={explain || ""}
-                                          onChange={(e) => handleEditField(idx, "explanation", e.target.value)}
-                                          className="aihub-select"
-                                          style={{ width: "100%", padding: "8px", fontSize: "12px", fontFamily: "inherit" }}
-                                        />
-                                      </div>
-
-                                      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                                        <button
-                                          type="button"
-                                          onClick={() => setEditingQuestionIndex(null)}
-                                          className="aihub-btn aihub-btn--accent"
-                                          style={{ padding: "6px 14px", fontSize: "12px" }}
-                                        >
-                                          Hoàn tất sửa câu {qNo}
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    /* KHI Ở CHẾ ĐỘ XEM CHUẨN ĐẸP (ICON-FREE, CLEAN, PROFESSIONAL) */
-                                    <div>
-                                      <p style={{ margin: "0 0 12px", fontSize: "14.5px", lineHeight: "1.6", color: "#0f172a", fontWeight: 600 }}>
-                                        {item.question_text}
-                                      </p>
-
-                                      {/* Hình ảnh minh hoạ câu hỏi nếu có */}
-                                      {qImage && (
-                                        <div style={{ margin: "12px 0 16px", textAlign: "center" }}>
-                                          <img
-                                            src={qImage}
-                                            alt={`Minh hoạ câu ${qNo}`}
                                             style={{
-                                              maxWidth: "100%",
-                                              maxHeight: "320px",
-                                              objectFit: "contain",
-                                              borderRadius: "8px",
-                                              border: "1px solid #e2e8f0",
-                                              boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                                              width: "100%",
+                                              padding: "8px",
+                                              fontSize: "13px",
+                                              fontFamily: "inherit",
                                             }}
                                           />
                                         </div>
-                                      )}
 
-                                      {/* Hints gợi ý */}
-                                      {Array.isArray(item.hint) && item.hint.length > 0 && (
-                                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", margin: "8px 0 12px" }}>
-                                          <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", alignSelf: "center", marginRight: "4px" }}>
-                                            Gợi ý:
-                                          </span>
-                                          {item.hint.map((h: string) => (
-                                            <span
-                                              key={h}
-                                              style={{
-                                                fontSize: "11.5px",
-                                                background: "#f1f5f9",
-                                                color: "#334155",
-                                                padding: "2px 8px",
-                                                borderRadius: "4px",
-                                                border: "1px solid #e2e8f0",
-                                              }}
-                                            >
-                                              {h}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
-
-                                      {/* 1. DẠNG BÀI: MULTIPLE CHOICE (Single / Multiple) / CHOOSE FROM LIST */}
-                                      {item.options && typeof item.options === "object" && Object.keys(item.options).length > 0 && (
-                                        <div style={{ margin: "12px 0", display: "flex", flexDirection: "column", gap: "8px" }}>
-                                          {Object.entries(item.options as Record<string, string>).map(([key, text]) => {
-                                            let isCorrect = false;
-                                            if (Array.isArray(item.correct)) {
-                                              isCorrect = item.correct.includes(key);
-                                            } else if (typeof item.correct === "string") {
-                                              isCorrect = item.correct.trim().toUpperCase() === key.toUpperCase();
-                                            } else if (typeof item.correct === "object" && item.correct?.sample_answer) {
-                                              isCorrect = item.correct.sample_answer.includes(key);
-                                            }
-
-                                            return (
+                                        {/* Chỉnh sửa options nếu có */}
+                                        {item.options &&
+                                          typeof item.options === "object" && (
+                                            <div>
+                                              <label
+                                                style={{
+                                                  display: "block",
+                                                  fontSize: "11px",
+                                                  fontWeight: 700,
+                                                  color: "#334155",
+                                                  marginBottom: "6px",
+                                                }}
+                                              >
+                                                Các phương án lựa chọn
+                                                (Options):
+                                              </label>
                                               <div
-                                                key={key}
                                                 style={{
                                                   display: "flex",
-                                                  alignItems: "flex-start",
-                                                  gap: "12px",
+                                                  flexDirection: "column",
+                                                  gap: "6px",
+                                                }}
+                                              >
+                                                {Object.entries(
+                                                  item.options as Record<
+                                                    string,
+                                                    string
+                                                  >
+                                                ).map(([optKey, optVal]) => (
+                                                  <div
+                                                    key={optKey}
+                                                    style={{
+                                                      display: "flex",
+                                                      gap: "8px",
+                                                      alignItems: "center",
+                                                    }}
+                                                  >
+                                                    <span
+                                                      style={{
+                                                        fontWeight: 700,
+                                                        width: "20px",
+                                                        fontSize: "13px",
+                                                        color: "#475467",
+                                                      }}
+                                                    >
+                                                      {optKey}.
+                                                    </span>
+                                                    <input
+                                                      type="text"
+                                                      value={optVal}
+                                                      onChange={(e) => {
+                                                        const updatedOptions = {
+                                                          ...item.options,
+                                                          [optKey]:
+                                                            e.target.value,
+                                                        };
+                                                        handleEditField(
+                                                          idx,
+                                                          "options",
+                                                          updatedOptions
+                                                        );
+                                                      }}
+                                                      className="aihub-select"
+                                                      style={{
+                                                        flex: 1,
+                                                        padding: "6px 10px",
+                                                        fontSize: "13px",
+                                                      }}
+                                                    />
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+
+                                        <div>
+                                          <label
+                                            style={{
+                                              display: "block",
+                                              fontSize: "11px",
+                                              fontWeight: 700,
+                                              color: "#334155",
+                                              marginBottom: "3px",
+                                            }}
+                                          >
+                                            Hình ảnh minh hoạ câu hỏi (URL nếu
+                                            có):
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={qImage || ""}
+                                            onChange={(e) =>
+                                              handleEditField(
+                                                idx,
+                                                "question_image",
+                                                e.target.value
+                                              )
+                                            }
+                                            placeholder="https://..."
+                                            className="aihub-select"
+                                            style={{
+                                              width: "100%",
+                                              padding: "8px",
+                                              fontSize: "13px",
+                                            }}
+                                          />
+                                          {qImage && (
+                                            <div style={{ marginTop: "6px" }}>
+                                              {/* eslint-disable-next-line @next/next/no-img-element -- generated samples can contain arbitrary customer image URLs. */}
+                                              <img
+                                                src={qImage}
+                                                alt=""
+                                                style={{
+                                                  maxHeight: "120px",
+                                                  borderRadius: "6px",
+                                                  border: "1px solid #e2e8f0",
+                                                }}
+                                              />
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        <div>
+                                          <label
+                                            style={{
+                                              display: "block",
+                                              fontSize: "11px",
+                                              fontWeight: 700,
+                                              color: "#334155",
+                                              marginBottom: "3px",
+                                            }}
+                                          >
+                                            Hints gợi ý (phân cách bằng dấu
+                                            phẩy):
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={hintText}
+                                            onChange={(e) =>
+                                              handleEditHints(
+                                                idx,
+                                                e.target.value
+                                              )
+                                            }
+                                            className="aihub-select"
+                                            style={{
+                                              width: "100%",
+                                              padding: "8px",
+                                              fontSize: "13px",
+                                            }}
+                                          />
+                                        </div>
+
+                                        {/* Đáp án mẫu */}
+                                        {sampleAns !== undefined && (
+                                          <div>
+                                            <label
+                                              style={{
+                                                display: "block",
+                                                fontSize: "11px",
+                                                fontWeight: 700,
+                                                color: "#065f46",
+                                                marginBottom: "3px",
+                                              }}
+                                            >
+                                              Đáp án mẫu (Sample Answer):
+                                            </label>
+                                            <textarea
+                                              rows={2}
+                                              value={sampleAns || ""}
+                                              onChange={(e) =>
+                                                handleEditField(
+                                                  idx,
+                                                  "sample_answer",
+                                                  e.target.value
+                                                )
+                                              }
+                                              className="aihub-select"
+                                              style={{
+                                                width: "100%",
+                                                padding: "8px",
+                                                fontSize: "13px",
+                                                fontFamily: "inherit",
+                                                background: "#f0fdf4",
+                                                color: "#065f46",
+                                              }}
+                                            />
+                                          </div>
+                                        )}
+
+                                        {/* Rubric */}
+                                        {rubric !== null &&
+                                          rubric !== undefined && (
+                                            <div>
+                                              <label
+                                                style={{
+                                                  display: "block",
+                                                  fontSize: "11px",
+                                                  fontWeight: 700,
+                                                  color: "#475467",
+                                                  marginBottom: "3px",
+                                                }}
+                                              >
+                                                Tiêu chí chấm điểm (Grading
+                                                Rubric):
+                                              </label>
+                                              <textarea
+                                                rows={3}
+                                                value={rubric || ""}
+                                                onChange={(e) =>
+                                                  handleEditField(
+                                                    idx,
+                                                    "ai_grading_rubric",
+                                                    e.target.value
+                                                  )
+                                                }
+                                                className="aihub-select"
+                                                style={{
+                                                  width: "100%",
+                                                  padding: "8px",
+                                                  fontSize: "12px",
+                                                  fontFamily: "inherit",
+                                                  background: "#f8fafc",
+                                                  color: "#334155",
+                                                }}
+                                              />
+                                            </div>
+                                          )}
+
+                                        <div>
+                                          <label
+                                            style={{
+                                              display: "block",
+                                              fontSize: "11px",
+                                              fontWeight: 700,
+                                              color: "#475467",
+                                              marginBottom: "3px",
+                                            }}
+                                          >
+                                            Giải thích học thuật:
+                                          </label>
+                                          <textarea
+                                            rows={2}
+                                            value={explain || ""}
+                                            onChange={(e) =>
+                                              handleEditField(
+                                                idx,
+                                                "explanation",
+                                                e.target.value
+                                              )
+                                            }
+                                            className="aihub-select"
+                                            style={{
+                                              width: "100%",
+                                              padding: "8px",
+                                              fontSize: "12px",
+                                              fontFamily: "inherit",
+                                            }}
+                                          />
+                                        </div>
+
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            justifyContent: "flex-end",
+                                          }}
+                                        >
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setEditingQuestionIndex(null)
+                                            }
+                                            className="aihub-btn aihub-btn--accent"
+                                            style={{
+                                              padding: "6px 14px",
+                                              fontSize: "12px",
+                                            }}
+                                          >
+                                            Hoàn tất sửa câu {qNo}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      /* KHI Ở CHẾ ĐỘ XEM CHUẨN ĐẸP (ICON-FREE, CLEAN, PROFESSIONAL) */
+                                      <div>
+                                        <p
+                                          style={{
+                                            margin: "0 0 12px",
+                                            fontSize: "14.5px",
+                                            lineHeight: "1.6",
+                                            color: "#0f172a",
+                                            fontWeight: 600,
+                                          }}
+                                        >
+                                          {item.question_text}
+                                        </p>
+
+                                        {/* Hình ảnh minh hoạ câu hỏi nếu có */}
+                                        {qImage && (
+                                          <div
+                                            style={{
+                                              margin: "12px 0 16px",
+                                              textAlign: "center",
+                                            }}
+                                          >
+                                            {/* eslint-disable-next-line @next/next/no-img-element -- generated samples can contain arbitrary customer image URLs. */}
+                                            <img
+                                              src={qImage}
+                                              alt={`Minh hoạ câu ${qNo}`}
+                                              style={{
+                                                maxWidth: "100%",
+                                                maxHeight: "320px",
+                                                objectFit: "contain",
+                                                borderRadius: "8px",
+                                                border: "1px solid #e2e8f0",
+                                                boxShadow:
+                                                  "0 2px 6px rgba(0,0,0,0.04)",
+                                              }}
+                                            />
+                                          </div>
+                                        )}
+
+                                        {/* Hints gợi ý */}
+                                        {Array.isArray(item.hint) &&
+                                          item.hint.length > 0 && (
+                                            <div
+                                              style={{
+                                                display: "flex",
+                                                flexWrap: "wrap",
+                                                gap: "6px",
+                                                margin: "8px 0 12px",
+                                              }}
+                                            >
+                                              <span
+                                                style={{
+                                                  fontSize: "11px",
+                                                  fontWeight: 700,
+                                                  color: "#64748b",
+                                                  textTransform: "uppercase",
+                                                  alignSelf: "center",
+                                                  marginRight: "4px",
+                                                }}
+                                              >
+                                                Gợi ý:
+                                              </span>
+                                              {item.hint.map((h: string) => (
+                                                <span
+                                                  key={h}
+                                                  style={{
+                                                    fontSize: "11.5px",
+                                                    background: "#f1f5f9",
+                                                    color: "#334155",
+                                                    padding: "2px 8px",
+                                                    borderRadius: "4px",
+                                                    border: "1px solid #e2e8f0",
+                                                  }}
+                                                >
+                                                  {h}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
+
+                                        {/* 1. DẠNG BÀI: MULTIPLE CHOICE (Single / Multiple) / CHOOSE FROM LIST */}
+                                        {item.options &&
+                                          typeof item.options === "object" &&
+                                          Object.keys(item.options).length >
+                                            0 && (
+                                            <div
+                                              style={{
+                                                margin: "12px 0",
+                                                display: "flex",
+                                                flexDirection: "column",
+                                                gap: "8px",
+                                              }}
+                                            >
+                                              {Object.entries(
+                                                item.options as Record<
+                                                  string,
+                                                  string
+                                                >
+                                              ).map(([key, text]) => {
+                                                let isCorrect = false;
+                                                if (
+                                                  Array.isArray(item.correct)
+                                                ) {
+                                                  isCorrect =
+                                                    item.correct.includes(key);
+                                                } else if (
+                                                  typeof item.correct ===
+                                                  "string"
+                                                ) {
+                                                  isCorrect =
+                                                    item.correct
+                                                      .trim()
+                                                      .toUpperCase() ===
+                                                    key.toUpperCase();
+                                                } else if (
+                                                  correctDetails?.sample_answer
+                                                ) {
+                                                  isCorrect =
+                                                    correctDetails.sample_answer.includes(
+                                                      key
+                                                    );
+                                                }
+
+                                                return (
+                                                  <div
+                                                    key={key}
+                                                    style={{
+                                                      display: "flex",
+                                                      alignItems: "flex-start",
+                                                      gap: "12px",
+                                                      padding: "10px 14px",
+                                                      borderRadius: "8px",
+                                                      border: isCorrect
+                                                        ? "1.5px solid #10b981"
+                                                        : "1px solid #e2e8f0",
+                                                      background: isCorrect
+                                                        ? "#f0fdf4"
+                                                        : "#ffffff",
+                                                      transition:
+                                                        "all 0.15s ease",
+                                                    }}
+                                                  >
+                                                    <span
+                                                      style={{
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        justifyContent:
+                                                          "center",
+                                                        width: "24px",
+                                                        height: "24px",
+                                                        minWidth: "24px",
+                                                        borderRadius: "6px",
+                                                        fontSize: "12px",
+                                                        fontWeight: 700,
+                                                        background: isCorrect
+                                                          ? "#10b981"
+                                                          : "#f1f5f9",
+                                                        color: isCorrect
+                                                          ? "#ffffff"
+                                                          : "#475467",
+                                                      }}
+                                                    >
+                                                      {key}
+                                                    </span>
+                                                    <div
+                                                      style={{
+                                                        flex: 1,
+                                                        fontSize: "13.5px",
+                                                        lineHeight: "1.5",
+                                                        color: "#1e293b",
+                                                        fontWeight: isCorrect
+                                                          ? 600
+                                                          : 400,
+                                                      }}
+                                                    >
+                                                      {text}
+                                                    </div>
+                                                    {isCorrect && (
+                                                      <span
+                                                        style={{
+                                                          fontSize: "11px",
+                                                          fontWeight: 700,
+                                                          textTransform:
+                                                            "uppercase",
+                                                          letterSpacing:
+                                                            "0.04em",
+                                                          color: "#059669",
+                                                          background: "#d1fae5",
+                                                          padding: "2px 8px",
+                                                          borderRadius: "4px",
+                                                          whiteSpace: "nowrap",
+                                                        }}
+                                                      >
+                                                        Đáp án đúng
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          )}
+
+                                        {/* 2. DẠNG BÀI: GAP FILLING / REORDER / ANNOTATION / SHORT WRITING - Khi không có options */}
+                                        {(!item.options ||
+                                          Object.keys(item.options).length ===
+                                            0) && (
+                                          <>
+                                            {/* Reorder / List Answer */}
+                                            {Array.isArray(item.correct) && (
+                                              <div
+                                                style={{
+                                                  margin: "10px 0",
                                                   padding: "10px 14px",
                                                   borderRadius: "8px",
-                                                  border: isCorrect ? "1.5px solid #10b981" : "1px solid #e2e8f0",
-                                                  background: isCorrect ? "#f0fdf4" : "#ffffff",
-                                                  transition: "all 0.15s ease",
+                                                  background: "#f0fdf4",
+                                                  border: "1px solid #bbf7d0",
                                                 }}
                                               >
                                                 <span
                                                   style={{
-                                                    display: "inline-flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    width: "24px",
-                                                    height: "24px",
-                                                    minWidth: "24px",
-                                                    borderRadius: "6px",
                                                     fontSize: "12px",
                                                     fontWeight: 700,
-                                                    background: isCorrect ? "#10b981" : "#f1f5f9",
-                                                    color: isCorrect ? "#ffffff" : "#475467",
+                                                    color: "#065f46",
+                                                    textTransform: "uppercase",
+                                                    letterSpacing: "0.04em",
                                                   }}
                                                 >
-                                                  {key}
+                                                  Thứ tự / Đáp án đúng:
+                                                </span>{" "}
+                                                <span
+                                                  style={{
+                                                    fontSize: "13.5px",
+                                                    fontWeight: 700,
+                                                    color: "#047857",
+                                                  }}
+                                                >
+                                                  {item.correct.join(" → ")}
                                                 </span>
-                                                <div style={{ flex: 1, fontSize: "13.5px", lineHeight: "1.5", color: "#1e293b", fontWeight: isCorrect ? 600 : 400 }}>
-                                                  {text}
+                                              </div>
+                                            )}
+
+                                            {/* Sample Answer (Short Writing / Sentence Translation) */}
+                                            {sampleAns &&
+                                              typeof sampleAns === "string" &&
+                                              sampleAns.trim().length > 0 && (
+                                                <div
+                                                  style={{
+                                                    margin: "10px 0",
+                                                    padding: "10px 14px",
+                                                    borderRadius: "8px",
+                                                    background: "#f0fdf4",
+                                                    border: "1px solid #bbf7d0",
+                                                  }}
+                                                >
+                                                  <div
+                                                    style={{
+                                                      fontSize: "11.5px",
+                                                      fontWeight: 700,
+                                                      color: "#065f46",
+                                                      textTransform:
+                                                        "uppercase",
+                                                      letterSpacing: "0.04em",
+                                                      marginBottom: "4px",
+                                                    }}
+                                                  >
+                                                    Đáp án mẫu:
+                                                  </div>
+                                                  <div
+                                                    style={{
+                                                      fontSize: "13.5px",
+                                                      color: "#064e3b",
+                                                      lineHeight: "1.5",
+                                                      fontWeight: 500,
+                                                    }}
+                                                  >
+                                                    {sampleAns}
+                                                  </div>
                                                 </div>
-                                                {isCorrect && (
-                                                  <span
+                                              )}
+
+                                            {/* Rubric (Short Writing) */}
+                                            {rubric &&
+                                              typeof rubric === "string" &&
+                                              rubric.trim().length > 0 && (
+                                                <div
+                                                  style={{
+                                                    margin: "10px 0",
+                                                    padding: "10px 14px",
+                                                    borderRadius: "8px",
+                                                    background: "#f8fafc",
+                                                    border: "1px solid #e2e8f0",
+                                                  }}
+                                                >
+                                                  <div
                                                     style={{
                                                       fontSize: "11px",
                                                       fontWeight: 700,
-                                                      textTransform: "uppercase",
+                                                      color: "#475467",
+                                                      textTransform:
+                                                        "uppercase",
                                                       letterSpacing: "0.04em",
-                                                      color: "#059669",
-                                                      background: "#d1fae5",
-                                                      padding: "2px 8px",
-                                                      borderRadius: "4px",
-                                                      whiteSpace: "nowrap",
+                                                      marginBottom: "4px",
                                                     }}
                                                   >
-                                                    Đáp án đúng
-                                                  </span>
-                                                )}
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      )}
+                                                    Tiêu chí chấm điểm (Grading
+                                                    Rubric):
+                                                  </div>
+                                                  <div
+                                                    style={{
+                                                      fontSize: "12.5px",
+                                                      color: "#334155",
+                                                      lineHeight: "1.5",
+                                                    }}
+                                                  >
+                                                    {rubric}
+                                                  </div>
+                                                </div>
+                                              )}
+                                          </>
+                                        )}
 
-                                      {/* 2. DẠNG BÀI: GAP FILLING / REORDER / ANNOTATION / SHORT WRITING - Khi không có options */}
-                                      {(!item.options || Object.keys(item.options).length === 0) && (
-                                        <>
-                                          {/* Reorder / List Answer */}
-                                          {Array.isArray(item.correct) && (
-                                            <div style={{ margin: "10px 0", padding: "10px 14px", borderRadius: "8px", background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
-                                              <span style={{ fontSize: "12px", fontWeight: 700, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                                                Thứ tự / Đáp án đúng:
-                                              </span>{" "}
-                                              <span style={{ fontSize: "13.5px", fontWeight: 700, color: "#047857" }}>
-                                                {item.correct.join(" → ")}
-                                              </span>
+                                        {/* GIẢI THÍCH HỌC THUẬT (Áp dụng cho mọi câu) */}
+                                        {explain &&
+                                          typeof explain === "string" &&
+                                          explain.trim().length > 0 && (
+                                            <div
+                                              style={{
+                                                margin: "12px 0 0",
+                                                padding: "12px 14px",
+                                                borderRadius: "8px",
+                                                background: "#f8fafc",
+                                                border: "1px solid #e2e8f0",
+                                                fontSize: "12.5px",
+                                                lineHeight: "1.6",
+                                                color: "#334155",
+                                              }}
+                                            >
+                                              <div
+                                                style={{
+                                                  fontSize: "11px",
+                                                  fontWeight: 700,
+                                                  color: "#475467",
+                                                  textTransform: "uppercase",
+                                                  letterSpacing: "0.04em",
+                                                  marginBottom: "4px",
+                                                }}
+                                              >
+                                                Giải thích chi tiết:
+                                              </div>
+                                              <div>{explain}</div>
                                             </div>
                                           )}
-
-                                          {/* Sample Answer (Short Writing / Sentence Translation) */}
-                                          {sampleAns && typeof sampleAns === "string" && sampleAns.trim().length > 0 && (
-                                            <div style={{ margin: "10px 0", padding: "10px 14px", borderRadius: "8px", background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
-                                              <div style={{ fontSize: "11.5px", fontWeight: 700, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "4px" }}>
-                                                Đáp án mẫu:
-                                              </div>
-                                              <div style={{ fontSize: "13.5px", color: "#064e3b", lineHeight: "1.5", fontWeight: 500 }}>
-                                                {sampleAns}
-                                              </div>
-                                            </div>
-                                          )}
-
-                                          {/* Rubric (Short Writing) */}
-                                          {rubric && typeof rubric === "string" && rubric.trim().length > 0 && (
-                                            <div style={{ margin: "10px 0", padding: "10px 14px", borderRadius: "8px", background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                                              <div style={{ fontSize: "11px", fontWeight: 700, color: "#475467", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "4px" }}>
-                                                Tiêu chí chấm điểm (Grading Rubric):
-                                              </div>
-                                              <div style={{ fontSize: "12.5px", color: "#334155", lineHeight: "1.5" }}>
-                                                {rubric}
-                                              </div>
-                                            </div>
-                                          )}
-                                        </>
-                                      )}
-
-                                      {/* GIẢI THÍCH HỌC THUẬT (Áp dụng cho mọi câu) */}
-                                      {explain && typeof explain === "string" && explain.trim().length > 0 && (
-                                        <div
-                                          style={{
-                                            margin: "12px 0 0",
-                                            padding: "12px 14px",
-                                            borderRadius: "8px",
-                                            background: "#f8fafc",
-                                            border: "1px solid #e2e8f0",
-                                            fontSize: "12.5px",
-                                            lineHeight: "1.6",
-                                            color: "#334155",
-                                          }}
-                                        >
-                                          <div style={{ fontSize: "11px", fontWeight: 700, color: "#475467", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "4px" }}>
-                                            Giải thích chi tiết:
-                                          </div>
-                                          <div>{explain}</div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              }
+                            )}
                           </div>
                         </div>
                       )}
@@ -1829,14 +2356,39 @@ export function AcademicLabView() {
                   {/* TAB 2: RESPONSE JSON (CHO PHÉP SỬA TRỰC TIẾP TRÊN JSON & ĐỒNG BỘ 2 CHIỀU) */}
                   {rrTab2 === "response" && (
                     <div>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: "10px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
                           {jsonSyntaxError ? (
-                            <span style={{ color: "#ef4444", fontSize: "12px", fontWeight: 700 }}>
+                            <span
+                              style={{
+                                color: "#ef4444",
+                                fontSize: "12px",
+                                fontWeight: 700,
+                              }}
+                            >
                               Lỗi cú pháp JSON ({jsonSyntaxError})
                             </span>
                           ) : (
-                            <span style={{ color: "#10b981", fontSize: "12px", fontWeight: 700 }}>
+                            <span
+                              style={{
+                                color: "#10b981",
+                                fontSize: "12px",
+                                fontWeight: 700,
+                              }}
+                            >
                               JSON hợp lệ (Tự động đồng bộ sang Interface & DB)
                             </span>
                           )}
@@ -1864,7 +2416,12 @@ export function AcademicLabView() {
 
                       <textarea
                         rows={22}
-                        value={rawJsonText || (editedSample ? JSON.stringify(editedSample, null, 2) : "")}
+                        value={
+                          rawJsonText ||
+                          (editedSample
+                            ? JSON.stringify(editedSample, null, 2)
+                            : "")
+                        }
                         onChange={(e) => handleRawJsonChange(e.target.value)}
                         placeholder="Chưa có dữ liệu JSON bài tập. Hãy bấm 'Sinh bài tập AI' ở bên trái."
                         className="aihub-code"
@@ -1872,9 +2429,12 @@ export function AcademicLabView() {
                           width: "100%",
                           padding: "16px",
                           fontSize: "12.5px",
-                          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                          fontFamily:
+                            "ui-monospace, SFMono-Regular, Menlo, monospace",
                           lineHeight: "1.6",
-                          border: jsonSyntaxError ? "2px solid #ef4444" : "1px solid #334155",
+                          border: jsonSyntaxError
+                            ? "2px solid #ef4444"
+                            : "1px solid #334155",
                           borderRadius: "12px",
                           background: "#0f172a",
                           color: "#f8fafc",
@@ -1887,7 +2447,10 @@ export function AcademicLabView() {
                   {/* TAB 3: REQUEST CURL */}
                   {rrTab2 === "request" && (
                     <pre className="aihub-code">
-                      {curl("/portal/academic/samples/generate", generatePayload)}
+                      {curl(
+                        "/portal/academic/samples/generate",
+                        generatePayload
+                      )}
                     </pre>
                   )}
                 </div>
@@ -1898,11 +2461,44 @@ export function AcademicLabView() {
 
         {/* TAB 2: INVENTORY TABLE */}
         {mainTab === "inventory" && (
-          <div style={{ background: "#fff", padding: "24px", borderRadius: "16px", border: "1px solid #e4e7ec", marginTop: "10px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
+          <div
+            style={{
+              background: "#fff",
+              padding: "24px",
+              borderRadius: "16px",
+              border: "1px solid #e4e7ec",
+              marginTop: "10px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "18px",
+              }}
+            >
               <div>
-                <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#1d2838", margin: 0 }}>Kho Mẫu Huấn Luyện Đã Lưu</h2>
-                <p style={{ fontSize: "13px", color: "#667084", margin: "4px 0 0" }}>Toàn bộ các bài tập đã được chuyên viên chấm và lưu vào Database.</p>
+                <h2
+                  style={{
+                    fontSize: "20px",
+                    fontWeight: 800,
+                    color: "#1d2838",
+                    margin: 0,
+                  }}
+                >
+                  Kho Mẫu Huấn Luyện Đã Lưu
+                </h2>
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: "#667084",
+                    margin: "4px 0 0",
+                  }}
+                >
+                  Toàn bộ các bài tập đã được chuyên viên chấm và lưu vào
+                  Database.
+                </p>
               </div>
 
               <select
@@ -1917,32 +2513,136 @@ export function AcademicLabView() {
               </select>
             </div>
 
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: "13px",
+              }}
+            >
               <thead>
-                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", textAlign: "left" }}>
-                  <th style={{ padding: "10px 12px", fontWeight: 700, color: "#475467" }}>Mã mẫu</th>
-                  <th style={{ padding: "10px 12px", fontWeight: 700, color: "#475467" }}>Task</th>
-                  <th style={{ padding: "10px 12px", fontWeight: 700, color: "#475467" }}>Tiêu chí</th>
-                  <th style={{ padding: "10px 12px", fontWeight: 700, color: "#475467" }}>Mã lỗi</th>
-                  <th style={{ padding: "10px 12px", fontWeight: 700, color: "#475467" }}>Điểm</th>
-                  <th style={{ padding: "10px 12px", fontWeight: 700, color: "#475467" }}>Trạng thái</th>
-                  <th style={{ padding: "10px 12px", fontWeight: 700, color: "#475467", textAlign: "right" }}>Thao tác</th>
+                <tr
+                  style={{
+                    background: "#f8fafc",
+                    borderBottom: "1px solid #e2e8f0",
+                    textAlign: "left",
+                  }}
+                >
+                  <th
+                    style={{
+                      padding: "10px 12px",
+                      fontWeight: 700,
+                      color: "#475467",
+                    }}
+                  >
+                    Mã mẫu
+                  </th>
+                  <th
+                    style={{
+                      padding: "10px 12px",
+                      fontWeight: 700,
+                      color: "#475467",
+                    }}
+                  >
+                    Task
+                  </th>
+                  <th
+                    style={{
+                      padding: "10px 12px",
+                      fontWeight: 700,
+                      color: "#475467",
+                    }}
+                  >
+                    Tiêu chí
+                  </th>
+                  <th
+                    style={{
+                      padding: "10px 12px",
+                      fontWeight: 700,
+                      color: "#475467",
+                    }}
+                  >
+                    Mã lỗi
+                  </th>
+                  <th
+                    style={{
+                      padding: "10px 12px",
+                      fontWeight: 700,
+                      color: "#475467",
+                    }}
+                  >
+                    Điểm
+                  </th>
+                  <th
+                    style={{
+                      padding: "10px 12px",
+                      fontWeight: 700,
+                      color: "#475467",
+                    }}
+                  >
+                    Trạng thái
+                  </th>
+                  <th
+                    style={{
+                      padding: "10px 12px",
+                      fontWeight: 700,
+                      color: "#475467",
+                      textAlign: "right",
+                    }}
+                  >
+                    Thao tác
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {inventoryList.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ padding: "24px", textAlign: "center", color: "#94a3b8" }}>
-                      Chưa có mẫu nào trong database. Hãy bấm Accept ở Phòng Lab để lưu mẫu đầu tiên.
+                    <td
+                      colSpan={7}
+                      style={{
+                        padding: "24px",
+                        textAlign: "center",
+                        color: "#94a3b8",
+                      }}
+                    >
+                      Chưa có mẫu nào trong database. Hãy bấm Accept ở Phòng Lab
+                      để lưu mẫu đầu tiên.
                     </td>
                   </tr>
                 ) : (
                   inventoryList.map((item) => (
-                    <tr key={item.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={{ padding: "10px 12px", fontWeight: 700 }}>{item.id}</td>
-                      <td style={{ padding: "10px 12px", textTransform: "uppercase" }}>{item.taskId}</td>
-                      <td style={{ padding: "10px 12px", color: "#3a64fa", fontWeight: 600 }}>{item.criterion}</td>
-                      <td style={{ padding: "10px 12px", fontFamily: "monospace" }}>{item.errorCode}</td>
+                    <tr
+                      key={item.id}
+                      style={{ borderBottom: "1px solid #f1f5f9" }}
+                    >
+                      <td style={{ padding: "10px 12px", fontWeight: 700 }}>
+                        {item.id}
+                      </td>
+                      <td
+                        style={{
+                          padding: "10px 12px",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {item.taskId}
+                      </td>
+                      <td
+                        style={{
+                          padding: "10px 12px",
+                          color: "#3a64fa",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {item.criterion}
+                      </td>
+                      <td
+                        style={{
+                          padding: "10px 12px",
+                          fontFamily: "monospace",
+                        }}
+                      >
+                        {item.errorCode}
+                      </td>
                       <td style={{ padding: "10px 12px" }}>
                         <span
                           style={{
@@ -1965,8 +2665,14 @@ export function AcademicLabView() {
                             borderRadius: "10px",
                             fontSize: "11px",
                             fontWeight: 700,
-                            background: item.status === "ACCEPTED" ? "#d1fae5" : "#fee2e2",
-                            color: item.status === "ACCEPTED" ? "#065f46" : "#991b1b",
+                            background:
+                              item.status === "ACCEPTED"
+                                ? "#d1fae5"
+                                : "#fee2e2",
+                            color:
+                              item.status === "ACCEPTED"
+                                ? "#065f46"
+                                : "#991b1b",
                           }}
                         >
                           {item.status}
@@ -1993,13 +2699,34 @@ export function AcademicLabView() {
         {/* TAB 3: LIVE API REQUEST LOGS */}
         {mainTab === "logs" && (
           <div className="aihub-card" style={{ marginTop: "24px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
+              }}
+            >
               <div>
-                <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0, color: "#1d2838" }}>
+                <h3
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: 800,
+                    margin: 0,
+                    color: "#1d2838",
+                  }}
+                >
                   🪵 Live API Request Logs ({apiLogs.length})
                 </h3>
-                <p style={{ fontSize: "12px", color: "#667084", margin: "4px 0 0" }}>
-                  Theo dõi trạng thái HTTP, độ trễ phản hồi (ms), request payload và response payload thực tế.
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: "#667084",
+                    margin: "4px 0 0",
+                  }}
+                >
+                  Theo dõi trạng thái HTTP, độ trễ phản hồi (ms), request
+                  payload và response payload thực tế.
                 </p>
               </div>
               <button
@@ -2013,11 +2740,25 @@ export function AcademicLabView() {
             </div>
 
             {apiLogs.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "40px 20px", color: "#98a2b3", fontSize: "13px" }}>
-                Chưa có request nào trong phiên làm việc này. Hãy thực hiện thao tác Query Reference hoặc Sinh bài tập.
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "40px 20px",
+                  color: "#98a2b3",
+                  fontSize: "13px",
+                }}
+              >
+                Chưa có request nào trong phiên làm việc này. Hãy thực hiện thao
+                tác Query Reference hoặc Sinh bài tập.
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                }}
+              >
                 {apiLogs.map((log) => (
                   <div
                     key={log.id}
@@ -2029,40 +2770,129 @@ export function AcademicLabView() {
                       fontSize: "12px",
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                        <span style={{ color: "#667084", fontFamily: "monospace", fontSize: "11px" }}>{log.timestamp}</span>
-                        <span style={{ fontWeight: 800, background: "#e0e7ff", color: "#3730a3", padding: "2px 6px", borderRadius: "4px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          alignItems: "center",
+                        }}
+                      >
+                        <span
+                          style={{
+                            color: "#667084",
+                            fontFamily: "monospace",
+                            fontSize: "11px",
+                          }}
+                        >
+                          {log.timestamp}
+                        </span>
+                        <span
+                          style={{
+                            fontWeight: 800,
+                            background: "#e0e7ff",
+                            color: "#3730a3",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                          }}
+                        >
                           {log.method}
                         </span>
-                        <span style={{ fontWeight: 700, color: "#1d2838", fontFamily: "monospace" }}>{log.endpoint}</span>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            color: "#1d2838",
+                            fontFamily: "monospace",
+                          }}
+                        >
+                          {log.endpoint}
+                        </span>
                       </div>
-                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                        <span style={{ color: "#667084", fontSize: "11px" }}>⏱ {log.durationMs}ms</span>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          alignItems: "center",
+                        }}
+                      >
+                        <span style={{ color: "#667084", fontSize: "11px" }}>
+                          ⏱ {log.durationMs}ms
+                        </span>
                         <span
                           style={{
                             fontWeight: 700,
                             padding: "2px 8px",
                             borderRadius: "10px",
                             fontSize: "11px",
-                            background: log.status >= 200 && log.status < 300 ? "#d1fae5" : "#fee2e2",
-                            color: log.status >= 200 && log.status < 300 ? "#065f46" : "#991b1b",
+                            background:
+                              log.status >= 200 && log.status < 300
+                                ? "#d1fae5"
+                                : "#fee2e2",
+                            color:
+                              log.status >= 200 && log.status < 300
+                                ? "#065f46"
+                                : "#991b1b",
                           }}
                         >
                           HTTP {log.status}
                         </span>
                       </div>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "10px",
+                      }}
+                    >
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: "11px", color: "#475467", marginBottom: "4px" }}>Request:</div>
-                        <pre className="aihub-code" style={{ margin: 0, maxHeight: "120px", fontSize: "11px" }}>
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            fontSize: "11px",
+                            color: "#475467",
+                            marginBottom: "4px",
+                          }}
+                        >
+                          Request:
+                        </div>
+                        <pre
+                          className="aihub-code"
+                          style={{
+                            margin: 0,
+                            maxHeight: "120px",
+                            fontSize: "11px",
+                          }}
+                        >
                           {JSON.stringify(log.req, null, 2)}
                         </pre>
                       </div>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: "11px", color: "#475467", marginBottom: "4px" }}>Response:</div>
-                        <pre className="aihub-code" style={{ margin: 0, maxHeight: "120px", fontSize: "11px" }}>
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            fontSize: "11px",
+                            color: "#475467",
+                            marginBottom: "4px",
+                          }}
+                        >
+                          Response:
+                        </div>
+                        <pre
+                          className="aihub-code"
+                          style={{
+                            margin: 0,
+                            maxHeight: "120px",
+                            fontSize: "11px",
+                          }}
+                        >
                           {JSON.stringify(log.res, null, 2)}
                         </pre>
                       </div>
@@ -2088,12 +2918,34 @@ export function AcademicLabView() {
               padding: "20px",
             }}
           >
-            <div style={{ background: "#fff", borderRadius: "16px", padding: "24px", maxWidth: "500px", width: "100%" }}>
-              <h3 style={{ fontSize: "16px", fontWeight: 800, margin: "0 0 8px", color: "#1d2838" }}>
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: "16px",
+                padding: "24px",
+                maxWidth: "500px",
+                width: "100%",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "16px",
+                  fontWeight: 800,
+                  margin: "0 0 8px",
+                  color: "#1d2838",
+                }}
+              >
                 Từ chối mẫu & Ghi nhận lý do (Reject)
               </h3>
-              <p style={{ fontSize: "12px", color: "#667084", margin: "0 0 14px" }}>
-                Mẫu bị từ chối kèm lý do này sẽ được lưu vào cơ sở dữ liệu fine-tuning của AIHub.
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "#667084",
+                  margin: "0 0 14px",
+                }}
+              >
+                Mẫu bị từ chối kèm lý do này sẽ được lưu vào cơ sở dữ liệu
+                fine-tuning của AIHub.
               </p>
               <textarea
                 rows={4}
@@ -2101,9 +2953,21 @@ export function AcademicLabView() {
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="Ví dụ: Câu 2 dịch chưa tự nhiên, rubric chưa rõ thang điểm..."
                 className="aihub-select"
-                style={{ width: "100%", padding: "10px", fontSize: "13px", marginBottom: "14px", fontFamily: "inherit" }}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  fontSize: "13px",
+                  marginBottom: "14px",
+                  fontFamily: "inherit",
+                }}
               />
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "8px",
+                }}
+              >
                 <button
                   type="button"
                   className="aihub-btn aihub-btn--ghost"
@@ -2114,7 +2978,11 @@ export function AcademicLabView() {
                 <button
                   type="button"
                   className="aihub-btn"
-                  style={{ background: "#ef4444", color: "#fff", borderColor: "#ef4444" }}
+                  style={{
+                    background: "#ef4444",
+                    color: "#fff",
+                    borderColor: "#ef4444",
+                  }}
                   onClick={handleReject}
                 >
                   Xác nhận Reject & Lưu DB
@@ -2138,39 +3006,104 @@ export function AcademicLabView() {
               padding: "20px",
             }}
           >
-            <div style={{ background: "#fff", borderRadius: "16px", padding: "24px", maxWidth: "750px", width: "100%", maxHeight: "85vh", overflowY: "auto" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: "16px",
+                padding: "24px",
+                maxWidth: "750px",
+                width: "100%",
+                maxHeight: "85vh",
+                overflowY: "auto",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "12px",
+                }}
+              >
                 <div>
-                  <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0, color: "#1d2838" }}>
+                  <h3
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: 800,
+                      margin: 0,
+                      color: "#1d2838",
+                    }}
+                  >
                     Chi tiết Mẫu: {selectedDetail.id}
                   </h3>
-                  <div style={{ display: "flex", gap: "6px", marginTop: "4px", fontSize: "12px", color: "#667084" }}>
-                    <span>Tiêu chí: <strong>{selectedDetail.criterion}</strong></span>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "6px",
+                      marginTop: "4px",
+                      fontSize: "12px",
+                      color: "#667084",
+                    }}
+                  >
+                    <span>
+                      Tiêu chí: <strong>{selectedDetail.criterion}</strong>
+                    </span>
                     <span>•</span>
-                    <span>Mã lỗi: <strong>{selectedDetail.errorCode}</strong></span>
+                    <span>
+                      Mã lỗi: <strong>{selectedDetail.errorCode}</strong>
+                    </span>
                     <span>•</span>
-                    <span>Chủ đề: <strong>{selectedDetail.topic}</strong></span>
+                    <span>
+                      Chủ đề: <strong>{selectedDetail.topic}</strong>
+                    </span>
                     <span>•</span>
-                    <span>Điểm: <strong>{selectedDetail.score || 9}/10 ⭐</strong></span>
+                    <span>
+                      Điểm: <strong>{selectedDetail.score || 9}/10 ⭐</strong>
+                    </span>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSelectedDetail(null)}
-                  style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#98a2b3" }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: "20px",
+                    cursor: "pointer",
+                    color: "#98a2b3",
+                  }}
                 >
                   ✕
                 </button>
               </div>
 
               {selectedDetail.rejectReason && (
-                <div style={{ padding: "10px 14px", background: "#fef2f2", color: "#991b1b", fontSize: "12px", borderRadius: "8px", marginBottom: "14px", border: "1px solid #fecaca" }}>
-                  <strong>Lý do từ chối (Fine-tuning Log):</strong> {selectedDetail.rejectReason}
+                <div
+                  style={{
+                    padding: "10px 14px",
+                    background: "#fef2f2",
+                    color: "#991b1b",
+                    fontSize: "12px",
+                    borderRadius: "8px",
+                    marginBottom: "14px",
+                    border: "1px solid #fecaca",
+                  }}
+                >
+                  <strong>Lý do từ chối (Fine-tuning Log):</strong>{" "}
+                  {selectedDetail.rejectReason}
                 </div>
               )}
 
               {/* Detail Tabs */}
-              <div style={{ display: "flex", gap: "8px", borderBottom: "1px solid #e4e7ec", marginBottom: "14px", paddingBottom: "8px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  borderBottom: "1px solid #e4e7ec",
+                  marginBottom: "14px",
+                  paddingBottom: "8px",
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setDetailModalTab("visual")}
@@ -2182,7 +3115,10 @@ export function AcademicLabView() {
                     fontSize: "12px",
                     cursor: "pointer",
                     color: detailModalTab === "visual" ? "#3a64fa" : "#667084",
-                    borderBottom: detailModalTab === "visual" ? "2px solid #3a64fa" : "none",
+                    borderBottom:
+                      detailModalTab === "visual"
+                        ? "2px solid #3a64fa"
+                        : "none",
                   }}
                 >
                   👁️ Xem Trực Quan
@@ -2198,7 +3134,8 @@ export function AcademicLabView() {
                     fontSize: "12px",
                     cursor: "pointer",
                     color: detailModalTab === "raw" ? "#3a64fa" : "#667084",
-                    borderBottom: detailModalTab === "raw" ? "2px solid #3a64fa" : "none",
+                    borderBottom:
+                      detailModalTab === "raw" ? "2px solid #3a64fa" : "none",
                   }}
                 >
                   🧠 Raw AI Output (Gốc)
@@ -2214,7 +3151,8 @@ export function AcademicLabView() {
                     fontSize: "12px",
                     cursor: "pointer",
                     color: detailModalTab === "fixed" ? "#3a64fa" : "#667084",
-                    borderBottom: detailModalTab === "fixed" ? "2px solid #3a64fa" : "none",
+                    borderBottom:
+                      detailModalTab === "fixed" ? "2px solid #3a64fa" : "none",
                   }}
                 >
                   ✏️ Final Fixed Output (Đã Sửa)
@@ -2223,35 +3161,105 @@ export function AcademicLabView() {
 
               {/* Detail Tab Contents */}
               {detailModalTab === "visual" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  {(selectedDetail.finalOutput?.output?.exercise || selectedDetail.rawAiOutput?.output?.exercise || selectedDetail.finalOutput?.exercise || []).map((q: any, qIdx: number) => (
-                    <div key={qIdx} style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }}>
-                      <div style={{ fontWeight: 800, color: "#3a64fa", marginBottom: "4px" }}>Câu #{qIdx + 1}</div>
-                      <div style={{ color: "#1e293b", fontWeight: 600, marginBottom: "6px" }}>{q.question_text || q.question}</div>
-                      {q.correct && (
-                        <div style={{ background: "#ecfdf5", padding: "8px", borderRadius: "6px", color: "#065f46", fontSize: "11px" }}>
-                          <strong>Đáp án mẫu:</strong> "{q.correct.sample_answer || q.correct.answer}"
-                          {q.correct.ai_grading_rubric && (
-                            <div style={{ marginTop: "4px", color: "#047857" }}>
-                              <strong>Rubric:</strong> {q.correct.ai_grading_rubric}
-                            </div>
-                          )}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }}
+                >
+                  {(
+                    selectedDetail.finalOutput?.output?.exercise ||
+                    selectedDetail.rawAiOutput?.output?.exercise ||
+                    selectedDetail.finalOutput?.exercise ||
+                    []
+                  ).map((q: AcademicExercise, qIdx: number) => {
+                    const correct = answerDetails(q.correct);
+                    return (
+                      <div
+                        key={qIdx}
+                        style={{
+                          background: "#f8fafc",
+                          padding: "12px",
+                          borderRadius: "8px",
+                          border: "1px solid #e2e8f0",
+                          fontSize: "12px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontWeight: 800,
+                            color: "#3a64fa",
+                            marginBottom: "4px",
+                          }}
+                        >
+                          Câu #{qIdx + 1}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        <div
+                          style={{
+                            color: "#1e293b",
+                            fontWeight: 600,
+                            marginBottom: "6px",
+                          }}
+                        >
+                          {q.question_text || q.question}
+                        </div>
+                        {q.correct && (
+                          <div
+                            style={{
+                              background: "#ecfdf5",
+                              padding: "8px",
+                              borderRadius: "6px",
+                              color: "#065f46",
+                              fontSize: "11px",
+                            }}
+                          >
+                            <strong>Đáp án mẫu:</strong> &quot;
+                            {String(
+                              correct?.sample_answer ||
+                                correct?.answer ||
+                                q.correct
+                            )}
+                            &quot;
+                            {correct?.ai_grading_rubric && (
+                              <div
+                                style={{ marginTop: "4px", color: "#047857" }}
+                              >
+                                <strong>Rubric:</strong>{" "}
+                                {correct.ai_grading_rubric}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
               {detailModalTab === "raw" && (
-                <pre className="aihub-code" style={{ margin: 0, maxHeight: "50vh" }}>
-                  {JSON.stringify(selectedDetail.rawAiOutput || selectedDetail, null, 2)}
+                <pre
+                  className="aihub-code"
+                  style={{ margin: 0, maxHeight: "50vh" }}
+                >
+                  {JSON.stringify(
+                    selectedDetail.rawAiOutput || selectedDetail,
+                    null,
+                    2
+                  )}
                 </pre>
               )}
 
               {detailModalTab === "fixed" && (
-                <pre className="aihub-code" style={{ margin: 0, maxHeight: "50vh" }}>
-                  {JSON.stringify(selectedDetail.finalOutput || selectedDetail, null, 2)}
+                <pre
+                  className="aihub-code"
+                  style={{ margin: 0, maxHeight: "50vh" }}
+                >
+                  {JSON.stringify(
+                    selectedDetail.finalOutput || selectedDetail,
+                    null,
+                    2
+                  )}
                 </pre>
               )}
             </div>

@@ -35,39 +35,59 @@ app/
 Giao diện phòng Lab được thiết kế đồng nhất 100% với phong cách hiện đại của trang Demo ([`aihub.css`](file:///d:/AiHub/frontend/app/aihub.css)), gồm 2 phân hệ:
 
 ### A. Tab "🧪 Phòng Lab Tạo & Chấm Điểm"
-* **Cột Trái (Wizard 4 Bước)**:
+
+- **Cột Trái (Wizard 4 Bước)**:
   1. **Bước 1 — Chọn tiêu chí**: Chọn Task (Task 1 / 2), Topic, Criteria, Error Code (28 mã lỗi IELTS), Question Type.
   2. **Bước 2 — Lấy dữ liệu tham chiếu**: Gọi API truy vấn ngân hàng bài làm học viên WISPACE.
   3. **Bước 3 — AI Sinh bài tập**: Kích hoạt mô hình AI sinh câu hỏi, gợi ý Hints, đáp án mẫu.
   4. **Bước 4 — Chấm điểm & Quyết định**:
-     * ⭐ Thanh trượt **Chấm điểm chất lượng AI (Thang 1–10)**.
-     * **Nút `✓ Accept (Lưu vào DB)`**: Lưu bản đã sửa + điểm số vào Database và tự động xoay vòng chủ đề kế tiếp (`Environment` $\rightarrow$ `Technology` $\rightarrow$ `Education`).
-     * **Nút `✕ Reject (Kèm lý do)`**: Mở modal nhập lý do từ chối $\rightarrow$ Lưu lý do + điểm số + mẫu vào Database để phục vụ fine-tuning mô hình AI.
-* **Cột Phải (Live Terminal & Interactive Editor)**:
-  * **Chế độ `👁️ Xem bài tập (Preview)`**: Hiển thị bài tập chuẩn đẹp với tiêu đề câu, chip Hints bo tròn, khung viền đáp án mẫu, **khối AI Grading Rubric 1–10** màu hổ phách và giải thích học thuật.
-  * **Chế độ `✏️ Sửa trực tiếp (Edit Mode)`**: Cho phép chuyên viên sửa trực tiếp từng trường nội dung đề bài, đáp án mẫu, rubric.
-  * **Chế độ `Request` & `Response JSON`**: Xem payload cURL và JSON thô.
+     - ⭐ Thanh trượt **Chấm điểm chất lượng AI (Thang 1–10)**.
+     - **Nút `✓ Accept (Lưu vào DB)`**: Lưu bản đã sửa + điểm số vào Database và tự động xoay vòng chủ đề kế tiếp (`Environment` $\rightarrow$ `Technology` $\rightarrow$ `Education`).
+     - **Nút `✕ Reject (Kèm lý do)`**: Mở modal nhập lý do từ chối $\rightarrow$ Lưu lý do + điểm số + mẫu vào Database để phục vụ fine-tuning mô hình AI.
+- **Cột Phải (Live Terminal & Interactive Editor)**:
+  - **Chế độ `👁️ Xem bài tập (Preview)`**: Hiển thị bài tập chuẩn đẹp với tiêu đề câu, chip Hints bo tròn, khung viền đáp án mẫu, **khối AI Grading Rubric 1–10** màu hổ phách và giải thích học thuật.
+  - **Chế độ `✏️ Sửa trực tiếp (Edit Mode)`**: Cho phép chuyên viên sửa trực tiếp từng trường nội dung đề bài, đáp án mẫu, rubric.
+  - **Chế độ `Request` & `Response JSON`**: Xem payload cURL và JSON thô.
 
 ### B. Tab "📂 Kho Mẫu Đã Lưu"
-* Bảng danh sách toàn bộ các bài tập đã được duyệt/từ chối trong cơ sở dữ liệu.
-* Bộ lọc trạng thái (`ACCEPTED` / `REJECTED`) và modal xem chi tiết bản xuất xưởng.
+
+- Bảng danh sách toàn bộ các bài tập đã được duyệt/từ chối trong cơ sở dữ liệu.
+- Bộ lọc trạng thái (`ACCEPTED` / `REJECTED`) và modal xem chi tiết bản xuất xưởng.
 
 ---
 
 ## 🎨 3. Design System & Brand Identity
 
-* **Thanh Header**: Đã thêm thẻ **`Lab`** nằm ngay cạnh **`Demo`** trên thanh menu điều hướng toàn trang.
-* **Hệ thống màu sắc**:
-  * Brand Blue: `#3a64fa`
-  * Deep Purple: `#311772` / `#240b54` (AiHub Hero & Brand)
-  * Ink Text: `#1d2838`
-  * Surface Background: `#eae5fc` / `#f8fafc`
-  * Success Green: `#10b981` / `#065f46`
-  * Amber Warning: `#f59e0b` / `#92400e`
+- **Thanh Header**: Đã thêm thẻ **`Lab`** nằm ngay cạnh **`Demo`** trên thanh menu điều hướng toàn trang.
+- **Hệ thống màu sắc**:
+  - Brand Blue: `#3a64fa`
+  - Deep Purple: `#311772` / `#240b54` (AiHub Hero & Brand)
+  - Ink Text: `#1d2838`
+  - Surface Background: `#eae5fc` / `#f8fafc`
+  - Success Green: `#10b981` / `#065f46`
+  - Amber Warning: `#f59e0b` / `#92400e`
 
 ---
 
 ## 🚀 4. Tình Trạng Hiện Tại
 
-* **Next.js Turbopack Build**: `npm run build` $\rightarrow$ **28/28 routes biên dịch thành công 100% không lỗi**.
-* **Khởi chạy phát triển**: `npm run dev` (chạy tại `http://localhost:3000`).
+- **Next.js Turbopack Build**: `npm run build` $\rightarrow$ **28/28 routes biên dịch thành công 100% không lỗi**.
+- **Khởi chạy phát triển**: `npm run dev` (chạy tại `http://localhost:3000`).
+
+## Đăng nhập Customer Web
+
+AIHUB sở hữu Web Session. Trình duyệt chỉ nhận token opaque trong cookie `HttpOnly`; BFF đổi token server-to-server lấy User Access JWT 15 phút và chỉ cache JWT trong memory của từng process. Frontend không cần session Redis. Người dùng đăng nhập lại một lần sau cutover vì Redis session cũ không được migrate.
+
+Cấu hình runtime server-only:
+
+```text
+AIHUB_BASE_URL=https://<aihub-api-origin>
+CUSTOMER_WEB_ORIGIN=https://<customer-web-origin>
+AIHUB_WEB_SESSION_CLIENT_SECRET=<same-value-provisioned-from-Vault>
+```
+
+`AIHUB_WEB_SESSION_CLIENT_SECRET` bắt buộc ở production và staging; provision cùng secret từ Vault trước khi cutover. Không đưa secret vào browser hay commit vào repository. Logout luôn xóa cookie; AIHUB revoke được gọi best-effort, nên outage có thể khiến token đã copy còn exchangeable tới khi session hết hạn hoặc được revoke.
+
+Luồng đăng ký và xác minh email dùng `/register`, `/verify-email` và các BFF route `/api/auth/*`. Token xác minh được xóa khỏi URL trước khi gửi tới BFF; cấu hình reverse proxy/access log trên VPS phải bỏ hoặc che query string cho `/verify-email`.
+
+Playwright auth tests dùng AIHUB mock và hai Next.js instance trên loopback, không cần Redis, Docker hay endpoint production. VPS Compose được quản lý ngoài repository; xóa service Redis đang chạy là một thao tác ops riêng sau cutover. Xem [ADR-0016](docs/adr/0016-aihub-owned-web-sessions.md).

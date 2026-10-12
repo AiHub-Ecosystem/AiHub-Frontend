@@ -1,0 +1,509 @@
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev]
+  workflow_dispatch:
+    inputs:
+      verify_image_cache:
+        description: Run one-off cached/uncached image parity and cache timing checks
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  IMAGE_NAME: aihub-frontend
+  PUBLIC_API_URL: https://api.aihubproduction.com
+  VPS_HOST: 76.13.218.96
+  VPS_USER: ngoc_anh
+  VPS_COMPOSE_FILE: /home/VietHXQ/aihub/docker-compose.yml
+
+jobs:
+  fast-checks:
+    name: Fast checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Lint Dockerfile
+        # DL3006 cannot see through the NODE_IMAGE build arg. The base is tagged by
+        # default and the reproducible-image job overrides it with a digest.
+        run: docker run --rm -v "$PWD:/repo" -w /repo --entrypoint hadolint hadolint/hadolint:2.12.0 --ignore DL3006 Dockerfile
+
+      - name: Lint workflows
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Generate route types
+        # PageProps/LayoutProps are generated into .next/types; tsc below needs them.
+        run: npx next typegen
+
+      - name: Lint (advisory)
+        # ponytail: keep deployment unblocked by the existing lint baseline; make it a gate after cleanup.
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit --incremental false
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ env.PUBLIC_API_URL }}
+
+      - name: Security audit (production dependencies)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Security audit (all dependencies, advisory)
+        # ponytail: braces has no patched release yet; keep the dev-tool risk visible without blocking deploys.
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+  browser-tests:
+    name: Browser tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser tests
+        run: npm run test:e2e
+
+  production-image:
+    name: Production image
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          outputs: type=docker,compression=zstd
+          tags: ${{ env.IMAGE_NAME }}:ci
+          cache-from: type=gha,scope=aihub-frontend-prod
+          cache-to: type=gha,mode=min,scope=aihub-frontend-prod,ignore-error=true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
+            NEXT_BUILD_ID=${{ github.sha }}
+
+      - name: Report and bound the payload the VPS transfer sends
+        run: |
+          set -euo pipefail
+          image_bytes="$(docker image inspect --format '{{.Size}}' "$IMAGE_NAME:ci")"
+          payload_bytes="$(docker save "$IMAGE_NAME:ci" | gzip -1 | wc -c)"
+          echo "Runtime image: ${image_bytes} bytes"
+          echo "SSH transfer payload: ${payload_bytes} bytes"
+          # Issue #48 baseline: 1,447,074,312 bytes, ~70s to transfer.
+          baseline_bytes=1447074312
+          ceiling_bytes=$((baseline_bytes * 70 / 100))
+          if [ "$image_bytes" -gt "$ceiling_bytes" ]; then
+            echo "::error::Runtime image is ${image_bytes} bytes, over 70% of the ${baseline_bytes} byte baseline"
+            exit 1
+          fi
+
+      - name: Assert the image ships exactly the production dependency tree
+        run: |
+          set -euo pipefail
+          # Allowlist, not a denylist. A denylist of known dev package names passes
+          # on any dev dependency nobody thought to list, which is how a tree full
+          # of @eslint, @vitest and @tailwindcss once passed this step.
+          expected="$(node scripts/prod-dependencies.mjs --list)"
+          actual="$(docker run --rm --entrypoint sh "$IMAGE_NAME:ci" -c 'ls -1 /app/node_modules' | sort)"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Runtime image node_modules differ from the lockfile production set"
+            echo "--- expected (<) and actual (>):"
+            diff <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") || true
+            exit 1
+          fi
+          echo "Image node_modules match the lockfile production set"
+
+      - name: Smoke test the runtime image
+        run: |
+          set -euo pipefail
+          docker run -d --name aihub-frontend-ci -p 3000:3000 "$IMAGE_NAME:ci"
+
+          # Same wait the post-deploy smoke test uses, on the image's HTTP port.
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 5 http://127.0.0.1:3000/ >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "Runtime image never answered on port 3000" >&2
+              docker logs aihub-frontend-ci
+              exit 1
+            fi
+            sleep 2
+          done
+
+          # Routes that carry special response headers and the retired redirect.
+          curl -fsSI --max-time 15 http://127.0.0.1:3000/verify-email | grep -qi '^cache-control: no-store'
+          curl -fsSI --max-time 15 http://127.0.0.1:3000/reset-password | grep -qi '^referrer-policy: no-referrer'
+          curl -fsSI --max-time 15 http://127.0.0.1:3000/specs | grep -qi '^location: /product'
+          echo "Routes and special response headers intact"
+
+  image-cache-validation:
+    name: Validate Docker image cache (manual)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_image_cache }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PARITY_NODE_IMAGE: node@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
+      PARITY_CACHE_SCOPE: aihub-frontend-parity-${{ github.run_id }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create shared parity inputs
+        id: parity-inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          actions_key="$(openssl rand -base64 32 | tr -d '\n')"
+          preview_id="$(openssl rand -hex 16)"
+          preview_signing_key="$(openssl rand -hex 32)"
+          preview_encryption_key="$(openssl rand -hex 32)"
+          expires_at=4102444800000
+
+          printf '%s' "$actions_key" > "$RUNNER_TEMP/issue-47-server-actions-key"
+          printf '{"previewModeId":"%s","previewModeSigningKey":"%s","previewModeEncryptionKey":"%s","expireAt":%s}' \
+            "$preview_id" "$preview_signing_key" "$preview_encryption_key" "$expires_at" \
+            > "$RUNNER_TEMP/issue-47-preview-info"
+          printf '{"encryption.key":"%s","encryption.expire_at":%s}' "$actions_key" "$expires_at" \
+            > "$RUNNER_TEMP/issue-47-rsc-info"
+
+          echo "source_date_epoch=$(git show -s --format=%ct "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
+
+      - name: Start production cache-fill timer
+        run: echo "CACHE_FILL_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Fill production GHA cache with a cold build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          provenance: false
+          no-cache: true
+          cache-to: type=gha,mode=min,scope=${{ env.PARITY_CACHE_SCOPE }}-prod
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
+            NEXT_BUILD_ID=${{ github.sha }}
+
+      - name: Record production cache-fill time
+        shell: bash
+        run: |
+          set -euo pipefail
+          elapsed=$(($(date +%s) - CACHE_FILL_STARTED_AT))
+          echo "CACHE_FILL_SECONDS=$elapsed" >> "$GITHUB_ENV"
+          echo "Production cache-fill build: ${elapsed}s (limit 128s)"
+
+      - name: Clear local BuildKit cache before production warm build
+        run: docker buildx prune --all --force
+
+      - name: Start production warm-cache timer
+        run: echo "PRODUCTION_WARM_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Build production image with warm GHA cache
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          outputs: type=docker,compression=zstd
+          provenance: false
+          tags: aihub-frontend:validation-cache-warm
+          cache-from: type=gha,scope=${{ env.PARITY_CACHE_SCOPE }}-prod
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
+            NEXT_BUILD_ID=${{ github.sha }}
+
+      - name: Record production warm-cache time
+        shell: bash
+        run: |
+          set -euo pipefail
+          elapsed=$(($(date +%s) - PRODUCTION_WARM_STARTED_AT))
+          image_id="$(docker image inspect --format '{{.Id}}' aihub-frontend:validation-cache-warm)"
+          echo "PRODUCTION_WARM_SECONDS=$elapsed" >> "$GITHUB_ENV"
+          echo "Production warm-cache build: ${elapsed}s; Image ID ${image_id}"
+          docker image rm aihub-frontend:validation-cache-warm
+
+      - name: Build parity image to seed isolated GHA cache
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          provenance: false
+          no-cache: true
+          cache-to: type=gha,mode=min,scope=${{ env.PARITY_CACHE_SCOPE }}-parity
+          build-args: |
+            NODE_IMAGE=${{ env.PARITY_NODE_IMAGE }}
+            NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
+            NEXT_BUILD_ID=${{ github.sha }}
+            SOURCE_DATE_EPOCH=${{ steps.parity-inputs.outputs.source_date_epoch }}
+          secret-files: |
+            next_server_actions_key=${{ runner.temp }}/issue-47-server-actions-key
+            next_preview_info=${{ runner.temp }}/issue-47-preview-info
+            next_rsc_info=${{ runner.temp }}/issue-47-rsc-info
+
+      - name: Clear local BuildKit cache before parity warm build
+        run: docker buildx prune --all --force
+
+      - name: Start parity warm-cache timer
+        run: echo "PARITY_WARM_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Build parity image with warm GHA cache
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          provenance: false
+          tags: aihub-frontend:parity-cached
+          outputs: type=docker,compression=zstd,rewrite-timestamp=true
+          cache-from: type=gha,scope=${{ env.PARITY_CACHE_SCOPE }}-parity
+          build-args: |
+            NODE_IMAGE=${{ env.PARITY_NODE_IMAGE }}
+            NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
+            NEXT_BUILD_ID=${{ github.sha }}
+            SOURCE_DATE_EPOCH=${{ steps.parity-inputs.outputs.source_date_epoch }}
+          secret-files: |
+            next_server_actions_key=${{ runner.temp }}/issue-47-server-actions-key
+            next_preview_info=${{ runner.temp }}/issue-47-preview-info
+            next_rsc_info=${{ runner.temp }}/issue-47-rsc-info
+
+      - name: Record cached parity image and warm time
+        shell: bash
+        run: |
+          set -euo pipefail
+          elapsed=$(($(date +%s) - PARITY_WARM_STARTED_AT))
+          image_id="$(docker image inspect --format '{{.Id}}' aihub-frontend:parity-cached)"
+          echo "PARITY_WARM_SECONDS=$elapsed" >> "$GITHUB_ENV"
+          echo "PARITY_CACHED_IMAGE_ID=$image_id" >> "$GITHUB_ENV"
+          echo "Parity warm-cache build: ${elapsed}s; Image ID ${image_id}"
+
+      - name: Free BuildKit cache before uncached parity build
+        run: docker buildx prune --all --force
+
+      - name: Build parity image without cache
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          provenance: false
+          no-cache: true
+          tags: aihub-frontend:parity-uncached
+          outputs: type=docker,compression=zstd,rewrite-timestamp=true
+          build-args: |
+            NODE_IMAGE=${{ env.PARITY_NODE_IMAGE }}
+            NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
+            NEXT_BUILD_ID=${{ github.sha }}
+            SOURCE_DATE_EPOCH=${{ steps.parity-inputs.outputs.source_date_epoch }}
+          secret-files: |
+            next_server_actions_key=${{ runner.temp }}/issue-47-server-actions-key
+            next_preview_info=${{ runner.temp }}/issue-47-preview-info
+            next_rsc_info=${{ runner.temp }}/issue-47-rsc-info
+
+      - name: Verify timing and exact local Image ID parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          uncached_id="$(docker image inspect --format '{{.Id}}' aihub-frontend:parity-uncached)"
+          echo "Production cold-cache time: ${CACHE_FILL_SECONDS}s (limit 128s)"
+          echo "Production warm-cache time: ${PRODUCTION_WARM_SECONDS}s (limit <60s)"
+          echo "Parity warm-cache time: ${PARITY_WARM_SECONDS}s (limit <60s)"
+          echo "Cached Image ID: ${PARITY_CACHED_IMAGE_ID}"
+          echo "Uncached Image ID: ${uncached_id}"
+
+          failed=0
+          if [ "$CACHE_FILL_SECONDS" -gt 128 ]; then
+            echo "Cold cache fill exceeded 128s"
+            failed=1
+          fi
+          if [ "$PRODUCTION_WARM_SECONDS" -ge 60 ]; then
+            echo "Production warm-cache build took at least 60s"
+            failed=1
+          fi
+          if [ "$PARITY_WARM_SECONDS" -ge 60 ]; then
+            echo "Parity warm-cache build took at least 60s"
+            failed=1
+          fi
+          if [ "$PARITY_CACHED_IMAGE_ID" != "$uncached_id" ]; then
+            echo "Cached and uncached image metadata:"
+            for image in aihub-frontend:parity-cached aihub-frontend:parity-uncached; do
+              docker image inspect --format '{{.Id}} created={{.Created}} layers={{json .RootFS.Layers}} config={{json .Config}}' "$image"
+              docker history --no-trunc --format '{{.CreatedAt}} {{.CreatedBy}}' "$image"
+            done
+            failed=1
+          fi
+          exit "$failed"
+
+  deploy:
+    name: Deploy production
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev' && !inputs.verify_image_cache) }}
+    needs: [fast-checks, browser-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://aihubproduction.com
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build production image with cache
+        id: cached-build
+        uses: docker/build-push-action@v6
+        continue-on-error: true
+        with:
+          context: .
+          outputs: type=docker,compression=zstd
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha,scope=aihub-frontend-prod
+          cache-to: type=gha,mode=min,scope=aihub-frontend-prod,ignore-error=true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
+            NEXT_BUILD_ID=${{ github.sha }}
+
+      - name: Build production image without cache (fallback)
+        if: steps.cached-build.outcome == 'failure'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          outputs: type=docker,compression=zstd
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
+            NEXT_BUILD_ID=${{ github.sha }}
+
+      - name: Assert the image ships exactly the production dependency tree
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          expected="$(node scripts/prod-dependencies.mjs --list)"
+          actual="$(docker run --rm --entrypoint sh "${IMAGE_NAME}:${IMAGE_TAG}" -c 'ls -1 /app/node_modules' | sort)"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Image about to be deployed differs from the lockfile production set"
+            echo "--- expected (<) and actual (>):"
+            diff <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") || true
+            exit 1
+          fi
+          echo "Image node_modules match the lockfile production set"
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "${SSH_PRIVATE_KEY:-}" || { echo "::error::Missing VPS_SSH_PRIVATE_KEY"; exit 1; }
+          test -n "${SSH_KNOWN_HOSTS:-}" || { echo "::error::Missing VPS_KNOWN_HOSTS"; exit 1; }
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/aihub_deploy_key"
+          chmod 600 "$HOME/.ssh/aihub_deploy_key"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+
+      - name: Transfer image to VPS
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          image_bytes="$(docker image inspect --format '{{.Size}}' "${IMAGE_NAME}:${IMAGE_TAG}")"
+          transfer_started=$SECONDS
+          # ponytail: stream the image over SSH; move to a registry if transfer time becomes a bottleneck.
+          docker save "${IMAGE_NAME}:${IMAGE_TAG}" | gzip -1 | \
+            ssh -i "$HOME/.ssh/aihub_deploy_key" \
+              -o BatchMode=yes \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes \
+              "${VPS_USER}@${VPS_HOST}" "sudo -n docker load"
+          echo "Transferred ${image_bytes} bytes in $((SECONDS - transfer_started))s (issue #48 baseline: ~70s)"
+
+      - name: Deploy, smoke test, and roll back on failure
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/aihub_deploy_key" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "${VPS_USER}@${VPS_HOST}" \
+            "IMAGE_TAG='${IMAGE_TAG}' COMPOSE_FILE='${VPS_COMPOSE_FILE}' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          app_image="aihub-frontend:${IMAGE_TAG}"
+          rollback_tag="aihub-frontend:rollback-${IMAGE_TAG}"
+          previous_image="$(sudo -n docker inspect -f '{{.Image}}' aihub-frontend)"
+          sudo -n docker tag "$previous_image" "$rollback_tag"
+
+          rollback() {
+            echo "Deployment failed; restoring the previous image" >&2
+            sudo -n docker tag "$rollback_tag" aihub-frontend:latest || true
+            sudo -n docker compose -f "$COMPOSE_FILE" up -d --no-build --no-deps --force-recreate frontend || true
+          }
+          trap rollback ERR
+
+          sudo -n docker tag "$app_image" aihub-frontend:latest
+          sudo -n docker compose -f "$COMPOSE_FILE" up -d --no-build --no-deps --force-recreate frontend
+
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 5 http://127.0.0.1:3000/ >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "Local frontend health check failed" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
+          curl -fsS --max-time 15 https://aihubproduction.com/ >/dev/null
+
+          trap - ERR
+          sudo -n docker image rm "$rollback_tag" >/dev/null 2>&1 || true
+          sudo -n docker image rm "$app_image" >/dev/null 2>&1 || true
+          sudo -n docker image prune -f --filter "until=168h" >/dev/null
+          REMOTE
