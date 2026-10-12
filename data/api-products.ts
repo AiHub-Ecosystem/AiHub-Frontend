@@ -53,10 +53,27 @@ export const API_CATEGORIES: ApiCategory[] = [
         tagline: "Chấm bài viết theo 4 tiêu chí IELTS",
         description:
           "Trả về điểm từng tiêu chí kèm nhận xét, trích dẫn đúng câu bị lỗi và mã lỗi tương ứng để hệ thống của bạn xử lý tiếp.",
-        status: "coming-soon",
-        hasDemo: false,
-        demoReady: false,
-        endpoints: [],
+        status: "stable",
+        hasDemo: true,
+        demoReady: true,
+        endpoints: [
+          {
+            slug: "grade-task1",
+            name: "Chấm bài Task 1",
+            method: "POST",
+            path: "/v1/ielts/writing/task1/grade",
+            summary:
+              "Chấm bài mô tả biểu đồ. Cần ảnh biểu đồ tải được, loại biểu đồ, đề bài và bài làm.",
+          },
+          {
+            slug: "grade-task2",
+            name: "Chấm bài Task 2",
+            method: "POST",
+            path: "/v1/ielts/writing/task2/grade",
+            summary:
+              "Chấm bài luận. Cần chủ đề, đề bài và bài làm — không cần ảnh.",
+          },
+        ],
       },
       {
         slug: "exercise-generation",
@@ -104,6 +121,34 @@ export const API_CATEGORIES: ApiCategory[] = [
         hasDemo: false,
         demoReady: false,
         endpoints: [],
+      },
+    ],
+  },
+  {
+    slug: "ai-speaking",
+    name: "Giải pháp AI Speaking",
+    description:
+      "Bộ API luyện và chấm IELTS Speaking — nhận audio và trả về transcript cùng phân tích theo rubric.",
+    products: [
+      {
+        slug: "speaking",
+        name: "Chấm Speaking",
+        tagline: "Đánh giá câu trả lời IELTS qua audio",
+        description:
+          "Gửi câu hỏi và bản ghi âm để nhận transcript, độ liên quan, band ước tính và gợi ý cải thiện.",
+        status: "stable",
+        hasDemo: true,
+        demoReady: true,
+        endpoints: [
+          {
+            slug: "speaking-grading",
+            name: "Chấm câu trả lời",
+            method: "POST",
+            path: "/v1/ielts/speaking/grading",
+            summary:
+              "Nhận audio và trả về transcript, band ước tính cùng feedback theo rubric.",
+          },
+        ],
       },
     ],
   },
