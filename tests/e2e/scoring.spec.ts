@@ -76,6 +76,79 @@ function hexToRgb(hex: string) {
   return `rgb(${(int >> 16) & 255}, ${(int >> 8) & 255}, ${int & 255})`;
 }
 
+/**
+ * Every leaf of text on a criterion-tinted surface, with its contrast ratio.
+ * A tone paints a pale criterion background, so text that keeps a dark-panel
+ * colour goes pale-on-pale — the band number once sat at 1.1:1. Reading the
+ * ratio off the page rather than off a hex literal is what keeps the check
+ * honest when a palette value moves.
+ */
+async function tintedTextContrast(page: Page) {
+  return page.evaluate(() => {
+    const luminance = (rgb: string) => {
+      const [r, g, b] = rgb.match(/\d+/g)!.map(Number);
+      const channel = (v: number) => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+    };
+    const backgroundOf = (el: Element) => {
+      let node: Element | null = el;
+      while (node) {
+        const colour = getComputedStyle(node).backgroundColor;
+        if (colour && !colour.startsWith("rgba(0, 0, 0, 0)")) return colour;
+        node = node.parentElement;
+      }
+      return "rgb(255, 255, 255)";
+    };
+
+    const surfaces = [
+      ...document.querySelectorAll(".criterion-card"),
+      ...document.querySelectorAll("[data-testid=scoring-annotation-detail]"),
+    ];
+    const measured: Array<{
+      element: string;
+      foreground: string;
+      background: string;
+      ratio: number;
+    }> = [];
+
+    for (const surface of surfaces) {
+      const background = backgroundOf(surface);
+      const descendants: Element[] = [];
+      const collect = (el: Element) => {
+        for (const child of Array.from(el.children)) {
+          descendants.push(child);
+          collect(child);
+        }
+      };
+      collect(surface);
+
+      for (const el of descendants) {
+        const text = (el.textContent ?? "").trim();
+        if (!text) continue;
+        // Leaves only: a wrapper is measured through the text it contains.
+        if (Array.from(el.children).some((c) => (c.textContent ?? "").trim()))
+          continue;
+        const foreground = getComputedStyle(el).color;
+        const a = luminance(foreground);
+        const b = luminance(background);
+        measured.push({
+          element: `${el.tagName.toLowerCase()}.${el.className}`,
+          foreground,
+          background,
+          ratio:
+            Math.round(
+              ((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)) * 100
+            ) / 100,
+        });
+      }
+    }
+    return measured;
+  });
+}
+
 test.beforeEach(async ({ request }) => {
   await resetScoringLog(request);
 });
@@ -201,6 +274,56 @@ test("the same colour ties a criterion's card, badge and annotation together", a
   // The card rule, the chip underline and the detail all come from
   // --demo-criterion-lexical-*.
   expect(cardBg).toBe("rgb(15, 122, 115)");
+});
+
+test("suggestions and next steps render as two lists side by side", async ({
+  page,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring");
+  await waitForHydration(page);
+  await page.getByTestId("button-grade").click();
+  await expect(page.getByTestId("scoring-report")).toBeVisible();
+
+  // The last region of the result layout, which carries no tone class of its
+  // own so it cannot be identified by colour.
+  const closing = page
+    .getByTestId("scoring-report")
+    .locator(".rubric-grid:not(.scoring-criteria)");
+  await expect(closing.locator(".rubric-card")).toHaveCount(2);
+  const tops = await closing
+    .locator(".rubric-card")
+    .evaluateAll((els) =>
+      els.map((el) => Math.round(el.getBoundingClientRect().top))
+    );
+  expect(tops[0]).toBe(tops[1]);
+});
+
+test("text on a criterion-tinted card stays legible against its own tint", async ({
+  page,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring");
+  await waitForHydration(page);
+  await page.getByTestId("button-grade").click();
+  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  await page.getByTestId("annotation-chip-0").click();
+  await expect(page.getByTestId("scoring-annotation-detail")).toBeVisible();
+
+  const measured = await tintedTextContrast(page);
+  // The check would pass vacuously if the walk stopped finding text.
+  expect(measured.length).toBeGreaterThan(20);
+
+  const illegible = measured.filter((item) => item.ratio < 4.5);
+  expect(
+    illegible,
+    `below 4.5:1 — ${illegible
+      .map(
+        (item) =>
+          `${item.element} ${item.foreground} on ${item.background} = ${item.ratio}`
+      )
+      .join("; ")}`
+  ).toEqual([]);
 });
 
 test("the page ships on the new brand while speaking stays on the old one", async ({

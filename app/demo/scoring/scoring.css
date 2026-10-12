@@ -280,7 +280,7 @@
 }
 .aihub-scoring .console-empty {
   background: var(--demo-console);
-  color: #8f92b8;
+  color: var(--demo-panel-muted);
   padding: 40px 16px;
   text-align: center;
   font-family: var(--app-font-mono);
@@ -306,7 +306,7 @@
   border-top: 0;
   border-radius: 0 0 8px 8px;
   background: var(--demo-console-header);
-  color: #8f92b8;
+  color: var(--demo-panel-muted);
   padding: 8px 11px;
   font-family: var(--app-font-mono);
   font-size: 9px;
@@ -318,7 +318,7 @@
   border: 1px solid var(--demo-console-border);
   border-radius: 6px;
   background: transparent;
-  color: #f3f3fa;
+  color: var(--demo-panel-ink);
   padding: 5px 8px;
   font-size: 9px;
   font-weight: 700;
@@ -371,18 +371,18 @@
   margin: 8px 0;
   border-left: 2px solid currentColor;
   padding-left: 9px;
-  color: var(--demo-panel-ink);
+  color: inherit;
   font-size: 11px;
   font-style: italic;
 }
 .aihub-scoring .scoring-annotation p {
   margin: 0;
-  color: var(--demo-panel-body);
+  color: inherit;
   font-size: 10px;
   line-height: 1.65;
 }
 .aihub-scoring .scoring-annotation-issue {
-  color: var(--demo-panel-body);
+  color: inherit;
   font-size: 9px;
   overflow-wrap: anywhere;
 }
@@ -453,6 +453,18 @@
   border-left-color: var(--demo-criterion-grammar-rule);
   border-bottom-color: var(--demo-criterion-grammar-rule);
 }
+/* A tone paints a pale criterion background onto the score tile, the criterion
+   card and the annotation detail, so the text inside one has to follow that
+   tone's own ink. The shared `.score-value`, `.score-label` and
+   `.section-kicker` rules are coloured for the dark panel: left in place they
+   put a band number at 1.1:1 and a band reason at 0.6:1 on the tint. */
+.aihub-scoring .criterion-card .score-label,
+.aihub-scoring .criterion-card .score-value,
+.aihub-scoring .criterion-card .score-value em,
+.aihub-scoring .criterion-card .section-kicker,
+.aihub-scoring .criterion-card .section-kicker span {
+  color: inherit;
+}
 /* A card sitting on the dark panel needs a panel-coloured border. `:where()`
    keeps this at lower specificity than the tone rules above, so the
    criterion's left rule colour still wins — that colour is the whole point of
@@ -490,7 +502,7 @@
   font-size: 10px;
 }
 .aihub-scoring .rubric-card p {
-  color: var(--demo-panel-body);
+  color: inherit;
   font-size: 10px;
   line-height: 1.6;
 }
@@ -504,12 +516,19 @@
 .aihub-scoring .scoring-plain-list {
   margin: 5px 0 0;
   padding-left: 15px;
-  color: var(--demo-panel-body);
   font-size: 9.5px;
   line-height: 1.65;
 }
+/* The criterion lists sit on a tinted card, the plain lists on the dark panel. */
+.aihub-scoring .scoring-criterion-lists ul {
+  color: inherit;
+}
+.aihub-scoring .scoring-plain-list {
+  color: var(--demo-panel-body);
+}
 .aihub-scoring .rubric-grid {
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 12px;
 }
@@ -585,9 +604,10 @@
   .aihub-scoring .scoring-result {
     position: static;
   }
-  /* The four criteria must not need horizontal scrolling on a phone. */
+  /* The four criteria and the two closing lists must not need horizontal
+     scrolling on a phone. */
   .aihub-scoring .feedback-grid,
-  .aihub-scoring .scoring-criteria,
+  .aihub-scoring .rubric-grid,
   .aihub-scoring .scoring-criterion-lists {
     grid-template-columns: 1fr;
   }
