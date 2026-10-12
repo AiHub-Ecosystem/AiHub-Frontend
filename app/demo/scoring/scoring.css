@@ -1,1 +1,265 @@
 @import "../demo-workbench.css";
+
+.aihub-demo-flow {
+  --demo-criterion-achieve-bg: #dcebff;
+  --demo-criterion-achieve-ink: #1f4f9e;
+  --demo-criterion-achieve-rule: #2f6fd6;
+  --demo-criterion-coherence-bg: #ffe9d6;
+  --demo-criterion-coherence-ink: #8a4307;
+  --demo-criterion-coherence-rule: #b85c0a;
+  --demo-criterion-lexical-bg: #d9f2f0;
+  --demo-criterion-lexical-ink: #0b5f59;
+  --demo-criterion-lexical-rule: #0f7a73;
+  --demo-criterion-grammar-bg: #f1e4fa;
+  --demo-criterion-grammar-ink: #6e2f91;
+  --demo-criterion-grammar-rule: #8a3fb0;
+}
+
+.aihub-demo-flow .feedback-dashboard {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--demo-line);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--demo-ink);
+}
+
+.aihub-demo-flow .feedback-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--demo-line);
+}
+
+.aihub-demo-flow .feedback-header h3 {
+  margin: 0;
+  color: var(--demo-ink);
+  font-size: 16px;
+}
+
+.aihub-demo-flow .feedback-header p {
+  margin: 4px 0 0;
+  color: var(--demo-muted);
+  font-size: 12px;
+}
+
+.aihub-demo-flow .score-badge {
+  border: 1px solid #cbd8ff;
+  border-radius: 7px;
+  background: #eef2ff;
+  color: var(--demo-purple);
+  padding: 6px 9px;
+  font: 700 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+}
+
+.aihub-demo-flow .feedback-grid,
+.aihub-demo-flow .rubric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.aihub-demo-flow .scoring-criteria {
+  margin-top: 0;
+}
+
+.aihub-demo-flow .score-card,
+.aihub-demo-flow .rubric-card {
+  min-width: 0;
+  border: 1px solid var(--demo-line);
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 11px;
+}
+
+.aihub-demo-flow .criterion-card {
+  border-left-width: 3px;
+}
+
+.aihub-demo-flow .score-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--demo-body);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.aihub-demo-flow .score-value {
+  margin-top: 5px;
+  color: var(--demo-ink);
+  font: 700 20px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.aihub-demo-flow .score-value em {
+  color: var(--demo-muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.aihub-demo-flow .criterion-badge {
+  display: inline-grid;
+  min-width: 24px;
+  height: 18px;
+  place-items: center;
+  border-radius: 4px;
+  padding: 0 4px;
+  font: 700 9px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.aihub-demo-flow .scoring-essay {
+  max-height: 340px;
+  overflow: auto;
+  border: 1px solid var(--demo-line);
+  border-radius: 9px;
+  background: #f8fafc;
+  padding: 12px;
+  color: var(--demo-body);
+  font-size: 13px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+}
+
+.aihub-demo-flow .section-kicker {
+  color: var(--demo-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.aihub-demo-flow .section-kicker span {
+  margin-left: 6px;
+  color: var(--demo-body);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.aihub-demo-flow .tone-achieve {
+  background: var(--demo-criterion-achieve-bg);
+  color: var(--demo-criterion-achieve-ink);
+}
+
+.aihub-demo-flow .tone-coherence {
+  background: var(--demo-criterion-coherence-bg);
+  color: var(--demo-criterion-coherence-ink);
+}
+
+.aihub-demo-flow .tone-lexical {
+  background: var(--demo-criterion-lexical-bg);
+  color: var(--demo-criterion-lexical-ink);
+}
+
+.aihub-demo-flow .tone-grammar {
+  background: var(--demo-criterion-grammar-bg);
+  color: var(--demo-criterion-grammar-ink);
+}
+
+.aihub-demo-flow .tone-achieve.criterion-card,
+.aihub-demo-flow .tone-achieve.criterion-chip {
+  border-color: var(--demo-criterion-achieve-rule);
+}
+
+.aihub-demo-flow .tone-coherence.criterion-card,
+.aihub-demo-flow .tone-coherence.criterion-chip {
+  border-color: var(--demo-criterion-coherence-rule);
+}
+
+.aihub-demo-flow .tone-lexical.criterion-card,
+.aihub-demo-flow .tone-lexical.criterion-chip {
+  border-color: var(--demo-criterion-lexical-rule);
+}
+
+.aihub-demo-flow .tone-grammar.criterion-card,
+.aihub-demo-flow .tone-grammar.criterion-chip {
+  border-color: var(--demo-criterion-grammar-rule);
+}
+
+.aihub-demo-flow .criterion-card .score-label,
+.aihub-demo-flow .criterion-card .score-value,
+.aihub-demo-flow .criterion-card .score-value em,
+.aihub-demo-flow .criterion-card .section-kicker,
+.aihub-demo-flow .criterion-card .section-kicker span {
+  color: inherit;
+}
+
+.aihub-demo-flow .criterion-chip {
+  border: 0;
+  border-bottom: 2px solid;
+  border-radius: 2px;
+  padding: 0 2px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.aihub-demo-flow .criterion-chip[aria-pressed="true"] {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+
+.aihub-demo-flow .scoring-annotation {
+  margin-top: 10px;
+  border: 1px solid var(--demo-line);
+  border-radius: 9px;
+  padding: 12px;
+}
+
+.aihub-demo-flow .scoring-annotation blockquote {
+  margin: 8px 0;
+  border-left: 2px solid currentColor;
+  padding-left: 9px;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.aihub-demo-flow .scoring-annotation p,
+.aihub-demo-flow .rubric-card p {
+  margin: 6px 0 0;
+  color: var(--demo-body);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.aihub-demo-flow .scoring-annotation-issue {
+  color: var(--demo-body);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.aihub-demo-flow .scoring-criterion-lists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.aihub-demo-flow .scoring-criterion-lists ul,
+.aihub-demo-flow .scoring-plain-list {
+  margin: 6px 0 0;
+  padding-left: 17px;
+  color: inherit;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .aihub-demo-flow .feedback-header {
+    flex-direction: column;
+  }
+
+  .aihub-demo-flow .scoring-criteria,
+  .aihub-demo-flow .rubric-grid,
+  .aihub-demo-flow .scoring-criterion-lists {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1031,6 +1031,23 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "POST" && pathname === "/v1/sandbox/demo/api-keys/validate") {
+    const { scope } = await readJson(request);
+    if (request.headers["x-api-key"] !== "aihub_sk_e2e_sandbox_key") {
+      sendJson(response, 401, { error: { code: "UNAUTHORIZED" } });
+      return;
+    }
+    if (scope !== "writing.grade" && scope !== "speaking.grade") {
+      sendJson(response, 403, { error: { code: "FORBIDDEN" } });
+      return;
+    }
+    sendJson(response, 200, {
+      data: { valid: true, environment: "sandbox", scope },
+      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+    });
+    return;
+  }
+
   if (request.method === "POST" && pathname === "/v1/sandbox/assertions") {
     await readJson(request);
     assertionSequence += 1;
@@ -1079,6 +1096,11 @@ const server = createServer(async (request, response) => {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
     const body = Buffer.concat(chunks).toString("utf8");
+
+    if (request.headers["x-api-key"] !== "aihub_sk_e2e_sandbox_key") {
+      sendJson(response, 401, { error: { code: "UNAUTHORIZED" } });
+      return;
+    }
 
     const userIdentity = request.headers["x-user-identity"];
     speakingRequests.push({
@@ -1181,6 +1203,12 @@ const server = createServer(async (request, response) => {
   if (request.method === "POST" && scoringGradingMatch) {
     const task = scoringGradingMatch[1];
     const body = await readJson(request);
+
+    if (request.headers["x-api-key"] !== "aihub_sk_e2e_sandbox_key") {
+      sendJson(response, 401, { error: { code: "UNAUTHORIZED" } });
+      return;
+    }
+
     const idempotencyKey = request.headers["idempotency-key"];
     const userIdentity = request.headers["x-user-identity"];
 

@@ -18,6 +18,7 @@ import {
 } from "@/app/demo/demo-workbench";
 import { CLIENT_BUDGET_SECONDS, errorFromPayload, SAMPLE_DRAFT } from "./scoring-client";
 import type { Draft, PublicError } from "./scoring-client";
+import { GradeReport } from "./scoring-report";
 
 const SCOPE: DemoScope = "writing.grade";
 const TASKS = [1, 2] as const;
@@ -394,17 +395,16 @@ export default function ScoringWorkbench() {
           <h3>Chọn bài Writing</h3>
           <p>Hai task dùng fixture đề bài cố định. Ở mock mode, nội dung này được đọc từ trang, không tải catalog từ backend.</p>
           <div className="demo-inline-actions" role="tablist" aria-label="Writing task">
-            {TASKS.map((value) => <button aria-selected={task === value} className={`demo-btn-secondary ${task === value ? "active" : ""}`} key={value} onClick={() => { setTask(value); setResult(null); setGradeError(null); setGradeResponse(null); setGradeTrace(null); setGradeAttempted(false); }} role="tab" type="button">Task {value}</button>)}
+            {TASKS.map((value) => <button aria-selected={task === value} className={`demo-btn-secondary ${task === value ? "active" : ""}`} data-testid={`tab-task-${value}`} key={value} onClick={() => { setTask(value); setResult(null); setGradeError(null); setGradeResponse(null); setGradeTrace(null); setGradeAttempted(false); }} role="tab" type="button">Task {value}</button>)}
           </div>
           {task === 1 && (
             <>
-              <div className="demo-field"><label htmlFor="writing-chart-type">chart_type</label><select disabled={!liveReady} id="writing-chart-type" onChange={(event) => setDraft({ chartType: event.target.value })} value={draft.chartType}>{WRITING_TASK1_CHART_TYPES.map((value) => <option key={value}>{value}</option>)}</select><p className="demo-help">Chọn đúng một trong bảy giá trị enum, phân biệt hoa thường.</p></div>
-              <div className="demo-field"><label htmlFor="writing-image-url">image_url</label><input disabled={!liveReady} id="writing-image-url" onChange={(event) => setDraft({ imageUrl: event.target.value })} value={draft.imageUrl} /><p className="demo-help">Dịch vụ chấm tải ảnh qua HTTPS. Dùng URL tới ảnh thật khi chấm live.</p></div>
+              <div className="demo-field"><label htmlFor="writing-chart-type">chart_type</label><select data-testid="select-chart-type" disabled={!liveReady} id="writing-chart-type" onChange={(event) => setDraft({ chartType: event.target.value })} value={draft.chartType}>{WRITING_TASK1_CHART_TYPES.map((value) => <option key={value}>{value}</option>)}</select><p className="demo-help">Chọn đúng một trong bảy giá trị enum, phân biệt hoa thường.</p></div>
+              <div className="demo-field"><label htmlFor="writing-image-url">image_url</label><input data-testid="input-image-url" disabled={!liveReady} id="writing-image-url" onChange={(event) => setDraft({ imageUrl: event.target.value })} value={draft.imageUrl} />{chartProblem && liveReady && <div className="demo-error" data-testid="chart-url-problem" role="alert">{chartProblem}</div>}<p className="demo-help">Dịch vụ chấm tải ảnh qua HTTPS. Dùng URL tới ảnh thật khi chấm live.</p></div>
             </>
           )}
-          {task === 2 && <div className="demo-field"><label htmlFor="writing-topic">topic</label><input disabled={!liveReady} id="writing-topic" onChange={(event) => setDraft({ topic: event.target.value })} value={draft.topic} /><p className="demo-help">Topic là text tự do theo contract, tối đa 200 ký tự.</p></div>}
-          <div className="demo-field"><label htmlFor="writing-question">question</label><textarea disabled={!liveReady} id="writing-question" onChange={(event) => setDraft({ question: event.target.value })} rows={4} value={draft.question} /><p className="demo-help">Question là text tự do; dùng đề và bài làm cùng một task.</p></div>
-          {chartProblem && liveReady && <div className="demo-error" role="alert">{chartProblem}</div>}
+          {task === 2 && <div className="demo-field"><label htmlFor="writing-topic">topic</label><input data-testid="input-topic" disabled={!liveReady} id="writing-topic" onChange={(event) => setDraft({ topic: event.target.value })} value={draft.topic} /><p className="demo-help">Topic là text tự do theo contract, tối đa 200 ký tự.</p></div>}
+          <div className="demo-field"><label htmlFor="writing-question">question</label><textarea data-testid="input-question" disabled={!liveReady} id="writing-question" onChange={(event) => setDraft({ question: event.target.value })} rows={4} value={draft.question} /><p className="demo-help">Question là text tự do; dùng đề và bài làm cùng một task.</p></div>
           <div className="demo-step-actions"><button className="demo-btn-primary" onClick={() => setStep(3)} type="button">Tiếp tục đến bài làm</button></div>
         </>
       )}
@@ -413,7 +413,7 @@ export default function ScoringWorkbench() {
         <>
           <h3>Nhập bài làm</h3>
           <p>{liveReady ? "Bạn có thể sửa bài trước khi gửi lên Sandbox." : "Mock mode hiển thị bài mẫu read-only; kết quả khi submit luôn là fixture cố định."}</p>
-          <div className="demo-field"><label htmlFor="writing-essay">essay · {draft.essay.trim().split(/\s+/).filter(Boolean).length} từ</label><textarea id="writing-essay" onChange={(event) => setDraft({ essay: event.target.value })} readOnly={!liveReady} rows={12} value={draft.essay} /></div>
+          <div className="demo-field"><label htmlFor="writing-essay">essay · {draft.essay.trim().split(/\s+/).filter(Boolean).length} từ</label><textarea data-testid="input-essay" id="writing-essay" onChange={(event) => setDraft({ essay: event.target.value })} readOnly={!liveReady} rows={12} value={draft.essay} /></div>
           <div className="demo-step-actions"><button className="demo-btn-primary" disabled={!draft.essay.trim()} onClick={() => setStep(4)} type="button">Xem bước chấm</button><button className="demo-btn-secondary" onClick={() => setStep(2)} type="button">Quay lại đề</button></div>
         </>
       )}
@@ -423,7 +423,7 @@ export default function ScoringWorkbench() {
           <h3>{liveReady ? "Gửi chấm live" : "Xem kết quả mẫu"}</h3>
           <p>{liveReady ? "Request sẽ dùng key Sandbox đã kiểm tra và UUID tạm của phiên demo. Backend xác thực lại key trước khi dispatch." : "Nút này chỉ chọn response mock cố định trong frontend. Không gọi route chấm hoặc AI service."}</p>
           {gradeError && <div className="demo-error" role="alert"><strong>{gradeError.code}</strong> · {gradeError.message}{gradeError.retry_after_ms ? ` Thử lại sau ${Math.ceil(gradeError.retry_after_ms / 1000)} giây.` : ""}</div>}
-          <div className="demo-step-actions"><button className="demo-btn-primary" disabled={gradeStatus === "submitting" || (liveReady && (!!chartProblem || !draft.essay.trim()))} onClick={grade} type="button">{gradeStatus === "submitting" ? `Đang chấm ${elapsed}s` : liveReady ? `Chấm thật Task ${task}` : `Hiện kết quả mẫu Task ${task}`}</button><button className="demo-btn-secondary" disabled={gradeStatus === "submitting"} onClick={() => setStep(3)} type="button">Sửa bài</button></div>
+          <div className="demo-step-actions"><button className="demo-btn-primary" data-testid="button-grade" disabled={gradeStatus === "submitting" || (liveReady && (!!chartProblem || !draft.essay.trim()))} onClick={grade} type="button">{gradeStatus === "submitting" ? `Đang chấm ${elapsed}s` : liveReady ? `Chấm thật Task ${task}` : `Hiện kết quả mẫu Task ${task}`}</button><button className="demo-btn-secondary" disabled={gradeStatus === "submitting"} onClick={() => setStep(3)} type="button">Sửa bài</button></div>
           {activeResult && (
             <section className="demo-result-card" aria-label="Kết quả chấm Writing">
               <p className="demo-flow-eyebrow">{activeResult.mode === "mock" ? "KẾT QUẢ MẪU CỐ ĐỊNH" : "LIVE RESPONSE"}</p>
@@ -433,6 +433,7 @@ export default function ScoringWorkbench() {
               <ul>{activeResult.envelope.data.suggestions.map((item) => <li key={item}>{item}</li>)}</ul>
             </section>
           )}
+          {activeResult && <GradeReport result={activeResult.envelope} essay={activeResult.essay} task={activeResult.task} />}
         </>
       )}
 
