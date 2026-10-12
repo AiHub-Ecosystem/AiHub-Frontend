@@ -899,7 +899,12 @@ test("the report is never clipped, at any width", async ({ page }) => {
     const clipped = await page.evaluate(() =>
       Array.from(document.querySelectorAll(".scoring-result *"))
         .filter((element) => element.scrollWidth > element.clientWidth + 1)
-        .map((element) => `${element.className}`.split(" ")[0])
+        .map(
+          (element) =>
+            `${element.className}`.split(" ")[0] +
+            ` ${element.scrollWidth}/${element.clientWidth}` +
+            ` "${element.textContent?.trim().slice(0, 24)}"`
+        )
     );
     expect(clipped, `clipped at ${width}px`).toEqual([]);
   }

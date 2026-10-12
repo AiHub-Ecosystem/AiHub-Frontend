@@ -362,6 +362,11 @@
 .aihub-scoring .criterion-badge {
   display: inline-grid;
   place-items: center;
+  /* A fixed marker, not a text run. As a flex item it defaults to
+     flex-shrink: 1, so on a font wider than the one this was measured with it
+     gets squeezed below its own content width and the letters spill out of the
+     pill. The criterion name is the thing that should give way. */
+  flex: none;
   min-width: 22px;
   height: 15px;
   border-radius: 4px;

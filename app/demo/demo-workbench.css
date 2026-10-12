@@ -336,10 +336,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
   color: #8e94a7;
   font-size: 8px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+/* The name is the part that can wrap. Flex items default to min-width: auto,
+   which pins this one to the width of its longest word and pushes the row past
+   its box on a font wider than the one it was measured with. */
+.aihub-demo .score-label > span {
+  min-width: 0;
 }
 .aihub-demo .score-value {
   margin-top: 5px;
