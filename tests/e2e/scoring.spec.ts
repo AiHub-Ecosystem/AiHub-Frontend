@@ -605,3 +605,33 @@ test("the form shows the visitor no key to manage", async ({ page }) => {
     )
   ).toHaveCount(0);
 });
+
+/**
+ * A heading inside the demo must never reach display type. `meltano-source.css`
+ * styles bare `h1`/`h2`/`h3` at 48px, and Scoring marks this heading `h2`
+ * where Speaking marks it `h1` — so an `h1`-only rule left it falling through
+ * to the foreign stylesheet and it towered over the form beside it.
+ */
+test("no demo heading inherits display type from the foreign stylesheet", async ({
+  page,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring");
+  await waitForHydration(page);
+
+  const headings = await page
+    .locator(".aihub-demo :is(h1, h2, h3)")
+    .evaluateAll((els) =>
+      els.map((el) => ({
+        text: el.textContent?.trim().slice(0, 40) ?? "",
+        size: parseFloat(getComputedStyle(el).fontSize),
+        section: el.closest(".setup-intro") ? "intro" : "other",
+      }))
+    );
+
+  // Nothing on this page is legitimately display type: the page title is 22px
+  // and the report heading 17px. Any heading past 24px has come from the bare
+  // rules, which is the whole defect.
+  const oversized = headings.filter((h) => h.size > 24);
+  expect(oversized, `headings: ${JSON.stringify(headings)}`).toEqual([]);
+});

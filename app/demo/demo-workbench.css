@@ -85,12 +85,19 @@
 
 /* Shell -------------------------------------------------------------------- */
 
-/* A global stylesheet belonging to an unrelated site theme paints bare `h2`
-   and `h3` white. Both demo pages mount inside that stylesheet, so a heading
-   with no class of its own would be white on a white card — invisible until
-   selected. A heading takes the colour of whatever surface it sits on, which
-   is what the dark panels need anyway. */
+/* A global stylesheet belonging to an unrelated site theme styles bare `h1`,
+   `h2` and `h3` as display type: 48px, bold, centred, no margin. Both demo
+   pages mount inside that stylesheet, so a heading without a class of its own
+   silently inherited that — white on a white card, which is how a heading came
+   to disappear until it was selected, and then, once its colour was fixed, to
+   tower over the form beside it. A heading starts from the page's own type
+   and takes the colour of whatever surface it sits on; the demo's own class
+   rules outrank this and set the size they intend. */
 .aihub-demo :is(h1, h2, h3) {
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  margin: 0;
   color: inherit;
 }
 
@@ -157,7 +164,10 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-.aihub-demo .setup-intro h1 {
+/* Both levels: Speaking marks this `h1` and Scoring marks it `h2`, since each
+   page already has an `h1` for its own title. Styling only one of them left
+   the other to fall through to the bare display-type rules above. */
+.aihub-demo .setup-intro :is(h1, h2) {
   margin: 8px 0 10px;
   font-size: 21px;
   letter-spacing: -0.055em;
