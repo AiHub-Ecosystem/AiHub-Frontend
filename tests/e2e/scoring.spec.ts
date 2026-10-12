@@ -664,7 +664,7 @@ test("no demo heading inherits display type from the foreign stylesheet", async 
   await waitForHydration(page);
 
   const headings = await page
-    .locator(".aihub-demo :is(h1, h2, h3)")
+    .locator(".aihub-demo :is(h1, h2, h3, h4, h5, h6)")
     .evaluateAll((els) =>
       els.map((el) => ({
         text: el.textContent?.trim().slice(0, 40) ?? "",

@@ -85,15 +85,17 @@
 
 /* Shell -------------------------------------------------------------------- */
 
-/* A global stylesheet belonging to an unrelated site theme styles bare `h1`,
-   `h2` and `h3` as display type: 48px, bold, centred, no margin. Both demo
-   pages mount inside that stylesheet, so a heading without a class of its own
-   silently inherited that — white on a white card, which is how a heading came
-   to disappear until it was selected, and then, once its colour was fixed, to
-   tower over the form beside it. A heading starts from the page's own type
-   and takes the colour of whatever surface it sits on; the demo's own class
-   rules outrank this and set the size they intend. */
-.aihub-demo :is(h1, h2, h3) {
+/* A global stylesheet belonging to an unrelated site theme styles bare
+   headings as display type. It does this for the whole range, in two rules:
+   `h2, h3` and `h4, h5` both get white and bold, and `h1` through `h6` get
+   their own sizes from 2em up to 56px. Both demo pages mount inside that
+   stylesheet, so a heading without a class of its own silently inherited it —
+   white on a white card, which is how a heading came to disappear until it was
+   selected, and then, once its colour was fixed, to tower over the form beside
+   it. A heading starts from the page's own type and takes the colour of
+   whatever surface it sits on; the demo's own class rules outrank this and set
+   the size they intend. */
+.aihub-demo :is(h1, h2, h3, h4, h5, h6) {
   font: inherit;
   letter-spacing: inherit;
   text-align: inherit;
