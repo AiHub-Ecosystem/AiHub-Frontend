@@ -30,10 +30,11 @@ async function speakingLog(request: APIRequestContext) {
 }
 
 function expectIdentityForwarding(log: SpeakingLog) {
-  expect(log.requests).toHaveLength(log.assertions.length);
-  for (const [index, grading] of log.requests.entries()) {
-    expect(grading.userIdentity).toBeTruthy();
-    expect(grading.userIdentity).toBe(log.assertions[index]);
+  expect(log.assertions).toHaveLength(0);
+  for (const grading of log.requests) {
+    expect(grading.userIdentity).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    );
     expect(grading.identityHeaderNames).toEqual(["x-user-identity"]);
   }
 }
@@ -70,7 +71,7 @@ test.beforeEach(async ({ request }) => {
   await resetSpeakingLog(request);
 });
 
-test("Speaking grading sends the User Identity in X-User-Identity", async ({
+test("Speaking grading forwards the demo UUID in X-User-Identity", async ({
   page,
   request,
 }) => {
@@ -88,14 +89,13 @@ test("Speaking grading sends the User Identity in X-User-Identity", async ({
 
   const log = await speakingLog(request);
   expect(log.requests).toHaveLength(1);
-  expect(log.assertions).toHaveLength(1);
   const [grading] = log.requests;
   expect(grading.operation).toBe("grading-json");
   expectIdentityForwarding(log);
   expectNoExternalRequests();
 });
 
-test("Speaking grading by uploaded audio sends the User Identity in X-User-Identity", async ({
+test("Speaking grading by uploaded audio forwards the demo UUID", async ({
   page,
   request,
 }) => {
@@ -121,14 +121,13 @@ test("Speaking grading by uploaded audio sends the User Identity in X-User-Ident
 
   const log = await speakingLog(request);
   expect(log.requests).toHaveLength(1);
-  expect(log.assertions).toHaveLength(1);
   const [grading] = log.requests;
   expect(grading.operation).toBe("grading");
   expectIdentityForwarding(log);
   expectNoExternalRequests();
 });
 
-test("Speaking grading mints a fresh assertion for each request", async ({
+test("Speaking grading reuses the demo UUID for the session", async ({
   page,
   request,
 }) => {
@@ -150,9 +149,8 @@ test("Speaking grading mints a fresh assertion for each request", async ({
 
   const log = await speakingLog(request);
   expect(log.requests).toHaveLength(2);
-  expect(log.assertions).toHaveLength(2);
   const identities = log.requests.map((entry) => entry.userIdentity);
   expectIdentityForwarding(log);
-  expect(identities[0]).not.toBe(identities[1]);
+  expect(identities[0]).toBe(identities[1]);
   expectNoExternalRequests();
 });

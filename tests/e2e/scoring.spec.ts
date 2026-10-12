@@ -213,11 +213,13 @@ test("grades the prefilled Task 1 sample without a login", async ({
   await page.getByTestId("button-grade").click();
   await expect(page.getByTestId("scoring-report")).toBeVisible();
 
-  // A plain declared user id, and no assertion was ever minted.
+  // The demo uses a temporary UUID, and no assertion was ever minted.
   const log = await scoringLog(request);
   expect(log.requests).toHaveLength(1);
   expect(log.requests[0].task).toBe("1");
-  expect(log.requests[0].userIdentity).toMatch(/^[\x21-\x7e]{1,256}$/);
+  expect(log.requests[0].userIdentity).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  );
   expect(log.requests[0].idempotencyKey).toBeTruthy();
   expect(log.requests[0].body).toMatchObject({
     chart_type: "Bar Chart",
