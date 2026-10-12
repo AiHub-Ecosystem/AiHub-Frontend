@@ -1,0 +1,14 @@
+# The index already stores every text file as LF, but Windows checkouts with
+# core.autocrlf=true turned them into CRLF. That split is invisible until an
+# edit or a scripted replacement misses: a `.Replace()` written with "\n" hits
+# nothing in a CRLF file and reports no error, so a change can silently not
+# apply while the test that was supposed to catch it goes on passing.
+#
+# Pinning the working tree to LF removes the split rather than teaching every
+# tool about it.
+* text=auto eol=lf
+
+# Generated and vendored, never edited by hand.
+app/meltano-source.css -diff linguist-generated
+public/meltano-mirror/** -diff
+public/meltano/** -diff
