@@ -920,6 +920,60 @@ test("the report is never clipped, at any width", async ({ page }) => {
 });
 
 /**
+ * The console column is capped at 858px for a reason a later reader cannot see
+ * from the CSS: uncapped, the four criterion cards ran to 97 characters per line
+ * on a wide window, past the point where the eye loses the return sweep on a
+ * long line. Capped, they run to 69.
+ *
+ * This asserts the outcome rather than the number in the stylesheet, so the cap
+ * can move if the type or the card content changes — but not silently back to
+ * the width it was set to avoid.
+ */
+test("the criterion cards stay within a readable line length, however wide the window", async ({
+  page,
+}) => {
+  await keepBrowserTrafficLocal(page);
+
+  for (const width of [1919, 1440, 1200]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/demo/scoring");
+    await waitForHydration(page);
+    await page.evaluate(() => document.fonts.ready);
+    await page.getByTestId("button-grade").click();
+    await page.getByTestId("scoring-report").waitFor();
+
+    const measured = await page.evaluate(() => {
+      const reason =
+        document.querySelector(".rubric-card p") ??
+        document.querySelector(".criterion-card p");
+      if (!reason) return null;
+      const style = getComputedStyle(reason);
+      const context = document.createElement("canvas").getContext("2d")!;
+      context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const averageChar =
+        context.measureText("abcdefghijklmnopqrstuvwxyz ").width / 27;
+      return {
+        chars: Math.round(reason.getBoundingClientRect().width / averageChar),
+        consoleWidth: Math.round(
+          document.querySelector(".console")!.getBoundingClientRect().width
+        ),
+      };
+    });
+
+    expect(measured, `no criterion text at ${width}px`).not.toBeNull();
+    // 45-75 reads comfortably; 80 is where it starts not to.
+    expect(
+      measured!.chars,
+      `${measured!.chars} characters per line at ${width}px, in a ${measured!.consoleWidth}px console`
+    ).toBeGreaterThanOrEqual(45);
+    expect(
+      measured!.chars,
+      `${measured!.chars} characters per line at ${width}px, in a ${measured!.consoleWidth}px console`
+    ).toBeLessThanOrEqual(80);
+  }
+});
+
+/**
  * A URL the endpoint will refuse is worth catching on the page. It costs no
  * quota — the BFF answers INVALID_REQUEST before a dispatch is spent — but it
  * still costs a round trip and puts an error code where an answer belongs.

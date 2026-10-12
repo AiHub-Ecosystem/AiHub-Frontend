@@ -135,11 +135,31 @@
 }
 
 /* Two-column workbench: a narrow setup column beside the main card. */
+/* 858px on the console column is measured, not chosen. Before this, a 1450px
+   container gave the console 1104px and the criterion cards 532px at 97
+   characters per line — well past the 45-75 that reads comfortably, and past
+   80 where the eye loses the return sweep on a long line. Capping the column
+   puts those cards at 388px and 69 characters.
+
+   Widening the sidebar alone does not fix it: with a 400px sidebar and no cap
+   the console is still 992px and the cards still run to 86. The console needs a
+   limit of its own. Below that limit the report's clipping floor takes over,
+   so the useful range is narrow and the cap sits at its comfortable end rather
+   than at its hard edge.
+
+   Capping one column leaves the other nothing to grow into inside a fixed
+   container, so the pair is centred and the slack sits at the edges instead:
+   1450px offers 1034px beside a 400px sidebar, and 1034 is more than the
+   report can use. The sidebar widens with the window to a cap of its own,
+   because it is what the visitor types into and 246px was too few for an essay
+   field; it is now 358px at a wide window and 258px at the narrowest one where
+   the two columns still stand. */
 .aihub-demo .lab-layout {
   display: grid;
-  grid-template-columns: 288px minmax(0, 1fr);
+  grid-template-columns: clamp(300px, 24vw, 400px) minmax(0, 858px);
   gap: 16px;
   align-items: start;
+  justify-content: center;
 }
 .aihub-demo .card {
   background: hsl(var(--card));
@@ -454,9 +474,9 @@
 }
 
 @media (max-width: 900px) {
-  .aihub-demo .lab-layout {
-    grid-template-columns: 250px minmax(0, 1fr);
-  }
+  /* No lab-layout rule here. This used to narrow the sidebar to 250px, and it
+     has been dead since the stacking breakpoint moved to 1060px — that block
+     comes later and wins at every width this one covered. */
   .aihub-demo .feedback-grid {
     grid-template-columns: 1fr 1fr;
   }
