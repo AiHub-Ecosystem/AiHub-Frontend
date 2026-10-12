@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { WRITING_TASK1_CHART_TYPES } from "@/data/writing-task1-request";
 import {
   parseWritingGradingEnvelope,
@@ -25,7 +27,6 @@ const MAX_QUESTION_CHARS = 2_000;
 const MAX_ESSAY_CHARS = 20_000;
 const MAX_TOPIC_CHARS = 200;
 const MAX_IMAGE_URL_CHARS = 2_000;
-const MAX_IDEMPOTENCY_KEY_BYTES = 255;
 
 const CHART_TYPES = new Set<string>(WRITING_TASK1_CHART_TYPES);
 
@@ -251,20 +252,13 @@ export async function gradeWriting(
   const input = await parseWritingRequest(request);
   const { baseUrl, apiKey } = getSandboxConfig();
 
-  // Required and validated at the boundary, never assumed. The demo page shows
-  // this key so a reader sees the header their own integration has to send, so
-  // it is minted in the browser and forwarded here verbatim once checked —
-  // 1-255 UTF-8 bytes after trim. Pressing the button twice is two paid
-  // grades, never a replay, which is also why the demo never retries: a retry
-  // that re-keys is a second charge and one that does not is a replay.
-  const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-  if (
-    !idempotencyKey ||
-    new TextEncoder().encode(idempotencyKey).byteLength >
-      MAX_IDEMPOTENCY_KEY_BYTES
-  ) {
-    throw invalidRequest();
-  }
+  // Minted here rather than taken from the browser. The demo page is a reader,
+  // not an integration: a visitor has no key and a hex string in the form
+  // teaches a detail about a server they do not run. A UUID satisfies the
+  // gateway's own 1-255 byte rule by construction. Pressing the button twice is
+  // two paid grades, never a replay, which is why the demo never retries — a
+  // retry that re-keys is a second charge, and one that does not is a replay.
+  const idempotencyKey = randomUUID();
 
   const controller = new AbortController();
   // The upstream budget is 60s and this route's maxDuration is 90s, so abort

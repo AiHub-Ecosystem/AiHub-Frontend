@@ -55,7 +55,9 @@ The backend schemas are `additionalProperties: false`, so an unknown field is a 
 - Task 2: `topic` required, 1–200 characters, **free text**. The contract accepts any non-empty string here, so the form does not constrain it to the published `TOPICS`. An allowlist on this field would refuse every real essay — the same trap as pinning an `image_url` host.
 - `language` is **not** in the allowlist. The upstream schema accepts an optional `language`, but the demo never sends one, so allowing it would mean accepting `"en"`, dropping it, and returning a Vietnamese grade under a 200. A field the demo will not forward is a field it refuses.
 
-`Idempotency-Key` is minted in the browser and validated at the boundary: required, 1–255 UTF-8 bytes after trim, then forwarded verbatim. The page shows the key it is about to send, which is the point — the commonest integration mistake is not knowing that one submission means one key, and a key the server minted would have nothing honest to display. This also matches how a customer actually integrates: their server generates the key, their app can show it.
+`Idempotency-Key` is minted in the gateway, not in the browser. The demo page is read by visitors, who are not running an integration: they have no server, no key and no retry to attach one to, and a hex string in the form teaches a detail about a system they do not operate. A UUID satisfies the 1–255 byte rule by construction, so there is nothing left for the page to do. This also matches how a customer actually integrates — their server generates the key — and it removes the browser-minted state that had to be reconciled with hydration.
+
+The header contract is still taught where it belongs: step 3 of the overview above the workbench explains that a real integration sends one key per submission.
 
 Pressing the button twice is deliberately a new key and therefore a new paid grade. The demo never silently replays a stored result.
 
@@ -145,7 +147,7 @@ Two tabs, one form each. Fields are prefilled from `data/writing-task1-request.t
 
 `chart_type` is a fixed choice list of the seven contract values. The endpoint is case-sensitive and rejects `"bar chart"` with a 400, so the form does not offer a spelling it would refuse; the case sensitivity is stated in the field's help text instead of being a trap.
 
-The `Idempotency-Key` for the next submission is shown read-only above the submit button. It is displayed because it is the commonest integration mistake, and not editable because the demo's own rule is that pressing the button twice is two paid grades — a "generate a new key" control would contradict that.
+The form shows no idempotency key and no control to regenerate one. The gateway owns the key and the visitor has nothing to configure. The demo's own rule — pressing the button twice is two paid grades — is stated in the help text, not implied by a key the reader cannot use.
 
 While a grade is in flight, the panel shows progress against the 90-second client budget. No simulated delay, no simulated band.
 
@@ -176,7 +178,7 @@ Nothing is persisted. No history, no draft storage — every page load starts fr
 ```
 scoring-workbench.tsx  ('use client')
   │  POST /api/demo/scoring/grade
-  │  header: Idempotency-Key (minted in the page, shown to the visitor)
+  │  header: (none from the browser — the gateway mints Idempotency-Key)
   │  body: { task: 1|2, question, essay, chart_type?, image_url?, topic? }
   ▼
 app/api/demo/scoring/grade/route.ts

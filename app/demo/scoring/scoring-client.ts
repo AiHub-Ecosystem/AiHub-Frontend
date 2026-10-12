@@ -65,10 +65,6 @@ export function errorFromPayload(payload: unknown): PublicError {
   };
 }
 
-export function newIdempotencyKey() {
-  return crypto.randomUUID();
-}
-
 /**
  * One draft per task. Each task's sample prefills its own fields, so a shared
  * `question`/`essay` would show Task 1's essay on the Task 2 tab — and a

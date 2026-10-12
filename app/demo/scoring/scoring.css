@@ -28,6 +28,12 @@
   --demo-brand-tint: #edebfe;
   --demo-brand-tint-border: #d5d1fb;
 
+  /* The site header injected by site-chrome is `position: fixed` at 120px with
+     a z-index above every panel here. A sticky column offset below that height
+     slides underneath it, which is how the report heading disappeared on the
+     way down the page. Desktop only: below 720px both columns are static. */
+  --demo-sticky-top: 136px;
+
   --demo-console: #14152b;
   --demo-console-header: #1e2040;
   --demo-console-border: #33355a;
@@ -142,7 +148,7 @@
 
 .aihub-scoring .setup-card {
   position: sticky;
-  top: 20px;
+  top: var(--demo-sticky-top);
 }
 /* Task tabs. The active task is a link so it is shareable and survives a
    reload; these rules only read tokens, never a brand literal. */
@@ -235,17 +241,6 @@
   border-top: 1px solid var(--demo-line);
   padding: 14px 20px 20px;
 }
-.aihub-scoring .scoring-idempotency {
-  display: block;
-  border: 1px dashed var(--demo-strong-border);
-  border-radius: 7px;
-  background: var(--demo-surface);
-  color: var(--demo-ink);
-  padding: 8px 9px;
-  font-family: var(--app-font-mono);
-  font-size: 10px;
-  overflow-wrap: anywhere;
-}
 .aihub-scoring .scoring-submit-btn {
   width: 100%;
   margin-top: 10px;
@@ -270,7 +265,7 @@
 
 .aihub-scoring .scoring-result {
   position: sticky;
-  top: 20px;
+  top: var(--demo-sticky-top);
 }
 .aihub-scoring .console {
   background: var(--demo-console);

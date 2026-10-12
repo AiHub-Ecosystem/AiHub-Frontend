@@ -446,37 +446,29 @@ describe("gradeWriting upstream call", () => {
     expect(identity).toMatch(/^[\x21-\x7e]{1,256}$/);
   });
 
-  it("forwards the caller's idempotency key verbatim", async () => {
+  it("mints its own idempotency key when the browser sends none", async () => {
     const calls = stubUpstream();
 
-    await gradeWriting(
-      jsonRequest(TASK1_BODY, { "Idempotency-Key": "demo-key-abc" }),
-      "req_test"
+    await gradeWriting(jsonRequest(TASK1_BODY), "req_test");
+
+    // The visitor is not an integration: the page carries no key, and a UUID
+    // satisfies the gateway's 1-255 byte rule by construction.
+    expect(calls[0].headers.get("idempotency-key")).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     );
-
-    expect(calls[0].headers.get("idempotency-key")).toBe("demo-key-abc");
   });
 
-  it("requires an idempotency key, which is a required upstream header", async () => {
+  it("mints a fresh key per submission, so a second click is a second grade", async () => {
     const calls = stubUpstream();
 
-    await expect(
-      gradeWriting(
-        jsonRequest(TASK1_BODY, { "Idempotency-Key": "" }),
-        "req_test"
-      )
-    ).rejects.toThrow(ScoringBoundaryError);
-    // Nothing left the server.
-    expect(calls).toHaveLength(0);
-  });
+    await gradeWriting(jsonRequest(TASK1_BODY), "req_1");
+    await gradeWriting(jsonRequest(TASK1_BODY), "req_2");
 
-  it("rejects an idempotency key over 255 bytes", async () => {
-    await expect(
-      gradeWriting(
-        jsonRequest(TASK1_BODY, { "Idempotency-Key": "k".repeat(256) }),
-        "req_test"
-      )
-    ).rejects.toThrow(ScoringBoundaryError);
+    // Never a replay: the key is what makes two identical requests two paid
+    // grades rather than one cached result.
+    expect(calls[0].headers.get("idempotency-key")).not.toBe(
+      calls[1].headers.get("idempotency-key")
+    );
   });
 
   it("never lets the API key reach the parsed response", async () => {

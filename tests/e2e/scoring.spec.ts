@@ -553,3 +553,55 @@ test("every text on the page is readable, before and after a grade", async ({
   await expect(page.getByTestId("scoring-report")).toBeVisible();
   await expectReadable(page);
 });
+
+/**
+ * The site header is `position: fixed` above every panel here. A sticky column
+ * offset below its height slides underneath it, so the report heading vanished
+ * while scrolling down the page. The sticky offset has to clear the header.
+ */
+test("a scrolled report clears the fixed site header instead of hiding behind it", async ({
+  page,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring");
+  await waitForHydration(page);
+  // Measured before grading, while the panel is short enough to stick. Once a
+  // report exists it is taller than any viewport, and scrolling it past the
+  // header is what a reader wants.
+
+  const header = await page.evaluate(() => {
+    const el = document.querySelector("header");
+    if (!el) throw new Error("the site header is missing");
+    return {
+      position: getComputedStyle(el).position,
+      bottom: el.getBoundingClientRect().bottom,
+    };
+  });
+  // If the header stops being fixed, this test would be measuring nothing.
+  expect(header.position).toBe("fixed");
+
+  await page.evaluate(() => window.scrollTo(0, 800));
+  await page.waitForTimeout(300);
+
+  const panel = page.locator(".scoring-result");
+  await expect(panel).toBeInViewport();
+  const top = (await panel.boundingBox())!.y;
+  expect(top).toBeGreaterThanOrEqual(header.bottom - 1);
+});
+
+/**
+ * The visitor is not an integration. The gateway mints the idempotency key,
+ * so a UUID appearing anywhere in the form means the key moved back into the
+ * UI — which is the regression this guards.
+ */
+test("the form shows the visitor no key to manage", async ({ page }) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring");
+  await waitForHydration(page);
+
+  await expect(
+    page.getByText(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
+    )
+  ).toHaveCount(0);
+});

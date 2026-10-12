@@ -23,7 +23,6 @@ import {
 import {
   CLIENT_BUDGET_SECONDS,
   errorFromPayload,
-  newIdempotencyKey,
   SAMPLE_DRAFT,
 } from "./scoring-client";
 import type { Draft, PublicError } from "./scoring-client";
@@ -44,14 +43,10 @@ export default function ScoringWorkbench() {
       ...previous,
       [task]: { ...previous[task], ...patch },
     }));
-  // The key is random, so it cannot be produced during SSR without a hydration
-  // mismatch: the server and the client would each render a different UUID.
-  // `crypto` is the external system here, which is what an effect is for, so
-  // the key is minted after mount and rendered as a placeholder until then.
-  // Nothing about a grade is persisted — every load starts fresh.
-  const [idempotencyKey, setIdempotencyKey] = useState("");
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs a browser-only random value; see above
-  useEffect(() => setIdempotencyKey(newIdempotencyKey()), []);
+  // Nothing about a grade is persisted — every load starts fresh. The
+  // idempotency key is the gateway's business, not the visitor's: this page is
+  // not an integration, and a hex string in the form teaches a detail about a
+  // server the visitor does not have.
   const [status, setStatus] = useState<"idle" | "submitting" | "success">(
     "idle"
   );
@@ -124,10 +119,7 @@ export default function ScoringWorkbench() {
     try {
       const response = await fetch("/api/demo/scoring/grade", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": idempotencyKey,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
         signal: controller.signal,
       });
@@ -141,9 +133,6 @@ export default function ScoringWorkbench() {
       }
       setResult({ task, envelope: payload, essay: requestBody.essay });
       setStatus("success");
-      // A fresh key per submission: the button grades twice rather than
-      // replaying a stored result.
-      setIdempotencyKey(newIdempotencyKey());
     } catch (caught) {
       // Only our own 90s abort is a timeout. Anything else that never reached
       // the route is a transport failure, and calling that a timeout tells the
@@ -168,7 +157,6 @@ export default function ScoringWorkbench() {
               };
       setError(nextError);
       setStatus("idle");
-      setIdempotencyKey(newIdempotencyKey());
     } finally {
       window.clearTimeout(timeout);
     }
@@ -321,22 +309,6 @@ export default function ScoringWorkbench() {
               </div>
 
               <div className="scoring-submit">
-                <label className="mini-label" htmlFor="idempotency-key">
-                  Idempotency-Key cho lần gửi tới
-                </label>
-                <output
-                  className="scoring-idempotency"
-                  data-testid="output-idempotency-key"
-                  id="idempotency-key"
-                >
-                  {idempotencyKey || "—"}
-                </output>
-                <p className="scoring-help">
-                  Header bắt buộc. Không có nút tạo key mới: bấm nút chấm hai
-                  lần là hai lần chấm có tính phí, không phải phát lại kết quả
-                  đã lưu.
-                </p>
-
                 <button
                   className="btn btn-primary scoring-submit-btn"
                   data-testid="button-grade"
