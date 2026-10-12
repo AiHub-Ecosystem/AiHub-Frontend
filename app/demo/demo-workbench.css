@@ -53,7 +53,7 @@
   --app-font-sans:
     var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
   --app-font-mono:
-    var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+    var(--font-ibm-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   --radius: 16px;
   --shadow-sm: 0 4px 20px -2px rgb(29 40 56 / 0.05);
   --shadow-md: 0 12px 32px rgb(29 40 56 / 0.08);
@@ -462,18 +462,26 @@
   }
 }
 /* A grade report sets a floor on how narrow the console may get. Measured
-   (2026-10-12): at a 980px viewport the console is 586px and clean, at 960px it
-   is 566px and one element overflows, at 940px it is 546px and three do. Below
-   that floor the console clips its own content — the page itself does not
-   scroll — so the damage reads as a truncated report rather than as a layout
-   fault, and it only appears once the visitor has already waited for the
-   answer.
+   (2026-10-12) with the self-hosted Plus Jakarta Sans: at a 1000px viewport the
+   console is 606px and `rubric-grid` overflows; at 1020px it is 626px and
+   nothing does. The floor sits just above 610px.
 
-   1000px rather than the 980px where the floor is reached, to keep the console
-   above it instead of exactly on it. This block sits after the 900px rule so
-   it wins below 900px too; the form keeps document order here, where the phone
-   rule below deliberately inverts it. */
-@media (max-width: 1000px) {
+   Below that floor the console clips its own content, and the page itself does
+   not scroll, so the damage reads as a truncated report rather than as a
+   layout fault. It only appears once a grade has arrived, after the visitor
+   has already waited for the answer.
+
+   1060px puts the console at 666px, roughly 50px clear of the floor, rather
+   than sitting on it. This block sits after the 900px rule so it wins below
+   900px too; the form keeps document order here, where the phone rule below
+   deliberately inverts it.
+
+   These numbers moved when the font did. Under the `system-ui` fallback the
+   floor was near 586px and 1000px was the right answer. The real face is wider
+   and raised the floor by about 30px, which made the old breakpoint admit a
+   narrow band of clipped reports: a 1000px viewport stopped stacking, and
+   1001px would have clipped. */
+@media (max-width: 1060px) {
   .aihub-demo .lab-layout {
     grid-template-columns: 1fr;
   }

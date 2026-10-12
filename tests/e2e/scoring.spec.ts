@@ -879,17 +879,26 @@ test("a broken chart on Task 1 does not follow the visitor to Task 2", async ({
  * layout fault, and it only appears once a grade has arrived, after the visitor
  * has already waited for the answer.
  *
- * Measured: at 980px the console is 586px and clean; at 960px it is 566px and
- * one element overflows; at 940px it is 546px and three do. The shell stacked
- * its columns at 720px, far below any of that.
+ * Measured with the self-hosted Plus Jakarta Sans: at a 1000px viewport the
+ * console is 606px and `rubric-grid` overflows; at 1020px it is 626px and
+ * nothing does. The floor sits just above 610px, and the shell stacks at
+ * 1060px to keep the console about 50px clear of it.
+ *
+ * Both sides of that boundary are asserted. Under the `system-ui` fallback the
+ * floor was near 586px and the old 1000px breakpoint was correct; loading the
+ * real font raised the floor and quietly turned that breakpoint into a band
+ * that clipped instead.
  */
 test("the report is never clipped, at any width", async ({ page }) => {
   // Each width costs a load and a full grade, which the default timeout does not
   // cover. The failure this guards is invisible without all of them.
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   await keepBrowserTrafficLocal(page);
 
-  for (const width of [1440, 1024, 960, 900, 768]) {
+  // 1061 and 1060 straddle the stacking boundary; 1020 and 1001 are the
+  // narrowest two-column viewports either rule would allow, and 1001 is the one
+  // that clips if the boundary is a pixel too low.
+  for (const width of [1440, 1200, 1061, 1060, 1020, 1001, 900, 768]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/demo/scoring");
     await waitForHydration(page);

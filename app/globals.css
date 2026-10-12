@@ -4,7 +4,8 @@
 
 @theme {
   --font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono:
+    var(--font-ibm-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --color-brand-blue: #3a64fa;
   --color-brand-cyan: #18c3fa;
@@ -145,9 +146,21 @@ em {
 
 .hero-bg {
   background:
-    radial-gradient(60% 45% at 50% 0%, rgba(58, 100, 250, 0.22) 0%, transparent 70%),
-    radial-gradient(35% 30% at 85% 15%, rgba(24, 195, 250, 0.14) 0%, transparent 70%),
-    radial-gradient(40% 30% at 10% 20%, rgba(249, 99, 188, 0.12) 0%, transparent 70%);
+    radial-gradient(
+      60% 45% at 50% 0%,
+      rgba(58, 100, 250, 0.22) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      35% 30% at 85% 15%,
+      rgba(24, 195, 250, 0.14) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      40% 30% at 10% 20%,
+      rgba(249, 99, 188, 0.12) 0%,
+      transparent 70%
+    );
 }
 
 .dashed-card {
@@ -161,8 +174,20 @@ em {
 }
 
 .marquee-mask {
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 8%,
+    #000 92%,
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 8%,
+    #000 92%,
+    transparent
+  );
 }
 
 .code-token-pink {
@@ -262,7 +287,9 @@ em {
   color: white;
   font-size: 15px;
   font-weight: 700;
-  transition: transform 0.2s ease, background-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .meltano-main-button:hover {
@@ -346,9 +373,15 @@ em {
 }
 
 @keyframes meltano-floating {
-  from { transform: translateX(0); }
-  50% { transform: translateX(-50px); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-50px);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 .meltano-logos-section {
@@ -428,10 +461,18 @@ em {
   letter-spacing: -0.015em;
 }
 
-.meltano-value-grid article:nth-child(1) em { color: #18c3fa; }
-.meltano-value-grid article:nth-child(2) em { color: #f963bc; }
-.meltano-value-grid article:nth-child(3) em { color: #fbcc54; }
-.meltano-value-grid article:nth-child(4) em { color: #99ce55; }
+.meltano-value-grid article:nth-child(1) em {
+  color: #18c3fa;
+}
+.meltano-value-grid article:nth-child(2) em {
+  color: #f963bc;
+}
+.meltano-value-grid article:nth-child(3) em {
+  color: #fbcc54;
+}
+.meltano-value-grid article:nth-child(4) em {
+  color: #99ce55;
+}
 
 .meltano-value-grid p {
   margin-top: 24px;
@@ -506,8 +547,12 @@ em {
   line-height: 1.1;
 }
 
-.meltano-community-card h3 em { color: #f963bc; }
-.meltano-community-card:nth-child(2) h3 em { color: #18c3fa; }
+.meltano-community-card h3 em {
+  color: #f963bc;
+}
+.meltano-community-card:nth-child(2) h3 em {
+  color: #18c3fa;
+}
 
 .meltano-arrow-link {
   position: relative;
@@ -525,7 +570,9 @@ em {
   line-height: 1.1;
 }
 
-.meltano-case-studies h2 em { color: #18c3fa; }
+.meltano-case-studies h2 em {
+  color: #18c3fa;
+}
 
 .meltano-case-grid {
   display: grid;
@@ -563,7 +610,9 @@ em {
   transition: transform 0.35s ease;
 }
 
-.meltano-case-image:hover img { transform: scale(1.035); }
+.meltano-case-image:hover img {
+  transform: scale(1.035);
+}
 
 .meltano-case-grid h3 {
   margin-top: 20px;
@@ -574,31 +623,89 @@ em {
 }
 
 @media (max-width: 1024px) {
-  .meltano-value-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px 32px; }
-  .meltano-value-grid article { min-height: 280px; }
+  .meltano-value-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 48px 32px;
+  }
+  .meltano-value-grid article {
+    min-height: 280px;
+  }
 }
 
 @media (max-width: 767px) {
-  .meltano-header { background: rgb(197 182 255 / 88%); backdrop-filter: blur(12px); }
-  .meltano-portal { display: none; }
-  .meltano-hero { height: 100dvh; min-height: 680px; }
-  .meltano-hero-copy { padding-top: 32px; }
-  .meltano-hero-copy h1 { font-size: 42px; }
-  .meltano-hero-copy p { max-width: 330px; font-size: 16px; }
-  .meltano-cloud-left, .meltano-cloud-right { top: 55px; width: 40%; }
-  .meltano-cloud-left { left: -12%; }
-  .meltano-cloud-right { right: -24%; }
-  .meltano-castle { width: 42%; }
-  .meltano-waterfall { width: 28%; }
-  .meltano-logos-section { padding: 45px 20px 30px; }
-  .meltano-logos-section .marquee-mask { padding: 24px 0; }
-  .meltano-logo-item { margin-right: 40px; }
-  .meltano-value-props { padding: 72px 24px; }
-  .meltano-value-grid { grid-template-columns: 1fr; gap: 52px; }
-  .meltano-value-grid article { min-height: auto; }
-  .meltano-value-grid h3 { font-size: 32px; }
-  .meltano-community-grid, .meltano-case-grid { grid-template-columns: 1fr; }
-  .meltano-community-card { min-height: 330px; padding: 30px; }
-  .meltano-community-card h3 { margin-top: 42px; font-size: 32px; }
-  .meltano-case-studies h2 { font-size: 40px; }
+  .meltano-header {
+    background: rgb(197 182 255 / 88%);
+    backdrop-filter: blur(12px);
+  }
+  .meltano-portal {
+    display: none;
+  }
+  .meltano-hero {
+    height: 100dvh;
+    min-height: 680px;
+  }
+  .meltano-hero-copy {
+    padding-top: 32px;
+  }
+  .meltano-hero-copy h1 {
+    font-size: 42px;
+  }
+  .meltano-hero-copy p {
+    max-width: 330px;
+    font-size: 16px;
+  }
+  .meltano-cloud-left,
+  .meltano-cloud-right {
+    top: 55px;
+    width: 40%;
+  }
+  .meltano-cloud-left {
+    left: -12%;
+  }
+  .meltano-cloud-right {
+    right: -24%;
+  }
+  .meltano-castle {
+    width: 42%;
+  }
+  .meltano-waterfall {
+    width: 28%;
+  }
+  .meltano-logos-section {
+    padding: 45px 20px 30px;
+  }
+  .meltano-logos-section .marquee-mask {
+    padding: 24px 0;
+  }
+  .meltano-logo-item {
+    margin-right: 40px;
+  }
+  .meltano-value-props {
+    padding: 72px 24px;
+  }
+  .meltano-value-grid {
+    grid-template-columns: 1fr;
+    gap: 52px;
+  }
+  .meltano-value-grid article {
+    min-height: auto;
+  }
+  .meltano-value-grid h3 {
+    font-size: 32px;
+  }
+  .meltano-community-grid,
+  .meltano-case-grid {
+    grid-template-columns: 1fr;
+  }
+  .meltano-community-card {
+    min-height: 330px;
+    padding: 30px;
+  }
+  .meltano-community-card h3 {
+    margin-top: 42px;
+    font-size: 32px;
+  }
+  .meltano-case-studies h2 {
+    font-size: 40px;
+  }
 }

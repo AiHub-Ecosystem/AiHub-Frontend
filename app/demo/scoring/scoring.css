@@ -564,7 +564,7 @@
    the submit button below it — measured: the click is intercepted and the
    button is unreachable. It is a side-by-side affordance, so it goes off
    exactly where the side-by-side goes off. */
-@media (max-width: 1000px) {
+@media (max-width: 1060px) {
   .aihub-scoring .setup-card,
   .aihub-scoring .scoring-result {
     position: static;
