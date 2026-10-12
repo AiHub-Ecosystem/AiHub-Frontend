@@ -5,6 +5,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { waitForHydration } from "./hydration";
+import { expectReadable } from "./text-contrast";
 
 const mockUrl = "http://127.0.0.1:3101";
 
@@ -529,4 +530,26 @@ test("the four criteria fit a phone without horizontal scrolling", async ({
     els.map((el) => Math.round(el.getBoundingClientRect().width))
   );
   expect(Math.min(...widths)).toBeGreaterThan(150);
+});
+
+/**
+ * Regression guard for a class of defect nothing else caught: the page renders,
+ * grades correctly, and is still unreadable. A bare heading inherited a white
+ * colour from a global stylesheet built for an unrelated site theme and sat
+ * white on a white card.
+ */
+test("every text on the page is readable, before and after a grade", async ({
+  page,
+}) => {
+  // The Task 1 page renders the sample chart from s3.wispace.app. Without this
+  // the navigation waits on a real network fetch, which hangs the test when
+  // the suite runs without outbound access.
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/scoring");
+  await waitForHydration(page);
+  await expectReadable(page);
+
+  await page.getByTestId("button-grade").click();
+  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  await expectReadable(page);
 });

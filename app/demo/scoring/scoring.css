@@ -23,7 +23,7 @@
   --demo-body: #5c5d77;
   --demo-line: #e4e4ec;
   --demo-surface: #f7f7fb;
-  --demo-muted: #9c9dc2;
+  --demo-muted: #6e6f96;
   --demo-strong-border: #c7c7d9;
   --demo-brand-tint: #edebfe;
   --demo-brand-tint-border: #d5d1fb;
@@ -318,7 +318,10 @@
   border: 1px solid var(--demo-console-border);
   border-radius: 6px;
   background: transparent;
-  color: var(--demo-panel-ink);
+  /* The copy control sits in the console header bar, which is a light surface
+     before a grade exists. The panel ink meant for the dark body put white on
+     near-white here: 1.03:1. */
+  color: var(--demo-body);
   padding: 5px 8px;
   font-size: 9px;
   font-weight: 700;
@@ -327,6 +330,12 @@
 .aihub-scoring .console-copy:hover {
   border-color: var(--demo-panel-accent);
   color: var(--demo-panel-accent);
+}
+/* Two controls share this class on two different surfaces: the request row sits
+   on a light card, the footer one on the dark console. Reading the colour off
+   the parent is the only thing that keeps both of them legible. */
+.aihub-scoring .console-footer .console-copy {
+  color: var(--demo-panel-ink);
 }
 .aihub-scoring .main-status {
   display: inline-flex;

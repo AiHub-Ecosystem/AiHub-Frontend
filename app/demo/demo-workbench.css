@@ -85,6 +85,15 @@
 
 /* Shell -------------------------------------------------------------------- */
 
+/* A global stylesheet belonging to an unrelated site theme paints bare `h2`
+   and `h3` white. Both demo pages mount inside that stylesheet, so a heading
+   with no class of its own would be white on a white card — invisible until
+   selected. A heading takes the colour of whatever surface it sits on, which
+   is what the dark panels need anyway. */
+.aihub-demo :is(h1, h2, h3) {
+  color: inherit;
+}
+
 .aihub-demo .app-shell {
   min-height: 100dvh;
   padding: 20px 24px 42px;
@@ -164,7 +173,8 @@
   white-space: nowrap;
   border: 1px solid hsl(150 42% 74%);
   background: hsl(145 51% 95%);
-  color: hsl(156 57% 34%);
+  /* 4.88:1 on that background. The lighter shade this replaced sat at 4.06. */
+  color: hsl(156 60% 27%);
   border-radius: 5px;
   padding: 4px 7px;
   font-size: 9px;
@@ -198,8 +208,11 @@
 .aihub-demo .btn:active {
   transform: translateY(0);
 }
+/* The global stylesheets colour anchors with `!important`, so a primary
+   button rendered as a link cannot be given readable text without matching
+   that. Nothing else in this file needs the flag. */
 .aihub-demo .btn-primary {
-  color: white;
+  color: #fff !important;
   background: var(--demo-brand);
   border-color: var(--demo-brand);
 }
@@ -355,7 +368,8 @@
 }
 .aihub-demo .section-kicker span {
   margin-left: 6px;
-  color: #667087;
+  /* Was a #667087 literal, which sat at 3.61:1 on the dark panel. */
+  color: var(--demo-panel-muted);
   font-family: var(--app-font-mono);
   font-weight: 500;
   text-transform: none;
