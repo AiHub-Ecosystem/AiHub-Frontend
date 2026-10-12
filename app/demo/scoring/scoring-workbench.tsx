@@ -193,14 +193,6 @@ export default function ScoringWorkbench() {
                     </Link>
                   ))}
                 </div>
-                <h2>
-                  {task === 1 ? "Task 1 · Mô tả biểu đồ" : "Task 2 · Bài luận"}
-                </h2>
-                <p>
-                  {task === 1
-                    ? "Biểu đồ, đề bài và bài làm đã điền sẵn từ ví dụ công bố của AIHUB, nên bấm nút là chấm được ngay."
-                    : "Đề bài, chủ đề và bài làm đã điền sẵn từ ví dụ công bố của AIHUB, nên bấm nút là chấm được ngay."}
-                </p>
               </div>
 
               <div className="scoring-form">

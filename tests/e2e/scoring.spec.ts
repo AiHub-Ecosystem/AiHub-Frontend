@@ -652,7 +652,6 @@ test("no demo heading inherits display type from the foreign stylesheet", async 
       els.map((el) => ({
         text: el.textContent?.trim().slice(0, 40) ?? "",
         size: parseFloat(getComputedStyle(el).fontSize),
-        section: el.closest(".setup-intro") ? "intro" : "other",
       }))
     );
 
