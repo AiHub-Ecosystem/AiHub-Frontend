@@ -1,10 +1,11 @@
 .aihub-demo-flow {
   --demo-ink: #1d2838;
   --demo-body: #475467;
-  --demo-muted: #667084;
+  --demo-muted: #5f6b7a;
   --demo-line: #e4e7ec;
   --demo-surface: #f1f5f9;
   --demo-brand: #3a64fa;
+  --demo-brand-text: #3154d4;
   --demo-purple: #311772;
   color: var(--demo-ink);
   width: min(calc(100% - 48px), 1400px);
@@ -34,7 +35,7 @@
 
 .demo-flow-breadcrumb a,
 .demo-section-title a {
-  color: var(--demo-brand);
+  color: var(--demo-brand-text);
   text-decoration: none;
 }
 
@@ -47,8 +48,12 @@
 }
 
 .demo-flow-eyebrow {
-  color: var(--demo-brand);
-  font: 700 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--demo-brand-text);
+  font:
+    700 11px/1.4 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   letter-spacing: 0.09em;
   margin: 0 0 8px;
 }
@@ -119,7 +124,11 @@
 .demo-scope-badge {
   background: var(--demo-surface);
   color: #475467;
-  font: 600 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font:
+    600 11px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
 }
 
 .demo-skill-switch {
@@ -141,7 +150,7 @@
 
 .demo-skill-switch a[aria-current="page"] {
   border-color: var(--demo-brand);
-  color: var(--demo-brand);
+  color: var(--demo-brand-text);
 }
 
 .demo-overview,
@@ -294,7 +303,7 @@
 
 .demo-stepper button.active {
   background: #f0f3ff;
-  color: var(--demo-brand);
+  color: var(--demo-brand-text);
   font-weight: 700;
 }
 
@@ -503,7 +512,11 @@
 .demo-console-state {
   background: #282d3d;
   color: #bdc7d8;
-  font: 600 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font:
+    600 11px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   padding: 8px 10px;
 }
 
@@ -534,7 +547,11 @@
   border-bottom: 2px solid transparent;
   color: #a8afc0;
   cursor: pointer;
-  font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font:
+    600 12px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   padding: 10px 11px;
 }
 
@@ -556,7 +573,12 @@
   border: 1px solid #292e3d;
   border-radius: 10px;
   color: #d6e0f2;
-  font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font:
+    12px/1.65 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
   margin: 14px 0 0;
   max-height: 560px;
   min-height: 300px;
