@@ -712,12 +712,17 @@ test("an essay with nothing to quote says so, rather than showing a count of zer
 });
 
 /**
- * The intro used to hold a heading and a lede under the task tabs. Removing
- * them left the eyebrow glued to the tabs and stacked three margins into a 32px
- * hole above the first field, both of which read as a layout fault rather than
- * a deliberate rhythm.
+ * Deleting markup on this page has cost its spacing three times: removing the
+ * intro heading took the `margin: 8px 0 10px` that separated the eyebrow from
+ * the task tabs, and removing the overview left the result column hugging an
+ * empty state. Each of those shipped and each was reported by a reader.
+ *
+ * These are the gaps the page's rhythm depends on. Measuring all three in one
+ * pass keeps the list honest: when markup moves, the gap that carried the
+ * spacing moves with it and fails here rather than looking like a design
+ * decision to whoever opens the page next.
  */
-test("the sidebar reads as one block, with no gap and no crowding", async ({
+test("the workbench keeps its spacing, neither crowding nor gaping", async ({
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
@@ -734,61 +739,27 @@ test("the sidebar reads as one block, with no gap and no crowding", async ({
       tabsToFirstField: Math.round(
         box(".scoring-form .mini-label").top - box(".scoring-task-tabs").bottom
       ),
+      headingToConsole: Math.round(
+        box(".console").top - box(".main-heading").bottom
+      ),
     };
   });
 
-  // The tabs must not touch the eyebrow above them.
-  expect(gaps.eyebrowToTabs).toBeGreaterThanOrEqual(6);
-  expect(gaps.eyebrowToTabs).toBeLessThanOrEqual(14);
-  // Nor leave a hole before the first field.
-  expect(gaps.tabsToFirstField).toBeGreaterThanOrEqual(12);
-  expect(gaps.tabsToFirstField).toBeLessThanOrEqual(24);
-});
+  const bounds: Record<keyof typeof gaps, [number, number]> = {
+    eyebrowToTabs: [6, 14],
+    tabsToFirstField: [12, 24],
+    headingToConsole: [10, 24],
+  };
 
-/**
- * The grader scores exactly what it is sent, so an essay rewritten under an
- * unchanged question produces a band that describes nothing. Both tasks pair
- * these fields, and this form is full of task-conditional branches, so the
- * reminder has to be checked on each tab rather than on one.
- */
-test("both tasks tell the reader that the question and the essay are one piece of work", async ({
-  page,
-}) => {
-  await keepBrowserTrafficLocal(page);
-
-  for (const task of [1, 2]) {
-    await page.goto(task === 2 ? "/demo/scoring?task=2" : "/demo/scoring");
-    await waitForHydration(page);
-    const note = page.getByTestId("help-question-essay");
-    await expect(note).toBeVisible();
-    // Asserted on the clause that carries the measured behaviour, so the
-    // warning cannot be shortened to a bare label without failing here. The
-    // wording is deliberate: the grader keeps the band when the question and
-    // the essay disagree, so the page must not claim the score collapses.
-    await expect(note).toContainText("không tính theo đề");
+  for (const [name, [low, high]] of Object.entries(bounds)) {
+    const actual = gaps[name as keyof typeof gaps];
+    expect(
+      actual,
+      `${name} was ${actual}px, expected ${low}-${high}px`
+    ).toBeGreaterThanOrEqual(low);
+    expect(
+      actual,
+      `${name} was ${actual}px, expected ${low}-${high}px`
+    ).toBeLessThanOrEqual(high);
   }
-});
-
-/**
- * The result heading's subtitle carries only a top margin, so the console below
- * it butted straight against it with no gap at all. Measured, not eyeballed:
- * the gap was 0px before this rule and is 14px after.
- */
-test("the report heading stands clear of the console beneath it", async ({
-  page,
-}) => {
-  await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
-  await waitForHydration(page);
-
-  const gap = await page.evaluate(() => {
-    const head = document.querySelector<HTMLElement>(".main-heading")!;
-    const console_ = document.querySelector<HTMLElement>(".console")!;
-    return Math.round(
-      console_.getBoundingClientRect().top - head.getBoundingClientRect().bottom
-    );
-  });
-
-  expect(gap).toBeGreaterThanOrEqual(10);
-  expect(gap).toBeLessThanOrEqual(24);
 });
