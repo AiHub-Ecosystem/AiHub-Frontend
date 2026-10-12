@@ -295,13 +295,16 @@ export default function ScoringWorkbench() {
                   rows={12}
                   value={draft.essay}
                 />
-                {/* The grader scores exactly what is sent, so a question left
-                    behind after the essay is rewritten yields a band that
-                    means nothing. Both tasks pair these two fields. */}
+                {/* Measured against the sandbox: rewriting the question while leaving the
+                    essay alone keeps every band identical, and the grader
+                    surfaces the mismatch as an annotation rather than
+                    penalising it. Saying the score becomes meaningless would
+                    be a claim the service does not honour. Both tasks pair
+                    these two fields. */}
                 <p className="scoring-help" data-testid="help-question-essay">
-                  Đề bài và bài làm phải là của cùng một bài. Dịch vụ chấm đúng
-                  những gì bạn gửi, nên sửa bài làm mà để nguyên đề cũ sẽ ra một
-                  điểm không có nghĩa.
+                  Đề bài và bài làm phải là của cùng một bài. Khi hai thứ lệch
+                  nhau, dịch vụ có nêu ra chỗ không khớp — nhưng điểm vẫn tính
+                  theo chất lượng bài làm, không tính theo đề.
                 </p>
               </div>
 

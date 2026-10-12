@@ -761,8 +761,10 @@ test("both tasks tell the reader that the question and the essay are one piece o
     await waitForHydration(page);
     const note = page.getByTestId("help-question-essay");
     await expect(note).toBeVisible();
-    // Asserted on a phrase nothing else on the page uses, so the warning
-    // cannot be shortened down to a bare label without failing here.
-    await expect(note).toContainText("điểm không có nghĩa");
+    // Asserted on the clause that carries the measured behaviour, so the
+    // warning cannot be shortened to a bare label without failing here. The
+    // wording is deliberate: the grader keeps the band when the question and
+    // the essay disagree, so the page must not claim the score collapses.
+    await expect(note).toContainText("không tính theo đề");
   }
 });
