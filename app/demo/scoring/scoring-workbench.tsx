@@ -62,6 +62,11 @@ export default function ScoringWorkbench() {
   const [result, setResult] = useState<{
     task: 1 | 2;
     envelope: WritingGradingEnvelope;
+    // The essay as submitted, not the draft. A grade is a statement about a
+    // fixed text: re-anchoring its annotations against an essay the visitor has
+    // since edited would move or drop the highlights while still showing the
+    // old bands.
+    essay: string;
   } | null>(null);
   const graded = result?.task === task ? result.envelope : null;
   const [error, setError] = useState<PublicError | null>(null);
@@ -134,7 +139,7 @@ export default function ScoringWorkbench() {
           message: "Kết quả từ AIHUB không đúng định dạng.",
         } satisfies PublicError;
       }
-      setResult({ task, envelope: payload });
+      setResult({ task, envelope: payload, essay: requestBody.essay });
       setStatus("success");
       // A fresh key per submission: the button grades twice rather than
       // replaying a stored result.
@@ -419,7 +424,7 @@ export default function ScoringWorkbench() {
                 {graded ? (
                   <GradeReport
                     result={graded}
-                    essay={draft.essay}
+                    essay={result?.essay ?? draft.essay}
                     task={task}
                   />
                 ) : (

@@ -30,15 +30,8 @@ const MAX_IDEMPOTENCY_KEY_BYTES = 255;
 const CHART_TYPES = new Set<string>(WRITING_TASK1_CHART_TYPES);
 
 const ALLOWED_FIELDS: Record<1 | 2, Set<string>> = {
-  1: new Set([
-    "task",
-    "question",
-    "essay",
-    "chart_type",
-    "image_url",
-    "language",
-  ]),
-  2: new Set(["task", "question", "essay", "topic", "language"]),
+  1: new Set(["task", "question", "essay", "chart_type", "image_url"]),
+  2: new Set(["task", "question", "essay", "topic"]),
 };
 
 export type WritingTask = 1 | 2;
@@ -274,7 +267,11 @@ export async function gradeWriting(
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort("scoring-timeout"), 90_000);
+  // The upstream budget is 60s and this route's maxDuration is 90s, so abort
+  // upstream well inside that: a transport that stalls must leave enough
+  // budget for the AI_SERVICE_TIMEOUT response to be written back, rather than
+  // racing the platform that enforces maxDuration.
+  const timeout = setTimeout(() => controller.abort("scoring-timeout"), 65_000);
   const abortRequest = () => controller.abort("request-aborted");
   request.signal.addEventListener("abort", abortRequest, { once: true });
 

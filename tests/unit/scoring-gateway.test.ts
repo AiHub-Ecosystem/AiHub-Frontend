@@ -32,6 +32,13 @@ const TASK1_BODY = {
   image_url: "https://s3.wispace.app/ielts-task1/ca95bd4ab522946d",
 };
 
+const TASK2_BODY = {
+  task: 2,
+  question: "Do universities need vocational training?",
+  essay: "Universities have traditionally focused on academic subjects.",
+  topic: "education",
+};
+
 describe("parseWritingRequest", () => {
   it("parses a Task 1 body into camelCase fields", async () => {
     const parsed = await parseWritingRequest(jsonRequest(TASK1_BODY));
@@ -244,6 +251,23 @@ describe("parseWritingRequest rejections", () => {
       ScoringBoundaryError
     );
   });
+
+  // The demo never sends a language, so allowing one it would then drop is a
+  // hole: "en" would come back 200 carrying a Vietnamese grade.
+  it.each([
+    ["Task 1", { ...TASK1_BODY, language: "en" }],
+    ["Task 2", { ...TASK2_BODY, language: "en" }],
+    ["a non-string", { ...TASK2_BODY, language: 7 }],
+  ])(
+    "rejects a language field on %s rather than dropping it",
+    async (_l, body) => {
+      await expect(
+        parseWritingRequest(jsonRequest(body))
+      ).rejects.toMatchObject({
+        code: "INVALID_REQUEST",
+      });
+    }
+  );
 });
 
 const UPSTREAM_GRADING = {
@@ -298,6 +322,51 @@ const UPSTREAM_GRADING = {
   },
   meta: { request_id: "req_upstream" },
 };
+
+/**
+ * A rubric that is structurally valid but not a grade: fewer than four
+ * criteria, a repeated one, or an id the contract does not define. Rendering
+ * any of these would show a visitor a successful result against a rubric that
+ * is missing a criterion they are being graded on.
+ */
+const BROKEN_CRITERIA: Array<[string, unknown[]]> = [
+  ["fewer than four", UPSTREAM_GRADING.data.criteria.slice(0, 3)],
+  [
+    "a repeated criterion",
+    UPSTREAM_GRADING.data.criteria.map((c, i) =>
+      i === 1 ? { ...c, id: "task_achievement" } : c
+    ),
+  ],
+  [
+    "an id the contract does not define",
+    UPSTREAM_GRADING.data.criteria.map((c, i) =>
+      i === 3 ? { ...c, id: "vibes" } : c
+    ),
+  ],
+  ["an empty rubric", []],
+];
+
+describe("an upstream rubric that is not a grade", () => {
+  it.each(BROKEN_CRITERIA)(
+    "refuses %s rather than reporting it as a result",
+    async (_label, criteria) => {
+      stubUpstream(
+        () =>
+          new Response(
+            JSON.stringify({
+              ...UPSTREAM_GRADING,
+              data: { ...UPSTREAM_GRADING.data, criteria },
+            }),
+            { status: 200 }
+          )
+      );
+
+      await expect(
+        gradeWriting(jsonRequest(TASK2_BODY), "req_test")
+      ).rejects.toMatchObject({ code: "AI_SERVICE_CONTRACT_VIOLATION" });
+    }
+  );
+});
 
 function stubUpstream(
   responder: () => Response = () =>

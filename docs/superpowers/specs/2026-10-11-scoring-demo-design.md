@@ -48,12 +48,12 @@ The backend schemas are `additionalProperties: false`, so an unknown field is a 
 
 - `assertSameOrigin` — CSRF guard, same as Speaking.
 - Body at most 256 KB → `PAYLOAD_TOO_LARGE`. Measured on the raw text via `request.text()` before `JSON.parse`, so an oversized body is rejected without being parsed. Matches the endpoint's own limit.
-- Per-task field allowlist. Task 1 accepts `task`, `question`, `essay`, `chart_type`, `image_url`, and optional `language`. Task 2 accepts `task`, `question`, `essay`, `topic`, and optional `language`. Any other key → `INVALID_REQUEST`. The mirrors of the backend's own schemas.
+- Per-task field allowlist. Task 1 accepts `task`, `question`, `essay`, `chart_type`, `image_url`. Task 2 accepts `task`, `question`, `essay`, `topic`. Any other key → `INVALID_REQUEST`. These mirror the upstream schemas minus the one field the demo does not forward.
 - `question` required, 1–2 000 characters. `essay` required, 1–20 000 characters.
 - Task 1: `chart_type` must be one of the seven `WRITING_TASK1_CHART_TYPES` values. The match is case-sensitive and `"bar chart"` is a 400.
 - Task 1: `image_url` required, 1–2 000 characters, must parse as an `https:` URL with no embedded username or password. **Not pinned to a host.** The backend pins Speaking audio to `s3.wispace.app` because AIHUB publishes it; Writing has no host allowlist at all, and its own tests assert a customer-hosted chart URL is forwarded unchanged. Pinning would reject every real submission.
 - Task 2: `topic` required, 1–200 characters, **free text**. The contract accepts any non-empty string here, so the form does not constrain it to the published `TOPICS`. An allowlist on this field would refuse every real essay — the same trap as pinning an `image_url` host.
-- `language` is accepted but optional, and the only value the backend allows is `vi`. The demo does not send it and renders no language switcher; `data.language` is hardcoded to `vi` by the backend adapter.
+- `language` is **not** in the allowlist. The upstream schema accepts an optional `language`, but the demo never sends one, so allowing it would mean accepting `"en"`, dropping it, and returning a Vietnamese grade under a 200. A field the demo will not forward is a field it refuses.
 
 `Idempotency-Key` is minted in the browser and validated at the boundary: required, 1–255 UTF-8 bytes after trim, then forwarded verbatim. The page shows the key it is about to send, which is the point — the commonest integration mistake is not knowing that one submission means one key, and a key the server minted would have nothing honest to display. This also matches how a customer actually integrates: their server generates the key, their app can show it.
 
@@ -204,6 +204,8 @@ parse envelope → { data, meta } → result layout
 - `image_url` over 2 000 characters rejected
 - body over 256 KB rejected
 - task 2 body carrying `chart_type` rejected — the contract 400s rather than ignoring it
+- a `language` field rejected on both tasks, rather than accepted and dropped
+- a criteria array that is short, empty, repeated or carries an unknown id rejected as a contract violation rather than rendered as a grade
 - the declared user id sent upstream is a valid end-user id: 1–256 visible ASCII characters, no spaces
 
 `tests/unit/speaking-gateway.test.ts` must stay green after the extraction. That is the regression check for the refactor.

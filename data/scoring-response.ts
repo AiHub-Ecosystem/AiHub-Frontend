@@ -8,6 +8,19 @@ export type WritingCriterion = {
 };
 
 /**
+ * The four criteria a grade is reported against. Task 1 leads with
+ * Task Achievement, Task 2 with Task Response; the other three are shared. An
+ * id outside this set, or a repeat of one, is not a grade.
+ */
+const CRITERION_IDS = new Set([
+  "task_achievement",
+  "task_response",
+  "coherence_cohesion",
+  "lexical_resource",
+  "grammatical_range_accuracy",
+]);
+
+/**
  * `issue` is a free string, not an enum: the downstream issue keys vary per
  * run and the backend adapter flattens them deliberately. Do not look it up in
  * a fixed error-code list — the demo renders it as the string it is.
@@ -67,7 +80,7 @@ function parseCriteria(value: unknown): WritingCriterion[] | null {
     const { id, name, band, band_reason, strengths, improvements } = item;
     if (
       typeof id !== "string" ||
-      !id ||
+      !CRITERION_IDS.has(id) ||
       typeof name !== "string" ||
       !isBand(band) ||
       typeof band_reason !== "string" ||
@@ -78,9 +91,14 @@ function parseCriteria(value: unknown): WritingCriterion[] | null {
     }
     return { id, name, band, band_reason, strengths, improvements };
   });
-  return criteria.some((item) => item === null)
-    ? null
-    : (criteria as WritingCriterion[]);
+  if (criteria.some((item) => item === null)) return null;
+  // The upstream contract fixes the count at four and the ids are distinct, so
+  // a short, padded or duplicated array is a contract violation rather than a
+  // grade. Rendering it as a successful result would show a rubric that is
+  // missing a criterion the reader is being graded against.
+  if (criteria.length !== 4) return null;
+  const ids = new Set(criteria.map((item) => item!.id));
+  return ids.size === 4 ? (criteria as WritingCriterion[]) : null;
 }
 
 function parseAnnotations(value: unknown): WritingAnnotation[] | null {
