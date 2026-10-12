@@ -744,3 +744,25 @@ test("the sidebar reads as one block, with no gap and no crowding", async ({
   expect(gaps.tabsToFirstField).toBeGreaterThanOrEqual(12);
   expect(gaps.tabsToFirstField).toBeLessThanOrEqual(24);
 });
+
+/**
+ * The grader scores exactly what it is sent, so an essay rewritten under an
+ * unchanged question produces a band that describes nothing. Both tasks pair
+ * these fields, and this form is full of task-conditional branches, so the
+ * reminder has to be checked on each tab rather than on one.
+ */
+test("both tasks tell the reader that the question and the essay are one piece of work", async ({
+  page,
+}) => {
+  await keepBrowserTrafficLocal(page);
+
+  for (const task of [1, 2]) {
+    await page.goto(task === 2 ? "/demo/scoring?task=2" : "/demo/scoring");
+    await waitForHydration(page);
+    const note = page.getByTestId("help-question-essay");
+    await expect(note).toBeVisible();
+    // Asserted on a phrase nothing else on the page uses, so the warning
+    // cannot be shortened down to a bare label without failing here.
+    await expect(note).toContainText("điểm không có nghĩa");
+  }
+});
