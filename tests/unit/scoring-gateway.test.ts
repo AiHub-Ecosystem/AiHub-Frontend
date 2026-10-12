@@ -17,6 +17,8 @@ function jsonRequest(body: unknown, headers: Record<string, string> = {}) {
     headers: {
       "Content-Type": "application/json",
       Origin: "http://127.0.0.1",
+      "X-Demo-Api-Key": "sandbox-test-key",
+      "X-Demo-User-Identity": "00000000-0000-4000-8000-000000000001",
       "Idempotency-Key": "11111111-2222-4333-8444-555555555555",
       ...headers,
     },

@@ -19,7 +19,12 @@ const APPROVED_AUDIO_URL =
 function jsonRequest(body: unknown) {
   return new Request("http://127.0.0.1/api/demo/speaking/grading-json", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Origin: "http://127.0.0.1" },
+    headers: {
+      "Content-Type": "application/json",
+      Origin: "http://127.0.0.1",
+      "X-Demo-Api-Key": "sandbox-test-key",
+      "X-Demo-User-Identity": "00000000-0000-4000-8000-000000000001",
+    },
     body: JSON.stringify(body),
   });
 }
@@ -157,7 +162,11 @@ describe("Speaking multipart request", () => {
     }
     return new Request("http://127.0.0.1/api/demo/speaking/grading", {
       method: "POST",
-      headers: { Origin: "http://127.0.0.1" },
+      headers: {
+        Origin: "http://127.0.0.1",
+        "X-Demo-Api-Key": "sandbox-test-key",
+        "X-Demo-User-Identity": "00000000-0000-4000-8000-000000000001",
+      },
       body: form,
     });
   }
