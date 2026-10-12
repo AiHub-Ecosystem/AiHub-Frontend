@@ -554,16 +554,23 @@
   text-decoration: none;
 }
 
+/* Sticky positions one column beside another. Stacked, it pins the report to
+   the top of the viewport instead, and the request note then lands on top of
+   the submit button below it — measured: the click is intercepted and the
+   button is unreachable. It is a side-by-side affordance, so it goes off
+   exactly where the side-by-side goes off. */
+@media (max-width: 1000px) {
+  .aihub-scoring .setup-card,
+  .aihub-scoring .scoring-result {
+    position: static;
+  }
+}
+
 @media (max-width: 720px) {
   .aihub-scoring .scoring-form,
   .aihub-scoring .scoring-submit {
     padding-left: 14px;
     padding-right: 14px;
-  }
-  /* Sticky is a desktop affordance; a phone has no room for it. */
-  .aihub-scoring .setup-card,
-  .aihub-scoring .scoring-result {
-    position: static;
   }
   /* The four criteria and the two closing lists must not need horizontal
      scrolling on a phone. */

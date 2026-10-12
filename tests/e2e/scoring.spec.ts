@@ -871,3 +871,36 @@ test("a broken chart on Task 1 does not follow the visitor to Task 2", async ({
   await expect(page.getByTestId("chart-load-warning")).toBeHidden();
   await expect(page.getByTestId("button-grade")).toBeEnabled();
 });
+
+/**
+ * The report sets its own floor: below about 590px of console, three elements
+ * inside it overflow horizontally. The page does not scroll — the console clips
+ * its own content — so the damage reads as a truncated report rather than as a
+ * layout fault, and it only appears once a grade has arrived, after the visitor
+ * has already waited for the answer.
+ *
+ * Measured: at 980px the console is 586px and clean; at 960px it is 566px and
+ * one element overflows; at 940px it is 546px and three do. The shell stacked
+ * its columns at 720px, far below any of that.
+ */
+test("the report is never clipped, at any width", async ({ page }) => {
+  // Each width costs a load and a full grade, which the default timeout does not
+  // cover. The failure this guards is invisible without all of them.
+  test.setTimeout(90_000);
+  await keepBrowserTrafficLocal(page);
+
+  for (const width of [1440, 1024, 960, 900, 768]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/demo/scoring");
+    await waitForHydration(page);
+    await page.getByTestId("button-grade").click();
+    await page.getByTestId("scoring-report").waitFor();
+
+    const clipped = await page.evaluate(() =>
+      Array.from(document.querySelectorAll(".scoring-result *"))
+        .filter((element) => element.scrollWidth > element.clientWidth + 1)
+        .map((element) => `${element.className}`.split(" ")[0])
+    );
+    expect(clipped, `clipped at ${width}px`).toEqual([]);
+  }
+});
