@@ -16,6 +16,7 @@ import {
 import { isWritingGradingEnvelope } from "@/data/scoring-response";
 import type { WritingGradingEnvelope } from "@/data/scoring-response";
 import {
+  isFetchableImageUrl,
   WRITING_TASK1_CHART_TYPES,
   WRITING_TASK1_IMAGE_NOTE,
 } from "@/data/writing-task1-request";
@@ -27,6 +28,24 @@ import {
 } from "./scoring-client";
 import type { Draft, PublicError } from "./scoring-client";
 import { GradeReport } from "./scoring-report";
+
+/**
+ * Why Task 1 cannot be sent as typed, or null when it can. One value drives
+ * both the message and the button, so the two cannot disagree about which URLs
+ * are sendable.
+ *
+ * This is the same rule the BFF applies, and unlike the load warning below it
+ * carries no override: the endpoint's answer here is certain, where the
+ * browser's is not. Sending a URL that fails this returns INVALID_REQUEST
+ * without spending a dispatch, so the cost of catching it here is a visitor's
+ * patience rather than quota — but a certain 400 is still a round trip and an
+ * error code standing where an answer should be.
+ */
+function chartUrlProblemFor(url: string | null): string | null {
+  if (!url?.trim()) return "Task 1 cần URL ảnh biểu đồ để chấm.";
+  if (isFetchableImageUrl(url)) return null;
+  return "URL ảnh phải là địa chỉ https, không khoảng trắng, không tên đăng nhập, dài tối đa 2000 ký tự.";
+}
 
 export default function ScoringWorkbench() {
   // The active task lives in the URL, so it survives a reload, a bookmark and
@@ -84,6 +103,8 @@ export default function ScoringWorkbench() {
   // and not the second. So the page warns and asks, rather than refusing on a
   // signal that does not mean what it looks like it means.
   const chartBlocksSubmit = chartLoadFailed && overriddenChartUrl !== chartUrl;
+  // Shape, not reachability: `isFetchableImageUrl` is the endpoint's own rule.
+  const chartUrlProblem = task === 1 ? chartUrlProblemFor(chartUrl) : null;
 
   useEffect(() => {
     if (status !== "submitting") return;
@@ -250,6 +271,16 @@ export default function ScoringWorkbench() {
                       value={draft.imageUrl}
                     />
                     <p className="scoring-help">{WRITING_TASK1_IMAGE_NOTE}</p>
+                    {chartUrlProblem && (
+                      <p
+                        className="scoring-chart-notice"
+                        data-testid="chart-url-problem"
+                        role="alert"
+                      >
+                        <CircleAlert size={12} />
+                        <span>{chartUrlProblem}</span>
+                      </p>
+                    )}
                     {chartUrl?.trim() ? (
                       <figure
                         className="scoring-chart-preview"
@@ -272,7 +303,7 @@ export default function ScoringWorkbench() {
 
                     {chartLoadFailed && (
                       <div
-                        className="scoring-chart-warning"
+                        className="scoring-chart-notice"
                         data-testid="chart-load-warning"
                         role="alert"
                       >
@@ -373,7 +404,11 @@ export default function ScoringWorkbench() {
                 <button
                   className="btn btn-primary scoring-submit-btn"
                   data-testid="button-grade"
-                  disabled={status === "submitting" || chartBlocksSubmit}
+                  disabled={
+                    status === "submitting" ||
+                    chartBlocksSubmit ||
+                    chartUrlProblem !== null
+                  }
                   onClick={submit}
                   type="button"
                 >

@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import { WRITING_TASK1_CHART_TYPES } from "@/data/writing-task1-request";
+import {
+  isFetchableImageUrl,
+  WRITING_TASK1_CHART_TYPES,
+} from "@/data/writing-task1-request";
 import {
   parseWritingGradingEnvelope,
   type WritingGradingEnvelope,
@@ -26,7 +29,6 @@ const MAX_JSON_BYTES = 256 * 1024;
 const MAX_QUESTION_CHARS = 2_000;
 const MAX_ESSAY_CHARS = 20_000;
 const MAX_TOPIC_CHARS = 200;
-const MAX_IMAGE_URL_CHARS = 2_000;
 
 const CHART_TYPES = new Set<string>(WRITING_TASK1_CHART_TYPES);
 
@@ -99,29 +101,6 @@ function getSandboxConfig() {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/**
- * The grading service fetches the chart, so AIHUB never fetches it and has no
- * host allowlist for it. Pinning a host here would reject every real
- * submission — a chart on the caller's own server has to grade. HTTPS and no
- * embedded credentials are the whole contract.
- */
-function isFetchableImageUrl(value: string) {
-  if (
-    value.length === 0 ||
-    value.length > MAX_IMAGE_URL_CHARS ||
-    /\s/.test(value)
-  )
-    return false;
-  try {
-    const url = new URL(value);
-    return (
-      url.protocol === "https:" && url.username === "" && url.password === ""
-    );
-  } catch {
-    return false;
-  }
 }
 
 function requiredText(value: unknown, maxChars: number): string | null {

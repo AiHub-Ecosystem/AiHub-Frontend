@@ -904,3 +904,50 @@ test("the report is never clipped, at any width", async ({ page }) => {
     expect(clipped, `clipped at ${width}px`).toEqual([]);
   }
 });
+
+/**
+ * A URL the endpoint will refuse is worth catching on the page. It costs no
+ * quota — the BFF answers INVALID_REQUEST before a dispatch is spent — but it
+ * still costs a round trip and puts an error code where an answer belongs.
+ *
+ * Unlike the load warning, this carries no override. The endpoint's rule is
+ * certain; the browser's is not, which is why one of the two is overridable and
+ * the other is not.
+ */
+test("a chart URL the endpoint would reject cannot be submitted", async ({
+  page,
+  request,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await resetScoringLog(request);
+  await page.goto("/demo/scoring");
+  await waitForHydration(page);
+
+  // The prefilled sample is sendable.
+  await expect(page.getByTestId("chart-url-problem")).toBeHidden();
+  await expect(page.getByTestId("button-grade")).toBeEnabled();
+
+  for (const bad of [
+    "http://s3.wispace.app/chart.png",
+    "https://user:pass@s3.wispace.app/c.png",
+    "not a url",
+    "",
+  ]) {
+    await page.getByTestId("input-image-url").fill(bad);
+    await expect(page.getByTestId("chart-url-problem")).toBeVisible();
+    await expect(page.getByTestId("button-grade")).toBeDisabled();
+  }
+
+  // Correcting it re-enables the button with no other action. The replacement
+  // has to be one the mock actually serves: a well-formed URL the browser
+  // cannot load is held by the other guard, which is a different failure with a
+  // different answer.
+  await page
+    .getByTestId("input-image-url")
+    .fill("https://s3.wispace.app/ielts-task1/ca95bd4ab522946e");
+  await expect(page.getByTestId("chart-url-problem")).toBeHidden();
+  await expect(page.getByTestId("button-grade")).toBeEnabled();
+
+  // Nothing was sent while the field was refusing to be.
+  expect((await scoringLog(request)).requests).toHaveLength(0);
+});

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  isFetchableImageUrl,
   WRITING_TASK1_CHART_TYPES,
   WRITING_TASK1_REQUEST,
+  WRITING_TASK1_SAMPLE_IMAGE_URL,
 } from "@/data/writing-task1-request";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 import {
@@ -919,5 +921,39 @@ describe("Speaking with the holder's own audio file", () => {
         false
       )?.upload?.command
     ).toBeNull();
+  });
+});
+
+/**
+ * The shape rule the page and the BFF now share. It moved out of the gateway
+ * so the two answers cannot drift — and the drift that matters runs the
+ * dangerous way: a client that rejects a URL the endpoint accepts refuses a
+ * valid submission, while one that accepts a URL the endpoint rejects spends
+ * the visitor's patience to learn something the page could have said.
+ *
+ * Reachability is deliberately not here. Nothing short of fetching the chart
+ * knows, and that fetch is the endpoint's, and it is silent.
+ */
+describe("isFetchableImageUrl", () => {
+  it("accepts a plain https URL on any host", () => {
+    // Pinning a host would reject every chart served from the caller's own
+    // server, which is the common case.
+    expect(isFetchableImageUrl("https://my-company.example/chart.png")).toBe(
+      true
+    );
+    expect(isFetchableImageUrl(WRITING_TASK1_SAMPLE_IMAGE_URL)).toBe(true);
+  });
+
+  it("rejects what the endpoint's schema rejects", () => {
+    expect(isFetchableImageUrl("")).toBe(false);
+    expect(isFetchableImageUrl("http://s3.wispace.app/chart.png")).toBe(false);
+    expect(isFetchableImageUrl("https://user:pass@s3.wispace.app/c.png")).toBe(
+      false
+    );
+    expect(isFetchableImageUrl("https://s3.wispace.app/a b.png")).toBe(false);
+    expect(isFetchableImageUrl("not a url")).toBe(false);
+    expect(
+      isFetchableImageUrl(`https://example.test/${"a".repeat(2000)}`)
+    ).toBe(false);
   });
 });

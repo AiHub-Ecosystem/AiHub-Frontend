@@ -153,7 +153,7 @@
   color: var(--demo-body);
   font-size: 8px;
 }
-.aihub-scoring .scoring-chart-warning {
+.aihub-scoring .scoring-chart-notice {
   display: flex;
   gap: 7px;
   margin: 0 0 8px;
@@ -165,11 +165,11 @@
   font-size: 9px;
   line-height: 1.6;
 }
-.aihub-scoring .scoring-chart-warning > svg {
+.aihub-scoring .scoring-chart-notice > svg {
   flex: none;
   margin-top: 2px;
 }
-.aihub-scoring .scoring-chart-warning p {
+.aihub-scoring .scoring-chart-notice p {
   margin: 0;
 }
 .aihub-scoring .scoring-chart-override {

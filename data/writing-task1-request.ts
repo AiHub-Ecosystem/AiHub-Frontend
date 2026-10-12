@@ -6,6 +6,46 @@
 export const WRITING_TASK1_SAMPLE_IMAGE_URL =
   "https://s3.wispace.app/ielts-task1/ca95bd4ab522946d";
 
+export const MAX_IMAGE_URL_CHARS = 2_000;
+
+/**
+ * Whether `image_url` is a chart the grading service can fetch, per the
+ * upstream schema: https, no whitespace, no embedded credentials, at most
+ * 2 000 characters.
+ *
+ * The grading service fetches the chart, so AIHUB never fetches it and has no
+ * host allowlist for it. Pinning one here would reject every real submission —
+ * a chart on the caller's own server has to grade. HTTPS and no embedded
+ * credentials are the whole contract.
+ *
+ * This lives beside the sample rather than in the gateway because it is a fact
+ * about the request, and the page needs the same answer the BFF gives. A second
+ * copy would drift, and the drift that matters is the dangerous direction: a
+ * client that rejects a URL the endpoint accepts refuses a valid submission,
+ * while one that accepts a URL the endpoint rejects costs the visitor a
+ * round trip and a confusing error instead of an immediate answer.
+ *
+ * Shape only. Whether the image is actually there is a separate question, and
+ * the only way to know is to fetch it — which the endpoint does, silently, and
+ * which costs a dispatch to find out about afterwards.
+ */
+export function isFetchableImageUrl(value: string) {
+  if (
+    value.length === 0 ||
+    value.length > MAX_IMAGE_URL_CHARS ||
+    /\s/.test(value)
+  )
+    return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" && url.username === "" && url.password === ""
+    );
+  } catch {
+    return false;
+  }
+}
+
 export const WRITING_TASK1_REQUEST = {
   question:
     "The chart below shows the total number of minutes (in billions) of telephone calls in the UK, divided into three categories, from 1995-2002. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
