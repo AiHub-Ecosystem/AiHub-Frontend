@@ -27,6 +27,16 @@ async function scoringLog(request: APIRequestContext) {
   return (await response.json()) as { requests: ScoringRequest[] };
 }
 
+async function setScoringConfig(
+  request: APIRequestContext,
+  config: { noAnnotations: boolean }
+) {
+  const response = await request.post(`${mockUrl}/__test__/scoring/config`, {
+    data: config,
+  });
+  expect(response.ok()).toBe(true);
+}
+
 /**
  * The unit parser covers field validation. What only a browser can see is the
  * wiring: that the page reaches the gate without a login, that no credential
@@ -660,4 +670,36 @@ test("no demo heading inherits display type from the foreign stylesheet", async 
   // rules, which is the whole defect.
   const oversized = headings.filter((h) => h.size > 24);
   expect(oversized, `headings: ${JSON.stringify(headings)}`).toEqual([]);
+});
+
+/**
+ * A grade with nothing worth quoting is a real outcome, not a broken feature.
+ * Rendering it as "0 chỗ được trích" reads like a failed count, so the page has
+ * to say the essay went unquoted in words instead.
+ */
+test("an essay with nothing to quote says so, rather than showing a count of zero", async ({
+  page,
+  request,
+}) => {
+  await setScoringConfig(request, { noAnnotations: true });
+  try {
+    await keepBrowserTrafficLocal(page);
+    await page.goto("/demo/scoring");
+    await waitForHydration(page);
+    await page.getByTestId("button-grade").click();
+    await expect(page.getByTestId("scoring-report")).toBeVisible();
+
+    const kicker = page
+      .locator('[data-testid="scoring-report"] .section-kicker')
+      .first();
+    await expect(kicker).toContainText("Không có chỗ nào bị trích ra");
+    // The count form is the thing being ruled out.
+    await expect(kicker).not.toContainText("0 chỗ được trích");
+    // No chips to click when there are no annotations.
+    await expect(
+      page.locator('[data-testid="scoring-report"] .word-chip')
+    ).toHaveCount(0);
+  } finally {
+    await setScoringConfig(request, { noAnnotations: false });
+  }
 });

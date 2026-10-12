@@ -108,7 +108,13 @@ export function GradeReport({
       <div className="transcript-section">
         <div className="section-kicker">
           BÀI LÀM &amp; NHẬN XÉT TỪNG CHỖ
-          <span>{data.annotations.length} chỗ được trích</span>
+          {/* "0 chỗ được trích" reads as a broken count rather than a verdict,
+              so an unquoted essay says so outright. */}
+          <span>
+            {data.annotations.length === 0
+              ? "Không có chỗ nào bị trích ra"
+              : `${data.annotations.length} chỗ được trích`}
+          </span>
         </div>
         <div className="scoring-essay" data-testid="scoring-essay">
           {segments.map((segment, index) =>

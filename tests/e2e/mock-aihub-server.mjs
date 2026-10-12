@@ -10,6 +10,9 @@ const organizationRequests = [];
 const speakingRequests = [];
 const speakingAssertions = [];
 const scoringRequests = [];
+// `noAnnotations` reproduces a grade whose essay carries nothing worth
+// quoting, which is the state the empty-state wording exists for.
+let scoringConfig = { noAnnotations: false };
 let assertionSequence = 0;
 const webSessions = new Set();
 let webSessionSequence = 0;
@@ -176,6 +179,12 @@ const server = createServer(async (request, response) => {
     pathname === "/__test__/organizations/requests"
   ) {
     sendJson(response, 200, { requests: organizationRequests });
+    return;
+  }
+
+  if (request.method === "POST" && pathname === "/__test__/scoring/config") {
+    scoringConfig = { ...scoringConfig, ...(await readJson(request)) };
+    response.writeHead(204).end();
     return;
   }
 
@@ -1252,27 +1261,29 @@ const server = createServer(async (request, response) => {
         summary: "E2E_ONLY_SUMMARY",
         suggestions: ["E2E_ONLY_SUGGESTION"],
         next_steps: ["E2E_ONLY_NEXT_STEP"],
-        annotations: [
-          {
-            criterion: "lexical_resource",
-            issue: "imprecise_word_choice",
-            quote: annotationQuote,
-            explanation: "E2E_ONLY_EXPLANATION",
-          },
-          // Task 2's own first criterion carries an annotation so its colour
-          // can be checked against the Task 1 slot it shares. Task 1 keeps a
-          // single annotation: its indices are already asserted by name.
-          ...(task === "2"
-            ? [
-                {
-                  criterion: "task_response",
-                  issue: "E2E_ONLY_TASK_RESPONSE_ISSUE",
-                  quote: body.essay?.slice(24, 48) ?? "E2E_ONLY_QUOTE_2",
-                  explanation: "E2E_ONLY_TASK_RESPONSE_EXPLANATION",
-                },
-              ]
-            : []),
-        ],
+        annotations: scoringConfig.noAnnotations
+          ? []
+          : [
+              {
+                criterion: "lexical_resource",
+                issue: "imprecise_word_choice",
+                quote: annotationQuote,
+                explanation: "E2E_ONLY_EXPLANATION",
+              },
+              // Task 2's own first criterion carries an annotation so its colour
+              // can be checked against the Task 1 slot it shares. Task 1 keeps a
+              // single annotation: its indices are already asserted by name.
+              ...(task === "2"
+                ? [
+                    {
+                      criterion: "task_response",
+                      issue: "E2E_ONLY_TASK_RESPONSE_ISSUE",
+                      quote: body.essay?.slice(24, 48) ?? "E2E_ONLY_QUOTE_2",
+                      explanation: "E2E_ONLY_TASK_RESPONSE_EXPLANATION",
+                    },
+                  ]
+                : []),
+            ],
       },
       meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
     });
