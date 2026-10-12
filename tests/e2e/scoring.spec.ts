@@ -541,6 +541,10 @@ test("the four criteria fit a phone without horizontal scrolling", async ({
 test("every text on the page is readable, before and after a grade", async ({
   page,
 }) => {
+  // The Task 1 page renders the sample chart from s3.wispace.app. Without this
+  // the navigation waits on a real network fetch, which hangs the test when
+  // the suite runs without outbound access.
+  await keepBrowserTrafficLocal(page);
   await page.goto("/demo/scoring");
   await waitForHydration(page);
   await expectReadable(page);
