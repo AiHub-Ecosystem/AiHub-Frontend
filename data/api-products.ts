@@ -54,8 +54,8 @@ export const API_CATEGORIES: ApiCategory[] = [
         description:
           "Trả về điểm từng tiêu chí kèm nhận xét, trích dẫn đúng câu bị lỗi và mã lỗi tương ứng để hệ thống của bạn xử lý tiếp.",
         status: "stable",
-        hasDemo: false,
-        demoReady: false,
+        hasDemo: true,
+        demoReady: true,
         endpoints: [
           {
             slug: "grade-task1",

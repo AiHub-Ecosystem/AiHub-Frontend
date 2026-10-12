@@ -48,14 +48,16 @@ The backend schemas are `additionalProperties: false`, so an unknown field is a 
 
 - `assertSameOrigin` — CSRF guard, same as Speaking.
 - Body at most 256 KB → `PAYLOAD_TOO_LARGE`. Measured on the raw text via `request.text()` before `JSON.parse`, so an oversized body is rejected without being parsed. Matches the endpoint's own limit.
-- Per-task field allowlist. Task 1 accepts `task`, `question`, `essay`, `chart_type`, `image_url`, and optional `language`. Task 2 accepts `task`, `question`, `essay`, `topic`, and optional `language`. Any other key → `INVALID_REQUEST`. The mirrors of the backend's own schemas.
+- Per-task field allowlist. Task 1 accepts `task`, `question`, `essay`, `chart_type`, `image_url`. Task 2 accepts `task`, `question`, `essay`, `topic`. Any other key → `INVALID_REQUEST`. These mirror the upstream schemas minus the one field the demo does not forward.
 - `question` required, 1–2 000 characters. `essay` required, 1–20 000 characters.
 - Task 1: `chart_type` must be one of the seven `WRITING_TASK1_CHART_TYPES` values. The match is case-sensitive and `"bar chart"` is a 400.
 - Task 1: `image_url` required, 1–2 000 characters, must parse as an `https:` URL with no embedded username or password. **Not pinned to a host.** The backend pins Speaking audio to `s3.wispace.app` because AIHUB publishes it; Writing has no host allowlist at all, and its own tests assert a customer-hosted chart URL is forwarded unchanged. Pinning would reject every real submission.
-- Task 2: `topic` required, 1–200 characters. The backend takes any non-empty string here, so the demo restricts it to the published `TOPICS` as a form affordance rather than as a contract rule.
-- `language` is accepted but optional, and the only value the backend allows is `vi`. The demo does not send it and renders no language switcher; `data.language` is hardcoded to `vi` by the backend adapter.
+- Task 2: `topic` required, 1–200 characters, **free text**. The contract accepts any non-empty string here, so the form does not constrain it to the published `TOPICS`. An allowlist on this field would refuse every real essay — the same trap as pinning an `image_url` host.
+- `language` is **not** in the allowlist. The upstream schema accepts an optional `language`, but the demo never sends one, so allowing it would mean accepting `"en"`, dropping it, and returning a Vietnamese grade under a 200. A field the demo will not forward is a field it refuses.
 
-`Idempotency-Key` is `randomUUID()` per submit. Clicking "Chấm lại" is deliberately a new paid grade — the demo must not silently replay a stored result.
+`Idempotency-Key` is minted in the browser and validated at the boundary: required, 1–255 UTF-8 bytes after trim, then forwarded verbatim. The page shows the key it is about to send, which is the point — the commonest integration mistake is not knowing that one submission means one key, and a key the server minted would have nothing honest to display. This also matches how a customer actually integrates: their server generates the key, their app can show it.
+
+Pressing the button twice is deliberately a new key and therefore a new paid grade. The demo never silently replays a stored result.
 
 No automatic retry. A retry cannot reuse the key across two submits without re-keying, and re-keying turns a retry into a second charge. Failures surface; the user presses the button again.
 
@@ -167,19 +169,21 @@ Nothing is persisted. No history, no draft storage — every page load starts fr
 | `app/demo/scoring/scoring.css`           | New. Writing-specific rules only — task tabs, chart preview. Nothing that belongs to the shared layer.                           |
 | `data/api-products.ts`                   | `hasDemo`, `demoReady` → `true` (lines 57-58).                                                                                   |
 | `tests/unit/scoring-gateway.test.ts`     | New. Table-driven cases for the parser.                                                                                          |
+| `tests/e2e/scoring.spec.ts`              | New. The page-level wiring the parser cannot reach.                                                                              |
 
 ## Data flow
 
 ```
 scoring-workbench.tsx  ('use client')
   │  POST /api/demo/scoring/grade
-  │  { task: 1|2, question, essay, chart_type?, image_url?, topic? }
+  │  header: Idempotency-Key (minted in the page, shown to the visitor)
+  │  body: { task: 1|2, question, essay, chart_type?, image_url?, topic? }
   ▼
 app/api/demo/scoring/grade/route.ts
   │  gradeWriting(request, requestId)        lib/scoring-gateway.ts
   │    assertSameOrigin · body ≤ 256 KB · per-task allowlist
   │    question ≤ 2000 · essay ≤ 20000 · topic ≤ 200 · image_url ≤ 2000 https
-  │    chart_type ∈ 7 (case-sensitive) · Idempotency-Key = randomUUID()
+  │    chart_type ∈ 7 (case-sensitive) · Idempotency-Key 1–255 bytes
   ▼
 POST {sandbox}/v1/ielts/writing/task{task}/grade
   X-API-Key · X-User-Identity (declared user id) · X-Correlation-Id · Idempotency-Key
@@ -200,13 +204,15 @@ parse envelope → { data, meta } → result layout
 - `image_url` over 2 000 characters rejected
 - body over 256 KB rejected
 - task 2 body carrying `chart_type` rejected — the contract 400s rather than ignoring it
+- a `language` field rejected on both tasks, rather than accepted and dropped
+- a criteria array that is short, empty, repeated or carries an unknown id rejected as a contract violation rather than rendered as a grade
 - the declared user id sent upstream is a valid end-user id: 1–256 visible ASCII characters, no spaces
 
 `tests/unit/speaking-gateway.test.ts` must stay green after the extraction. That is the regression check for the refactor.
 
 The stylesheet extraction is checked visually, not by a snapshot: `/demo/speaking` renders identically before and after. The existing `tests/e2e/speaking.spec.ts` must still pass unchanged.
 
-An e2e spec is deliberately out of scope. The mock upstream plumbing (`AIHUB_SANDBOX_E2E_MOCK_BASE_URL`, `__test__/speaking/*`) would carry it cheaply, but no behaviour is specified at the page level that the unit parser does not already cover.
+An e2e spec was scoped out on the grounds that no page-level behaviour was specified that the unit parser did not already cover. Building the page falsified that: what only a browser can see is the wiring the parser cannot reach — that the demo is reachable with no login, that no credential reaches the page, that the report renders the criteria in the order the response carried, and that Task Achievement and Task Response wear the same colour. `tests/e2e/scoring.spec.ts` covers those, on the existing mock upstream (`AIHUB_SANDBOX_E2E_MOCK_BASE_URL`, `__test__/scoring/*`).
 
 ## Out of scope
 
@@ -218,7 +224,6 @@ An e2e spec is deliberately out of scope. The mock upstream plumbing (`AIHUB_SAN
 - **A response-language toggle.** `language` is `vi` in the published responses; whether an `en` variant exists is unverified, so no toggle is built on an assumption.
 - Result history, draft persistence, per-user identity.
 - Automatic retry.
-- An e2e Playwright spec.
 - The rest of the site migrating to `#5B5FEF`. The Scoring demo ships on the new brand; every other surface stays on `#3a64fa` until that work happens. The shared stylesheet is built so this costs one block of token values when it does.
 - Grading other Writing products (`exercise-generation`, `learning-path`) that are also unbuilt.
 

@@ -9,6 +9,7 @@ const avatarRequests = [];
 const organizationRequests = [];
 const speakingRequests = [];
 const speakingAssertions = [];
+const scoringRequests = [];
 let assertionSequence = 0;
 const webSessions = new Set();
 let webSessionSequence = 0;
@@ -175,6 +176,17 @@ const server = createServer(async (request, response) => {
     pathname === "/__test__/organizations/requests"
   ) {
     sendJson(response, 200, { requests: organizationRequests });
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/__test__/scoring/requests") {
+    sendJson(response, 200, { requests: scoringRequests });
+    return;
+  }
+
+  if (request.method === "POST" && pathname === "/__test__/scoring/reset") {
+    scoringRequests.length = 0;
+    response.writeHead(204).end();
     return;
   }
 
@@ -1148,6 +1160,119 @@ const server = createServer(async (request, response) => {
           strong_point_vi: "E2E_ONLY_FEEDBACK_STRONG",
           action_plan_vi: "E2E_ONLY_FEEDBACK_ACTION",
         },
+      },
+      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+    });
+    return;
+  }
+
+  const scoringGradingMatch = pathname.match(
+    /^\/v1\/ielts\/writing\/task(\d)\/grade$/
+  );
+  if (request.method === "POST" && scoringGradingMatch) {
+    const task = scoringGradingMatch[1];
+    const body = await readJson(request);
+    const idempotencyKey = request.headers["idempotency-key"];
+    const userIdentity = request.headers["x-user-identity"];
+
+    scoringRequests.push({
+      task,
+      idempotencyKey:
+        typeof idempotencyKey === "string" ? idempotencyKey : null,
+      userIdentity: typeof userIdentity === "string" ? userIdentity : null,
+      // Writing must not mint: the assertions route must never be reached.
+      body,
+    });
+
+    if (!userIdentity) {
+      sendJson(response, 401, {
+        error: { code: "USER_IDENTITY_REQUIRED" },
+      });
+      return;
+    }
+    if (!idempotencyKey) {
+      sendJson(response, 400, {
+        error: { code: "INVALID_REQUEST", message: "Idempotency-Key required" },
+      });
+      return;
+    }
+    // Mirrors the backend: the schemas are additionalProperties: false.
+    if (body.chart_type === "E2E_LOWERCASE_CHART_TYPE") {
+      sendJson(response, 400, {
+        error: {
+          code: "INVALID_REQUEST",
+          message: "chart_type is case-sensitive",
+        },
+      });
+      return;
+    }
+
+    const firstCriterion = task === "1" ? "task_achievement" : "task_response";
+    const annotationQuote =
+      body.essay?.split("\n")[0]?.slice(0, 24) ?? "E2E_ONLY_QUOTE";
+
+    sendJson(response, 200, {
+      data: {
+        overall_band: 6.5,
+        language: "vi",
+        criteria: [
+          {
+            id: firstCriterion,
+            name: task === "1" ? "Task Achievement" : "Task Response",
+            band: 6.5,
+            band_reason: "E2E_ONLY_BAND_REASON",
+            strengths: ["E2E_ONLY_STRENGTH"],
+            improvements: ["E2E_ONLY_IMPROVEMENT"],
+          },
+          {
+            id: "coherence_cohesion",
+            name: "Coherence and Cohesion",
+            band: 6.5,
+            band_reason: "E2E_ONLY_BAND_REASON",
+            strengths: ["E2E_ONLY_STRENGTH"],
+            improvements: ["E2E_ONLY_IMPROVEMENT"],
+          },
+          {
+            id: "lexical_resource",
+            name: "Lexical Resource",
+            band: 6,
+            band_reason: "E2E_ONLY_BAND_REASON",
+            strengths: ["E2E_ONLY_STRENGTH"],
+            improvements: ["E2E_ONLY_IMPROVEMENT"],
+          },
+          {
+            id: "grammatical_range_accuracy",
+            name: "Grammatical Range and Accuracy",
+            band: 6.5,
+            band_reason: "E2E_ONLY_BAND_REASON",
+            strengths: ["E2E_ONLY_STRENGTH"],
+            improvements: ["E2E_ONLY_IMPROVEMENT"],
+          },
+        ],
+        summary: "E2E_ONLY_SUMMARY",
+        suggestions: ["E2E_ONLY_SUGGESTION"],
+        next_steps: ["E2E_ONLY_NEXT_STEP"],
+        annotations: [
+          {
+            criterion: "lexical_resource",
+            issue: "imprecise_word_choice",
+            quote: annotationQuote,
+            explanation: "E2E_ONLY_EXPLANATION",
+          },
+          // Task 2's own first criterion carries an annotation so its colour
+          // can be checked against the Task 1 slot it shares. Task 1 keeps a
+          // single annotation: its indices are already asserted by name.
+          ...(task === "2"
+            ? [
+                {
+                  criterion: "task_response",
+                  issue: "E2E_ONLY_TASK_RESPONSE_ISSUE",
+                  quote: body.essay?.slice(24, 48) ?? "E2E_ONLY_QUOTE_2",
+                  explanation: "E2E_ONLY_TASK_RESPONSE_EXPLANATION",
+                },
+              ]
+            : []),
+        ],
       },
       meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
     });
