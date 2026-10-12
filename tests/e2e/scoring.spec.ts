@@ -569,24 +569,41 @@ test("a scrolled report clears the fixed site header instead of hiding behind it
   // report exists it is taller than any viewport, and scrolling it past the
   // header is what a reader wants.
 
-  const header = await page.evaluate(() => {
-    const el = document.querySelector("header");
-    if (!el) throw new Error("the site header is missing");
+  await page.evaluate(() => window.scrollTo(0, 900));
+
+  // The header is 120px at rest and shrinks to 72px once the page scrolls. A
+  // sticky panel only ever exists in that second state, so the measurement has
+  // to wait for it — a fixed sleep catches the transition and asserts against
+  // a height that is on its way out.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() =>
+          Math.round(
+            document.querySelector("header")!.getBoundingClientRect().height
+          )
+        ),
+      { timeout: 5000 }
+    )
+    .toBeLessThan(100);
+
+  const geometry = await page.evaluate(() => {
+    const header = document.querySelector("header");
+    const panel = document.querySelector(".scoring-result");
+    if (!header || !panel) throw new Error("the header or panel is missing");
     return {
-      position: getComputedStyle(el).position,
-      bottom: el.getBoundingClientRect().bottom,
+      position: getComputedStyle(header).position,
+      headerBottom: Math.round(header.getBoundingClientRect().bottom),
+      panelTop: Math.round(panel.getBoundingClientRect().top),
     };
   });
   // If the header stops being fixed, this test would be measuring nothing.
-  expect(header.position).toBe("fixed");
+  expect(geometry.position).toBe("fixed");
 
-  await page.evaluate(() => window.scrollTo(0, 800));
-  await page.waitForTimeout(300);
-
-  const panel = page.locator(".scoring-result");
-  await expect(panel).toBeInViewport();
-  const top = (await panel.boundingBox())!.y;
-  expect(top).toBeGreaterThanOrEqual(header.bottom - 1);
+  // Both directions. Too small hides the panel behind the header; too large
+  // leaves dead space above it, which is the same defect pointed the other way.
+  expect(geometry.panelTop).toBeGreaterThanOrEqual(geometry.headerBottom - 1);
+  expect(geometry.panelTop).toBeLessThanOrEqual(geometry.headerBottom + 32);
 });
 
 /**
