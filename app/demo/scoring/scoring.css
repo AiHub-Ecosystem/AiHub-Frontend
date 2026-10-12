@@ -257,6 +257,7 @@
     flex-direction: column;
   }
 
+  .aihub-demo-flow .feedback-grid,
   .aihub-demo-flow .scoring-criteria,
   .aihub-demo-flow .rubric-grid,
   .aihub-demo-flow .scoring-criterion-lists {

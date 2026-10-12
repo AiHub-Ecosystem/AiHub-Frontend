@@ -48,7 +48,9 @@ export async function unreadableText(page: Page): Promise<UnreadableText[]> {
         return 0.2126 * ch(c.r) + 0.7152 * ch(c.g) + 0.0722 * ch(c.b);
       };
 
-      const root = document.querySelector<HTMLElement>(".aihub-demo");
+      const root = document.querySelector<HTMLElement>(
+        ".aihub-demo-flow, .aihub-demo"
+      );
       if (!root) throw new Error("the demo root is missing");
 
       // Composite every layer down to the first fully opaque one, so a
