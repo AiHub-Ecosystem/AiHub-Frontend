@@ -805,7 +805,8 @@ export default function Page() {
                   <p>
                     <strong>Chủ sở hữu hoặc quản trị viên</strong> đang hoạt
                     động tạo khóa bằng lệnh bên dưới. Lệnh đã chọn môi trường
-                    thử và chỉ cấp quyền chấm Writing.
+                    thử và có thể cấp quyền chấm Writing, Speaking hoặc cả hai
+                    nếu Organization đã được bật các dịch vụ tương ứng.
                   </p>
                   <p>Console hiện chỉ tạo khóa dùng thật.</p>
                 </div>

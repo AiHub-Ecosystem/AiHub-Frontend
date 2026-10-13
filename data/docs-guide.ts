@@ -58,8 +58,8 @@ Authorization: Bearer <User Access JWT của owner hoặc admin>
 Content-Type: application/json
 
 {
-  "name": "writing-sandbox",
-  "scopes": ["writing.grade"],
+  "name": "scoring-demo-sandbox",
+  "scopes": ["writing.grade", "speaking.grade"],
   "allowed_environments": ["sandbox"]
 }`;
 

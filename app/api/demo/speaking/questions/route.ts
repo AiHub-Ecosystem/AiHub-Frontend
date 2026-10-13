@@ -52,6 +52,7 @@ export async function GET(request: Request) {
     upstreamUrl.searchParams.set("part", String(part));
     const response = await fetch(upstreamUrl, {
       cache: "no-store",
+      redirect: "error",
       signal: AbortSignal.timeout(10_000),
     });
     const payload: unknown = await response.json().catch(() => null);

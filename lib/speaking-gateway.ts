@@ -5,10 +5,11 @@ import {
   type SpeakingGradingEnvelope,
 } from "@/data/speaking-response";
 import {
+  DemoCredentialError,
   isSameOrigin,
-  mintSandboxAssertion,
+  readDemoApiKey,
+  readDemoUserIdentity,
   resolveSandboxBaseUrl,
-  resolveSandboxConfig,
   SandboxBoundaryError,
 } from "@/lib/sandbox-gateway";
 
@@ -38,6 +39,8 @@ const SPEAKING_AUDIO_URL_HOST = "s3.wispace.app";
 export type SpeakingErrorCode =
   | "INVALID_REQUEST"
   | "PAYLOAD_TOO_LARGE"
+  | "UNAUTHORIZED"
+  | "INVALID_USER_IDENTITY"
   | "AI_SERVICE_ERROR"
   | "AI_SERVICE_CONTRACT_VIOLATION"
   | "AI_SERVICE_THROTTLED"
@@ -48,6 +51,18 @@ export class SpeakingBoundaryError extends Error {
   constructor(readonly code: SpeakingErrorCode) {
     super(code);
     this.name = "SpeakingBoundaryError";
+  }
+}
+
+export class SpeakingUpstreamError extends Error {
+  constructor(
+    readonly code: string,
+    readonly status: number,
+    readonly retryable: boolean,
+    readonly retry_after_ms?: number,
+  ) {
+    super(code);
+    this.name = "SpeakingUpstreamError";
   }
 }
 
@@ -86,17 +101,6 @@ function invalidRequest() {
 export function getSandboxBaseUrl() {
   try {
     return resolveSandboxBaseUrl();
-  } catch (error) {
-    if (error instanceof SandboxBoundaryError) {
-      throw new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
-    }
-    throw error;
-  }
-}
-
-function getSandboxConfig() {
-  try {
-    return resolveSandboxConfig();
   } catch (error) {
     if (error instanceof SandboxBoundaryError) {
       throw new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
@@ -311,27 +315,55 @@ function toUpstreamForm(request: SpeakingRequest) {
   return form;
 }
 
-function upstreamError(status: number) {
-  if (status === 413) return new SpeakingBoundaryError("PAYLOAD_TOO_LARGE");
-  if (status === 429) return new SpeakingBoundaryError("AI_SERVICE_THROTTLED");
-  if (status === 503)
-    return new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
-  if (status === 504) return new SpeakingBoundaryError("AI_SERVICE_TIMEOUT");
-  return new SpeakingBoundaryError("AI_SERVICE_ERROR");
+function upstreamError(payload: unknown, status: number) {
+  const error =
+    typeof payload === "object" &&
+    payload !== null &&
+    "error" in payload &&
+    typeof payload.error === "object" &&
+    payload.error !== null
+      ? payload.error
+      : null;
+  const code =
+    error && "code" in error && typeof error.code === "string"
+      ? error.code
+      : status === 413
+        ? "PAYLOAD_TOO_LARGE"
+        : status === 429
+          ? "AI_SERVICE_THROTTLED"
+          : status === 503
+            ? "AI_SERVICE_UNAVAILABLE"
+            : status === 504
+              ? "AI_SERVICE_TIMEOUT"
+              : status === 401
+                ? "UNAUTHORIZED"
+                : status === 403
+                  ? "FORBIDDEN"
+                  : "AI_SERVICE_ERROR";
+  const retryable =
+    error !== null && "retryable" in error && error.retryable === true;
+  const retryAfter =
+    error &&
+    "retry_after_ms" in error &&
+    typeof error.retry_after_ms === "number"
+      ? error.retry_after_ms
+      : undefined;
+  return new SpeakingUpstreamError(code, status, retryable, retryAfter);
 }
 
 async function callSpeakingGrading(
   request: Request,
   requestId: string,
   operation: "speaking.grading" | "speaking.grading-json",
-  body: FormData | string
+  body: FormData | string,
+  apiKey: string,
+  userIdentity: string,
 ): Promise<SpeakingGradingEnvelope> {
-  const { baseUrl, apiKey } = getSandboxConfig();
-  const assertion = await mintSandboxAssertion(baseUrl, apiKey);
+  const baseUrl = getSandboxBaseUrl();
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort("speaking-timeout"),
-    90_000
+    65_000
   );
   const abortRequest = () => controller.abort("request-aborted");
   request.signal.addEventListener("abort", abortRequest, { once: true });
@@ -345,7 +377,7 @@ async function callSpeakingGrading(
         headers: {
           Accept: "application/json",
           "X-API-Key": apiKey,
-          "X-User-Identity": assertion,
+          "X-User-Identity": userIdentity,
           "X-Correlation-Id": requestId,
           ...(operation === "speaking.grading-json"
             ? { "Content-Type": "application/json" }
@@ -353,6 +385,7 @@ async function callSpeakingGrading(
         },
         body,
         cache: "no-store",
+        redirect: "error",
         signal: controller.signal,
       }
     );
@@ -371,10 +404,10 @@ async function callSpeakingGrading(
   try {
     payload = await response.json();
   } catch {
-    if (!response.ok) throw upstreamError(response.status);
+    if (!response.ok) throw upstreamError(null, response.status);
     throw new SpeakingBoundaryError("AI_SERVICE_CONTRACT_VIOLATION");
   }
-  if (!response.ok) throw upstreamError(response.status);
+  if (!response.ok) throw upstreamError(payload, response.status);
 
   const parsed = parseSpeakingGradingEnvelope(payload);
   if (!parsed) throw new SpeakingBoundaryError("AI_SERVICE_CONTRACT_VIOLATION");
@@ -395,11 +428,24 @@ export async function gradeSpeaking(
   requestId = `req_${randomUUID()}`
 ): Promise<SpeakingGradingEnvelope> {
   const input = await parseSpeakingRequest(request);
+  let apiKey: string;
+  let userIdentity: string;
+  try {
+    apiKey = readDemoApiKey(request);
+    userIdentity = readDemoUserIdentity(request);
+  } catch (error) {
+    if (error instanceof DemoCredentialError) {
+      throw new SpeakingBoundaryError(error.code);
+    }
+    throw error;
+  }
   return callSpeakingGrading(
     request,
     requestId,
     "speaking.grading",
-    toUpstreamForm(input)
+    toUpstreamForm(input),
+    apiKey,
+    userIdentity,
   );
 }
 
@@ -408,6 +454,17 @@ export async function gradeSpeakingByUrl(
   requestId = `req_${randomUUID()}`
 ): Promise<SpeakingGradingEnvelope> {
   const input = await parseSpeakingJsonRequest(request);
+  let apiKey: string;
+  let userIdentity: string;
+  try {
+    apiKey = readDemoApiKey(request);
+    userIdentity = readDemoUserIdentity(request);
+  } catch (error) {
+    if (error instanceof DemoCredentialError) {
+      throw new SpeakingBoundaryError(error.code);
+    }
+    throw error;
+  }
   return callSpeakingGrading(
     request,
     requestId,
@@ -426,6 +483,8 @@ export async function gradeSpeakingByUrl(
       ...(input.transcript === undefined || input.transcript === null
         ? {}
         : { transcript: input.transcript }),
-    })
+    }),
+    apiKey,
+    userIdentity,
   );
 }

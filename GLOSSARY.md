@@ -33,3 +33,36 @@ An optional customer-supplied image that identifies one User Account. A User Acc
 
 **Username initial fallback**:
 The uppercase first visible Unicode grapheme of a Username, shown when its Avatar is absent or cannot be loaded.
+
+### Scoring demos
+
+**Customer Sandbox API key**:
+An Organization-owned API key authorized for the Sandbox Environment, distinct from AIHUB's own server-held demo key. It may carry `writing.grade`, `speaking.grade`, or both.
+
+**Customer Production API key**:
+An Organization-owned API key authorized for Production; requests may incur charges under the Organization's Production policy.
+
+**Demo environment**:
+The explicitly selected Sandbox or Production request tier for a demo visit. The selected tier must match the key's backend-authorized environment.
+
+**Demo visit**:
+One temporary visit shared by the Writing and Speaking demos, with one demo identity and optionally one customer API key authorized for its selected environment.
+
+**Demo identity**:
+A random UUID used as the temporary End-User ID for one demo visit's Live calls; it is shared by Writing and Speaking and separate from the participant's AIHUB User Account identity.
+_Avoid_: AIHUB username
+
+**Production confirmation**:
+The visitor's explicit acknowledgement before the first Production grade in a demo visit that it may incur real charges. It is cleared when the key or selected environment changes.
+
+**Sandbox dispatch allowance**:
+The maximum number of Sandbox grading dispatches admitted for an Organization in one UTC calendar month, subject to the shared Sandbox ceiling.
+
+**Sandbox allowance override**:
+A month-specific total Sandbox dispatch allowance for one Organization that replaces the default for that UTC month; it is not an additive bonus.
+
+**Mock result**:
+A fixed example grading response that shows the report format without claiming to evaluate the visitor's answer.
+
+**Live grading**:
+A Writing or Speaking grading attempt against the visitor-selected Environment using a customer API key authorized for that Environment and the matching scope.

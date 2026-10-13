@@ -1,536 +1,740 @@
-/**
- * Shared workbench stylesheet for the public demo pages.
- *
- * /demo/speaking and /demo/scoring both mount a workbench built from these
- * rules. A demo brings its own palette by overriding the `--demo-*` tokens on
- * its own page element; no rule in this file names a brand colour, so the two
- * demos can ship on different brands without a change here.
- *
- * Anything specific to one demo — recording, the JSON console, the chart
- * preview — belongs in that demo's own stylesheet, not here.
- */
-
-.aihub-demo {
-  /* Palette. Defaults read from the global shell so the common case needs no
-     override. A page that ships on another brand sets these and nothing else. */
-  --demo-brand: var(--aihub-brand, #3a64fa);
-  --demo-brand-hover: #3157dc;
-  --demo-ink: var(--aihub-ink, #1d2838);
-  --demo-body: var(--aihub-body, #475467);
-  --demo-line: var(--aihub-line, #e4e7ec);
-  --demo-surface: var(--aihub-surface, #f1f5f9);
-
-  /* Dark panel behind a grading result. */
-  --demo-panel: #1a1b25;
-  --demo-panel-raised: #22232e;
-  --demo-panel-border: #30313d;
-  --demo-panel-ink: #f0f1f7;
-  --demo-panel-body: #a4aabd;
-  --demo-panel-muted: #8d92a5;
-  --demo-panel-accent: #77a1ff;
-  --demo-panel-track: #343746;
-  --demo-panel-fill: #739aff;
-
-  /* Page tokens. These predate the demo workbench and keep their names so the
-     existing rules below stay readable. */
-  --background: 210 40% 98%;
-  --foreground: 216 25% 17%;
-  --border: 214 20% 90%;
-  --input: 214 20% 84%;
-  --ring: 228 94% 60%;
-  --card: 0 0% 100%;
-  --card-foreground: 216 25% 17%;
-  --primary: 228 94% 60%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 228 100% 97%;
-  --secondary-foreground: 216 25% 17%;
-  --muted: 214 20% 94%;
-  --muted-foreground: 215 16% 45%;
-  --accent: 161 57% 41%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 1 73% 40%;
-  --destructive-foreground: 0 0% 100%;
-  --app-font-sans:
-    var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
-  --app-font-mono:
-    var(--font-ibm-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
-  --radius: 16px;
-  --shadow-sm: 0 4px 20px -2px rgb(29 40 56 / 0.05);
-  --shadow-md: 0 12px 32px rgb(29 40 56 / 0.08);
-
-  /* IELTS criterion scale. Categorical, not brand: each criterion owns a
-     background, a text colour and an underline, and the same three drive a
-     criterion badge, a highlighted span and a card's left rule. Reading the
-     colour tells you which criterion an error belongs to. */
-  --demo-criterion-achieve-bg: #dcebff;
-  --demo-criterion-achieve-ink: #1f4f9e;
-  --demo-criterion-achieve-rule: #2f6fd6;
-  --demo-criterion-coherence-bg: #ffe9d6;
-  --demo-criterion-coherence-ink: #8a4307;
-  --demo-criterion-coherence-rule: #b85c0a;
-  --demo-criterion-lexical-bg: #d9f2f0;
-  --demo-criterion-lexical-ink: #0b5f59;
-  --demo-criterion-lexical-rule: #0f7a73;
-  --demo-criterion-grammar-bg: #f1e4fa;
-  --demo-criterion-grammar-ink: #6e2f91;
-  --demo-criterion-grammar-rule: #8a3fb0;
-
-  min-height: 100dvh;
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  color-scheme: light;
-  font-family: var(--app-font-sans);
-  -webkit-font-smoothing: antialiased;
+.aihub-demo-flow {
+  --demo-ink: #1d2838;
+  --demo-body: #475467;
+  --demo-muted: #5f6b7a;
+  --demo-line: #e4e7ec;
+  --demo-surface: #f1f5f9;
+  --demo-brand: #3a64fa;
+  --demo-brand-text: #3154d4;
+  --demo-purple: #311772;
+  color: var(--demo-ink);
+  width: min(calc(100% - 48px), 1400px);
+  margin-inline: auto;
+  padding: 30px 0 72px;
 }
 
-/* Shell -------------------------------------------------------------------- */
-
-/* A global stylesheet belonging to an unrelated site theme styles bare
-   headings as display type. It does this for the whole range, in two rules:
-   `h2, h3` and `h4, h5` both get white and bold, and `h1` through `h6` get
-   their own sizes from 2em up to 56px. Both demo pages mount inside that
-   stylesheet, so a heading without a class of its own silently inherited it —
-   white on a white card, which is how a heading came to disappear until it was
-   selected, and then, once its colour was fixed, to tower over the form beside
-   it. A heading starts from the page's own type and takes the colour of
-   whatever surface it sits on; the demo's own class rules outrank this and set
-   the size they intend. */
-.aihub-demo :is(h1, h2, h3, h4, h5, h6) {
-  font: inherit;
-  letter-spacing: inherit;
-  text-align: inherit;
-  margin: 0;
-  color: inherit;
-}
-
-.aihub-demo .app-shell {
-  min-height: 100dvh;
-  padding: 20px 24px 42px;
-  font-family: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
-}
-.aihub-demo .app-container {
-  width: min(1450px, 100%);
-  margin: 0 auto;
-}
-.aihub-demo .topbar {
-  height: 42px;
+.demo-flow-breadcrumb,
+.demo-flow-statuses,
+.demo-section-title,
+.demo-panel-heading,
+.demo-console-heading,
+.demo-console-tabs,
+.demo-step-actions,
+.demo-inline-actions,
+.demo-field-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  color: hsl(var(--muted-foreground));
-  font-size: 11px;
-  letter-spacing: -0.01em;
-}
-.aihub-demo .crumbs {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-.aihub-demo .crumbs strong {
-  color: var(--demo-brand);
-  font-weight: 700;
-}
-.aihub-demo .crumb-sep {
-  color: hsl(215 16% 71%);
 }
 
-/* Two-column workbench: a narrow setup column beside the main card. */
-/* 858px on the console column is measured, not chosen. Before this, a 1450px
-   container gave the console 1104px and the criterion cards 532px at 97
-   characters per line — well past the 45-75 that reads comfortably, and past
-   80 where the eye loses the return sweep on a long line. Capping the column
-   puts those cards at 388px and 69 characters.
+.demo-flow-breadcrumb {
+  gap: 10px;
+  color: var(--demo-muted);
+  font-size: 13px;
+  margin-bottom: 28px;
+}
 
-   Widening the sidebar alone does not fix it: with a 400px sidebar and no cap
-   the console is still 992px and the cards still run to 86. The console needs a
-   limit of its own. Below that limit the report's clipping floor takes over,
-   so the useful range is narrow and the cap sits at its comfortable end rather
-   than at its hard edge.
+.demo-flow-breadcrumb a,
+.demo-section-title a {
+  color: var(--demo-brand-text);
+  text-decoration: none;
+}
 
-   Capping one column leaves the other nothing to grow into inside a fixed
-   container, so the pair is centred and the slack sits at the edges instead:
-   1450px offers 1034px beside a 400px sidebar, and 1034 is more than the
-   report can use. The sidebar widens with the window to a cap of its own,
-   because it is what the visitor types into and 246px was too few for an essay
-   field; it is now 358px at a wide window and 258px at the narrowest one where
-   the two columns still stand. */
-.aihub-demo .lab-layout {
+.demo-flow-hero {
   display: grid;
-  grid-template-columns: clamp(300px, 24vw, 400px) minmax(0, 858px);
-  gap: 16px;
-  align-items: start;
-  justify-content: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px 28px;
+  align-items: end;
+  margin-bottom: 34px;
 }
-.aihub-demo .card {
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: 12px;
-  box-shadow: var(--shadow-sm);
+
+.demo-flow-eyebrow {
+  color: var(--demo-brand-text);
+  font:
+    700 11px/1.4 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  letter-spacing: 0.09em;
+  margin: 0 0 8px;
 }
-.aihub-demo .main-card,
-.aihub-demo .setup-card {
-  border-radius: var(--aihub-radius, 16px);
-  box-shadow: 0 4px 20px -2px rgb(29 40 56 / 0.05);
-}
-.aihub-demo .main-card {
-  min-width: 0;
-  padding: 22px 20px 20px;
-}
-.aihub-demo .setup-intro {
-  padding: 22px 20px 16px;
-}
-.aihub-demo .eyebrow {
-  color: hsl(var(--muted-foreground));
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-/* Both levels: Speaking marks this `h1` and Scoring marks it `h2`, since each
-   page already has an `h1` for its own title. Styling only one of them left
-   the other to fall through to the bare display-type rules above. */
-.aihub-demo .setup-intro :is(h1, h2) {
-  margin: 8px 0 10px;
-  font-size: 21px;
-  letter-spacing: -0.055em;
-  line-height: 1.08;
-}
-.aihub-demo .setup-intro p {
+
+.demo-flow-hero h1,
+.demo-section-title h2,
+.demo-panel-heading h2,
+.demo-console-heading h2,
+.demo-step-content h3 {
+  color: var(--demo-ink);
   margin: 0;
-  color: hsl(var(--muted-foreground));
-  font-size: 11px;
-  line-height: 1.7;
-}
-.aihub-demo .stable-badge {
-  white-space: nowrap;
-  border: 1px solid hsl(150 42% 74%);
-  background: hsl(145 51% 95%);
-  /* 4.88:1 on that background. The lighter shade this replaced sat at 4.06. */
-  color: hsl(156 60% 27%);
-  border-radius: 5px;
-  padding: 4px 7px;
-  font-size: 9px;
-  font-weight: 800;
+  letter-spacing: -0.025em;
 }
 
-/* Controls ----------------------------------------------------------------- */
+.demo-flow-hero h1 {
+  font-size: clamp(30px, 4vw, 43px);
+  line-height: 1.12;
+}
 
-.aihub-demo .btn {
-  border: 1px solid hsl(var(--border));
-  border-radius: 7px;
-  background: hsl(var(--card));
-  color: hsl(var(--foreground));
-  padding: 8px 11px;
+.demo-flow-lede {
+  color: var(--demo-body);
+  font-size: 16px;
+  line-height: 1.65;
+  max-width: 760px;
+  margin: 12px 0 0;
+}
+
+.demo-flow-statuses {
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.demo-mode-badge,
+.demo-scope-badge,
+.demo-console-state {
+  border-radius: 999px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 10px;
+  gap: 7px;
+  font-size: 12px;
   font-weight: 700;
-  transition:
-    transform 0.16s ease,
-    background 0.16s ease,
-    border-color 0.16s ease;
+  line-height: 1;
+  padding: 9px 12px;
+  white-space: nowrap;
 }
-.aihub-demo .btn:hover {
-  transform: translateY(-1px);
-  border-color: hsl(var(--primary) / 0.35);
-  background: hsl(var(--secondary));
+
+.demo-mode-badge {
+  background: #eef2ff;
+  color: #3449b8;
 }
-.aihub-demo .btn:active {
-  transform: translateY(0);
+
+.demo-mode-badge.live {
+  background: #e9f8ef;
+  color: #167345;
 }
-/* The global stylesheets colour anchors with `!important`, so a primary
-   button rendered as a link cannot be given readable text without matching
-   that. Nothing else in this file needs the flag. */
-.aihub-demo .btn-primary {
-  color: #fff !important;
-  background: var(--demo-brand);
-  border-color: var(--demo-brand);
+
+.demo-mode-badge i,
+.demo-console-state::before {
+  background: currentColor;
+  border-radius: 50%;
+  content: "";
+  display: inline-block;
+  height: 7px;
+  width: 7px;
 }
-.aihub-demo .btn-primary:hover {
-  background: var(--demo-brand-hover);
-  border-color: var(--demo-brand-hover);
+
+.demo-scope-badge {
+  background: var(--demo-surface);
+  color: #475467;
+  font:
+    600 11px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
 }
-.aihub-demo .btn-sm {
-  padding: 6px 8px;
-  font-size: 9px;
-}
-.aihub-demo .btn[disabled] {
-  cursor: not-allowed;
-  opacity: 0.5;
-  transform: none;
-}
-.aihub-demo .question-combobox-input {
-  width: 100%;
-  border: 1px solid hsl(var(--input));
-  background: hsl(0 0% 100%);
-  color: hsl(var(--foreground));
-  border-radius: 7px;
-  padding: 8px 31px 8px 27px;
-  font-size: 11px;
-  outline: none;
-}
-.aihub-demo .question-combobox-input:focus {
-  border-color: hsl(var(--primary));
-  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.12);
-}
-.aihub-demo .inline-error {
-  margin-top: 9px;
-  padding: 7px 8px;
-  border: 1px solid hsl(var(--destructive) / 0.26);
-  border-radius: 6px;
-  background: hsl(var(--destructive) / 0.06);
-  color: hsl(var(--destructive));
-  font-size: 9px;
-  line-height: 1.4;
-}
-.aihub-demo .inline-error a {
-  color: inherit;
-  display: block;
+
+.demo-skill-switch {
+  border-bottom: 1px solid var(--demo-line);
+  display: flex;
+  gap: 20px;
+  grid-column: 1 / -1;
   margin-top: 4px;
 }
 
-/* Result panel ------------------------------------------------------------- */
+.demo-skill-switch a {
+  border-bottom: 2px solid transparent;
+  color: var(--demo-muted);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0 0 10px;
+  text-decoration: none;
+}
 
-.aihub-demo .feedback-dashboard {
-  background: var(--demo-panel);
-  padding: 15px;
+.demo-skill-switch a[aria-current="page"] {
+  border-color: var(--demo-brand);
+  color: var(--demo-brand-text);
 }
-.aihub-demo .feedback-header {
-  display: flex;
-  align-items: flex-start;
+
+.demo-overview,
+.demo-step-panel,
+.demo-console {
+  border: 1px solid var(--demo-line);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.demo-overview {
+  margin-bottom: 24px;
+  padding: 24px;
+}
+
+.demo-section-title,
+.demo-panel-heading,
+.demo-console-heading {
   justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 13px;
-  border-bottom: 1px solid var(--demo-panel-border);
+  gap: 16px;
 }
-.aihub-demo .feedback-header h3 {
-  margin: 0;
-  font-size: 12px;
-  color: var(--demo-panel-ink);
-  letter-spacing: -0.02em;
+
+.demo-section-title h2,
+.demo-panel-heading h2,
+.demo-console-heading h2 {
+  font-size: 20px;
+  line-height: 1.25;
 }
-.aihub-demo .feedback-header p {
-  margin: 4px 0 0;
-  color: var(--demo-panel-muted);
-  font-size: 9px;
-}
-.aihub-demo .score-badge {
-  border: 1px solid #34567e;
-  background: #1f304b;
-  color: #a9c5ff;
-  padding: 5px 8px;
-  border-radius: 5px;
-  font-family: var(--app-font-mono);
-  font-size: 9px;
-  white-space: nowrap;
-}
-.aihub-demo .feedback-meta {
-  display: flex;
-  gap: 7px;
-  flex-wrap: wrap;
-  margin-top: 9px;
-  color: #9ca2b5;
-  font-family: var(--app-font-mono);
-  font-size: 8px;
-}
-.aihub-demo .feedback-meta span {
-  padding: 4px 6px;
-  border: 1px solid var(--demo-panel-border);
-  border-radius: 4px;
-  background: #22232e;
-}
-.aihub-demo .feedback-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1.15fr;
-  gap: 7px;
-}
-.aihub-demo .score-card {
-  border: 1px solid var(--demo-panel-border);
-  background: var(--demo-panel-raised);
-  border-radius: 7px;
-  padding: 10px;
-}
-.aihub-demo .score-label {
-  display: flex;
+
+.demo-section-title a {
   align-items: center;
-  justify-content: space-between;
+  display: inline-flex;
   gap: 6px;
-  min-width: 0;
-  color: #8e94a7;
-  font-size: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 13px;
+  font-weight: 700;
 }
-/* The name is the part that can wrap. Flex items default to min-width: auto,
-   which pins this one to the width of its longest word and pushes the row past
-   its box on a font wider than the one it was measured with. */
-.aihub-demo .score-label > span {
-  min-width: 0;
+
+.demo-overview-steps {
+  counter-reset: none;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
 }
-.aihub-demo .score-value {
-  margin-top: 5px;
-  color: #f4f5fb;
-  font-family: var(--app-font-mono);
-  font-size: 19px;
+
+.demo-overview-steps li {
+  background: #f8f9fc;
+  border: 1px solid var(--demo-line);
+  border-radius: 12px;
+  display: flex;
+  gap: 10px;
+  min-height: 92px;
+  padding: 13px 11px;
 }
-.aihub-demo .score-value em {
-  font-style: normal;
-  color: var(--demo-panel-accent);
-  font-size: 10px;
+
+.demo-overview-steps li.active {
+  background: #f0f3ff;
+  border-color: #aebdff;
 }
-.aihub-demo .score-note {
-  margin-top: 3px;
-  color: #9aa0b2;
-  font-size: 8px;
+
+.demo-overview-steps li > span {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 50%;
+  color: var(--demo-brand);
+  display: flex;
+  flex: 0 0 26px;
+  font-size: 12px;
+  font-weight: 800;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
+}
+
+.demo-overview-steps li div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.demo-overview-steps strong {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.demo-overview-steps small {
+  color: var(--demo-muted);
+  font-size: 11px;
   line-height: 1.4;
 }
-.aihub-demo .progress-bar {
-  height: 3px;
-  border-radius: 3px;
-  background: var(--demo-panel-track);
-  margin-top: 8px;
-  overflow: hidden;
+
+.demo-flow-grid {
+  align-items: start;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 0.96fr) minmax(400px, 1.04fr);
 }
-.aihub-demo .progress-bar i {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--demo-panel-fill);
+
+.demo-step-panel,
+.demo-console {
+  min-width: 0;
+  padding: 22px;
 }
-.aihub-demo .section-kicker {
-  color: var(--demo-panel-muted);
-  font-size: 8px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+
+.demo-stepper {
+  border-bottom: 1px solid var(--demo-line);
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-top: 18px;
+  padding-bottom: 14px;
 }
-.aihub-demo .section-kicker span {
-  margin-left: 6px;
-  /* Was a #667087 literal, which sat at 3.61:1 on the dark panel. */
-  color: var(--demo-panel-muted);
-  font-family: var(--app-font-mono);
-  font-weight: 500;
-  text-transform: none;
-  letter-spacing: 0;
-}
-.aihub-demo .empty-state {
-  padding: 34px 18px;
+
+.demo-stepper button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: var(--demo-muted);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  gap: 7px;
+  line-height: 1.2;
+  min-width: 0;
+  padding: 8px 2px;
   text-align: center;
-  color: #9aa0b2;
-  font-family: var(--app-font-mono);
+}
+
+.demo-stepper button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.demo-stepper button > span {
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 50%;
+  display: flex;
+  font-size: 11px;
+  font-weight: 700;
+  height: 25px;
+  justify-content: center;
+  width: 25px;
+}
+
+.demo-stepper button.active {
+  background: #f0f3ff;
+  color: var(--demo-brand-text);
+  font-weight: 700;
+}
+
+.demo-stepper button.active > span {
+  background: var(--demo-brand);
+  border-color: var(--demo-brand);
+  color: #fff;
+}
+
+.demo-step-content {
+  padding-top: 20px;
+}
+
+.demo-step-content h3 {
+  font-size: 19px;
+  margin-bottom: 8px;
+}
+
+.demo-step-content p {
+  color: var(--demo-body);
+  line-height: 1.55;
+}
+
+.demo-step-content .demo-help {
+  color: var(--demo-muted);
+  font-size: 12px;
+  margin: 6px 0 0;
+}
+
+.demo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.demo-field > label,
+.demo-field-label {
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.demo-field input,
+.demo-field textarea,
+.demo-field select {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  color: var(--demo-ink);
+  font: inherit;
+  font-size: 14px;
+  min-height: 42px;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.demo-field textarea {
+  line-height: 1.55;
+  min-height: 130px;
+  resize: vertical;
+}
+
+.demo-field input:focus,
+.demo-field textarea:focus,
+.demo-field select:focus,
+.demo-stepper button:focus-visible,
+.demo-console-tabs button:focus-visible {
+  outline: 3px solid #c7d2fe;
+  outline-offset: 1px;
+}
+
+.demo-field input[readonly],
+.demo-field textarea[readonly],
+.demo-field :disabled {
+  background: #f8fafc;
+  color: #667085;
+}
+
+.demo-step-actions,
+.demo-inline-actions,
+.demo-field-row {
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.demo-step-actions {
+  margin-top: 18px;
+}
+
+.demo-btn-primary,
+.demo-btn-secondary {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 7px;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  text-decoration: none;
+}
+
+.demo-btn-primary {
+  background: var(--demo-brand);
+  color: #fff;
+}
+
+.demo-btn-primary:hover:not(:disabled) {
+  background: #254fe4;
+}
+
+.demo-btn-secondary {
+  background: #fff;
+  border-color: #cbd5e1;
+  color: #344054;
+}
+
+.demo-btn-secondary.active {
+  background: #f0f3ff;
+  border-color: #9eabff;
+  color: #3047ba;
+}
+
+.demo-btn-primary:focus-visible,
+.demo-btn-secondary:focus-visible,
+.demo-scenario-list button:focus-visible,
+.demo-skill-switch a:focus-visible,
+.demo-flow-breadcrumb a:focus-visible,
+.demo-section-title a:focus-visible {
+  outline: 3px solid #c7d2fe;
+  outline-offset: 2px;
+}
+
+.demo-btn-primary:disabled,
+.demo-btn-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.demo-notice,
+.demo-error,
+.demo-success {
+  border-radius: 9px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 14px;
+  padding: 11px 13px;
+}
+
+.demo-sr-only {
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.demo-audio-player {
+  display: block;
+  margin-top: 12px;
+  max-width: 100%;
+  width: 100%;
+}
+
+.demo-notice {
+  background: #f2f4f7;
+  color: #475467;
+}
+
+.demo-error {
+  background: #fff1f0;
+  border: 1px solid #ffd1cc;
+  color: #a3261a;
+}
+
+.demo-success {
+  background: #edfbf2;
+  border: 1px solid #b7ebc8;
+  color: #167345;
+}
+
+.demo-console {
+  background: #171a26;
+  border-color: #282d3d;
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.16);
+  color: #e9ecf5;
+  position: sticky;
+  top: 88px;
+}
+
+.demo-console .demo-flow-eyebrow {
+  color: #9eabff;
+}
+
+.demo-console-heading h2 {
+  color: #f7f8ff;
+}
+
+.demo-console-state {
+  background: #282d3d;
+  color: #bdc7d8;
+  font:
+    600 11px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  padding: 8px 10px;
+}
+
+.demo-console-state.live {
+  background: #173d30;
+  color: #9de0bc;
+}
+
+.demo-console-state.mock {
+  background: #3b315a;
+  color: #d3c5ff;
+}
+
+.demo-console-state.error {
+  background: #4a252c;
+  color: #ffc2c9;
+}
+
+.demo-console-tabs {
+  border-bottom: 1px solid #34394a;
+  gap: 4px;
+  margin-top: 18px;
+}
+
+.demo-console-tabs button {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: #a8afc0;
+  cursor: pointer;
+  font:
+    600 12px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  padding: 10px 11px;
+}
+
+.demo-console-tabs button.active {
+  border-color: #8192ff;
+  color: #fff;
+}
+
+.demo-console-tabs .demo-console-copy {
+  align-items: center;
+  border: 0;
+  display: inline-flex;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.demo-console-code {
+  background: #11141e;
+  border: 1px solid #292e3d;
+  border-radius: 10px;
+  color: #d6e0f2;
+  font:
+    12px/1.65 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+  margin: 14px 0 0;
+  max-height: 560px;
+  min-height: 300px;
+  overflow: auto;
+  padding: 15px;
+  tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.demo-console-code code {
+  font: inherit;
+}
+
+.demo-console-note {
+  color: #9aa3b6 !important;
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 12px 0 0;
+}
+
+.demo-result-card {
+  background: #f8f9fc;
+  border: 1px solid var(--demo-line);
+  border-radius: 12px;
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.demo-result-band {
+  color: var(--demo-purple);
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.demo-result-criteria {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 13px;
+}
+
+.demo-result-criteria > div {
+  background: #fff;
+  border: 1px solid var(--demo-line);
+  border-radius: 9px;
+  padding: 10px;
+}
+
+.demo-result-criteria strong,
+.demo-result-criteria span {
+  display: block;
+}
+
+.demo-result-criteria strong {
+  color: var(--demo-muted);
   font-size: 10px;
 }
 
-/* Highlighted span inside a graded text. The mechanism is shared; the tones
-   belong to whoever is grading, so /demo/speaking defines its pronunciation
-   tones locally and /demo/scoring defines the criterion tones. */
-.aihub-demo .word-chip {
-  position: relative;
-  display: inline-block;
-  margin-right: 3px;
-  border-radius: 3px;
-  padding: 0 4px;
-  cursor: help;
-  transition:
-    background 0.14s ease,
-    color 0.14s ease;
+.demo-result-criteria span {
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 4px;
 }
-.aihub-demo .word-chip:hover {
-  background: #324a7e;
-  color: white;
+
+.demo-result-transcript {
+  background: #fff;
+  border-left: 3px solid var(--demo-brand);
+  color: var(--demo-body);
+  line-height: 1.55;
+  margin: 12px 0 0;
+  padding: 10px 12px;
 }
-.aihub-demo .word-chip small {
-  margin-left: 2px;
-  color: inherit;
-  font-size: 7px;
-  opacity: 0.72;
+
+.demo-scenario-list {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
 }
-.aihub-demo .word-chip[title]::after {
-  content: attr(title);
-  position: absolute;
-  z-index: 3;
-  pointer-events: none;
-  left: 50%;
-  bottom: calc(100% + 5px);
-  transform: translateX(-50%) translateY(3px);
-  opacity: 0;
-  min-width: 120px;
-  padding: 6px 7px;
-  border: 1px solid #4b4d5b;
-  border-radius: 5px;
-  background: #101117;
-  color: #cbd0de;
-  font: 8px/1.35 var(--app-font-sans);
+
+.demo-scenario-list button {
+  background: #fff;
+  border: 1px solid var(--demo-line);
+  border-radius: 9px;
+  color: #344054;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 10px;
   text-align: left;
-  transition:
-    opacity 0.14s ease,
-    transform 0.14s ease;
-}
-.aihub-demo .word-chip[title]:hover::after {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
 }
 
-@media (max-width: 900px) {
-  /* No lab-layout rule here. This used to narrow the sidebar to 250px, and it
-     has been dead since the stacking breakpoint moved to 1060px — that block
-     comes later and wins at every width this one covered. */
-  .aihub-demo .feedback-grid {
-    grid-template-columns: 1fr 1fr;
+.demo-scenario-list button.active {
+  background: #f0f3ff;
+  border-color: #9eabff;
+  color: #3047ba;
+}
+
+@media (max-width: 1000px) {
+  .demo-flow-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .demo-console {
+    position: static;
+  }
+
+  .demo-overview-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
-/* A grade report sets a floor on how narrow the console may get. Measured
-   (2026-10-12) with the self-hosted Plus Jakarta Sans: at a 1000px viewport the
-   console is 606px and `rubric-grid` overflows; at 1020px it is 626px and
-   nothing does. The floor sits just above 610px.
 
-   Below that floor the console clips its own content, and the page itself does
-   not scroll, so the damage reads as a truncated report rather than as a
-   layout fault. It only appears once a grade has arrived, after the visitor
-   has already waited for the answer.
+@media (max-width: 640px) {
+  .aihub-demo-flow {
+    padding-top: 20px;
+    width: calc(100% - 32px);
+  }
 
-   1060px puts the console at 666px, roughly 50px clear of the floor, rather
-   than sitting on it. This block sits after the 900px rule so it wins below
-   900px too; the form keeps document order here, where the phone rule below
-   deliberately inverts it.
-
-   These numbers moved when the font did. Under the `system-ui` fallback the
-   floor was near 586px and 1000px was the right answer. The real face is wider
-   and raised the floor by about 30px, which made the old breakpoint admit a
-   narrow band of clipped reports: a 1000px viewport stopped stacking, and
-   1001px would have clipped. */
-@media (max-width: 1060px) {
-  .aihub-demo .lab-layout {
+  .demo-flow-hero {
     grid-template-columns: 1fr;
   }
-}
-@media (max-width: 720px) {
-  .aihub-demo .app-shell {
-    padding: 10px 10px 30px;
+
+  .demo-flow-statuses {
+    justify-content: flex-start;
   }
-  .aihub-demo .topbar {
-    height: auto;
-    min-height: 42px;
-    align-items: flex-start;
-    padding: 5px 0 12px;
-    gap: 10px;
+
+  .demo-overview,
+  .demo-step-panel,
+  .demo-console {
+    border-radius: 13px;
+    padding: 16px;
   }
-  .aihub-demo .lab-layout {
+
+  .demo-overview-steps {
     grid-template-columns: 1fr;
   }
-  .aihub-demo .setup-card {
-    order: 1;
+
+  .demo-overview-steps li {
+    min-height: 0;
   }
-  .aihub-demo .main-card {
-    order: 0;
-    padding: 18px 13px 14px;
+
+  .demo-stepper {
+    gap: 2px;
   }
-  .aihub-demo .setup-intro {
-    padding: 18px 16px 14px;
+
+  .demo-stepper button {
+    font-size: 9px;
   }
-  .aihub-demo .feedback-dashboard {
-    padding: 11px;
+
+  .demo-console-code {
+    min-height: 220px;
+  }
+
+  .demo-result-criteria {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

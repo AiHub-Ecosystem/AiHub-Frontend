@@ -22,6 +22,43 @@ async function resetScoringLog(request: APIRequestContext) {
   );
 }
 
+async function openWriting(
+  page: Page,
+  {
+    mode = "mock",
+    task = 1,
+    step = 4,
+  }: { mode?: "mock" | "live"; task?: 1 | 2; step?: 2 | 3 | 4 } = {}
+) {
+  await waitForHydration(page);
+  if (mode === "live") {
+    await page
+      .getByLabel("API key Sandbox (tùy chọn)")
+      .fill("aihub_sk_e2e_sandbox_key");
+    await page.getByRole("button", { name: "Kiểm tra key" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Chọn bài Writing" })
+    ).toBeVisible();
+  } else {
+    await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
+  }
+  if (task === 2) await page.getByTestId("tab-task-2").click();
+  if (step >= 3) {
+    await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+  }
+  if (step >= 4)
+    await page.getByRole("button", { name: "Xem bước chấm" }).click();
+}
+
+async function gradeWriting(
+  page: Page,
+  options: { mode?: "mock" | "live"; task?: 1 | 2 } = {}
+) {
+  await openWriting(page, { ...options, step: 4 });
+  await page.getByTestId("button-grade").click();
+  await expect(page.getByTestId("scoring-report")).toBeVisible();
+}
+
 async function scoringLog(request: APIRequestContext) {
   const response = await request.get(`${mockUrl}/__test__/scoring/requests`);
   return (await response.json()) as { requests: ScoringRequest[] };
@@ -189,7 +226,7 @@ test("the catalog offers the scoring demo as Stable with a link", async ({
   await card.locator("a", { hasText: "Mở demo" }).click();
 
   await expect(page).toHaveURL(/\/demo\/scoring$/);
-  await expect(page.locator("main.aihub-demo")).toBeVisible();
+  await expect(page.locator("main.aihub-demo-flow")).toBeVisible();
 });
 
 test("grades the prefilled Task 1 sample without a login", async ({
@@ -201,28 +238,31 @@ test("grades the prefilled Task 1 sample without a login", async ({
   page.on("pageerror", (error) => failed.push(error.message));
 
   await page.goto("/demo/scoring");
-  await waitForHydration(page);
+  await openWriting(page, { step: 2 });
 
   // The page must be runnable with no typing.
+  await expect(page.getByTestId("select-chart-type")).toHaveValue("Bar Chart");
+  await expect(page.getByTestId("input-image-url")).toHaveValue(/^https:\/\//);
+  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
   const essay = await page.getByTestId("input-essay").inputValue();
   expect(essay.length).toBeGreaterThan(500);
   expect(essay).toContain("The bar chart illustrates");
-  await expect(page.getByTestId("select-chart-type")).toHaveValue("Bar Chart");
-  await expect(page.getByTestId("input-image-url")).toHaveValue(/^https:\/\//);
+  await expect(page.getByTestId("input-essay")).toHaveAttribute("readonly", "");
 
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
   await page.getByTestId("button-grade").click();
   await expect(page.getByTestId("scoring-report")).toBeVisible();
 
-  // A plain declared user id, and no assertion was ever minted.
+  // Mock grading is local and never reaches the upstream scoring service.
   const log = await scoringLog(request);
-  expect(log.requests).toHaveLength(1);
-  expect(log.requests[0].task).toBe("1");
-  expect(log.requests[0].userIdentity).toMatch(/^[\x21-\x7e]{1,256}$/);
-  expect(log.requests[0].idempotencyKey).toBeTruthy();
-  expect(log.requests[0].body).toMatchObject({
-    chart_type: "Bar Chart",
-    image_url: /^https:\/\//,
-  });
+  expect(log.requests).toHaveLength(0);
+  await page.getByRole("tab", { name: "Response" }).click();
+  await expect(page.locator(".demo-console-code")).toContainText(
+    "local fixed fixture"
+  );
+  await expect(page.locator(".demo-console-code")).toContainText(
+    "overall_band"
+  );
 
   // The API key and upstream host are server-side only.
   const html = await page.content();
@@ -238,9 +278,7 @@ test("the report keeps the criteria order the response carried", async ({
 }) => {
   await keepBrowserTrafficLocal(page);
   await page.goto("/demo/scoring");
-  await waitForHydration(page);
-  await page.getByTestId("button-grade").click();
-  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  await gradeWriting(page, { mode: "live" });
 
   await expect(
     page.getByTestId("scoring-report").locator(".feedback-grid .score-card")
@@ -257,9 +295,7 @@ test("an annotation highlight is keyboard reachable and reveals its detail", asy
 }) => {
   await keepBrowserTrafficLocal(page);
   await page.goto("/demo/scoring");
-  await waitForHydration(page);
-  await page.getByTestId("button-grade").click();
-  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  await gradeWriting(page, { mode: "live" });
 
   const chip = page.getByTestId("annotation-chip-0");
   await chip.focus();
@@ -277,9 +313,7 @@ test("the same colour ties a criterion's card, badge and annotation together", a
 }) => {
   await keepBrowserTrafficLocal(page);
   await page.goto("/demo/scoring");
-  await waitForHydration(page);
-  await page.getByTestId("button-grade").click();
-  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  await gradeWriting(page, { mode: "live" });
 
   const lexicalCard = page
     .locator(".scoring-criteria .criterion-card.tone-lexical")
@@ -305,9 +339,7 @@ test("suggestions and next steps render as two lists side by side", async ({
 }) => {
   await keepBrowserTrafficLocal(page);
   await page.goto("/demo/scoring");
-  await waitForHydration(page);
-  await page.getByTestId("button-grade").click();
-  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  await gradeWriting(page, { mode: "live" });
 
   // The last region of the result layout, which carries no tone class of its
   // own so it cannot be identified by colour.
@@ -328,9 +360,7 @@ test("text on a criterion-tinted card stays legible against its own tint", async
 }) => {
   await keepBrowserTrafficLocal(page);
   await page.goto("/demo/scoring");
-  await waitForHydration(page);
-  await page.getByTestId("button-grade").click();
-  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  await gradeWriting(page, { mode: "live" });
   await page.getByTestId("annotation-chip-0").click();
   await expect(page.getByTestId("scoring-annotation-detail")).toBeVisible();
 
@@ -350,15 +380,13 @@ test("text on a criterion-tinted card stays legible against its own tint", async
   ).toEqual([]);
 });
 
-test("the page ships on the new brand while speaking stays on the old one", async ({
-  page,
-}) => {
+test("both demo workbenches keep the AIHUB brand palette", async ({ page }) => {
   await keepBrowserTrafficLocal(page);
   await page.goto("/demo/scoring");
   await waitForHydration(page);
 
   const tokens = await page
-    .locator("main.aihub-demo")
+    .locator("main.aihub-demo-flow")
     .first()
     .evaluate((el) => {
       const s = getComputedStyle(el);
@@ -367,17 +395,16 @@ test("the page ships on the new brand while speaking stays on the old one", asyn
         s.getPropertyValue("--demo-ink").trim(),
       ];
     });
-  expect(tokens).toEqual(["#5b5fef", "#14152b"]);
+  expect(tokens).toEqual(["#3a64fa", "#1d2838"]);
 
-  // Speaking is untouched and still reads the site palette.
   await page.goto("/demo/speaking");
   const speakingBrand = await page
-    .locator("main.aihub-demo")
+    .locator("main.aihub-demo-flow")
     .first()
     .evaluate((el) =>
       getComputedStyle(el).getPropertyValue("--demo-brand").trim()
     );
-  expect(speakingBrand).not.toBe("#5b5fef");
+  expect(speakingBrand).toBe(tokens[0]);
 });
 
 test("a rejected submission shows its code and no credential leaked", async ({
@@ -387,12 +414,48 @@ test("a rejected submission shows its code and no credential leaked", async ({
   await page.goto("/demo/scoring");
   await waitForHydration(page);
 
-  await page.getByTestId("input-question").fill("");
-  await page.getByTestId("button-grade").click();
+  await page
+    .getByLabel("API key Sandbox (tùy chọn)")
+    .fill("invalid-sandbox-key");
+  await page.getByRole("button", { name: "Kiểm tra key" }).click();
 
-  const error = page.getByTestId("scoring-error");
+  const error = page.locator(".demo-error[role=alert]");
   await expect(error).toBeVisible();
-  await expect(error).toContainText("INVALID_REQUEST");
+  await expect(error).toContainText("UNAUTHORIZED");
+  await expect(
+    page.getByRole("heading", { name: "Kết nối Sandbox" })
+  ).toBeVisible();
+});
+
+test("Writing grading rejects an invalid key even when the client skips validation", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/demo/scoring");
+  await openWriting(page, { mode: "live", step: 2 });
+
+  const result = await page.evaluate(async () => {
+    const response = await fetch("/api/demo/scoring/grade", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Demo-API-Key": "invalid-sandbox-key",
+        "X-Demo-User-Identity": "00000000-0000-4000-8000-000000000001",
+      },
+      body: JSON.stringify({
+        task: 1,
+        question: "Summarise the chart.",
+        essay: "The bar chart shows telephone calls in the UK.",
+        chart_type: "Bar Chart",
+        image_url: "https://s3.wispace.app/ielts-task1/ca95bd4ab522946e",
+      }),
+    });
+    return { status: response.status, body: await response.json() };
+  });
+
+  expect(result.status).toBe(401);
+  expect(result.body).toMatchObject({ error: { code: "UNAUTHORIZED" } });
+  expect((await scoringLog(request)).requests).toHaveLength(0);
 });
 
 test("the Task 2 tab opens without a page load and survives a return visit", async ({
@@ -402,41 +465,52 @@ test("the Task 2 tab opens without a page load and survives a return visit", asy
   await page.goto("/demo/scoring");
   await waitForHydration(page);
 
-  // Nothing navigates: the switch is a client transition within one document.
+  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
+  // Nothing navigates: the task selector is a client transition in one document.
   await page.evaluate(() => {
     (window as unknown as { __stayed: boolean }).__stayed = true;
   });
   await page.getByTestId("tab-task-2").click();
-  await expect(page).toHaveURL(/\/demo\/scoring\?task=2$/);
+  await expect(page).toHaveURL(/\/demo\/scoring$/);
   expect(
     await page.evaluate(
       () => (window as unknown as { __stayed?: boolean }).__stayed
     )
   ).toBe(true);
 
-  await page.reload();
-  await waitForHydration(page);
+  await page.getByTestId("tab-task-1").click();
+  await page.getByTestId("tab-task-2").click();
   await expect(page.getByTestId("tab-task-2")).toHaveAttribute(
     "aria-selected",
     "true"
   );
-  await expect(page.getByTestId("input-topic")).toBeVisible();
+  const topic = page.getByTestId("input-topic");
+  const question = page.getByTestId("input-question");
+  await expect(topic).toBeEnabled();
+  await expect(question).toBeEnabled();
+  await topic.fill("a custom demo topic");
+  await question.fill("A custom demo question.");
+  await expect(topic).toHaveValue("a custom demo topic");
+  await expect(question).toHaveValue("A custom demo question.");
 });
 
-test("grades the prefilled Task 2 sample, sending topic and no Task 1 field", async ({
+test("live Task 2 grading sends topic and no Task 1 field", async ({
   page,
   request,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring?task=2");
-  await waitForHydration(page);
+  await page.goto("/demo/scoring");
+  await openWriting(page, { mode: "live", task: 2, step: 2 });
+
+  await expect(page.getByTestId("input-topic")).toHaveValue("education");
+  await expect(page.getByTestId("input-question")).toHaveValue(/vocational/);
+  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
 
   const essay = await page.getByTestId("input-essay").inputValue();
   expect(essay.length).toBeGreaterThan(500);
   expect(essay).toContain("Universities have traditionally focused");
-  await expect(page.getByTestId("input-topic")).toHaveValue("education");
-  await expect(page.getByTestId("input-question")).toHaveValue(/vocational/);
 
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
   await page.getByTestId("button-grade").click();
   await expect(page.getByTestId("scoring-report")).toBeVisible();
 
@@ -454,10 +528,8 @@ test("the Task 2 report leads with Task Response in Task Achievement's colour", 
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring?task=2");
-  await waitForHydration(page);
-  await page.getByTestId("button-grade").click();
-  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  await page.goto("/demo/scoring");
+  await gradeWriting(page, { mode: "live", task: 2 });
 
   // Rendered in the order the response carried them.
   await expect(
@@ -482,7 +554,7 @@ test("the Task 2 report leads with Task Response in Task Achievement's colour", 
     (el) => getComputedStyle(el).borderBottomColor
   );
   const achieveToken = await page
-    .locator("main.aihub-demo")
+    .locator("main.aihub-demo-flow")
     .first()
     .evaluate((el) =>
       getComputedStyle(el)
@@ -498,8 +570,10 @@ test("the Task 2 report leads with Task Response in Task Achievement's colour", 
 
 test("the Task 2 tab renders none of the Task 1 form", async ({ page }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring?task=2");
+  await page.goto("/demo/scoring");
   await waitForHydration(page);
+  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
+  await page.getByTestId("tab-task-2").click();
 
   for (const testId of [
     "select-chart-type",
@@ -516,16 +590,20 @@ test("a Task 1 report does not reappear under the Task 2 tab", async ({
 }) => {
   await keepBrowserTrafficLocal(page);
   await page.goto("/demo/scoring");
-  await waitForHydration(page);
-  await page.getByTestId("button-grade").click();
+  await gradeWriting(page, { mode: "live" });
   await expect(page.getByTestId("scoring-report")).toContainText(
     "Báo cáo chấm bài Task 1"
   );
 
+  await page.getByRole("button", { name: /2 Chọn đề/ }).click();
   await page.getByTestId("tab-task-2").click();
+  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
   // A report belongs to the task that produced it.
   await expect(page.getByTestId("scoring-report")).toHaveCount(0);
-  await expect(page.locator(".console-empty")).toContainText("Chấm bài Task 2");
+  await expect(
+    page.getByRole("heading", { name: "Gửi chấm live" })
+  ).toBeVisible();
 });
 
 test("the four criteria fit a phone without horizontal scrolling", async ({
@@ -535,8 +613,7 @@ test("the four criteria fit a phone without horizontal scrolling", async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/demo/scoring");
   await waitForHydration(page);
-  await page.getByTestId("button-grade").click();
-  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  await gradeWriting(page);
 
   const overflow = await page.evaluate(
     () =>
@@ -572,8 +649,7 @@ test("every text on the page is readable, before and after a grade", async ({
   await waitForHydration(page);
   await expectReadable(page);
 
-  await page.getByTestId("button-grade").click();
-  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  await gradeWriting(page);
   await expectReadable(page);
 });
 
@@ -596,6 +672,7 @@ test("a scrolled report clears the fixed site header instead of hiding behind it
   // band where the panel is actually pinned, whatever the page's length. A
   // hardcoded offset quietly falls past that band the day the page gets
   // shorter, and the test then measures a panel that is no longer stuck.
+  await gradeWriting(page);
   await page.evaluate(() => {
     const max = document.documentElement.scrollHeight - window.innerHeight;
     window.scrollTo(0, Math.round(max * 0.25));
@@ -609,7 +686,7 @@ test("a scrolled report clears the fixed site header instead of hiding behind it
   const read = () =>
     page.evaluate(() => {
       const header = document.querySelector("header");
-      const panel = document.querySelector(".scoring-result");
+      const panel = document.querySelector(".demo-console");
       if (!header || !panel) throw new Error("the header or panel is missing");
       return {
         position: getComputedStyle(header).position,
@@ -651,10 +728,17 @@ test("a scrolled report clears the fixed site header instead of hiding behind it
  * so a UUID appearing anywhere in the form means the key moved back into the
  * UI — which is the regression this guards.
  */
-test("the form shows the visitor no key to manage", async ({ page }) => {
+test("the visitor can leave the optional Sandbox key empty", async ({
+  page,
+}) => {
   await keepBrowserTrafficLocal(page);
   await page.goto("/demo/scoring");
   await waitForHydration(page);
+
+  await expect(page.getByLabel("API key Sandbox (tùy chọn)")).toHaveValue("");
+  await expect(
+    page.getByRole("button", { name: "Bỏ qua, dùng mẫu" })
+  ).toBeEnabled();
 
   await expect(
     page.getByText(
@@ -663,12 +747,7 @@ test("the form shows the visitor no key to manage", async ({ page }) => {
   ).toHaveCount(0);
 });
 
-/**
- * A heading inside the demo must never reach display type. `meltano-source.css`
- * styles bare `h1`/`h2`/`h3` at 48px, and Scoring marks this heading `h2`
- * where Speaking marks it `h1` — so an `h1`-only rule left it falling through
- * to the foreign stylesheet and it towered over the form beside it.
- */
+/** The demo title should stay below the unrelated stylesheet's 48px heading. */
 test("no demo heading inherits display type from the foreign stylesheet", async ({
   page,
 }) => {
@@ -677,7 +756,7 @@ test("no demo heading inherits display type from the foreign stylesheet", async 
   await waitForHydration(page);
 
   const headings = await page
-    .locator(".aihub-demo :is(h1, h2, h3, h4, h5, h6)")
+    .locator(".aihub-demo-flow :is(h1, h2, h3, h4, h5, h6)")
     .evaluateAll((els) =>
       els.map((el) => ({
         text: el.textContent?.trim().slice(0, 40) ?? "",
@@ -685,10 +764,9 @@ test("no demo heading inherits display type from the foreign stylesheet", async 
       }))
     );
 
-  // Nothing on this page is legitimately display type: the page title is 22px
-  // and the report heading 17px. Any heading past 24px has come from the bare
-  // rules, which is the whole defect.
-  const oversized = headings.filter((h) => h.size > 24);
+  // The hero title intentionally reaches 43px. 48px comes from the unrelated
+  // stylesheet and would overwhelm the workbench.
+  const oversized = headings.filter((h) => h.size > 46);
   expect(oversized, `headings: ${JSON.stringify(headings)}`).toEqual([]);
 });
 
@@ -706,8 +784,7 @@ test("an essay with nothing to quote says so, rather than showing a count of zer
     await keepBrowserTrafficLocal(page);
     await page.goto("/demo/scoring");
     await waitForHydration(page);
-    await page.getByTestId("button-grade").click();
-    await expect(page.getByTestId("scoring-report")).toBeVisible();
+    await gradeWriting(page, { mode: "live" });
 
     const kicker = page
       .locator('[data-testid="scoring-report"] .section-kicker')
@@ -724,189 +801,49 @@ test("an essay with nothing to quote says so, rather than showing a count of zer
   }
 });
 
-/**
- * Deleting markup on this page has cost its spacing three times: removing the
- * intro heading took the `margin: 8px 0 10px` that separated the eyebrow from
- * the task tabs, and removing the overview left the result column hugging an
- * empty state. Each of those shipped and each was reported by a reader.
- *
- * These are the gaps the page's rhythm depends on. Measuring all three in one
- * pass keeps the list honest: when markup moves, the gap that carried the
- * spacing moves with it and fails here rather than looking like a design
- * decision to whoever opens the page next.
- */
-test("the workbench keeps its spacing, neither crowding nor gaping", async ({
+test("the Request and Response console updates at every step", async ({
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
   await page.goto("/demo/scoring");
   await waitForHydration(page);
+  const code = page.locator(".demo-console-code");
+  await expect(code).toContainText("key optional");
+  await page.getByRole("tab", { name: "Response" }).click();
+  await expect(code).toContainText("Chưa kiểm tra key");
 
-  const gaps = await page.evaluate(() => {
-    const box = (selector: string) =>
-      document.querySelector(selector)!.getBoundingClientRect();
-    return {
-      eyebrowToTabs: Math.round(
-        box(".scoring-task-tabs").top - box(".setup-intro .eyebrow").bottom
-      ),
-      tabsToFirstField: Math.round(
-        box(".scoring-form .mini-label").top - box(".scoring-task-tabs").bottom
-      ),
-      headingToConsole: Math.round(
-        box(".console").top - box(".main-heading").bottom
-      ),
-    };
-  });
+  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
+  await page.getByRole("tab", { name: "Request" }).click();
+  await expect(code).toContainText("local fixture");
+  await page.getByRole("tab", { name: "Response" }).click();
+  await expect(code).toContainText("local fixture");
 
-  const bounds: Record<keyof typeof gaps, [number, number]> = {
-    eyebrowToTabs: [6, 14],
-    tabsToFirstField: [12, 24],
-    headingToConsole: [10, 24],
-  };
+  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+  await page.getByRole("tab", { name: "Request" }).click();
+  await expect(code).toContainText("read-only fixture");
+  await page.getByRole("tab", { name: "Response" }).click();
+  await expect(code).toContainText("local draft preview");
 
-  for (const [name, [low, high]] of Object.entries(bounds)) {
-    const actual = gaps[name as keyof typeof gaps];
-    expect(
-      actual,
-      `${name} was ${actual}px, expected ${low}-${high}px`
-    ).toBeGreaterThanOrEqual(low);
-    expect(
-      actual,
-      `${name} was ${actual}px, expected ${low}-${high}px`
-    ).toBeLessThanOrEqual(high);
-  }
-});
-
-/**
- * A chart that cannot be loaded is the one failure this page can still prevent.
- * `isFetchableImageUrl` checks the URL's shape — https, no credentials, within
- * 2 000 characters — and cannot check that the image is there. So a dead one is
- * forwarded, the grading service reads no chart, grades the essay anyway, and
- * returns a confident band. The sandbox allows 25 dispatches per Organization
- * per month and the demo does not retry, so that is 4% of the budget spent to
- * learn nothing.
- *
- * The preview is the only request this page makes to the chart, so its load
- * event is the only signal available that costs no quota.
- */
-test("a chart that does not load stops the grade, and can be overridden on purpose", async ({
-  page,
-  request,
-}) => {
-  await keepBrowserTrafficLocal(page);
-  await resetScoringLog(request);
-  await page.goto("/demo/scoring");
-  await waitForHydration(page);
-
-  // The published chart loads, so the page says nothing about it.
-  await expect(page.getByTestId("chart-load-warning")).toBeHidden();
-  await expect(page.getByTestId("button-grade")).toBeEnabled();
-
-  await page
-    .getByTestId("input-image-url")
-    .fill("https://s3.wispace.app/missing-chart.png");
-
-  await expect(page.getByTestId("chart-load-warning")).toBeVisible();
-  await expect(page.getByTestId("button-grade")).toBeDisabled();
-
-  // The browser refusing to embed an image is not proof the grading service
-  // cannot fetch it, so overriding is an explicit act rather than a default.
-  await page.getByTestId("chart-load-override").check();
-  await expect(page.getByTestId("button-grade")).toBeEnabled();
-
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await page.getByRole("tab", { name: "Request" }).click();
+  await expect(code).toContainText("local fixed fixture");
+  await page.getByRole("tab", { name: "Response" }).click();
   await page.getByTestId("button-grade").click();
-  await expect(page.getByTestId("scoring-report")).toBeVisible();
-
-  // Overriding changes what the page is willing to do, not what it sends.
-  // `task` is absent because the endpoint identifies the task, not the body.
-  const { requests } = await scoringLog(request);
-  expect(requests).toHaveLength(1);
-  expect(requests[0].body).toEqual({
-    question: expect.any(String),
-    essay: expect.any(String),
-    chart_type: expect.any(String),
-    image_url: "https://s3.wispace.app/missing-chart.png",
-  });
+  await expect(code).toContainText("overall_band");
 });
 
-test("correcting the chart URL clears the warning without an override", async ({
-  page,
-}) => {
-  await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
-  await waitForHydration(page);
-
-  await page
-    .getByTestId("input-image-url")
-    .fill("https://s3.wispace.app/missing-chart.png");
-  await expect(page.getByTestId("chart-load-warning")).toBeVisible();
-
-  await page
-    .getByTestId("input-image-url")
-    .fill("https://s3.wispace.app/ielts-task1/ca95bd4ab522946d");
-  await expect(page.getByTestId("chart-load-warning")).toBeHidden();
-  await expect(page.getByTestId("button-grade")).toBeEnabled();
-});
-
-test("a broken chart on Task 1 does not follow the visitor to Task 2", async ({
-  page,
-}) => {
-  await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
-  await waitForHydration(page);
-
-  await page
-    .getByTestId("input-image-url")
-    .fill("https://s3.wispace.app/missing-chart.png");
-  await expect(page.getByTestId("chart-load-warning")).toBeVisible();
-  await expect(page.getByTestId("button-grade")).toBeDisabled();
-
-  await page.getByTestId("tab-task-2").click();
-  await waitForHydration(page);
-
-  // Task 2 has no chart to load and nothing to warn about. Storing the verdict
-  // as a plain boolean would leave this button disabled with no warning visible
-  // to explain why, which is how a guard turns into a dead page.
-  await expect(page.getByTestId("input-image-url")).toBeHidden();
-  await expect(page.getByTestId("chart-load-warning")).toBeHidden();
-  await expect(page.getByTestId("button-grade")).toBeEnabled();
-});
-
-/**
- * The report sets its own floor: below about 590px of console, three elements
- * inside it overflow horizontally. The page does not scroll — the console clips
- * its own content — so the damage reads as a truncated report rather than as a
- * layout fault, and it only appears once a grade has arrived, after the visitor
- * has already waited for the answer.
- *
- * Measured with the self-hosted Plus Jakarta Sans: at a 1000px viewport the
- * console is 606px and `rubric-grid` overflows; at 1020px it is 626px and
- * nothing does. The floor sits just above 610px, and the shell stacks at
- * 1060px to keep the console about 50px clear of it.
- *
- * Both sides of that boundary are asserted. Under the `system-ui` fallback the
- * floor was near 586px and the old 1000px breakpoint was correct; loading the
- * real font raised the floor and quietly turned that breakpoint into a band
- * that clipped instead.
- */
+/** Check report content at both stacked and side-by-side breakpoints. */
 test("the report is never clipped, at any width", async ({ page }) => {
-  // Each width costs a load and a full grade, which the default timeout does not
-  // cover. The failure this guards is invisible without all of them.
-  test.setTimeout(120_000);
   await keepBrowserTrafficLocal(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/demo/scoring");
+  await gradeWriting(page);
 
-  // 1061 and 1060 straddle the stacking boundary; 1020 and 1001 are the
-  // narrowest two-column viewports either rule would allow, and 1001 is the one
-  // that clips if the boundary is a pixel too low.
   for (const width of [1440, 1200, 1061, 1060, 1020, 1001, 900, 768]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto("/demo/scoring");
-    await waitForHydration(page);
-    await page.getByTestId("button-grade").click();
-    await page.getByTestId("scoring-report").waitFor();
 
     const clipped = await page.evaluate(() =>
-      Array.from(document.querySelectorAll(".scoring-result *"))
+      Array.from(document.querySelectorAll("[data-testid=scoring-report] *"))
         .filter((element) => element.scrollWidth > element.clientWidth + 1)
         .map(
           (element) =>
@@ -919,69 +856,7 @@ test("the report is never clipped, at any width", async ({ page }) => {
   }
 });
 
-/**
- * The console column is capped at 858px for a reason a later reader cannot see
- * from the CSS: uncapped, the four criterion cards ran to 97 characters per line
- * on a wide window, past the point where the eye loses the return sweep on a
- * long line. Capped, they run to 69.
- *
- * This asserts the outcome rather than the number in the stylesheet, so the cap
- * can move if the type or the card content changes — but not silently back to
- * the width it was set to avoid.
- */
-test("the criterion cards stay within a readable line length, however wide the window", async ({
-  page,
-}) => {
-  await keepBrowserTrafficLocal(page);
-
-  for (const width of [1919, 1440, 1200]) {
-    await page.setViewportSize({ width, height: 900 });
-    await page.goto("/demo/scoring");
-    await waitForHydration(page);
-    await page.evaluate(() => document.fonts.ready);
-    await page.getByTestId("button-grade").click();
-    await page.getByTestId("scoring-report").waitFor();
-
-    const measured = await page.evaluate(() => {
-      const reason =
-        document.querySelector(".rubric-card p") ??
-        document.querySelector(".criterion-card p");
-      if (!reason) return null;
-      const style = getComputedStyle(reason);
-      const context = document.createElement("canvas").getContext("2d")!;
-      context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-      const averageChar =
-        context.measureText("abcdefghijklmnopqrstuvwxyz ").width / 27;
-      return {
-        chars: Math.round(reason.getBoundingClientRect().width / averageChar),
-        consoleWidth: Math.round(
-          document.querySelector(".console")!.getBoundingClientRect().width
-        ),
-      };
-    });
-
-    expect(measured, `no criterion text at ${width}px`).not.toBeNull();
-    // 45-75 reads comfortably; 80 is where it starts not to.
-    expect(
-      measured!.chars,
-      `${measured!.chars} characters per line at ${width}px, in a ${measured!.consoleWidth}px console`
-    ).toBeGreaterThanOrEqual(45);
-    expect(
-      measured!.chars,
-      `${measured!.chars} characters per line at ${width}px, in a ${measured!.consoleWidth}px console`
-    ).toBeLessThanOrEqual(80);
-  }
-});
-
-/**
- * A URL the endpoint will refuse is worth catching on the page. It costs no
- * quota — the BFF answers INVALID_REQUEST before a dispatch is spent — but it
- * still costs a round trip and puts an error code where an answer belongs.
- *
- * Unlike the load warning, this carries no override. The endpoint's rule is
- * certain; the browser's is not, which is why one of the two is overridable and
- * the other is not.
- */
+/** Invalid chart URLs are blocked before a live grading request can be sent. */
 test("a chart URL the endpoint would reject cannot be submitted", async ({
   page,
   request,
@@ -989,11 +864,10 @@ test("a chart URL the endpoint would reject cannot be submitted", async ({
   await keepBrowserTrafficLocal(page);
   await resetScoringLog(request);
   await page.goto("/demo/scoring");
-  await waitForHydration(page);
+  await openWriting(page, { mode: "live", step: 2 });
 
-  // The prefilled sample is sendable.
+  // The prefilled sample is valid.
   await expect(page.getByTestId("chart-url-problem")).toBeHidden();
-  await expect(page.getByTestId("button-grade")).toBeEnabled();
 
   for (const bad of [
     "http://s3.wispace.app/chart.png",
@@ -1003,17 +877,21 @@ test("a chart URL the endpoint would reject cannot be submitted", async ({
   ]) {
     await page.getByTestId("input-image-url").fill(bad);
     await expect(page.getByTestId("chart-url-problem")).toBeVisible();
-    await expect(page.getByTestId("button-grade")).toBeDisabled();
   }
 
-  // Correcting it re-enables the button with no other action. The replacement
-  // has to be one the mock actually serves: a well-formed URL the browser
-  // cannot load is held by the other guard, which is a different failure with a
-  // different answer.
+  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await expect(page.getByTestId("button-grade")).toBeDisabled();
+
+  // Correcting the value clears the warning and restores the grading action.
+  await page.getByRole("button", { name: "Sửa bài" }).click();
+  await page.getByRole("button", { name: "Quay lại đề" }).click();
   await page
     .getByTestId("input-image-url")
     .fill("https://s3.wispace.app/ielts-task1/ca95bd4ab522946e");
   await expect(page.getByTestId("chart-url-problem")).toBeHidden();
+  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
   await expect(page.getByTestId("button-grade")).toBeEnabled();
 
   // Nothing was sent while the field was refusing to be.

@@ -5,7 +5,7 @@ import "./scoring.css";
 
 export const metadata: Metadata = {
   title: "Demo — AI Chấm điểm — AIHub",
-  description: "Chạy thử API chấm bài IELTS Writing Task 1 của AIHub.",
+  description: "Chạy thử API chấm bài IELTS Writing Task 1 và Task 2 của AIHub.",
 };
 
 export const dynamic = "force-dynamic";

@@ -9,9 +9,11 @@ import {
   type WritingGradingEnvelope,
 } from "@/data/scoring-response";
 import {
+  DemoCredentialError,
   isSameOrigin,
-  mintSandboxAssertion,
-  resolveSandboxConfig,
+  readDemoApiKey,
+  readDemoUserIdentity,
+  resolveSandboxBaseUrl,
   SandboxBoundaryError,
 } from "@/lib/sandbox-gateway";
 
@@ -42,6 +44,8 @@ export type WritingTask = 1 | 2;
 export type WritingErrorCode =
   | "INVALID_REQUEST"
   | "PAYLOAD_TOO_LARGE"
+  | "UNAUTHORIZED"
+  | "INVALID_USER_IDENTITY"
   | "AI_SERVICE_ERROR"
   | "AI_SERVICE_CONTRACT_VIOLATION"
   | "AI_SERVICE_THROTTLED"
@@ -88,9 +92,9 @@ function invalidRequest() {
   return new ScoringBoundaryError("INVALID_REQUEST");
 }
 
-function getSandboxConfig() {
+function getSandboxBaseUrl() {
   try {
-    return resolveSandboxConfig();
+    return resolveSandboxBaseUrl();
   } catch (error) {
     if (error instanceof SandboxBoundaryError) {
       throw new ScoringBoundaryError("AI_SERVICE_UNAVAILABLE");
@@ -229,15 +233,20 @@ export async function gradeWriting(
   requestId: string
 ): Promise<WritingGradingEnvelope> {
   const input = await parseWritingRequest(request);
-  const { baseUrl, apiKey } = getSandboxConfig();
-  const assertion = await mintSandboxAssertion(baseUrl, apiKey);
+  let apiKey: string;
+  let userIdentity: string;
+  try {
+    apiKey = readDemoApiKey(request);
+    userIdentity = readDemoUserIdentity(request);
+  } catch (error) {
+    if (error instanceof DemoCredentialError) {
+      throw new ScoringBoundaryError(error.code);
+    }
+    throw error;
+  }
+  const baseUrl = getSandboxBaseUrl();
 
-  // Minted here rather than taken from the browser. The demo page is a reader,
-  // not an integration: a visitor has no key and a hex string in the form
-  // teaches a detail about a server they do not run. A UUID satisfies the
-  // gateway's own 1-255 byte rule by construction. Pressing the button twice is
-  // two paid grades, never a replay, which is why the demo never retries — a
-  // retry that re-keys is a second charge, and one that does not is a replay.
+  // Each submit is one billable attempt. The BFF does not retry a grade.
   const idempotencyKey = randomUUID();
 
   const controller = new AbortController();
@@ -259,16 +268,13 @@ export async function gradeWriting(
           Accept: "application/json",
           "Content-Type": "application/json",
           "X-API-Key": apiKey,
-          // A Signed User Assertion, minted for the same declared user id
-          // Speaking uses. An Organization with an active identity configuration
-          // rejects a declared id outright rather than falling back, so this is
-          // the only shape that works whether or not that configuration exists.
-          "X-User-Identity": assertion,
+          "X-User-Identity": userIdentity,
           "X-Correlation-Id": requestId,
           "Idempotency-Key": idempotencyKey,
         },
         body: JSON.stringify(toUpstreamBody(input)),
         cache: "no-store",
+        redirect: "error",
         signal: controller.signal,
       }
     );

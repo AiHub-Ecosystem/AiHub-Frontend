@@ -1,28 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  AlertTriangle,
-  Braces,
-  Check,
-  ChevronDown,
-  CircleCheck,
-  Clipboard,
-  Code2,
-  FileAudio,
-  Info,
-  Mic,
-  RotateCcw,
-  Search,
-  Square,
-  Terminal,
-  Timer,
-  UploadCloud,
-  Wifi,
-} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
+import { MOCK_SPEAKING_RESULTS } from "@/data/demo-grading-fixtures";
 import { MAX_SPEAKING_BYTES } from "@/data/speaking-contract";
 import {
+  MOCK_SPEAKING_PROMPTS,
   type SpeakingPart,
   type SpeakingPrompt,
 } from "@/data/speaking-prompts";
@@ -30,47 +13,82 @@ import {
   isSpeakingGradingEnvelope,
   type SpeakingGradingEnvelope,
 } from "@/data/speaking-response";
+import { useDemoSession, type DemoScope } from "@/app/demo/demo-session";
+import {
+  DEMO_STEPS,
+  DemoWorkbench,
+  type DemoStep,
+} from "@/app/demo/demo-workbench";
+import { errorFromPayload, type PublicError } from "../scoring/scoring-client";
 
-type Step = 1 | 2 | 3;
-type ConsoleTab = "interface" | "response" | "request";
-type PublicError = { code: string; message: string };
-type QuestionLoadState = "idle" | "loading" | "success" | "error";
+const SCOPE: DemoScope = "speaking.grade";
+const PARTS = [1, 2, 3] as const;
+const SPEAKING_CLIENT_TIMEOUT_MS = 75_000;
+const SCENARIOS = [
+  {
+    id: "revoked",
+    label: "Key bị thu hồi",
+    status: "401 Unauthorized",
+    response: {
+      code: "UNAUTHORIZED",
+      message: "API key không hợp lệ hoặc đã bị thu hồi.",
+      retryable: false,
+    },
+  },
+  {
+    id: "scope",
+    label: "Thiếu speaking.grade",
+    status: "403 Forbidden",
+    response: {
+      code: "FORBIDDEN",
+      message: "API key thiếu scope speaking.grade.",
+      retryable: false,
+    },
+  },
+  {
+    id: "quota",
+    label: "Hết quota Sandbox",
+    status: "429 Too Many Requests",
+    response: {
+      code: "QUOTA_EXCEEDED",
+      message: "Sandbox đã hết quota tháng.",
+      retryable: false,
+    },
+  },
+  {
+    id: "timeout",
+    label: "Chấm quá thời gian",
+    status: "504 Gateway Timeout",
+    response: {
+      code: "AI_SERVICE_TIMEOUT",
+      message: "Dịch vụ chấm mất quá lâu.",
+      retryable: true,
+    },
+  },
+] as const;
 
-const PARTS: Array<{ value: SpeakingPart; label: string; note: string }> = [
-  { value: 1, label: "Part 1", note: "Warm-up" },
-  { value: 2, label: "Part 2", note: "Long turn" },
-  { value: 3, label: "Part 3", note: "Discussion" },
-];
+type Result = {
+  part: SpeakingPart;
+  envelope: SpeakingGradingEnvelope;
+  mode: "mock" | "live";
+};
+type ScenarioId = (typeof SCENARIOS)[number]["id"];
+type HttpTrace = {
+  status: number;
+  contentType: string | null;
+  cacheControl: string | null;
+};
 
-function audioError(file: File) {
-  const extension = file.name.toLowerCase().split(".").pop();
-  if (!extension || !["wav", "mp3", "m4a", "webm", "ogg"].includes(extension)) {
-    return "Chọn file WAV, MP3, M4A, WEBM hoặc OGG.";
-  }
-  if (file.size < 100) return "File audio cần có ít nhất 100 bytes.";
-  if (file.size > MAX_SPEAKING_BYTES)
-    return "Audio phải nhỏ hơn hoặc bằng 25 MB.";
-  return null;
+function httpTrace(response: Response): HttpTrace {
+  return {
+    status: response.status,
+    contentType: response.headers.get("content-type"),
+    cacheControl: response.headers.get("cache-control"),
+  };
 }
 
-function errorFromPayload(payload: unknown): PublicError {
-  if (
-    typeof payload === "object" &&
-    payload !== null &&
-    "error" in payload &&
-    typeof payload.error === "object" &&
-    payload.error !== null &&
-    "code" in payload.error &&
-    "message" in payload.error &&
-    typeof payload.error.code === "string" &&
-    typeof payload.error.message === "string"
-  ) {
-    return { code: payload.error.code, message: payload.error.message };
-  }
-  return {
-    code: "AI_SERVICE_UNAVAILABLE",
-    message: "Không đọc được kết quả. Thử lại sau nhé.",
-  };
+function pretty(value: unknown) {
+  return JSON.stringify(value, null, 2);
 }
 
 function promptsFromPayload(
@@ -87,1192 +105,1226 @@ function promptsFromPayload(
     !Array.isArray(payload.data.questions)
   )
     return null;
-  const prompts = payload.data.questions.map((item) => {
+  const prompts = payload.data.questions.map((item): SpeakingPrompt | null => {
     if (
       typeof item !== "object" ||
       item === null ||
       !("id" in item) ||
-      !("part" in item) ||
-      !("question" in item) ||
-      !("sampleAudioUrl" in item) ||
       typeof item.id !== "string" ||
-      typeof item.part !== "number" ||
+      !("part" in item) ||
       item.part !== part ||
-      typeof item.question !== "string" ||
-      typeof item.sampleAudioUrl !== "string"
+      !("question" in item) ||
+      typeof item.question !== "string"
     )
       return null;
-    return {
-      id: item.id,
-      part: item.part as SpeakingPart,
-      question: item.question,
-      sampleAudioUrl: item.sampleAudioUrl,
-    } satisfies SpeakingPrompt;
+    return { id: item.id, part, question: item.question };
   });
-  return prompts.some((prompt) => prompt === null)
+  return prompts.some((item) => item === null)
     ? null
     : (prompts as SpeakingPrompt[]);
 }
 
-function FeedbackDashboard({ result }: { result: SpeakingGradingEnvelope }) {
-  const [analysisTab, setAnalysisTab] = useState<"grammar" | "vocab">(
-    "grammar"
-  );
-  const { data } = result;
-  const bands = [
-    [
-      "Fluency & Coherence",
-      data.estimated_band.fluency_coherence,
-      "Natural pace",
-    ],
-    ["Lexical Resource", data.estimated_band.lexical_resource, "Good range"],
-    [
-      "Grammar Range & Accuracy",
-      data.estimated_band.grammatical_range_accuracy,
-      "Mostly accurate",
-    ],
-    ["Pronunciation", data.estimated_band.pronunciation, "Clear delivery"],
-  ] as const;
-  const words = data.pronunciation_detail.words;
-  const grammarErrors = data.language_analysis.grammar_errors;
-  const vocabularyUpgrades = data.language_analysis.vocabulary_upgrades;
-
-  return (
-    <div className="feedback-dashboard" data-testid="panel-feedback-dashboard">
-      <div className="feedback-header">
-        <div>
-          <h3>IELTS Speaking Evaluation</h3>
-          <p>
-            SpeechAce-compatible response visualization · AIHUB rubric response
-          </p>
-        </div>
-        <span className="score-badge">
-          Overall Band:{" "}
-          {data.scorability.display_band
-            ? data.estimated_band.overall.toFixed(1)
-            : "—"}
-        </span>
-      </div>
-      <div className="feedback-meta">
-        <span>Request: {result.meta.request_id}</span>
-        <span>Scorability: {data.scorability.confidence}</span>
-        <span>Duration: {data.transcript.duration_seconds.toFixed(1)}s</span>
-      </div>
-      {!data.relevance.on_topic && (
-        <div className="relevance warning">
-          <AlertTriangle size={14} />
-          <span>
-            <strong>
-              Lạc đề (Relevance Score: {Math.round(data.relevance.score * 100)}
-              %)
-            </strong>
-            <br />
-            {data.relevance.feedback_vi ?? "Câu trả lời chưa bám sát câu hỏi."}
-          </span>
-        </div>
-      )}
-      <div className="feedback-grid">
-        {bands.map(([label, score, note]) => (
-          <div className="score-card" key={label}>
-            <div className="score-label">
-              <span>{label}</span>
-              <Check size={11} color="#7ca5ff" />
-            </div>
-            <div className="score-value">
-              {score.toFixed(1)} <em>/ 9.0</em>
-            </div>
-            <div className="score-note">{note}</div>
-            <div className="progress-bar">
-              <i style={{ width: Math.min(100, (score / 9) * 100) + "%" }} />
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="transcript-section">
-        <div className="section-kicker">
-          TRANSCRIPT & PHÁT ÂM TỪNG TỪ{" "}
-          <span>
-            {data.transcript.word_count} words ·{" "}
-            {data.transcript.duration_seconds.toFixed(1)}s duration
-          </span>
-        </div>
-        <div className="count-row">
-          <span className="count good-count">
-            {data.pronunciation_detail.summary.good_count} Tốt (Good)
-          </span>
-          <span className="count fair-count">
-            {data.pronunciation_detail.summary.fair_count} Khá (Fair)
-          </span>
-          <span className="count poor-count">
-            {data.pronunciation_detail.summary.poor_count} Cần cải thiện (Poor)
-          </span>
-        </div>
-        <div className="transcript">
-          {(words.length
-            ? words
-            : data.transcript.text
-                .split(/\s+/)
-                .filter(Boolean)
-                .map((word) => ({
-                  word,
-                  quality_score: 0,
-                  quality_class: "unknown",
-                  syllables: [],
-                  phonemes: [],
-                }))
-          ).map((item, index) => {
-            const kind =
-              item.quality_score >= 80
-                ? "good"
-                : item.quality_score >= 60
-                  ? "fair"
-                  : "poor";
-            return (
-              <span
-                className={"word-chip " + kind}
-                key={item.word + "-" + index}
-              >
-                {item.word} <small>{item.quality_score}</small>
-              </span>
-            );
-          })}
-        </div>
-      </div>
-      <div className="analysis-panel language-analysis">
-        <div className="analysis-tabs">
-          <button
-            className={analysisTab === "grammar" ? "active" : ""}
-            onClick={() => setAnalysisTab("grammar")}
-            type="button"
-          >
-            Lỗi Ngữ Pháp <span>(Grammar Errors)</span>
-          </button>
-          <button
-            className={analysisTab === "vocab" ? "active" : ""}
-            onClick={() => setAnalysisTab("vocab")}
-            type="button"
-          >
-            Nâng Cấp Từ Vựng <span>(Vocab Upgrades)</span>
-          </button>
-        </div>
-        {analysisTab === "grammar" ? (
-          grammarErrors.length ? (
-            <div className="grammar-error">
-              {grammarErrors.map((item, index) => (
-                <div
-                  className="analysis-item"
-                  key={item.error_segment + "-" + index}
-                >
-                  <div className="sentence">
-                    <del>{item.error_segment}</del> <ins>{item.correction}</ins>
-                  </div>
-                  <blockquote>{item.explanation_vi}</blockquote>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="empty-state">
-              Không phát hiện lỗi ngữ pháp đáng kể trong câu trả lời này.
-            </p>
-          )
-        ) : vocabularyUpgrades.length ? (
-          <div className="vocab-list">
-            {vocabularyUpgrades.map((item, index) => (
-              <div
-                className="vocab-card"
-                key={item.original_word + "-" + index}
-              >
-                <div>
-                  <strong>{item.original_word}</strong>
-                  <span>➜</span>
-                  <strong className="upgrade">{item.suggested_word}</strong>
-                </div>
-                <div className="analysis-badges">
-                  <span>{item.cefr_level}</span>
-                  {item.context && <span>{item.context}</span>}
-                </div>
-                <p>{item.reason_vi}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="empty-state">
-            Chưa có gợi ý từ vựng cho câu trả lời này.
-          </p>
-        )}
-      </div>
-      <div className="rubric-grid">
-        {[
-          ["Nhận xét chung", data.feedback.summary_vi],
-          ["Điểm mạnh", data.feedback.strong_point_vi],
-          ["Kế hoạch hành động", data.feedback.action_plan_vi],
-        ].map(([title, text]) => (
-          <div className="rubric-card" key={title}>
-            <div className="section-kicker">
-              <Check size={11} /> {title}
-            </div>
-            <p>{text}</p>
-          </div>
-        ))}
-      </div>
-      <div className="console-footer timing-footer">
-        <span>
-          Request <strong>{result.meta.request_id}</strong>
-        </span>
-        <span>
-          {data.relevance.on_topic ? "On topic" : "Review relevance"} ·{" "}
-          {data.scorability.message_vi ?? "Evaluation complete"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function StepRow({
-  number,
-  label,
-  open,
-  locked,
-  complete,
-  onClick,
-}: {
-  number: number;
-  label: string;
-  open: boolean;
-  locked?: boolean;
-  complete?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      aria-disabled={locked}
-      aria-expanded={open}
-      className={
-        "step-row " + (locked ? "locked " : "") + (complete ? "complete" : "")
-      }
-      data-testid={"button-toggle-step-" + number}
-      disabled={locked}
-      onClick={onClick}
-      type="button"
-    >
-      <span className="step-num">
-        {complete ? <Check size={11} /> : number}
-      </span>
-      <span className="step-label">{label}</span>
-      {locked ? (
-        <span className="step-lock">LOCKED</span>
-      ) : (
-        <ChevronDown size={14} className={"chevron " + (open ? "open" : "")} />
-      )}
-    </button>
-  );
+function fileProblem(file: File | null) {
+  if (!file) return "Chọn hoặc ghi một audio để chấm live.";
+  if (file.size < 100) return "Audio quá ngắn hoặc rỗng.";
+  if (file.size > MAX_SPEAKING_BYTES) return "Audio vượt giới hạn 25 MB.";
+  if (!/\.(wav|mp3|m4a|webm|ogg)$/i.test(file.name))
+    return "Định dạng hỗ trợ: WAV, MP3, M4A, WebM hoặc OGG.";
+  return null;
 }
 
 export default function SpeakingWorkbench() {
+  const {
+    apiKey,
+    setApiKey,
+    isCurrentApiKey,
+    isScopeValidated,
+    markScopeValidated,
+    clearScopeValidation,
+    getUserIdentity,
+  } = useDemoSession();
+  const [step, setStep] = useState<DemoStep>(1);
+  const [skipMock, setSkipMock] = useState(false);
+  const [checkingKey, setCheckingKey] = useState(false);
+  const [keyCheckResponse, setKeyCheckResponse] = useState<unknown>(null);
+  const [keyCheckTrace, setKeyCheckTrace] = useState<HttpTrace | null>(null);
+  const [keyError, setKeyError] = useState<PublicError | null>(null);
   const [part, setPart] = useState<SpeakingPart>(1);
-  const [query, setQuery] = useState("");
-  const [questionOpen, setQuestionOpen] = useState(false);
-  const [questions, setQuestions] = useState<SpeakingPrompt[]>([]);
-  const [questionLoadState, setQuestionLoadState] =
-    useState<QuestionLoadState>("loading");
-  const [selectedPrompt, setSelectedPrompt] = useState<SpeakingPrompt | null>(
-    null
-  );
-  const [hasConfirmedPrompt, setHasConfirmedPrompt] = useState(false);
-  const [step, setStep] = useState<Step>(1);
+  const [livePrompts, setLivePrompts] = useState<SpeakingPrompt[] | null>(null);
+  const [questionResponse, setQuestionResponse] = useState<unknown>(null);
+  const [questionTrace, setQuestionTrace] = useState<HttpTrace | null>(null);
+  const [questionLoading, setQuestionLoading] = useState(false);
+  const [questionError, setQuestionError] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState(MOCK_SPEAKING_PROMPTS[0].id);
   const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [sampleAudioUrl, setSampleAudioUrl] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [status, setStatus] = useState<"idle" | "submitting" | "success">(
-    "idle"
-  );
-  const [result, setResult] = useState<SpeakingGradingEnvelope | null>(null);
   const [error, setError] = useState<PublicError | null>(null);
-  const [consoleStep, setConsoleStep] = useState<Step>(1);
-  const [consoleTab, setConsoleTab] = useState<ConsoleTab>("response");
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const recordedBytesRef = useRef(0);
-  const previewUrlRef = useRef<string | null>(null);
-  const cancelRecordingRef = useRef(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [gradeResponse, setGradeResponse] = useState<unknown>(null);
+  const [gradeTrace, setGradeTrace] = useState<HttpTrace | null>(null);
+  const [gradeAttempted, setGradeAttempted] = useState(false);
+  const [result, setResult] = useState<Result | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [scenario, setScenario] = useState<ScenarioId>("revoked");
+  const recorder = useRef<MediaRecorder | null>(null);
+  const stream = useRef<MediaStream | null>(null);
+  const chunks = useRef<Blob[]>([]);
+  const filePicker = useRef<HTMLInputElement>(null);
+  const audioPlayer = useRef<HTMLAudioElement>(null);
 
-  const prompts = useMemo(
-    () =>
-      questions.filter((prompt) =>
-        prompt.question.toLowerCase().includes(query.toLowerCase().trim())
-      ),
-    [questions, query]
+  const liveReady =
+    apiKey.trim().length > 0 && isScopeValidated(SCOPE) && !skipMock;
+  const mode = liveReady ? "live" : "mock";
+  const localPrompts = MOCK_SPEAKING_PROMPTS.filter(
+    (item) => item.part === part
   );
-
-  useEffect(
-    () => () => {
-      cancelRecordingRef.current = true;
-      const recorder = recorderRef.current;
-      if (recorder && recorder.state !== "inactive") recorder.stop();
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-    },
-    []
-  );
+  const prompts = liveReady ? (livePrompts ?? []) : localPrompts;
+  const prompt = prompts.find((item) => item.id === selectedId) ?? prompts[0];
+  const activeResult = result?.part === part ? result : null;
+  const activeScenario =
+    SCENARIOS.find((item) => item.id === scenario) ?? SCENARIOS[0];
+  const currentFileProblem = fileProblem(file);
 
   useEffect(() => {
+    const player = audioPlayer.current;
+    if (!player || !liveReady || !file) return;
+    const url = URL.createObjectURL(file);
+    player.src = url;
+    return () => URL.revokeObjectURL(url);
+  }, [file, liveReady]);
+
+  useEffect(() => {
+    if (step !== 2 || !liveReady) return;
     let cancelled = false;
-    fetch("/api/demo/speaking/questions?part=" + part, { cache: "no-store" })
+    let receivedHttpResponse = false;
+    fetch(`/api/demo/speaking/questions?part=${part}`, { cache: "no-store" })
       .then(async (response) => {
         const payload: unknown = await response.json().catch(() => null);
+        if (cancelled) return;
+        receivedHttpResponse = true;
+        setQuestionTrace(httpTrace(response));
+        setQuestionResponse(payload);
         if (!response.ok) throw errorFromPayload(payload);
         const loaded = promptsFromPayload(payload, part);
-        if (!loaded) throw new Error("invalid question payload");
-        if (!cancelled) {
-          setQuestions(loaded);
-          setQuestionLoadState("success");
-        }
+        if (!loaded)
+          throw new Error("Câu hỏi từ Sandbox không đúng định dạng.");
+        if (loaded.length === 0)
+          throw new Error("Sandbox hiện không có câu hỏi cho Part này.");
+        if (cancelled) return;
+        setLivePrompts(loaded);
+        setSelectedId((current) =>
+          loaded.some((item) => item.id === current)
+            ? current
+            : (loaded[0]?.id ?? "")
+        );
       })
-      .catch(() => {
-        if (!cancelled) {
-          setQuestions([]);
-          setQuestionLoadState("error");
-        }
+      .catch((caught: unknown) => {
+        if (cancelled) return;
+        setLivePrompts(null);
+        setQuestionError(
+          caught instanceof Error
+            ? caught.message
+            : "Không tải được câu hỏi Speaking từ Sandbox."
+        );
+        if (!receivedHttpResponse)
+          setQuestionResponse({
+            http_response: null,
+            error:
+              caught instanceof Error
+                ? caught.message
+                : "AI_SERVICE_UNAVAILABLE",
+          });
+      })
+      .finally(() => {
+        if (!cancelled) setQuestionLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [part]);
+  }, [step, liveReady, part]);
 
-  useEffect(() => {
-    if (!recording) return;
-    const timer = window.setInterval(
-      () => setRecordingSeconds((seconds) => seconds + 1),
-      1000
-    );
-    return () => window.clearInterval(timer);
-  }, [recording]);
+  useEffect(
+    () => () => {
+      recorder.current?.stop();
+      stream.current?.getTracks().forEach((track) => track.stop());
+    },
+    []
+  );
 
-  const clearFile = () => {
-    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-    previewUrlRef.current = null;
-    setPreviewUrl(null);
+  const requestBody = {
+    part,
+    question_id: prompt?.id ?? "",
+    prompt_text: prompt?.question ?? "",
+    test_type: "Practice",
+    audio: file
+      ? {
+          filename: file.name,
+          bytes: file.size,
+          type: file.type || "application/octet-stream",
+        }
+      : null,
+  };
+
+  const changeStep = (next: DemoStep) => {
+    if (step === 3 && next !== 3 && recorder.current?.state === "recording") {
+      recorder.current.stop();
+    }
+    if (next === 2 && step !== 2 && liveReady) {
+      setQuestionLoading(true);
+      setQuestionError(null);
+      setQuestionTrace(null);
+      setQuestionResponse({
+        state: "pending",
+        request: `/v1/ielts/speaking/questions?part=${part}`,
+      });
+    }
+    setStep(next);
+  };
+
+  const validateKey = async () => {
+    const submittedKey = apiKey.trim();
+    if (!submittedKey) {
+      setKeyError({
+        code: "UNAUTHORIZED",
+        message: "Nhập API key Sandbox hoặc bỏ qua để dùng mẫu.",
+      });
+      return;
+    }
+    setCheckingKey(true);
+    setKeyError(null);
+    setSkipMock(false);
+    setQuestionLoading(false);
+    setQuestionError(null);
+    setQuestionResponse(null);
+    setQuestionTrace(null);
+    setResult(null);
+    setGradeResponse(null);
+    setGradeTrace(null);
+    setGradeAttempted(false);
+    setKeyCheckTrace(null);
+    setKeyCheckResponse({ state: "pending", scope: SCOPE });
+    let receivedHttpResponse = false;
+    try {
+      const response = await fetch("/api/demo/key/validate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Demo-API-Key": submittedKey,
+        },
+        body: JSON.stringify({ scope: SCOPE }),
+        cache: "no-store",
+      });
+      // A changed input clears scope validation; ignore a response for the old key.
+      if (!isCurrentApiKey(submittedKey)) return;
+      receivedHttpResponse = true;
+      setKeyCheckTrace(httpTrace(response));
+      const payload: unknown = await response.json().catch(() => null);
+      if (!isCurrentApiKey(submittedKey)) return;
+      setKeyCheckResponse(payload);
+      if (!response.ok) throw errorFromPayload(payload);
+      if (
+        typeof payload !== "object" ||
+        payload === null ||
+        !("data" in payload) ||
+        typeof payload.data !== "object" ||
+        payload.data === null ||
+        !("valid" in payload.data) ||
+        payload.data.valid !== true
+      ) {
+        throw {
+          code: "AI_SERVICE_CONTRACT_VIOLATION",
+          message: "Response kiểm tra key không đúng định dạng.",
+        } satisfies PublicError;
+      }
+      markScopeValidated(SCOPE);
+      setQuestionLoading(true);
+      setQuestionError(null);
+      setQuestionTrace(null);
+      setQuestionResponse({
+        state: "pending",
+        request: `/v1/ielts/speaking/questions?part=${part}`,
+      });
+      setStep(2);
+    } catch (caught) {
+      if (!isCurrentApiKey(submittedKey)) return;
+      clearScopeValidation(SCOPE);
+      const publicError =
+        typeof caught === "object" &&
+        caught !== null &&
+        "code" in caught &&
+        "message" in caught
+          ? (caught as PublicError)
+          : {
+              code: "AI_SERVICE_UNAVAILABLE",
+              message: "Không kiểm tra được key. Thử lại hoặc dùng mẫu.",
+            };
+      setKeyError(publicError);
+      if (!receivedHttpResponse)
+        setKeyCheckResponse({
+          error: { code: publicError.code, message: publicError.message },
+          http_response: null,
+        });
+    } finally {
+      setCheckingKey(false);
+    }
+  };
+
+  const useMock = () => {
+    clearScopeValidation("writing.grade");
+    clearScopeValidation("speaking.grade");
+    setSkipMock(true);
+    setQuestionLoading(false);
+    setQuestionError(null);
+    setQuestionResponse(null);
+    setQuestionTrace(null);
+    setResult(null);
+    setError(null);
+    setKeyError(null);
+    setGradeResponse(null);
+    setGradeTrace(null);
+    setGradeAttempted(false);
+    setKeyCheckResponse({
+      mode: "mock",
+      request: null,
+      message: "Key check skipped; fixed fixture selected.",
+    });
+    setKeyCheckTrace(null);
+    setStep(2);
+  };
+
+  const choosePart = (value: SpeakingPart) => {
+    if (value === part) return;
+    setPart(value);
+    if (step === 2 && liveReady) {
+      setQuestionLoading(true);
+      setQuestionError(null);
+      setQuestionTrace(null);
+      setQuestionResponse({
+        state: "pending",
+        request: `/v1/ielts/speaking/questions?part=${value}`,
+      });
+    }
+    const first = MOCK_SPEAKING_PROMPTS.find((item) => item.part === value);
+    setSelectedId(first?.id ?? "");
     setFile(null);
-    setSampleAudioUrl(null);
+    setResult(null);
+    setGradeResponse(null);
+    setGradeTrace(null);
+    setGradeAttempted(false);
+    setQuestionResponse(null);
+    setQuestionTrace(null);
+    setLivePrompts(null);
+    setError(null);
   };
 
-  const stopRecorder = (discard = false) => {
-    if (discard) cancelRecordingRef.current = true;
-    const recorder = recorderRef.current;
-    if (recorder && recorder.state !== "inactive") {
-      recorder.stop();
+  const saveFile = (next: File | null) => {
+    if (!next) return;
+    const problem = fileProblem(next);
+    if (problem && problem !== "Chọn hoặc ghi một audio để chấm live.") {
+      setError({ code: "INVALID_REQUEST", message: problem });
       return;
     }
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    recorderRef.current = null;
-    setRecording(false);
-    setRecordingSeconds(0);
-  };
-
-  const selectPrompt = (prompt: SpeakingPrompt) => {
-    stopRecorder(true);
-    setSelectedPrompt(prompt);
-    setQuestionOpen(false);
-    setHasConfirmedPrompt(false);
-    clearFile();
-    setSampleAudioUrl(prompt.sampleAudioUrl ?? null);
-    setStep(1);
-    setConsoleStep(1);
+    setFile(next);
     setError(null);
     setResult(null);
-    setStatus("idle");
-  };
-
-  const selectPart = (nextPart: SpeakingPart) => {
-    stopRecorder(true);
-    clearFile();
-    setQuestionLoadState("loading");
-    setPart(nextPart);
-    setQuery("");
-    setSelectedPrompt(null);
-    setHasConfirmedPrompt(false);
-    setResult(null);
-    setStep(1);
-    setConsoleStep(1);
-    setError(null);
-    setStatus("idle");
-  };
-
-  const confirmPrompt = () => {
-    if (!selectedPrompt) return;
-    setHasConfirmedPrompt(true);
-    setStep(2);
-    setConsoleStep(2);
-    setError(null);
-  };
-
-  const setAudio = (nextFile: File | null) => {
-    if (!nextFile || status === "submitting") return;
-    const validationError = audioError(nextFile);
-    if (validationError) {
-      setError({ code: "INVALID_REQUEST", message: validationError });
-      return;
-    }
-    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-    previewUrlRef.current = URL.createObjectURL(nextFile);
-    setPreviewUrl(previewUrlRef.current);
-    setFile(nextFile);
-    setSampleAudioUrl(null);
-    setResult(null);
-    setStatus("idle");
-    setError(null);
-    setStep(2);
-    setConsoleStep(2);
+    setGradeResponse(null);
+    setGradeTrace(null);
+    setGradeAttempted(false);
   };
 
   const startRecording = async () => {
-    if (status === "submitting") return;
     setError(null);
-    if (
-      !navigator.mediaDevices?.getUserMedia ||
-      typeof MediaRecorder === "undefined"
-    ) {
-      setError({
-        code: "RECORDER_UNAVAILABLE",
-        message:
-          "Trình duyệt này chưa hỗ trợ ghi âm. Bạn có thể tải file audio lên.",
-      });
-      return;
-    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      chunksRef.current = [];
-      recordedBytesRef.current = 0;
-      cancelRecordingRef.current = false;
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
-        ? "audio/webm"
-        : undefined;
-      const recorder = mimeType
-        ? new MediaRecorder(stream, { mimeType })
-        : new MediaRecorder(stream);
-      recorder.ondataavailable = (event) => {
-        if (!event.data.size) return;
-        recordedBytesRef.current += event.data.size;
-        if (recordedBytesRef.current > MAX_SPEAKING_BYTES) {
-          cancelRecordingRef.current = true;
-          setError({
-            code: "PAYLOAD_TOO_LARGE",
-            message: "Bản ghi đã vượt quá giới hạn 25 MB.",
-          });
-          if (recorder.state !== "inactive") recorder.stop();
-          return;
-        }
-        chunksRef.current.push(event.data);
+      if (
+        !navigator.mediaDevices?.getUserMedia ||
+        typeof MediaRecorder === "undefined"
+      )
+        throw new Error(
+          "Trình duyệt không hỗ trợ ghi âm. Tải file audio lên để tiếp tục."
+        );
+      const nextStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+      stream.current = nextStream;
+      chunks.current = [];
+      const nextRecorder = new MediaRecorder(nextStream);
+      recorder.current = nextRecorder;
+      nextRecorder.ondataavailable = (event) => {
+        if (event.data.size) chunks.current.push(event.data);
       };
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, {
-          type: recorder.mimeType || "audio/webm",
+      nextRecorder.onstop = () => {
+        const blob = new Blob(chunks.current, {
+          type: nextRecorder.mimeType || "audio/webm",
         });
-        stream.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        recorderRef.current = null;
+        const extension = blob.type.includes("mp4") ? "m4a" : "webm";
+        saveFile(
+          new File([blob], `speaking-answer.${extension}`, { type: blob.type })
+        );
+        nextStream.getTracks().forEach((track) => track.stop());
+        stream.current = null;
+        recorder.current = null;
         setRecording(false);
-        setRecordingSeconds(0);
-        if (cancelRecordingRef.current) {
-          cancelRecordingRef.current = false;
-          return;
-        }
-        const recordedFile = new File([blob], `speaking-${Date.now()}.webm`, {
-          type: blob.type || "audio/webm",
-        });
-        setAudio(recordedFile);
       };
-      recorderRef.current = recorder;
-      setRecordingSeconds(0);
+      nextRecorder.start();
       setRecording(true);
-      recorder.start();
-    } catch {
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-      recorderRef.current = null;
-      setRecording(false);
-      setRecordingSeconds(0);
+    } catch (caught) {
       setError({
-        code: "RECORDER_UNAVAILABLE",
+        code: "INVALID_REQUEST",
         message:
-          "Không thể mở micro. Kiểm tra quyền microphone hoặc tải file audio lên.",
+          caught instanceof Error ? caught.message : "Không thể mở microphone.",
       });
     }
   };
 
-  const stopRecording = () => stopRecorder();
+  const stopRecording = () => {
+    if (recorder.current?.state === "recording") recorder.current.stop();
+  };
 
-  const submitLive = async () => {
-    const prompt = selectedPrompt;
-    if ((!file && !sampleAudioUrl) || !prompt) {
+  const grade = async () => {
+    setError(null);
+    setResult(null);
+    if (!liveReady) {
+      setGradeAttempted(false);
+      setGradeTrace(null);
+      const envelope = MOCK_SPEAKING_RESULTS[part];
+      setGradeResponse(envelope);
+      setResult({ part, envelope, mode: "mock" });
+      return;
+    }
+    if (!livePrompts?.length || !prompt) {
       setError({
-        code: "INVALID_REQUEST",
-        message: "Chọn hoặc ghi một câu trả lời trước khi chấm điểm.",
+        code: "AI_SERVICE_UNAVAILABLE",
+        message:
+          "Chưa có câu hỏi live từ Sandbox. Không thể gửi fixture local để chấm.",
       });
       return;
     }
-    setStatus("submitting");
-    setError(null);
+    const problem = fileProblem(file);
+    if (problem) {
+      setError({ code: "INVALID_REQUEST", message: problem });
+      return;
+    }
+    if (!prompt || !file) return;
+
+    setSubmitting(true);
+    setGradeAttempted(true);
+    setGradeTrace(null);
+    const form = new FormData();
+    form.append("audio", file, file.name);
+    form.append("part", String(part));
+    form.append("question_id", prompt.id);
+    form.append("prompt_text", prompt.question);
+    form.append("test_type", "Practice");
+    setGradeResponse({
+      state: "pending",
+      request: `/v1/ielts/speaking/grading · Part ${part}`,
+    });
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 90_000);
+    const timeout = window.setTimeout(
+      () => controller.abort("speaking-client-timeout"),
+      SPEAKING_CLIENT_TIMEOUT_MS
+    );
+    let receivedHttpResponse = false;
+    let responseTrace: HttpTrace | null = null;
     try {
-      const request = file
-        ? (() => {
-            const form = new FormData();
-            form.append("audio", file, file.name);
-            form.append("part", String(prompt.part));
-            form.append("question_id", prompt.id);
-            form.append("prompt_text", prompt.question);
-            return { endpoint: "/api/demo/speaking/grading", body: form };
-          })()
-        : {
-            endpoint: "/api/demo/speaking/grading-json",
-            body: JSON.stringify({
-              audio_url: sampleAudioUrl,
-              part: prompt.part,
-              question_id: prompt.id,
-              prompt_text: prompt.question,
-              test_type: "Practice",
-            }),
-          };
-      const response = await fetch(request.endpoint, {
+      const response = await fetch("/api/demo/speaking/grading", {
         method: "POST",
-        body: request.body,
-        headers: file ? undefined : { "Content-Type": "application/json" },
+        headers: {
+          "X-Demo-API-Key": apiKey.trim(),
+          "X-Demo-User-Identity": getUserIdentity(),
+        },
+        body: form,
         signal: controller.signal,
+        cache: "no-store",
       });
+      receivedHttpResponse = true;
+      responseTrace = httpTrace(response);
+      setGradeTrace(responseTrace);
       const payload: unknown = await response.json().catch(() => null);
+      if (controller.signal.aborted) throw new Error("speaking-client-timeout");
+      setGradeResponse(payload);
       if (!response.ok) throw errorFromPayload(payload);
       if (!isSpeakingGradingEnvelope(payload))
         throw {
           code: "AI_SERVICE_CONTRACT_VIOLATION",
           message: "Kết quả từ AIHUB không đúng định dạng.",
         } satisfies PublicError;
-      setResult(payload);
-      setStatus("success");
-      setStep(3);
-      setConsoleStep(3);
-      setConsoleTab("interface");
+      setResult({ part, envelope: payload, mode: "live" });
     } catch (caught) {
-      const nextError =
+      const publicError =
         typeof caught === "object" &&
         caught !== null &&
         "code" in caught &&
-        "message" in caught &&
-        typeof caught.code === "string" &&
-        typeof caught.message === "string"
-          ? { code: caught.code, message: caught.message }
-          : {
-              code: "AI_SERVICE_TIMEOUT",
-              message:
-                "Yêu cầu mất quá lâu. Audio vẫn được giữ lại để bạn thử lại.",
-            };
-      setError(nextError);
-      setStatus("idle");
-      setStep(2);
-      setConsoleStep(2);
+        "message" in caught
+          ? (caught as PublicError)
+          : controller.signal.aborted
+            ? {
+                code: "AI_SERVICE_TIMEOUT",
+                message:
+                  "Chưa nhận được phản hồi sau 75 giây. Yêu cầu có thể đã được gửi để chấm; kiểm tra trạng thái trước khi gửi lại vì lần gửi lại là lượt mới.",
+              }
+            : {
+                code: "AI_SERVICE_UNAVAILABLE",
+                message: "Không gửi được audio. Kiểm tra kết nối rồi thử lại.",
+              };
+      setError(publicError);
+      if (!receivedHttpResponse || controller.signal.aborted)
+        setGradeResponse({
+          error: { code: publicError.code, message: publicError.message },
+          http_response: responseTrace
+            ? { status: responseTrace.status }
+            : null,
+        });
     } finally {
       window.clearTimeout(timeout);
+      setSubmitting(false);
     }
   };
 
-  const reset = () => {
-    stopRecorder(true);
-    setPart(1);
-    setQuery("");
-    setQuestionOpen(false);
-    setSelectedPrompt(null);
-    setHasConfirmedPrompt(false);
-    setStep(1);
-    clearFile();
-    setResult(null);
-    setError(null);
-    setStatus("idle");
-    setRecording(false);
-    setRecordingSeconds(0);
-    setConsoleStep(1);
-    setConsoleTab("response");
+  const validationSkipped =
+    typeof keyCheckResponse === "object" &&
+    keyCheckResponse !== null &&
+    "mode" in keyCheckResponse &&
+    keyCheckResponse.mode === "mock";
+  const responseHeaderSummary = (trace: HttpTrace | null) =>
+    trace
+      ? `AIHUB BFF HTTP ${trace.status}\nContent-Type: ${trace.contentType ?? "(not returned)"}\nCache-Control: ${trace.cacheControl ?? "(not returned)"}`
+      : "No HTTP response headers received.";
+
+  const requestForStep = () => {
+    if (step === 1) {
+      if (validationSkipped)
+        return pretty({
+          source: "local choice",
+          http_request: null,
+          message: "Bỏ qua kiểm tra key; dùng fixture.",
+        });
+      if (!apiKey.trim() && !keyCheckResponse)
+        return pretty({
+          http_request: null,
+          message: "API key là tùy chọn. Chưa gửi request; có thể bỏ qua.",
+        });
+      return pretty({
+        source: checkingKey
+          ? "request in progress"
+          : keyCheckTrace
+            ? "HTTP response received from AIHUB BFF"
+            : keyCheckResponse
+              ? "request attempted; no HTTP response"
+              : "request preview · chưa gửi",
+        browser_to_aihub_bff: {
+          method: "POST",
+          path: "/api/demo/key/validate",
+          headers: {
+            "X-Demo-API-Key": "[REDACTED]",
+            "Content-Type": "application/json",
+          },
+          body: { scope: SCOPE },
+        },
+        bff_to_sandbox: {
+          method: "POST",
+          path: "/v1/sandbox/demo/api-keys/validate",
+          headers: {
+            "X-API-Key": "[REDACTED]",
+            "Content-Type": "application/json",
+          },
+          body: { scope: SCOPE },
+        },
+      });
+    }
+    if (step === 2)
+      return liveReady
+        ? pretty({
+            source: "GET question catalog via AIHUB BFF",
+            browser_to_aihub_bff: {
+              method: "GET",
+              path: `/api/demo/speaking/questions?part=${part}`,
+            },
+            bff_to_sandbox: {
+              method: "GET",
+              path: `/v1/ielts/speaking/questions?part=${part}`,
+            },
+            note: "Public catalog; no grading quota.",
+          })
+        : pretty({
+            source: "local fixture",
+            http_request: null,
+            part,
+            questions: localPrompts,
+          });
+    if (step === 3)
+      return pretty({
+        source: liveReady
+          ? "local draft preview · chưa gửi HTTP"
+          : "local mock fixture · không gửi HTTP",
+        planned_request: liveReady
+          ? {
+              method: "POST",
+              path: "/api/demo/speaking/grading",
+              upstream_path: "/v1/ielts/speaking/grading",
+              headers: {
+                "X-Demo-API-Key": "[REDACTED]",
+                "X-Demo-User-Identity": "<generated at submit>",
+                "Content-Type":
+                  "multipart/form-data; browser generated boundary",
+              },
+            }
+          : null,
+        body_preview: requestBody,
+        sent: false,
+      });
+    if (step === 5)
+      return pretty({
+        source: "local error scenario · simulated, no HTTP",
+        scenario: activeScenario.label,
+        simulated_request: {
+          method: "POST",
+          path: "/v1/ielts/speaking/grading",
+          headers: {
+            "X-API-Key": "[REDACTED]",
+            "X-User-Identity": "<demo UUID>",
+          },
+          body: requestBody,
+        },
+      });
+    if (!liveReady)
+      return pretty({
+        source: "local fixture submit",
+        http_request: null,
+        result:
+          "Clicking the button returns MOCK_SPEAKING_RESULTS for this Part.",
+      });
+    if (!gradeAttempted)
+      return pretty({
+        source: "request preview · chưa gửi",
+        method: "POST",
+        browser_to_aihub_bff: "/api/demo/speaking/grading",
+        bff_to_sandbox: "/v1/ielts/speaking/grading",
+        headers: {
+          "X-Demo-API-Key": "[REDACTED]",
+          "X-Demo-User-Identity": "<generated at submit>",
+          "Content-Type": "multipart/form-data; browser generated boundary",
+        },
+        body_summary: requestBody,
+        audio_binary_included: Boolean(file),
+        sent: false,
+      });
+    return pretty({
+      source: "request sent via AIHUB BFF",
+      method: "POST",
+      browser_to_aihub_bff: "/api/demo/speaking/grading",
+      bff_to_sandbox: "/v1/ielts/speaking/grading",
+      headers: {
+        "X-Demo-API-Key": "[REDACTED]",
+        "X-Demo-User-Identity": "<demo UUID>",
+        "Content-Type": "multipart/form-data; browser generated boundary",
+      },
+      body_summary: requestBody,
+      audio_binary_included: Boolean(file),
+      sent: true,
+    });
   };
 
-  const activePrompt = result
-    ? (questions.find((prompt) => prompt.id === result.data.question_id) ??
-      selectedPrompt)
-    : selectedPrompt;
+  const responseForStep = () => {
+    if (step === 1)
+      return validationSkipped
+        ? pretty({
+            source: "local choice",
+            http_response: null,
+            message: "Đã bỏ qua bước kiểm tra key.",
+          })
+        : keyCheckResponse
+          ? pretty({
+              http: keyCheckTrace
+                ? {
+                    status: keyCheckTrace.status,
+                    headers: responseHeaderSummary(keyCheckTrace),
+                  }
+                : null,
+              body: keyCheckResponse,
+            })
+          : pretty({
+              http_response: null,
+              message: "Chưa kiểm tra key; chưa có response.",
+            });
+    if (step === 2)
+      return liveReady
+        ? pretty({
+            http: questionTrace
+              ? {
+                  status: questionTrace.status,
+                  headers: responseHeaderSummary(questionTrace),
+                }
+              : null,
+            body:
+              questionResponse ??
+              (questionLoading
+                ? { state: "request in progress" }
+                : { state: "no response received" }),
+          })
+        : pretty({
+            source: "local fixture",
+            http_response: null,
+            part,
+            questions: localPrompts,
+          });
+    if (step === 3)
+      return pretty({
+        source: "local preview",
+        http_response: null,
+        message: liveReady
+          ? "Chưa gửi. Audio chỉ được gửi ở bước 4 sau khi bấm chấm."
+          : "Mock chỉ đọc fixture; không gửi audio.",
+      });
+    if (step === 5)
+      return pretty({
+        source: "local simulation · not HTTP",
+        simulated_status: activeScenario.status,
+        simulated_response: activeScenario.response,
+      });
+    if (!liveReady)
+      return gradeResponse
+        ? pretty({
+            source: "local fixture",
+            http_response: null,
+            body: gradeResponse,
+          })
+        : pretty({
+            source: "local fixture",
+            http_response: null,
+            message: "Chưa chọn hiển thị kết quả mẫu.",
+          });
+    return gradeResponse
+      ? pretty({
+          http: gradeTrace
+            ? {
+                status: gradeTrace.status,
+                headers: responseHeaderSummary(gradeTrace),
+              }
+            : null,
+          body: gradeResponse,
+        })
+      : pretty({
+          http_response: null,
+          message: gradeAttempted
+            ? "Request đã gửi nhưng chưa nhận response HTTP."
+            : "Chưa gửi request.",
+        });
+  };
 
-  const requestForStep = (currentStep: Step) =>
-    currentStep === 1
-      ? "GET /api/demo/speaking/questions?part=" + part
-      : sampleAudioUrl && !file
-        ? "POST /api/demo/speaking/grading-json\n\napplication/json:\n  audio_url: [presigned sample URL]\n  part: " +
-          (activePrompt?.part ?? part) +
-          "\n  question_id: " +
-          (activePrompt?.id ?? "—") +
-          "\n  prompt_text: [provided]\n\n// secrets stay server-side"
-        : "POST /api/demo/speaking/grading\n\nform-data:\n  audio: " +
-          (file?.name ?? "—") +
-          "\n  part: " +
-          (activePrompt?.part ?? part) +
-          "\n  question_id: " +
-          (activePrompt?.id ?? "—") +
-          "\n  prompt_text: [provided]\n\n// secrets stay server-side";
-  const responsePayload = result
-    ? JSON.stringify(result, null, 2)
-    : JSON.stringify({ state: "waiting", data: null }, null, 2);
-  const copyPayload = () =>
-    void navigator.clipboard?.writeText(
-      consoleTab === "request" ? requestForStep(consoleStep) : responsePayload
-    );
-  const calloutEndpoint =
-    consoleStep === 1
-      ? "GET /v1/ielts/speaking/questions?part=" + part
-      : sampleAudioUrl && !file
-        ? "POST /v1/ielts/speaking/grading-json"
-        : "POST /v1/ielts/speaking/grading";
-  const calloutStatus =
-    consoleStep === 1
-      ? "để tải câu hỏi theo Part."
-      : consoleStep === 2
-        ? "[waiting for audio upload/recording]"
-        : "[evaluation complete - duration 5.75s]";
+  const requestHeaders = () => {
+    if (step === 1)
+      return validationSkipped || (!apiKey.trim() && !keyCheckResponse)
+        ? "No HTTP request."
+        : `${keyCheckResponse ? "Sent or in progress" : "Preview only; not sent"}\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nContent-Type: application/json\nAIHUB BFF → Sandbox: X-API-Key: [REDACTED]\nContent-Type: application/json`;
+    if (step === 2)
+      return liveReady
+        ? "GET question catalog via BFF. No API key or grading request is sent. Browser-managed headers omitted."
+        : "No HTTP request — question fixture is local.";
+    if (step === 3)
+      return liveReady
+        ? "Preview only; not sent yet.\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nX-Demo-User-Identity: generated at submit\nContent-Type: multipart/form-data (browser boundary)\nBFF → Sandbox: X-API-Key: [REDACTED]\nX-User-Identity: <demo UUID>"
+        : "No HTTP request — read-only fixture.";
+    if (step === 5)
+      return "Simulated request only; no request headers were sent.\nX-API-Key: [REDACTED]";
+    if (!liveReady) return "No HTTP request — fixture is generated locally.";
+    return `${gradeAttempted ? "Sent" : "Preview only; not sent"}\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nX-Demo-User-Identity: ${gradeAttempted ? "<demo UUID>" : "generated at submit"}\nContent-Type: multipart/form-data (browser boundary)\nBFF → Sandbox: X-API-Key: [REDACTED]\nX-User-Identity: <demo UUID>`;
+  };
+
+  const responseHeaders = () => {
+    if (step === 1)
+      return keyCheckTrace
+        ? responseHeaderSummary(keyCheckTrace)
+        : validationSkipped
+          ? "No HTTP response — step skipped."
+          : "No HTTP response received.";
+    if (step === 2)
+      return liveReady
+        ? responseHeaderSummary(questionTrace)
+        : "No HTTP response — local fixture.";
+    if (step === 3) return "No HTTP response — draft preview only.";
+    if (step === 5) return "No HTTP response headers — simulated status only.";
+    if (!liveReady || result?.mode === "mock")
+      return "No HTTP response — local fixture.";
+    return gradeTrace
+      ? responseHeaderSummary(gradeTrace)
+      : "No HTTP response received.";
+  };
+
+  const traceNote =
+    step === 1
+      ? "Key validation goes through the AIHUB BFF and checks scope/environment only; it does not grade or consume grading quota. The key is redacted."
+      : step === 2
+        ? liveReady
+          ? "The public question catalog is fetched through the BFF; it does not send a grading request or consume grading quota."
+          : "Local question fixtures only. No HTTP request is sent."
+        : step === 3
+          ? liveReady
+            ? "This is a local draft preview. Audio is sent only after the Step 4 grading button is pressed."
+            : "Read-only fixture preview. No audio or grading request is sent."
+          : step === 4
+            ? liveReady
+              ? "The BFF rechecks the Sandbox key on every grading request; the API key is redacted in this trace."
+              : "The button returns a fixed fixture in the browser. No grading or AI service request is sent."
+            : "Scenario request and response are simulated locally. No HTTP request or quota use.";
+
+  const traceStatus =
+    step === 1
+      ? validationSkipped
+        ? "SKIPPED · LOCAL"
+        : checkingKey
+          ? "CHECKING KEY"
+          : keyCheckTrace
+            ? `HTTP ${keyCheckTrace.status}`
+            : keyError
+              ? "CHECK FAILED"
+              : apiKey.trim()
+                ? "PREVIEW · NOT SENT"
+                : "KEY OPTIONAL"
+      : step === 2
+        ? questionLoading
+          ? "LOADING QUESTIONS"
+          : liveReady
+            ? questionTrace
+              ? `HTTP ${questionTrace.status}`
+              : questionError
+                ? "NO HTTP RESPONSE"
+                : "LIVE CATALOG"
+            : "LOCAL FIXTURE"
+        : step === 3
+          ? liveReady
+            ? "DRAFT PREVIEW · NOT SENT"
+            : "READ-ONLY FIXTURE"
+          : step === 4
+            ? submitting
+              ? "GRADING"
+              : !liveReady
+                ? activeResult
+                  ? "LOCAL FIXTURE RESULT"
+                  : "LOCAL · NO HTTP"
+                : gradeTrace
+                  ? `HTTP ${gradeTrace.status}`
+                  : gradeAttempted
+                    ? "NO HTTP RESPONSE"
+                    : "PREVIEW · NOT SENT"
+            : "SIMULATED · NO HTTP";
 
   return (
-    <main className="aihub-demo aihub-speaking speaking-page">
-      <div className="app-shell">
-        <div className="app-container">
-          <div className="lab-layout">
-            <aside className="card setup-card">
-              <div className="setup-intro">
-                <div className="eyebrow">Các bước tích hợp API</div>
-                <h1>IELTS Speaking API Test</h1>
-                <p>
-                  Demo các bước tích hợp giải pháp AI chấm chữa IELTS Speaking —
-                  chọn câu hỏi, đưa câu trả lời qua audio, và nhận phân tích chi
-                  tiết bám sát IELTS Band Descriptors.
-                </p>
-              </div>
+    <DemoWorkbench
+      skill="speaking"
+      scope={SCOPE}
+      title="Chấm IELTS Speaking"
+      description="Chọn Speaking Part, ghi âm hoặc tải câu trả lời lên khi dùng key Sandbox. Bỏ qua key để xem fixture read-only và kết quả mẫu cố định."
+      step={step}
+      onStepChange={changeStep}
+      stepperDisabled={submitting}
+      mode={mode}
+      status={traceStatus}
+      request={requestForStep()}
+      response={responseForStep()}
+      requestHeaders={requestHeaders()}
+      responseHeaders={responseHeaders()}
+      traceNote={traceNote}
+    >
+      <p className="demo-flow-eyebrow">
+        BƯỚC {step} / 5 · {DEMO_STEPS[step - 1]}
+      </p>
 
-              <StepRow
-                number={1}
-                label="Chọn câu hỏi (Part & Question)"
-                open={step === 1}
-                complete={hasConfirmedPrompt}
-                onClick={() => setStep(1)}
-              />
-              {step === 1 && (
-                <div className="step-content-content step-content">
-                  <label className="mini-label">Part</label>
-                  <div
-                    className="filter-chips part-selector"
-                    role="tablist"
-                    aria-label="Speaking parts"
-                  >
-                    {PARTS.map((item) => (
-                      <button
-                        aria-selected={part === item.value}
-                        className={
-                          "filter-chip " + (part === item.value ? "active" : "")
-                        }
-                        key={item.value}
-                        onClick={() => selectPart(item.value)}
-                        role="tab"
-                        type="button"
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                  <label
-                    className="mini-label question-label"
-                    htmlFor="question-select"
-                  >
-                    Question
-                  </label>
-                  <div className="question-combobox">
-                    <Search size={12} className="question-combobox-search" />
-                    <input
-                      aria-controls="question-options"
-                      aria-expanded={questionOpen}
-                      className="question-combobox-input"
-                      data-testid="select-question"
-                      id="question-select"
-                      onBlur={() =>
-                        window.setTimeout(() => setQuestionOpen(false), 120)
-                      }
-                      onChange={(event) => {
-                        setQuery(event.target.value);
-                        setQuestionOpen(true);
-                      }}
-                      onFocus={() => {
-                        setQuery("");
-                        setQuestionOpen(true);
-                      }}
-                      placeholder="Tìm hoặc chọn câu hỏi..."
-                      role="combobox"
-                      value={
-                        questionOpen
-                          ? query
-                          : (selectedPrompt?.question ?? query)
-                      }
-                    />
-                    <button
-                      aria-label="Mở danh sách câu hỏi"
-                      className="question-combobox-toggle"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => setQuestionOpen((open) => !open)}
-                      type="button"
-                    >
-                      <ChevronDown size={12} />
-                    </button>
-                    {questionOpen && (
-                      <div
-                        aria-label="Speaking questions"
-                        className="question-options"
-                        id="question-options"
-                        role="listbox"
-                      >
-                        {questionLoadState === "loading" ? (
-                          <div className="question-option-empty" role="status">
-                            Đang tải câu hỏi...
-                          </div>
-                        ) : questionLoadState === "error" ? (
-                          <div className="question-option-empty" role="alert">
-                            Không tải được câu hỏi từ API.
-                          </div>
-                        ) : prompts.length ? (
-                          prompts.map((prompt) => (
-                            <button
-                              aria-selected={selectedPrompt?.id === prompt.id}
-                              className={
-                                "question-option " +
-                                (selectedPrompt?.id === prompt.id
-                                  ? "active"
-                                  : "")
-                              }
-                              data-testid={"button-question-" + prompt.id}
-                              key={prompt.id}
-                              onClick={() => selectPrompt(prompt)}
-                              onMouseDown={(event) => event.preventDefault()}
-                              role="option"
-                              type="button"
-                            >
-                              <span>
-                                Part {prompt.part} ·{" "}
-                                {prompt.sampleAudioUrl
-                                  ? "Audio mẫu sẵn có"
-                                  : "Question"}
-                              </span>
-                              {prompt.question}
-                            </button>
-                          ))
-                        ) : (
-                          <div className="question-option-empty">
-                            Không tìm thấy câu hỏi phù hợp.
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="confirm-actions">
-                    <button
-                      className="btn btn-primary"
-                      data-testid="button-confirm-step-1"
-                      disabled={!selectedPrompt}
-                      onClick={confirmPrompt}
-                      type="button"
-                    >
-                      <Check size={12} /> Confirm Step 1
-                    </button>
-                    <button
-                      className="btn btn-sm"
-                      data-testid="button-reset-step-1"
-                      onClick={reset}
-                      type="button"
-                    >
-                      <RotateCcw size={12} /> Reset Step 1
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <StepRow
-                number={2}
-                label="Đưa câu trả lời (Audio Upload / Record)"
-                open={step === 2}
-                locked={!hasConfirmedPrompt}
-                complete={Boolean(result)}
-                onClick={() => setStep(2)}
-              />
-              {step === 2 && hasConfirmedPrompt && (
-                <div className="step-content" data-testid="panel-audio-input">
-                  <p>
-                    Chọn file có sẵn hoặc ghi âm trực tiếp trên trình duyệt.
-                    Định dạng hỗ trợ: MP3, WAV, M4A.
-                  </p>
-                  <div className="audio-box">
-                    <strong>
-                      {recording
-                        ? "Đang ghi âm câu trả lời"
-                        : file || sampleAudioUrl
-                          ? "Đã sẵn sàng để đánh giá"
-                          : "Chưa có audio"}
-                    </strong>
-                    <p>
-                      {recording
-                        ? "Nói tự nhiên, sau đó dừng khi bạn hoàn tất."
-                        : sampleAudioUrl && !file
-                          ? "Audio mẫu được lấy từ AIHUB storage."
-                          : "Audio tự ghi/tải chỉ được giữ trong bộ nhớ của customer web."}
-                    </p>
-                    <div className="btn-row">
-                      <button
-                        className="btn btn-sm"
-                        disabled={recording || status === "submitting"}
-                        onClick={() => fileInputRef.current?.click()}
-                        type="button"
-                      >
-                        <UploadCloud size={13} /> Tải file
-                      </button>
-                      <button
-                        className={
-                          "btn btn-sm " +
-                          (recording ? "btn-danger" : "btn-dark")
-                        }
-                        disabled={status === "submitting"}
-                        onClick={recording ? stopRecording : startRecording}
-                        type="button"
-                      >
-                        {recording ? (
-                          <Square size={12} fill="currentColor" />
-                        ) : (
-                          <Mic size={13} />
-                        )}{" "}
-                        {recording ? "Dừng ghi" : "Ghi âm"}
-                      </button>
-                    </div>
-                    {recording && (
-                      <div className="recording-line">
-                        <span className="recording-actions">
-                          <i className="recording-dot" /> RECORDING
-                        </span>
-                        <span>
-                          {String(Math.floor(recordingSeconds / 60)).padStart(
-                            2,
-                            "0"
-                          )}
-                          :{String(recordingSeconds % 60).padStart(2, "0")}
-                        </span>
-                      </div>
-                    )}
-                    {file && !recording && (
-                      <div
-                        className="recording-line"
-                        style={{ color: "hsl(155 38% 35%)" }}
-                      >
-                        <span className="recording-actions">
-                          <FileAudio size={12} /> {file.name}
-                        </span>
-                      </div>
-                    )}
-                    {sampleAudioUrl && !file && (
-                      <div
-                        className="recording-line"
-                        style={{ color: "hsl(155 38% 35%)" }}
-                      >
-                        <span className="recording-actions">
-                          <FileAudio size={12} /> Audio mẫu
-                        </span>
-                      </div>
-                    )}
-                    {(previewUrl || sampleAudioUrl) && (
-                      <audio
-                        aria-label="Preview selected audio"
-                        className="audio-player"
-                        controls
-                        src={previewUrl ?? sampleAudioUrl ?? undefined}
-                      >
-                        Your browser does not support audio playback.
-                      </audio>
-                    )}
-                    {error && (
-                      <div className="inline-error" role="alert">
-                        <strong>{error.code}</strong> {error.message}
-                      </div>
-                    )}
-                    {(file || sampleAudioUrl) && !recording && (
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={clearFile}
-                        type="button"
-                      >
-                        <RotateCcw size={12} /> Xoá audio
-                      </button>
-                    )}
-                  </div>
-                  <div className="confirm-actions">
-                    <button
-                      className="btn btn-primary"
-                      data-testid="button-confirm-step-2"
-                      disabled={
-                        (!file && !sampleAudioUrl) || status === "submitting"
-                      }
-                      onClick={submitLive}
-                      type="button"
-                    >
-                      {status === "submitting" ? (
-                        <Timer size={12} />
-                      ) : (
-                        <Terminal size={12} />
-                      )}{" "}
-                      {status === "submitting"
-                        ? "Đang đánh giá..."
-                        : "Confirm Step 2 · Evaluate audio"}
-                    </button>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    accept=".wav,.mp3,.m4a,.webm,.ogg,audio/wav,audio/mpeg,audio/mp4"
-                    data-testid="input-audio-file"
-                    hidden
-                    onChange={(event) =>
-                      setAudio(event.target.files?.[0] ?? null)
-                    }
-                    type="file"
-                  />
-                </div>
-              )}
-
-              <StepRow
-                number={3}
-                label="Xem kết quả & Quyết định"
-                open={step === 3}
-                locked={!result}
-                complete={Boolean(result)}
-                onClick={() => setStep(3)}
-              />
-              {step === 3 && result && (
-                <div
-                  className="step-content"
-                  data-testid="panel-evaluation-status"
-                >
-                  <div className="result-mini">
-                    <div className="result-mini-top">
-                      <CircleCheck size={13} /> Đã phân tích câu trả lời thành
-                      công!
-                    </div>
-                    <p>Kết quả đã sẵn sàng theo response schema của AIHUB.</p>
-                    <div className="mini-tags">
-                      <span className="mini-tag">
-                        Band:{" "}
-                        {result.data.scorability.display_band
-                          ? result.data.estimated_band.overall.toFixed(1)
-                          : "—"}
-                      </span>
-                      <span className="mini-tag">
-                        Scorable:{" "}
-                        {result.data.scorability.is_scorable ? "True" : "False"}
-                      </span>
-                      <span className="mini-tag">
-                        Topic: {Math.round(result.data.relevance.score * 100)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="btn-row" style={{ marginTop: 10 }}>
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => {
-                        setConsoleTab("interface");
-                        setStep(3);
-                      }}
-                      type="button"
-                    >
-                      Tiếp tục (Keep feedback)
-                    </button>
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={reset}
-                      type="button"
-                    >
-                      <RotateCcw size={12} /> Reset toàn bộ
-                    </button>
-                  </div>
-                </div>
-              )}
-            </aside>
-
-            <section className="card main-card">
-              <div className="main-heading">
-                <div>
-                  <h2>
-                    AIHub Demo — IELTS Speaking{" "}
-                    <span className="stable-badge">STABLE</span>
-                  </h2>
-                  <p>
-                    Chọn câu hỏi IELTS, gửi audio và nhận phân tích phát âm, độ
-                    trôi chảy và ngữ pháp từ API AIHub.
-                  </p>
-                </div>
-                <span className="main-status">
-                  <Wifi size={11} />{" "}
-                  {result ? "live response" : "AIHUB gateway"}
-                </span>
-              </div>
-              <div className="quick-steps" aria-label="Speaking workflow">
-                {([1, 2, 3] as const).map((item) => (
-                  <button
-                    className={
-                      "quick-step " + (consoleStep === item ? "active" : "")
-                    }
-                    disabled={
-                      (item === 2 && !hasConfirmedPrompt) ||
-                      (item === 3 && !result)
-                    }
-                    key={item}
-                    onClick={() => {
-                      setConsoleStep(item);
-                      setStep(item);
-                      setConsoleTab(item === 3 ? "interface" : "response");
-                    }}
-                    type="button"
-                  >
-                    <span>{item}</span>
-                    {item === 1
-                      ? "Chọn câu hỏi"
-                      : item === 2
-                        ? "Đưa câu trả lời"
-                        : "Nhận AI Feedback"}
-                  </button>
-                ))}
-              </div>
-              <div className="callout">
-                <Info size={13} />
-                <span>
-                  Gọi <strong>{calloutEndpoint}</strong> {calloutStatus}
-                </span>
-              </div>
-              <div
-                className="console-tabs"
-                role="tablist"
-                aria-label="Console panels"
-              >
-                {(result && consoleStep === 3
-                  ? (["interface", "response", "request"] as ConsoleTab[])
-                  : (["response", "request"] as ConsoleTab[])
-                ).map((tab) => (
-                  <button
-                    aria-selected={consoleTab === tab}
-                    className={
-                      "console-tab " + (consoleTab === tab ? "active" : "")
-                    }
-                    data-testid={"button-console-tab-" + tab}
-                    key={tab}
-                    onClick={() => setConsoleTab(tab)}
-                    role="tab"
-                    type="button"
-                  >
-                    {tab === "interface" && (
-                      <Braces
-                        size={10}
-                        style={{
-                          display: "inline",
-                          marginRight: 4,
-                          verticalAlign: "-2px",
-                        }}
-                      />
-                    )}
-                    {tab === "interface"
-                      ? "Interface"
-                      : tab === "response"
-                        ? "Response"
-                        : "Request"}
-                  </button>
-                ))}
-              </div>
-              <div className="console">
-                {consoleTab === "interface" &&
-                  (result ? (
-                    <FeedbackDashboard result={result} />
-                  ) : (
-                    <div className="console-empty">
-                      {
-                        "// Chưa có response — chọn câu hỏi và gửi audio để nhận kết quả."
-                      }
-                    </div>
-                  ))}
-                {consoleTab === "response" &&
-                  (result ? (
-                    <>
-                      <div className="console-header">
-                        <span>
-                          <Code2 size={12} /> 200 OK · response body
-                        </span>
-                        <button
-                          className="console-copy"
-                          onClick={copyPayload}
-                          type="button"
-                        >
-                          <Clipboard size={11} /> Copy JSON
-                        </button>
-                      </div>
-                      <pre className="json-view">{responsePayload}</pre>
-                    </>
-                  ) : (
-                    <div className="console-empty">
-                      {
-                        "// Chưa gọi API — bấm “Confirm Step 2 · Evaluate audio” ở Bước 2 bên trái để nhận response."
-                      }
-                    </div>
-                  ))}
-                {consoleTab === "request" && (
-                  <>
-                    <div className="console-header">
-                      <span>
-                        <Code2 size={12} /> POST request
-                      </span>
-                      <button
-                        className="console-copy"
-                        onClick={copyPayload}
-                        type="button"
-                      >
-                        <Clipboard size={11} /> Copy JSON
-                      </button>
-                    </div>
-                    <pre className="json-view">
-                      {requestForStep(consoleStep)}
-                    </pre>
-                  </>
-                )}
-              </div>
-              {consoleTab === "interface" && (
-                <div className="console-footer">
-                  <span>
-                    <Wifi
-                      size={10}
-                      style={{ verticalAlign: "-2px", marginRight: 5 }}
-                    />
-                    {consoleStep === 3
-                      ? "evaluation complete"
-                      : "waiting for confirmation"}
-                  </span>
-                  <span>
-                    request_id{" "}
-                    <strong>
-                      {consoleStep === 3
-                        ? (result?.meta.request_id ?? "—")
-                        : "—"}
-                    </strong>
-                  </span>
-                </div>
-              )}
-            </section>
+      {step === 1 && (
+        <>
+          <h3>Kết nối Sandbox</h3>
+          <p>
+            Kiểm tra key theo scope <code>{SCOPE}</code>. Endpoint chỉ xác thực
+            key, không gọi AI và không tiêu quota chấm.
+          </p>
+          <div className="demo-field">
+            <label htmlFor="speaking-demo-key">
+              API key Sandbox (tùy chọn)
+            </label>
+            <input
+              autoComplete="off"
+              id="speaking-demo-key"
+              onChange={(event) => {
+                setApiKey(event.target.value);
+                setSkipMock(false);
+                setKeyError(null);
+                setKeyCheckResponse(null);
+                setKeyCheckTrace(null);
+                setQuestionLoading(false);
+                setQuestionError(null);
+                setQuestionResponse(null);
+                setQuestionTrace(null);
+                setLivePrompts(null);
+                setResult(null);
+                setGradeResponse(null);
+                setGradeTrace(null);
+                setGradeAttempted(false);
+                setError(null);
+              }}
+              placeholder="aihub_sk_…"
+              spellCheck={false}
+              type="password"
+              value={apiKey}
+            />
+            <p className="demo-help">
+              Key phải chỉ thuộc môi trường sandbox, có scope speaking.grade,
+              Organization chưa bật Identity Configuration.
+            </p>
           </div>
-        </div>
-      </div>
-    </main>
+          {keyError && (
+            <div className="demo-error" role="alert">
+              <strong>{keyError.code}</strong> · {keyError.message}
+            </div>
+          )}
+          {isScopeValidated(SCOPE) && apiKey && (
+            <div className="demo-success">
+              Key đã qua kiểm tra bước 1. Backend sẽ kiểm tra lại trước mỗi lần
+              chấm.
+            </div>
+          )}
+          <div className="demo-step-actions">
+            <button
+              className="demo-btn-primary"
+              disabled={checkingKey || !apiKey.trim()}
+              onClick={validateKey}
+              type="button"
+            >
+              {checkingKey ? "Đang kiểm tra… " : ""}Kiểm tra key
+            </button>
+            <button
+              className="demo-btn-secondary"
+              disabled={checkingKey}
+              onClick={useMock}
+              type="button"
+            >
+              Bỏ qua, dùng mẫu
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === 2 && (
+        <>
+          <h3>Chọn câu hỏi Speaking</h3>
+          <p>
+            {liveReady
+              ? "Live mode tải danh sách câu hỏi công khai từ Sandbox; thao tác này không chấm bài và không dùng quota."
+              : "Mock mode dùng fixture local theo từng Part, không tải catalog từ backend."}
+          </p>
+          <div className="demo-inline-actions" aria-label="Speaking part">
+            {PARTS.map((value) => (
+              <button
+                aria-pressed={part === value}
+                className={`demo-btn-secondary ${part === value ? "active" : ""}`}
+                disabled={submitting}
+                key={value}
+                onClick={() => choosePart(value)}
+                type="button"
+              >
+                Part {value}
+              </button>
+            ))}
+          </div>
+          {questionLoading && (
+            <p className="demo-notice" role="status">
+              Đang tải câu hỏi từ Sandbox…
+            </p>
+          )}
+          {questionError && liveReady && (
+            <div className="demo-error" role="alert">
+              {questionError} Không dùng câu hỏi fixture để chấm live. Quay lại
+              bước 1 và bỏ qua key để xem mẫu.
+            </div>
+          )}
+          <div className="demo-scenario-list">
+            {prompts.map((item) => (
+              <button
+                aria-pressed={selectedId === item.id}
+                className={selectedId === item.id ? "active" : ""}
+                disabled={submitting}
+                key={item.id}
+                onClick={() => {
+                  setSelectedId(item.id);
+                  setResult(null);
+                  setGradeResponse(null);
+                  setGradeTrace(null);
+                  setGradeAttempted(false);
+                }}
+                type="button"
+              >
+                <strong>{item.question}</strong>
+                <br />
+                <small>{item.id}</small>
+              </button>
+            ))}
+          </div>
+          {prompt?.cue && (
+            <div className="demo-notice">
+              <strong>Gợi ý:</strong> {prompt.cue}
+            </div>
+          )}
+          <div className="demo-step-actions">
+            <button
+              className="demo-btn-primary"
+              disabled={!prompt || questionLoading}
+              onClick={() => changeStep(3)}
+              type="button"
+            >
+              Tiếp tục đến câu trả lời
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === 3 && (
+        <>
+          <h3>Câu trả lời bằng audio</h3>
+          <p>
+            {liveReady
+              ? "Ghi âm trực tiếp hoặc tải tệp lên. File chỉ giữ trong bộ nhớ trang và được gửi khi bạn bấm chấm."
+              : "Mock mode hiển thị transcript mẫu read-only. Để gửi câu trả lời của bạn, nhập key hợp lệ ở bước 1."}
+          </p>
+          {!liveReady ? (
+            <div className="demo-field">
+              <label>Transcript mẫu · Part {part}</label>
+              <textarea
+                readOnly
+                rows={6}
+                value={MOCK_SPEAKING_RESULTS[part].data.transcript.text}
+              />
+            </div>
+          ) : (
+            <>
+              <input
+                accept=".wav,.mp3,.m4a,.webm,.ogg,audio/*"
+                aria-label="Chọn file audio Speaking"
+                className="demo-sr-only"
+                data-testid="input-audio-file"
+                onChange={(event) => saveFile(event.target.files?.[0] ?? null)}
+                ref={filePicker}
+                tabIndex={-1}
+                type="file"
+              />
+              <div className="demo-step-actions">
+                <button
+                  className="demo-btn-secondary"
+                  disabled={recording || submitting}
+                  onClick={() => filePicker.current?.click()}
+                  type="button"
+                >
+                  Tải audio
+                </button>
+                <button
+                  className="demo-btn-secondary"
+                  disabled={submitting}
+                  onClick={recording ? stopRecording : startRecording}
+                  type="button"
+                >
+                  {recording ? "Dừng ghi âm" : "Ghi âm"}
+                </button>
+              </div>
+              <div className="demo-notice" aria-live="polite">
+                {recording
+                  ? "Đang ghi âm…"
+                  : file
+                    ? `${file.name} · ${Math.ceil(file.size / 1024)} KB`
+                    : "Chưa chọn audio."}
+              </div>
+              {file && (
+                <audio
+                  aria-label="Nghe lại audio đã chọn"
+                  className="demo-audio-player"
+                  controls
+                  ref={audioPlayer}
+                />
+              )}
+              {file && (
+                <button
+                  className="demo-btn-secondary"
+                  onClick={() => {
+                    setFile(null);
+                    setResult(null);
+                    setGradeResponse(null);
+                    setGradeTrace(null);
+                    setGradeAttempted(false);
+                  }}
+                  type="button"
+                >
+                  Xóa audio
+                </button>
+              )}
+              {file && (
+                <p className="demo-help">
+                  Tối đa 25 MB. Supported: WAV, MP3, M4A, WebM, OGG.
+                </p>
+              )}
+            </>
+          )}
+          {error && step === 3 && (
+            <div className="demo-error" role="alert">
+              {error.message}
+            </div>
+          )}
+          <div className="demo-step-actions">
+            <button
+              className="demo-btn-primary"
+              disabled={
+                liveReady &&
+                (!prompt ||
+                  !livePrompts?.length ||
+                  !file ||
+                  !!currentFileProblem)
+              }
+              onClick={() => changeStep(4)}
+              type="button"
+            >
+              Xem bước chấm
+            </button>
+            <button
+              className="demo-btn-secondary"
+              onClick={() => changeStep(2)}
+              type="button"
+            >
+              Quay lại câu hỏi
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === 4 && (
+        <>
+          <h3>{liveReady ? "Gửi audio chấm thật" : "Xem kết quả mẫu"}</h3>
+          <p>
+            {liveReady
+              ? "AIHUB gửi multipart audio tới Sandbox. API key được xác thực lại trước quota và dispatch."
+              : "Submit chỉ trả fixture tĩnh theo Part. Không có request grading hoặc AI service call."}
+          </p>
+          {error && (
+            <div className="demo-error" role="alert">
+              <strong>{error.code}</strong> · {error.message}
+              {error.retry_after_ms
+                ? ` Thử lại sau ${Math.ceil(error.retry_after_ms / 1000)} giây.`
+                : ""}
+            </div>
+          )}
+          <div className="demo-step-actions">
+            <button
+              className="demo-btn-primary"
+              disabled={
+                submitting ||
+                (liveReady &&
+                  (!prompt ||
+                    !livePrompts?.length ||
+                    !file ||
+                    !!currentFileProblem))
+              }
+              onClick={grade}
+              type="button"
+            >
+              {submitting
+                ? "Đang chấm…"
+                : liveReady
+                  ? `Chấm thật Part ${part}`
+                  : `Hiện kết quả mẫu Part ${part}`}
+            </button>
+            <button
+              className="demo-btn-secondary"
+              disabled={submitting}
+              onClick={() => changeStep(3)}
+              type="button"
+            >
+              Sửa câu trả lời
+            </button>
+          </div>
+          {activeResult && (
+            <section
+              className="demo-result-card"
+              aria-label="Kết quả chấm Speaking"
+            >
+              <p className="demo-flow-eyebrow">
+                {activeResult.mode === "mock"
+                  ? "KẾT QUẢ MẪU CỐ ĐỊNH"
+                  : "LIVE RESPONSE"}
+              </p>
+              <div className="demo-result-band">
+                Band{" "}
+                {activeResult.envelope.data.scorability.display_band
+                  ? activeResult.envelope.data.estimated_band.overall.toFixed(1)
+                  : "—"}
+              </div>
+              <div className="demo-result-criteria">
+                {[
+                  [
+                    "Fluency",
+                    activeResult.envelope.data.estimated_band.fluency_coherence,
+                  ],
+                  [
+                    "Lexical",
+                    activeResult.envelope.data.estimated_band.lexical_resource,
+                  ],
+                  [
+                    "Grammar",
+                    activeResult.envelope.data.estimated_band
+                      .grammatical_range_accuracy,
+                  ],
+                  [
+                    "Pronunciation",
+                    activeResult.envelope.data.estimated_band.pronunciation,
+                  ],
+                ].map(([label, score]) => (
+                  <div key={String(label)}>
+                    <strong>{label}</strong>
+                    <span>{Number(score).toFixed(1)}</span>
+                  </div>
+                ))}
+              </div>
+              <blockquote className="demo-result-transcript">
+                {activeResult.envelope.data.transcript.text}
+              </blockquote>
+              <p>
+                <strong>Nhận xét:</strong>{" "}
+                {activeResult.envelope.data.feedback.summary_vi}
+              </p>
+              <p>
+                <strong>Điểm tốt:</strong>{" "}
+                {activeResult.envelope.data.feedback.strong_point_vi}
+              </p>
+              <p>
+                <strong>Bước tiếp theo:</strong>{" "}
+                {activeResult.envelope.data.feedback.action_plan_vi}
+              </p>
+            </section>
+          )}
+        </>
+      )}
+
+      {step === 5 && (
+        <>
+          <h3>Retry và lỗi</h3>
+          <p>
+            Các ví dụ request/response bên dưới được mô phỏng tại frontend;
+            chúng không gọi API và không dùng quota.
+          </p>
+          <div className="demo-scenario-list">
+            {SCENARIOS.map((item) => (
+              <button
+                aria-pressed={scenario === item.id}
+                className={scenario === item.id ? "active" : ""}
+                key={item.id}
+                onClick={() => setScenario(item.id)}
+                type="button"
+              >
+                {item.label}
+                <br />
+                <strong>{item.status}</strong>
+              </button>
+            ))}
+          </div>
+          <div className="demo-notice">
+            <span aria-hidden="true">⚠</span> Khi key bị thu hồi sau bước 1,
+            backend sẽ từ chối request chấm trước khi dispatch.
+          </div>
+        </>
+      )}
+    </DemoWorkbench>
   );
 }
