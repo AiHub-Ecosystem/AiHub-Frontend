@@ -183,6 +183,37 @@ describe("The Sandbox allowance snapshot", () => {
     ).toBeNull();
   });
 
+  it("rejects counts outside the safe range and snapshots for another environment", () => {
+    for (const monthly_limit of [
+      -1,
+      1.5,
+      Infinity,
+      Number.MAX_SAFE_INTEGER + 1,
+    ]) {
+      expect(
+        sandboxAllowanceFrom({
+          ...valid,
+          data: {
+            ...valid.data,
+            allowance: { ...valid.data.allowance, monthly_limit },
+          },
+        })
+      ).toBeNull();
+    }
+    expect(
+      sandboxAllowanceFrom({
+        ...valid,
+        data: { ...valid.data, environment: "production" },
+      })
+    ).toBeNull();
+    expect(
+      sandboxAllowanceFrom({
+        ...valid,
+        data: { ...valid.data, valid: false },
+      })
+    ).toBeNull();
+  });
+
   it("does not show an exhausted Organization as available", () => {
     const exhaustedOrganization = {
       monthlyLimit: 5,

@@ -120,7 +120,15 @@ export function sandboxAllowanceFrom(
   if (typeof payload !== "object" || payload === null || !("data" in payload))
     return null;
   const data = (payload as { data: unknown }).data;
-  if (typeof data !== "object" || data === null || !("allowance" in data))
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    !("valid" in data) ||
+    data.valid !== true ||
+    !("environment" in data) ||
+    data.environment !== "sandbox" ||
+    !("allowance" in data)
+  )
     return null;
   const allowance = (data as { allowance: unknown }).allowance;
   if (
@@ -141,6 +149,12 @@ export function sandboxAllowanceFrom(
     shared_monthly_limit: number;
     shared_reserved: number;
   };
+  if (
+    !Object.values(counts).every(
+      (value) => Number.isSafeInteger(value) && value >= 0
+    )
+  )
+    return null;
   return {
     monthlyLimit: counts.monthly_limit,
     reserved: counts.reserved,
