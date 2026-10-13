@@ -161,7 +161,9 @@ test("live Speaking never falls back to fixture questions when the catalog is un
   ).toBeDisabled();
 
   await page.getByRole("button", { name: "Part 2" }).click();
-  await expect(questionError).toContainText("Sandbox unavailable.");
+  await expect(questionError).toContainText(
+    "Không tải được câu hỏi Speaking từ Sandbox."
+  );
   await page
     .getByRole("navigation", { name: "Các bước demo" })
     .getByRole("button", { name: /Chấm và xem kết quả/ })
