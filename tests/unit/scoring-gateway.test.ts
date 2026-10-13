@@ -18,6 +18,7 @@ function jsonRequest(body: unknown, headers: Record<string, string> = {}) {
       "Content-Type": "application/json",
       Origin: "http://127.0.0.1",
       "X-Demo-Api-Key": "sandbox-test-key",
+      "X-Demo-Environment": "sandbox",
       "X-Demo-User-Identity": "00000000-0000-4000-8000-000000000001",
       "Idempotency-Key": "11111111-2222-4333-8444-555555555555",
       ...headers,
@@ -376,8 +377,6 @@ function stubUpstream(
 ) {
   const calls: Array<{ url: string; headers: Headers; body: unknown }> = [];
   vi.stubEnv("AIHUB_SANDBOX_BASE_URL", "https://sandbox.aihubproduction.com");
-  vi.stubEnv("AIHUB_SANDBOX_API_KEY", "aihub_sk_test");
-  vi.stubEnv("AIHUB_SANDBOX_ORGANIZATION_ID", "org-test-00000000");
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
@@ -441,29 +440,44 @@ describe("gradeWriting upstream call", () => {
     );
   });
 
-  it("mints its own idempotency key when the browser sends none", async () => {
+  it("forwards the browser's idempotency key to the grading API", async () => {
     const calls = stubUpstream();
 
     await gradeWriting(jsonRequest(TASK1_BODY), "req_test");
 
-    // The visitor is not an integration: the page carries no key, and a UUID
-    // satisfies the gateway's 1-255 byte rule by construction.
-    expect(calls[0].headers.get("idempotency-key")).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    expect(calls[0].headers.get("idempotency-key")).toBe(
+      "11111111-2222-4333-8444-555555555555"
     );
   });
 
-  it("mints a fresh key per submission, so a second click is a second grade", async () => {
+  it("rejects a missing or malformed idempotency key before dispatch", async () => {
     const calls = stubUpstream();
 
-    await gradeWriting(jsonRequest(TASK1_BODY), "req_1");
-    await gradeWriting(jsonRequest(TASK1_BODY), "req_2");
+    await expect(
+      gradeWriting(
+        jsonRequest(TASK1_BODY, { "Idempotency-Key": "not-a-uuid" }),
+        "req_test"
+      )
+    ).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+    expect(calls).toHaveLength(0);
 
-    // Never a replay: the key is what makes two identical requests two paid
-    // grades rather than one cached result.
-    expect(calls[0].headers.get("idempotency-key")).not.toBe(
-      calls[1].headers.get("idempotency-key")
-    );
+    await expect(
+      gradeWriting(
+        new Request("http://127.0.0.1/api/demo/scoring/grade", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Origin: "http://127.0.0.1",
+            "X-Demo-Api-Key": "sandbox-test-key",
+            "X-Demo-Environment": "sandbox",
+            "X-Demo-User-Identity": "00000000-0000-4000-8000-000000000001",
+          },
+          body: JSON.stringify(TASK1_BODY),
+        }),
+        "req_test"
+      )
+    ).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+    expect(calls).toHaveLength(0);
   });
 
   it("never lets the API key reach the parsed response", async () => {

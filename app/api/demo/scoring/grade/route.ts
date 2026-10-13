@@ -34,7 +34,7 @@ const MESSAGE_BY_CODE: Record<WritingErrorCode, string> = {
   INVALID_REQUEST:
     "Bài gửi lên không hợp lệ. Kiểm tra lại các trường rồi thử lại.",
   PAYLOAD_TOO_LARGE: "Nội dung gửi lên vượt quá 256 KB. Rút ngắn bài làm.",
-  UNAUTHORIZED: "API key Sandbox không hợp lệ hoặc đã bị thu hồi.",
+  UNAUTHORIZED: "API key không hợp lệ hoặc đã bị thu hồi.",
   INVALID_USER_IDENTITY: "Phiên demo không hợp lệ. Tải lại trang rồi thử lại.",
   AI_SERVICE_ERROR: "Dịch vụ chấm bài trả về lỗi. Thử lại sau.",
   AI_SERVICE_CONTRACT_VIOLATION:
@@ -47,28 +47,25 @@ const MESSAGE_BY_CODE: Record<WritingErrorCode, string> = {
 };
 
 /**
- * The codes a public demo actually meets. Sandbox allows one in-flight request
- * per Organization and a few per month, so these are ordinary outcomes for a
- * visitor rather than faults, and each has to read as what it is.
+ * The codes the public demo exposes as ordinary visitor outcomes rather than
+ * infrastructure faults.
  */
 const UPSTREAM_MESSAGES: Record<string, string> = {
   RATE_LIMITED:
     "Bạn gửi hơi nhanh. Chờ một chút rồi bấm lại — mỗi lần bấm là một lần chấm.",
-  CONCURRENCY_LIMIT:
-    "Đang có một lần chấm khác chạy trên sandbox của AIHUB. Chờ xong rồi thử lại.",
+  CONCURRENCY_LIMIT: "AIHUB đang xử lý một bài khác. Chờ xong rồi thử lại.",
   QUOTA_EXCEEDED:
     "Demo đã hết hạn mức chấm trong tháng. Hạn mức hồi lại lúc 00:00 UTC ngày 1 tháng sau.",
   FORBIDDEN:
     "API key thiếu scope writing.grade hoặc Organization đang bật Identity Configuration.",
-  UNAUTHORIZED: "API key của sandbox demo không hợp lệ hoặc đã hết hạn.",
-  ENVIRONMENT_NOT_ALLOWED:
-    "Chỉ chấp nhận API key được giới hạn riêng cho môi trường Sandbox.",
+  UNAUTHORIZED: "API key không hợp lệ hoặc đã hết hạn.",
+  ENVIRONMENT_NOT_ALLOWED: "Key không được phép cho môi trường demo đã chọn.",
   USER_IDENTITY_REQUIRED:
     "Thiếu User Identity. Demo luôn gửi kèm, nên lỗi này chỉ xảy ra khi cấu hình phía AIHUB có vấn đề.",
   INVALID_USER_IDENTITY:
     "Organization đang bật Identity Configuration hoặc User Identity của phiên demo không hợp lệ.",
   IDEMPOTENCY_CONFLICT:
-    "Idempotency-Key đang được dùng cho một request khác. Bấm lại nút chấm để lấy key mới.",
+    "Idempotency-Key này đã được dùng cho nội dung khác. Hãy sửa bài để tạo lượt gửi mới.",
   AI_SERVICE_THROTTLED: "Dịch vụ chấm bên dưới đang giới hạn. Lùi rồi bấm lại.",
   AI_SERVICE_TIMEOUT:
     "Chấm bài vượt ngân sách 60 giây. Bấm lại nút chấm để thử lại.",

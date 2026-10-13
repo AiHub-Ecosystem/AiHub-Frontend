@@ -5,13 +5,16 @@ import {
   type SpeakingGradingEnvelope,
 } from "@/data/speaking-response";
 import {
+  DemoBoundaryError,
   DemoCredentialError,
+  demoBffHeaders,
+  isDemoEnvironment,
   isSameOrigin,
   readDemoApiKey,
+  readDemoEnvironment,
   readDemoUserIdentity,
-  resolveSandboxBaseUrl,
-  SandboxBoundaryError,
-} from "@/lib/sandbox-gateway";
+  resolveDemoBaseUrl,
+} from "@/lib/demo-gateway";
 
 const MAX_TEXT_BYTES = 64 * 1024;
 const MAX_JSON_BYTES = 256 * 1024;
@@ -59,7 +62,7 @@ export class SpeakingUpstreamError extends Error {
     readonly code: string,
     readonly status: number,
     readonly retryable: boolean,
-    readonly retry_after_ms?: number,
+    readonly retry_after_ms?: number
   ) {
     super(code);
     this.name = "SpeakingUpstreamError";
@@ -96,13 +99,15 @@ function invalidRequest() {
 /**
  * The host allowlist lives in the shared transport. Speaking keeps its own
  * signature so callers — and the gateway's tests — keep seeing a Speaking
- * boundary error when the sandbox is not configured.
+ * boundary error when the selected environment is not configured.
  */
-export function getSandboxBaseUrl() {
+export function getDemoBaseUrl(environment: string) {
+  if (!isDemoEnvironment(environment))
+    throw new SpeakingBoundaryError("INVALID_REQUEST");
   try {
-    return resolveSandboxBaseUrl();
+    return resolveDemoBaseUrl(environment);
   } catch (error) {
-    if (error instanceof SandboxBoundaryError) {
+    if (error instanceof DemoBoundaryError) {
       throw new SpeakingBoundaryError("AI_SERVICE_UNAVAILABLE");
     }
     throw error;
@@ -358,8 +363,9 @@ async function callSpeakingGrading(
   body: FormData | string,
   apiKey: string,
   userIdentity: string,
+  environment: string
 ): Promise<SpeakingGradingEnvelope> {
-  const baseUrl = getSandboxBaseUrl();
+  const baseUrl = getDemoBaseUrl(environment);
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort("speaking-timeout"),
@@ -379,6 +385,7 @@ async function callSpeakingGrading(
           "X-API-Key": apiKey,
           "X-User-Identity": userIdentity,
           "X-Correlation-Id": requestId,
+          ...demoBffHeaders(request),
           ...(operation === "speaking.grading-json"
             ? { "Content-Type": "application/json" }
             : {}),
@@ -446,6 +453,7 @@ export async function gradeSpeaking(
     toUpstreamForm(input),
     apiKey,
     userIdentity,
+    readDemoEnvironment(request)
   );
 }
 
@@ -486,5 +494,6 @@ export async function gradeSpeakingByUrl(
     }),
     apiKey,
     userIdentity,
+    readDemoEnvironment(request)
   );
 }

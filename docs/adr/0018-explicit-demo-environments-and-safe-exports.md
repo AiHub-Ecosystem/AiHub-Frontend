@@ -4,6 +4,7 @@
 - Date: 2026-10-13
 - Related: [Issue #68](https://github.com/AiHub-Ecosystem/AiHub-Frontend/issues/68), [FE PR #67](https://github.com/AiHub-Ecosystem/AiHub-Frontend/pull/67), [BE PR #602](https://github.com/AiHub-Ecosystem/aihub-be/pull/602), backend ADR-0095
 - Amends: [ADR-0011](0011-console-creates-production-keys-only.md) for Console key creation; [ADR-0017](0017-sandbox-backed-scoring-demo.md) for demo environment choice and Sandbox allowance
+- Amended by: [ADR-0019](0019-demo-grade-lock-fixed-questions-and-agent-prompt.md) for the cross-skill grade lock, three fixed questions per task, and the agent prompt's omission of visitor answers
 
 ## Decision
 

@@ -7,6 +7,7 @@ import { SPEAKING_SAMPLE_ANSWER_REQUEST } from "@/data/speaking-question";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 import type { ApiKeyScope } from "@/lib/api-key-scopes";
 import {
+  API_KEY_RAW_FORMAT,
   SANDBOX_ORGANIZATION_MONTHLY_ALLOWANCE,
   type ApiKeyEnvironment,
   type OrganizationApiKey,
@@ -742,8 +743,6 @@ export function buildSampleRequests({
 export const RAW_KEY_IN_COMMAND_WARNING =
   "Lệnh đã chứa API key. Đừng chia sẻ lệnh này, và key có thể còn lại trong lịch sử của shell.";
 
-const RAW_KEY_FORMAT = /^aihub_sk_[A-Za-z0-9]{43}$/;
-
 /**
  * Whether a value the holder supplies is this key's raw key: the backend's key
  * format, starting with the key's own display prefix. Surrounding whitespace
@@ -755,7 +754,8 @@ export function isRawKeyFor(
 ): boolean {
   const candidate = value.trim();
   return (
-    RAW_KEY_FORMAT.test(candidate) && candidate.startsWith(apiKey.key_prefix)
+    API_KEY_RAW_FORMAT.test(candidate) &&
+    candidate.startsWith(apiKey.key_prefix)
   );
 }
 

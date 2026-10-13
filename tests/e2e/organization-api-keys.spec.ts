@@ -175,6 +175,63 @@ test("empty state and stable create denials explain what to do next", async ({
   await expect(page.getByText(/không còn entitlement/)).toBeVisible();
 });
 
+test("creation offers Sandbox by default and labels Production as billable", async ({
+  page,
+  request,
+}) => {
+  await setup(request, { apiKeys: [] });
+  await signIn(page);
+  await page.getByText("Tạo API key", { exact: true }).click();
+
+  const sandbox = page.locator('input[name="environment"][value="sandbox"]');
+  const production = page.locator(
+    'input[name="environment"][value="production"]'
+  );
+  await expect(sandbox).toBeChecked();
+  await expect(production).not.toBeChecked();
+  await expect(page.getByText("Production (tính phí)")).toBeVisible();
+  await expect(page.getByText("Sandbox (miễn phí)")).toBeVisible();
+
+  await page.getByLabel("Tên API key").fill("Sandbox demo key");
+  await page.locator('input[name="scopes"][value="writing.grade"]').check();
+  await page.getByRole("button", { name: "Tạo key" }).click();
+  await expect(page.getByTestId("api-key-raw")).toBeVisible();
+
+  const recorded = await (
+    await request.get(`${mockUrl}/__test__/organizations/requests`)
+  ).json();
+  const created = recorded.requests.find(
+    (entry: { path?: string }) => entry.path === "create-api-key"
+  );
+  expect(created.allowed_environments).toEqual(["sandbox"]);
+});
+
+test("a Production key is created for Production and says it is billed", async ({
+  page,
+  request,
+}) => {
+  await setup(request, { apiKeys: [] });
+  await signIn(page);
+  await page.getByText("Tạo API key", { exact: true }).click();
+
+  await page.locator('input[name="environment"][value="production"]').check();
+  await expect(
+    page.getByText(/Mọi request.*tính vào hạn mức sử dụng của Organization/)
+  ).toBeVisible();
+  await page.getByLabel("Tên API key").fill("Billable production key");
+  await page.locator('input[name="scopes"][value="writing.grade"]').check();
+  await page.getByRole("button", { name: "Tạo key" }).click();
+  await expect(page.getByTestId("api-key-raw")).toBeVisible();
+
+  const recorded = await (
+    await request.get(`${mockUrl}/__test__/organizations/requests`)
+  ).json();
+  const created = recorded.requests.find(
+    (entry: { path?: string }) => entry.path === "create-api-key"
+  );
+  expect(created.allowed_environments).toEqual(["production"]);
+});
+
 test("creation uses roster scopes and reveals the raw key only once", async ({
   page,
   request,
@@ -617,7 +674,7 @@ test("create timeout refreshes the list without automatically retrying", async (
   const createRequest = requests.requests.find(
     (entry: { path: string }) => entry.path === "create-api-key"
   );
-  expect(createRequest).toMatchObject({ allowed_environments: ["production"] });
+  expect(createRequest).toMatchObject({ allowed_environments: ["sandbox"] });
 });
 
 test("active identity configuration uses a signed User Assertion in the sample", async ({
@@ -694,18 +751,6 @@ test("rotation reveals a new key once and sends no idempotency key", async ({
   await page.getByRole("button", { name: "Đóng" }).click();
   await expect(page.getByTestId("api-key-raw")).toHaveCount(0);
   await expect(replacement).toBeVisible();
-});
-
-test("the create form offers no Environment and warns every call is billed", async ({
-  page,
-  request,
-}) => {
-  await setup(request, { apiKeys: [], entitlements: ["writing", "speaking"] });
-  await signIn(page);
-  await page.getByText("Tạo API key", { exact: true }).click();
-
-  await expect(page.locator('input[name="environment"]')).toHaveCount(0);
-  await expect(page.getByText(/kể cả gọi thử, đều tính/)).toBeVisible();
 });
 
 test("closing the create form discards the scopes", async ({
@@ -1156,7 +1201,7 @@ test("the reveal dialog copies a command that runs as pasted", async ({
   const bash = await clipboard();
   expect(bash.split(/\r?\n/)[0]).toBe(`API_KEY='${rawKey}'`);
   expect(bash).toContain(
-    "https://api.aihubproduction.com/v1/ielts/writing/task2/grade"
+    "https://sandbox.aihubproduction.com/v1/ielts/writing/task2/grade"
   );
 
   await dialog.getByRole("button", { name: "PowerShell" }).click();

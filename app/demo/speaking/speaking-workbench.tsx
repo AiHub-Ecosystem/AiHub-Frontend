@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { MOCK_SPEAKING_RESULTS } from "@/data/demo-grading-fixtures";
 import { MAX_SPEAKING_BYTES } from "@/data/speaking-contract";
+import { SPEAKING_SAMPLE_ANSWER_REQUEST } from "@/data/speaking-question";
 import {
   MOCK_SPEAKING_PROMPTS,
   type SpeakingPart,
@@ -13,7 +14,13 @@ import {
   isSpeakingGradingEnvelope,
   type SpeakingGradingEnvelope,
 } from "@/data/speaking-response";
+import {
+  demoEnvironmentName,
+  type DemoEnvironment,
+} from "@/lib/demo-environments";
+import { buildDemoExports } from "@/lib/demo-export";
 import { useDemoSession, type DemoScope } from "@/app/demo/demo-session";
+import { sandboxAllowanceFrom } from "@/app/demo/demo-session-state";
 import {
   DEMO_STEPS,
   DemoWorkbench,
@@ -22,6 +29,19 @@ import {
 import { errorFromPayload, type PublicError } from "../scoring/scoring-client";
 
 const SCOPE: DemoScope = "speaking.grade";
+
+/** Shown where a failed grade is retried and where retries are explained. */
+function SpeakingRetryNote({ environment }: { environment: DemoEnvironment }) {
+  return (
+    <div className="demo-notice" data-testid="speaking-retry-note">
+      Speaking không có Idempotency-Key và demo không tự gửi lại. Bấm “Chấm
+      thật” lần nữa là một lượt mới
+      {environment === "production"
+        ? " và có thể phát sinh chi phí thật."
+        : ", dùng thêm một lượt trong hạn mức Sandbox."}
+    </div>
+  );
+}
 const PARTS = [1, 2, 3] as const;
 const SPEAKING_CLIENT_TIMEOUT_MS = 75_000;
 const SCENARIOS = [
@@ -47,11 +67,11 @@ const SCENARIOS = [
   },
   {
     id: "quota",
-    label: "Hết quota Sandbox",
+    label: "Hết hạn mức môi trường",
     status: "429 Too Many Requests",
     response: {
       code: "QUOTA_EXCEEDED",
-      message: "Sandbox đã hết quota tháng.",
+      message: "Môi trường đã hết hạn mức tháng.",
       retryable: false,
     },
   },
@@ -135,14 +155,23 @@ function fileProblem(file: File | null) {
 
 export default function SpeakingWorkbench() {
   const {
-    apiKey,
+    state,
+    grading,
+    beginGrading,
+    endGrading,
     setApiKey,
-    isCurrentApiKey,
+    setEnvironment,
+    selectionGeneration,
+    isSelectionCurrent,
     isScopeValidated,
     markScopeValidated,
     clearScopeValidation,
+    requiresProductionAcknowledgement,
+    acknowledgeProduction,
     getUserIdentity,
   } = useDemoSession();
+  const apiKey = state.apiKey;
+  const environment = state.environment;
   const [step, setStep] = useState<DemoStep>(1);
   const [skipMock, setSkipMock] = useState(false);
   const [checkingKey, setCheckingKey] = useState(false);
@@ -183,6 +212,10 @@ export default function SpeakingWorkbench() {
   const activeScenario =
     SCENARIOS.find((item) => item.id === scenario) ?? SCENARIOS[0];
   const currentFileProblem = fileProblem(file);
+  /** Informational only: every grade re-checks the allowance upstream. */
+  const allowance = isScopeValidated(SCOPE)
+    ? sandboxAllowanceFrom(keyCheckResponse)
+    : undefined;
 
   useEffect(() => {
     const player = audioPlayer.current;
@@ -196,7 +229,10 @@ export default function SpeakingWorkbench() {
     if (step !== 2 || !liveReady) return;
     let cancelled = false;
     let receivedHttpResponse = false;
-    fetch(`/api/demo/speaking/questions?part=${part}`, { cache: "no-store" })
+    fetch(`/api/demo/speaking/questions?part=${part}`, {
+      cache: "no-store",
+      headers: { "X-Demo-Environment": environment },
+    })
       .then(async (response) => {
         const payload: unknown = await response.json().catch(() => null);
         if (cancelled) return;
@@ -206,9 +242,13 @@ export default function SpeakingWorkbench() {
         if (!response.ok) throw errorFromPayload(payload);
         const loaded = promptsFromPayload(payload, part);
         if (!loaded)
-          throw new Error("Câu hỏi từ Sandbox không đúng định dạng.");
+          throw new Error(
+            `Câu hỏi từ ${demoEnvironmentName(environment)} không đúng định dạng.`
+          );
         if (loaded.length === 0)
-          throw new Error("Sandbox hiện không có câu hỏi cho Part này.");
+          throw new Error(
+            `${demoEnvironmentName(environment)} hiện không có câu hỏi cho Part này.`
+          );
         if (cancelled) return;
         setLivePrompts(loaded);
         setSelectedId((current) =>
@@ -223,7 +263,7 @@ export default function SpeakingWorkbench() {
         setQuestionError(
           caught instanceof Error
             ? caught.message
-            : "Không tải được câu hỏi Speaking từ Sandbox."
+            : `Không tải được câu hỏi Speaking từ ${demoEnvironmentName(environment)}.`
         );
         if (!receivedHttpResponse)
           setQuestionResponse({
@@ -240,7 +280,7 @@ export default function SpeakingWorkbench() {
     return () => {
       cancelled = true;
     };
-  }, [step, liveReady, part]);
+  }, [step, liveReady, part, environment]);
 
   useEffect(
     () => () => {
@@ -264,6 +304,27 @@ export default function SpeakingWorkbench() {
       : null,
   };
 
+  /**
+   * Speaking's own grading call is a multipart upload this page makes, so the
+   * copyable artifact is the JSON endpoint with AIHUB's Published sample answer.
+   * That recording answers one question only, so the body keeps its part and
+   * question rather than the one selected on screen.
+   */
+  const copyableExports =
+    step === 1
+      ? null
+      : buildDemoExports({
+          environment,
+          skill: "speaking",
+          title: `Speaking Part ${SPEAKING_SAMPLE_ANSWER_REQUEST.part}`,
+          path: "/v1/ielts/speaking/grading-json",
+          headers: [
+            { name: "X-User-Identity", value: "<your end-user id>" },
+            { name: "Content-Type", value: "application/json" },
+          ],
+          body: SPEAKING_SAMPLE_ANSWER_REQUEST,
+        });
+
   const changeStep = (next: DemoStep) => {
     if (step === 3 && next !== 3 && recorder.current?.state === "recording") {
       recorder.current.stop();
@@ -282,10 +343,12 @@ export default function SpeakingWorkbench() {
 
   const validateKey = async () => {
     const submittedKey = apiKey.trim();
+    const submittedEnvironment = environment;
+    const submittedGeneration = selectionGeneration();
     if (!submittedKey) {
       setKeyError({
         code: "UNAUTHORIZED",
-        message: "Nhập API key Sandbox hoặc bỏ qua để dùng mẫu.",
+        message: `Nhập API key ${demoEnvironmentName(environment)} hoặc bỏ qua để dùng mẫu.`,
       });
       return;
     }
@@ -310,15 +373,32 @@ export default function SpeakingWorkbench() {
           "Content-Type": "application/json",
           "X-Demo-API-Key": submittedKey,
         },
-        body: JSON.stringify({ scope: SCOPE }),
+        body: JSON.stringify({
+          environment: submittedEnvironment,
+          scope: SCOPE,
+        }),
         cache: "no-store",
       });
-      // A changed input clears scope validation; ignore a response for the old key.
-      if (!isCurrentApiKey(submittedKey)) return;
+      // A changed key or environment discards the answer to this question.
+      if (
+        !isSelectionCurrent(
+          submittedKey,
+          submittedEnvironment,
+          submittedGeneration
+        )
+      )
+        return;
       receivedHttpResponse = true;
       setKeyCheckTrace(httpTrace(response));
       const payload: unknown = await response.json().catch(() => null);
-      if (!isCurrentApiKey(submittedKey)) return;
+      if (
+        !isSelectionCurrent(
+          submittedKey,
+          submittedEnvironment,
+          submittedGeneration
+        )
+      )
+        return;
       setKeyCheckResponse(payload);
       if (!response.ok) throw errorFromPayload(payload);
       if (
@@ -345,8 +425,15 @@ export default function SpeakingWorkbench() {
       });
       setStep(2);
     } catch (caught) {
-      if (!isCurrentApiKey(submittedKey)) return;
-      clearScopeValidation(SCOPE);
+      if (
+        !isSelectionCurrent(
+          submittedKey,
+          submittedEnvironment,
+          submittedGeneration
+        )
+      )
+        return;
+      clearScopeValidation();
       const publicError =
         typeof caught === "object" &&
         caught !== null &&
@@ -369,9 +456,11 @@ export default function SpeakingWorkbench() {
   };
 
   const useMock = () => {
-    clearScopeValidation("writing.grade");
-    clearScopeValidation("speaking.grade");
+    clearScopeValidation();
     setSkipMock(true);
+    setSelectedId(
+      MOCK_SPEAKING_PROMPTS.find((item) => item.part === part)?.id ?? ""
+    );
     setQuestionLoading(false);
     setQuestionError(null);
     setQuestionResponse(null);
@@ -493,8 +582,17 @@ export default function SpeakingWorkbench() {
     if (!livePrompts?.length || !prompt) {
       setError({
         code: "AI_SERVICE_UNAVAILABLE",
+        message: `Chưa có câu hỏi live từ ${demoEnvironmentName(environment)}. Không thể gửi fixture local để chấm.`,
+      });
+      return;
+    }
+    // The first Production grade of a visit needs the billable acknowledgement;
+    // it is not a spend cap, only a gate the backend still enforces afterwards.
+    if (requiresProductionAcknowledgement()) {
+      setError({
+        code: "PRODUCTION_ACKNOWLEDGEMENT_REQUIRED",
         message:
-          "Chưa có câu hỏi live từ Sandbox. Không thể gửi fixture local để chấm.",
+          "Xác nhận ở khung “Môi trường demo” rằng request Production có thể tính phí trước khi chấm.",
       });
       return;
     }
@@ -504,6 +602,7 @@ export default function SpeakingWorkbench() {
       return;
     }
     if (!prompt || !file) return;
+    if (!beginGrading()) return;
 
     setSubmitting(true);
     setGradeAttempted(true);
@@ -530,6 +629,7 @@ export default function SpeakingWorkbench() {
         method: "POST",
         headers: {
           "X-Demo-API-Key": apiKey.trim(),
+          "X-Demo-Environment": environment,
           "X-Demo-User-Identity": getUserIdentity(),
         },
         body: form,
@@ -577,6 +677,7 @@ export default function SpeakingWorkbench() {
     } finally {
       window.clearTimeout(timeout);
       setSubmitting(false);
+      endGrading();
     }
   };
 
@@ -620,7 +721,8 @@ export default function SpeakingWorkbench() {
           },
           body: { scope: SCOPE },
         },
-        bff_to_sandbox: {
+        bff_to_selected_environment: {
+          environment: demoEnvironmentName(environment),
           method: "POST",
           path: "/v1/sandbox/demo/api-keys/validate",
           headers: {
@@ -639,7 +741,8 @@ export default function SpeakingWorkbench() {
               method: "GET",
               path: `/api/demo/speaking/questions?part=${part}`,
             },
-            bff_to_sandbox: {
+            bff_to_selected_environment: {
+              environment: demoEnvironmentName(environment),
               method: "GET",
               path: `/v1/ielts/speaking/questions?part=${part}`,
             },
@@ -698,7 +801,10 @@ export default function SpeakingWorkbench() {
         source: "request preview · chưa gửi",
         method: "POST",
         browser_to_aihub_bff: "/api/demo/speaking/grading",
-        bff_to_sandbox: "/v1/ielts/speaking/grading",
+        bff_to_selected_environment: {
+          environment: demoEnvironmentName(environment),
+          path: "/v1/ielts/speaking/grading",
+        },
         headers: {
           "X-Demo-API-Key": "[REDACTED]",
           "X-Demo-User-Identity": "<generated at submit>",
@@ -712,7 +818,10 @@ export default function SpeakingWorkbench() {
       source: "request sent via AIHUB BFF",
       method: "POST",
       browser_to_aihub_bff: "/api/demo/speaking/grading",
-      bff_to_sandbox: "/v1/ielts/speaking/grading",
+      bff_to_selected_environment: {
+        environment: demoEnvironmentName(environment),
+        path: "/v1/ielts/speaking/grading",
+      },
       headers: {
         "X-Demo-API-Key": "[REDACTED]",
         "X-Demo-User-Identity": "<demo UUID>",
@@ -815,19 +924,19 @@ export default function SpeakingWorkbench() {
     if (step === 1)
       return validationSkipped || (!apiKey.trim() && !keyCheckResponse)
         ? "No HTTP request."
-        : `${keyCheckResponse ? "Sent or in progress" : "Preview only; not sent"}\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nContent-Type: application/json\nAIHUB BFF → Sandbox: X-API-Key: [REDACTED]\nContent-Type: application/json`;
+        : `${keyCheckResponse ? "Sent or in progress" : "Preview only; not sent"}\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nContent-Type: application/json\nAIHUB BFF → ${demoEnvironmentName(environment)}: X-API-Key: [REDACTED]\nContent-Type: application/json`;
     if (step === 2)
       return liveReady
         ? "GET question catalog via BFF. No API key or grading request is sent. Browser-managed headers omitted."
         : "No HTTP request — question fixture is local.";
     if (step === 3)
       return liveReady
-        ? "Preview only; not sent yet.\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nX-Demo-User-Identity: generated at submit\nContent-Type: multipart/form-data (browser boundary)\nBFF → Sandbox: X-API-Key: [REDACTED]\nX-User-Identity: <demo UUID>"
+        ? `Preview only; not sent yet.\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nX-Demo-User-Identity: generated at submit\nContent-Type: multipart/form-data (browser boundary)\nBFF → ${demoEnvironmentName(environment)}: X-API-Key: [REDACTED]\nX-User-Identity: <demo UUID>`
         : "No HTTP request — read-only fixture.";
     if (step === 5)
       return "Simulated request only; no request headers were sent.\nX-API-Key: [REDACTED]";
     if (!liveReady) return "No HTTP request — fixture is generated locally.";
-    return `${gradeAttempted ? "Sent" : "Preview only; not sent"}\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nX-Demo-User-Identity: ${gradeAttempted ? "<demo UUID>" : "generated at submit"}\nContent-Type: multipart/form-data (browser boundary)\nBFF → Sandbox: X-API-Key: [REDACTED]\nX-User-Identity: <demo UUID>`;
+    return `${gradeAttempted ? "Sent" : "Preview only; not sent"}\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nX-Demo-User-Identity: ${gradeAttempted ? "<demo UUID>" : "generated at submit"}\nContent-Type: multipart/form-data (browser boundary)\nBFF → ${demoEnvironmentName(environment)}: X-API-Key: [REDACTED]\nX-User-Identity: <demo UUID>`;
   };
 
   const responseHeaders = () => {
@@ -863,7 +972,7 @@ export default function SpeakingWorkbench() {
             : "Read-only fixture preview. No audio or grading request is sent."
           : step === 4
             ? liveReady
-              ? "The BFF rechecks the Sandbox key on every grading request; the API key is redacted in this trace."
+              ? `The BFF rechecks the ${demoEnvironmentName(environment)} key on every grading request; the API key is redacted in this trace.`
               : "The button returns a fixed fixture in the browser. No grading or AI service request is sent."
             : "Scenario request and response are simulated locally. No HTTP request or quota use.";
 
@@ -913,16 +1022,29 @@ export default function SpeakingWorkbench() {
       skill="speaking"
       scope={SCOPE}
       title="Chấm IELTS Speaking"
-      description="Chọn Speaking Part, ghi âm hoặc tải câu trả lời lên khi dùng key Sandbox. Bỏ qua key để xem fixture read-only và kết quả mẫu cố định."
+      description={`Chọn Speaking Part, ghi âm hoặc tải câu trả lời lên khi dùng key ${demoEnvironmentName(environment)}. Bỏ qua key để xem fixture read-only và kết quả mẫu cố định.`}
       step={step}
       onStepChange={changeStep}
-      stepperDisabled={submitting}
+      stepperDisabled={grading || submitting}
       mode={mode}
       status={traceStatus}
       request={requestForStep()}
       response={responseForStep()}
       requestHeaders={requestHeaders()}
       responseHeaders={responseHeaders()}
+      environment={environment}
+      onEnvironmentChange={(value) => {
+        setEnvironment(value);
+        setQuestionError(null);
+        setQuestionResponse(null);
+        setQuestionTrace(null);
+        setLivePrompts(null);
+      }}
+      productionAcknowledged={state.productionAcknowledged}
+      requiresProductionAcknowledgement={requiresProductionAcknowledgement()}
+      onAcknowledgeProduction={acknowledgeProduction}
+      sandboxAllowance={allowance}
+      exports={copyableExports}
       traceNote={traceNote}
     >
       <p className="demo-flow-eyebrow">
@@ -931,17 +1053,19 @@ export default function SpeakingWorkbench() {
 
       {step === 1 && (
         <>
-          <h3>Kết nối Sandbox</h3>
+          <h3>Chọn môi trường và key</h3>
           <p>
-            Kiểm tra key theo scope <code>{SCOPE}</code>. Endpoint chỉ xác thực
-            key, không gọi AI và không tiêu quota chấm.
+            Kiểm tra key theo scope <code>{SCOPE}</code> và theo môi trường đã
+            chọn. Endpoint chỉ xác thực key, không gọi AI và không tiêu quota
+            chấm.
           </p>
           <div className="demo-field">
             <label htmlFor="speaking-demo-key">
-              API key Sandbox (tùy chọn)
+              API key {demoEnvironmentName(environment)} (tùy chọn)
             </label>
             <input
               autoComplete="off"
+              disabled={grading}
               id="speaking-demo-key"
               onChange={(event) => {
                 setApiKey(event.target.value);
@@ -960,14 +1084,17 @@ export default function SpeakingWorkbench() {
                 setGradeAttempted(false);
                 setError(null);
               }}
-              placeholder="aihub_sk_…"
+              placeholder={
+                environment === "sandbox" ? "aihub_sandbox_…" : "aihub_prod_…"
+              }
               spellCheck={false}
               type="password"
               value={apiKey}
             />
             <p className="demo-help">
-              Key phải chỉ thuộc môi trường sandbox, có scope speaking.grade,
-              Organization chưa bật Identity Configuration.
+              Key phải chỉ thuộc môi trường{" "}
+              {demoEnvironmentName(environment).toLowerCase()}, có scope
+              speaking.grade, Organization chưa bật Identity Configuration.
             </p>
           </div>
           {keyError && (
@@ -984,7 +1111,7 @@ export default function SpeakingWorkbench() {
           <div className="demo-step-actions">
             <button
               className="demo-btn-primary"
-              disabled={checkingKey || !apiKey.trim()}
+              disabled={grading || checkingKey || !apiKey.trim()}
               onClick={validateKey}
               type="button"
             >
@@ -992,7 +1119,7 @@ export default function SpeakingWorkbench() {
             </button>
             <button
               className="demo-btn-secondary"
-              disabled={checkingKey}
+              disabled={grading || checkingKey}
               onClick={useMock}
               type="button"
             >
@@ -1007,7 +1134,7 @@ export default function SpeakingWorkbench() {
           <h3>Chọn câu hỏi Speaking</h3>
           <p>
             {liveReady
-              ? "Live mode tải danh sách câu hỏi công khai từ Sandbox; thao tác này không chấm bài và không dùng quota."
+              ? `Live mode tải danh sách câu hỏi công khai từ ${demoEnvironmentName(environment)}; thao tác này không chấm bài và không dùng quota.`
               : "Mock mode dùng fixture local theo từng Part, không tải catalog từ backend."}
           </p>
           <div className="demo-inline-actions" aria-label="Speaking part">
@@ -1026,7 +1153,7 @@ export default function SpeakingWorkbench() {
           </div>
           {questionLoading && (
             <p className="demo-notice" role="status">
-              Đang tải câu hỏi từ Sandbox…
+              Đang tải câu hỏi từ {demoEnvironmentName(environment)}…
             </p>
           )}
           {questionError && liveReady && (
@@ -1195,7 +1322,7 @@ export default function SpeakingWorkbench() {
           <h3>{liveReady ? "Gửi audio chấm thật" : "Xem kết quả mẫu"}</h3>
           <p>
             {liveReady
-              ? "AIHUB gửi multipart audio tới Sandbox. API key được xác thực lại trước quota và dispatch."
+              ? `AIHUB gửi multipart audio tới ${demoEnvironmentName(environment)}. API key được xác thực lại trước quota và dispatch.`
               : "Submit chỉ trả fixture tĩnh theo Part. Không có request grading hoặc AI service call."}
           </p>
           {error && (
@@ -1206,10 +1333,14 @@ export default function SpeakingWorkbench() {
                 : ""}
             </div>
           )}
+          {liveReady && error && (
+            <SpeakingRetryNote environment={environment} />
+          )}
           <div className="demo-step-actions">
             <button
               className="demo-btn-primary"
               disabled={
+                grading ||
                 submitting ||
                 (liveReady &&
                   (!prompt ||
@@ -1228,7 +1359,7 @@ export default function SpeakingWorkbench() {
             </button>
             <button
               className="demo-btn-secondary"
-              disabled={submitting}
+              disabled={grading || submitting}
               onClick={() => changeStep(3)}
               type="button"
             >
@@ -1323,6 +1454,7 @@ export default function SpeakingWorkbench() {
             <span aria-hidden="true">⚠</span> Khi key bị thu hồi sau bước 1,
             backend sẽ từ chối request chấm trước khi dispatch.
           </div>
+          <SpeakingRetryNote environment={environment} />
         </>
       )}
     </DemoWorkbench>

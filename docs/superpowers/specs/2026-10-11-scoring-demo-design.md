@@ -1,8 +1,10 @@
 # Chấm điểm demo — `/demo/scoring`
 
 - Date: 2026-10-11
-- Status: Approved in design review, awaiting spec review.
+- Status: Superseded by [ADR-0017](../../adr/0017-sandbox-backed-scoring-demo.md), [ADR-0018](../../adr/0018-explicit-demo-environments-and-safe-exports.md), and follow-up issue [#69](https://github.com/AiHub-Ecosystem/AiHub-Frontend/issues/69).
 - Related: `docs/superpowers/specs/2026-09-27-sample-request-design.md` (§ Writing Scoring catalog), `app/demo/speaking/speaking-workbench.tsx`, `lib/speaking-gateway.ts`, the team's `Desktop · Prototype tương tác — Tổng quan + 5 bước` mockup (design reference for Task 1, not production code). Field limits, identity behaviour and sandbox ceilings in this spec were verified against the `aihub-be` source, not against this repository's reference tables, which had drifted.
+
+> Historical proposal only. Its signed-assertion and Sandbox-only transport decisions were superseded; use the linked ADRs and current backend contracts for implementation behavior.
 
 ## Problem
 

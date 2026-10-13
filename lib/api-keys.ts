@@ -1,3 +1,21 @@
+import { demoEnvironmentLabel } from "@/lib/demo-environments";
+
+/**
+ * Every display prefix the backend issues a key under: one per Environment a new
+ * key can be bound to, plus the shared prefix every key issued before that
+ * carries. A prefix only helps a holder recognise a key; `allowed_environments`
+ * is what authorizes it.
+ */
+export const API_KEY_RAW_PREFIXES = [
+  "aihub_sandbox_",
+  "aihub_prod_",
+  "aihub_sk_",
+] as const;
+
+export const API_KEY_RAW_FORMAT = new RegExp(
+  `^(?:${API_KEY_RAW_PREFIXES.join("|")})[A-Za-z0-9]{43}$`
+);
+
 export type ApiKeyStatus = "active" | "expired";
 
 /** Every Environment the backend accepts on a customer API key. */
@@ -10,8 +28,8 @@ export const API_KEY_ENVIRONMENTS = [
 export type ApiKeyEnvironment = (typeof API_KEY_ENVIRONMENTS)[number];
 
 const API_KEY_ENVIRONMENT_LABELS: Record<ApiKeyEnvironment, string> = {
-  production: "Production (tính phí)",
-  sandbox: "Sandbox (miễn phí)",
+  production: demoEnvironmentLabel("production"),
+  sandbox: demoEnvironmentLabel("sandbox"),
   staging: "Staging",
 };
 
@@ -113,7 +131,7 @@ export function parseMintedOrganizationApiKey(
   if (
     !key ||
     typeof data?.api_key !== "string" ||
-    !/^aihub_sk_[A-Za-z0-9]{43}$/.test(data.api_key)
+    !API_KEY_RAW_FORMAT.test(data.api_key)
   )
     return null;
   return { ...key, api_key: data.api_key };

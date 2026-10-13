@@ -2,6 +2,7 @@
 
 import { useCallback, useState, useEffect } from "react";
 import Link from "next/link";
+import { broadcastLogout } from "@/lib/logout-signal";
 import {
   DEFAULT_NUM_REFERENCES,
   EXERCISE_TYPE_LABELS,
@@ -772,7 +773,11 @@ export function AcademicLabView() {
               Live API Logs ({apiLogs.length})
             </button>
 
-            <form action="/api/auth/logout" method="post">
+            <form
+              action="/api/auth/logout"
+              method="post"
+              onSubmit={broadcastLogout}
+            >
               <button
                 type="submit"
                 title="Đăng xuất khỏi AIHub Console"

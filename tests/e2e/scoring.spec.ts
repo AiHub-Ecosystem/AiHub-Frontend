@@ -240,10 +240,32 @@ test("grades the prefilled Task 1 sample without a login", async ({
   await page.goto("/demo/scoring");
   await openWriting(page, { step: 2 });
 
+  const mockQuestions = page.locator('[data-testid^="writing-mock-question-"]');
+  await expect(mockQuestions).toHaveCount(3);
+  await page.getByTestId("writing-mock-question-3").click();
+  await expect(page.getByTestId("writing-mock-question-3")).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  );
+  await expect(page.getByTestId("input-question")).toHaveCount(0);
+  await page.getByTestId("tab-task-2").click();
+  await expect(mockQuestions).toHaveCount(3);
+  await expect(page.getByTestId("input-topic")).toBeDisabled();
+  await page.getByTestId("writing-mock-question-3").click();
+  await page.getByRole("tab", { name: "Request" }).click();
+  await expect(page.locator(".demo-console .demo-console-code")).toContainText(
+    "Universities are expected by some people"
+  );
+  await page.getByTestId("tab-task-1").click();
+
   // The page must be runnable with no typing.
   await expect(page.getByTestId("select-chart-type")).toHaveValue("Bar Chart");
   await expect(page.getByTestId("input-image-url")).toHaveValue(/^https:\/\//);
   await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+  await page.getByRole("tab", { name: "Request" }).click();
+  await expect(page.locator(".demo-console .demo-console-code")).toContainText(
+    "The chart illustrates the number of minutes"
+  );
   const essay = await page.getByTestId("input-essay").inputValue();
   expect(essay.length).toBeGreaterThan(500);
   expect(essay).toContain("The bar chart illustrates");
@@ -257,17 +279,17 @@ test("grades the prefilled Task 1 sample without a login", async ({
   const log = await scoringLog(request);
   expect(log.requests).toHaveLength(0);
   await page.getByRole("tab", { name: "Response" }).click();
-  await expect(page.locator(".demo-console-code")).toContainText(
+  await expect(page.locator(".demo-console .demo-console-code")).toContainText(
     "local fixed fixture"
   );
-  await expect(page.locator(".demo-console-code")).toContainText(
+  await expect(page.locator(".demo-console .demo-console-code")).toContainText(
     "overall_band"
   );
 
-  // The API key and upstream host are server-side only.
+  // The API key never reaches the page. The AIHUB host does: the copy panel
+  // hands out commands for it, and that host is published API documentation.
   const html = await page.content();
   expect(html).not.toContain("aihub_sk_");
-  expect(html).not.toContain("sandbox.aihubproduction.com");
 
   expect(failed, `page errors: ${failed.join(" | ")}`).toEqual([]);
   assertNoExternalTraffic();
@@ -423,7 +445,7 @@ test("a rejected submission shows its code and no credential leaked", async ({
   await expect(error).toBeVisible();
   await expect(error).toContainText("UNAUTHORIZED");
   await expect(
-    page.getByRole("heading", { name: "Kết nối Sandbox" })
+    page.getByRole("heading", { name: "Chọn môi trường và key" })
   ).toBeVisible();
 });
 
@@ -440,7 +462,9 @@ test("Writing grading rejects an invalid key even when the client skips validati
       headers: {
         "Content-Type": "application/json",
         "X-Demo-API-Key": "invalid-sandbox-key",
+        "X-Demo-Environment": "sandbox",
         "X-Demo-User-Identity": "00000000-0000-4000-8000-000000000001",
+        "Idempotency-Key": "11111111-2222-4333-8444-555555555555",
       },
       body: JSON.stringify({
         task: 1,
@@ -465,7 +489,13 @@ test("the Task 2 tab opens without a page load and survives a return visit", asy
   await page.goto("/demo/scoring");
   await waitForHydration(page);
 
-  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
+  await page
+    .getByLabel("API key Sandbox (tùy chọn)")
+    .fill("aihub_sk_e2e_sandbox_key");
+  await page.getByRole("button", { name: "Kiểm tra key" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Chọn bài Writing" })
+  ).toBeVisible();
   // Nothing navigates: the task selector is a client transition in one document.
   await page.evaluate(() => {
     (window as unknown as { __stayed: boolean }).__stayed = true;
@@ -723,11 +753,6 @@ test("a scrolled report clears the fixed site header instead of hiding behind it
   expect(geometry.panelTop).toBeLessThanOrEqual(geometry.headerBottom + 32);
 });
 
-/**
- * The visitor is not an integration. The gateway mints the idempotency key,
- * so a UUID appearing anywhere in the form means the key moved back into the
- * UI — which is the regression this guards.
- */
 test("the visitor can leave the optional Sandbox key empty", async ({
   page,
 }) => {
@@ -737,14 +762,63 @@ test("the visitor can leave the optional Sandbox key empty", async ({
 
   await expect(page.getByLabel("API key Sandbox (tùy chọn)")).toHaveValue("");
   await expect(
-    page.getByRole("button", { name: "Bỏ qua, dùng mẫu" })
-  ).toBeEnabled();
-
-  await expect(
     page.getByText(
       /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
     )
   ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Bỏ qua, dùng mẫu" })
+  ).toBeEnabled();
+});
+
+test("Writing retries reuse the submission key and a new successful send rotates it", async ({
+  page,
+  request,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  const idempotencyKeys: string[] = [];
+  await page.route("**/api/demo/scoring/grade", async (route) => {
+    idempotencyKeys.push(
+      route.request().headers()["idempotency-key"] ?? "(missing)"
+    );
+    if (idempotencyKeys.length === 1) {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: { code: "AI_SERVICE_UNAVAILABLE", message: "Retry safely." },
+        }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto("/demo/scoring");
+  await openWriting(page, { mode: "live", step: 4 });
+  await page.getByTestId("button-grade").click();
+  await expect(page.locator(".demo-error[role=alert]")).toBeVisible();
+
+  await page.getByTestId("button-grade").click();
+  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  await expect
+    .poll(async () => (await scoringLog(request)).requests.length)
+    .toBe(1);
+
+  await page.getByTestId("button-grade").click();
+  await expect
+    .poll(async () => (await scoringLog(request)).requests.length)
+    .toBe(2);
+  expect(idempotencyKeys).toHaveLength(3);
+  expect(idempotencyKeys[0]).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  );
+  expect(idempotencyKeys[0]).toBe(idempotencyKeys[1]);
+  expect(idempotencyKeys[2]).not.toBe(idempotencyKeys[1]);
+  const upstreamKeys = (await scoringLog(request)).requests.map(
+    (item) => item.idempotencyKey
+  );
+  expect(upstreamKeys).toEqual([idempotencyKeys[1], idempotencyKeys[2]]);
 });
 
 /** The demo title should stay below the unrelated stylesheet's 48px heading. */
@@ -807,7 +881,7 @@ test("the Request and Response console updates at every step", async ({
   await keepBrowserTrafficLocal(page);
   await page.goto("/demo/scoring");
   await waitForHydration(page);
-  const code = page.locator(".demo-console-code");
+  const code = page.locator(".demo-console .demo-console-code");
   await expect(code).toContainText("key optional");
   await page.getByRole("tab", { name: "Response" }).click();
   await expect(code).toContainText("Chưa kiểm tra key");

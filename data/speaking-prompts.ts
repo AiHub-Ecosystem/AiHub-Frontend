@@ -21,6 +21,11 @@ export const MOCK_SPEAKING_PROMPTS: readonly SpeakingPrompt[] = [
     question: "How often do you use public transport?",
   },
   {
+    id: "p1_what-do-you-like-about-your-neighbourhood",
+    part: 1,
+    question: "What do you like about your neighbourhood?",
+  },
+  {
     id: "p2_describe-a-book-you-recently-read-that-you-found-useful",
     part: 2,
     question: "Describe a book you recently read that you found useful.",
@@ -33,6 +38,12 @@ export const MOCK_SPEAKING_PROMPTS: readonly SpeakingPrompt[] = [
     cue: "You should say what you showed, who you showed it to, how you showed it, and explain how you felt about it.",
   },
   {
+    id: "p2_describe-a-place-you-visited-and-would-like-to-return-to",
+    part: 2,
+    question: "Describe a place you visited and would like to return to.",
+    cue: "You should say where it was, when you visited, what you did there, and explain why you would like to return.",
+  },
+  {
     id: "p3_do-you-agree-that-travel-broadens-peoples-horizons-and-minds",
     part: 3,
     question: "Do you agree that travel broadens people's horizons and minds?",
@@ -40,6 +51,12 @@ export const MOCK_SPEAKING_PROMPTS: readonly SpeakingPrompt[] = [
   {
     id: "p3_do-you-think-governments-should-continue-to-fund-public-libraries",
     part: 3,
-    question: "Do you think governments should continue to fund public libraries?",
+    question:
+      "Do you think governments should continue to fund public libraries?",
+  },
+  {
+    id: "p3_how-can-tourism-benefit-local-communities",
+    part: 3,
+    question: "How can tourism benefit local communities?",
   },
 ];
