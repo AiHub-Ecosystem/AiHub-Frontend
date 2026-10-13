@@ -128,7 +128,12 @@ describe("The Sandbox allowance snapshot", () => {
       valid: true,
       environment: "sandbox",
       scope: "writing.grade",
-      allowance: { monthly_limit: 5, reserved: 2 },
+      allowance: {
+        monthly_limit: 5,
+        reserved: 2,
+        shared_monthly_limit: 500,
+        shared_reserved: 12,
+      },
     },
   };
 
@@ -136,8 +141,17 @@ describe("The Sandbox allowance snapshot", () => {
     expect(sandboxAllowanceFrom(valid)).toEqual({
       monthlyLimit: 5,
       reserved: 2,
+      sharedMonthlyLimit: 500,
+      sharedReserved: 12,
     });
-    expect(remainingAllowance({ monthlyLimit: 5, reserved: 2 })).toBe(3);
+    expect(
+      remainingAllowance({
+        monthlyLimit: 5,
+        reserved: 2,
+        sharedMonthlyLimit: 500,
+        sharedReserved: 12,
+      })
+    ).toBe(3);
   });
 
   it("reports no snapshot where the backend reports none", () => {
@@ -156,16 +170,40 @@ describe("The Sandbox allowance snapshot", () => {
   it("treats a snapshot it cannot read as no snapshot", () => {
     expect(
       sandboxAllowanceFrom({
-        data: { valid: true, allowance: { monthly_limit: "five" } },
+        data: {
+          valid: true,
+          allowance: {
+            monthly_limit: "five",
+            reserved: 0,
+            shared_monthly_limit: 500,
+            shared_reserved: 0,
+          },
+        },
       })
     ).toBeNull();
   });
 
   it("does not show an exhausted Organization as available", () => {
-    expect(allowanceAdmitsOneMore({ monthlyLimit: 5, reserved: 5 })).toBe(
-      false
-    );
-    expect(allowanceAdmitsOneMore({ monthlyLimit: 5, reserved: 4 })).toBe(true);
+    const exhaustedOrganization = {
+      monthlyLimit: 5,
+      reserved: 5,
+      sharedMonthlyLimit: 500,
+      sharedReserved: 0,
+    };
+    expect(allowanceAdmitsOneMore(exhaustedOrganization)).toBe(false);
+    expect(
+      allowanceAdmitsOneMore({
+        ...exhaustedOrganization,
+        reserved: 4,
+      })
+    ).toBe(true);
+    expect(
+      allowanceAdmitsOneMore({
+        ...exhaustedOrganization,
+        reserved: 0,
+        sharedReserved: 500,
+      })
+    ).toBe(false);
   });
 
   it("does not claim availability when the policy could not be read", () => {

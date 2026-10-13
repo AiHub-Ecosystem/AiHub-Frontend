@@ -1086,7 +1086,14 @@ const server = createServer(async (request, response) => {
         environment,
         scope,
         allowance:
-          environment === "sandbox" ? { monthly_limit: 5, reserved: 0 } : null,
+          environment === "sandbox"
+            ? {
+                monthly_limit: 5,
+                reserved: 0,
+                shared_monthly_limit: 500,
+                shared_reserved: 0,
+              }
+            : null,
       },
       meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
     });

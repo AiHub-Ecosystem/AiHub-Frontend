@@ -148,6 +148,6 @@ _Avoid_: unsigned assertion, user ID, user-scoped ID
 Whether an Organization has a saved active Identity configuration. This reports configuration state, not current JWKS source reachability.
 _Avoid_: configured (when it could include a disabled configuration)
 
-## Accepted demo extension — implementation pending
+## Demo environment choice and safe exports
 
-The existing runtime remains Sandbox-only for live demos and Production-only for Console key creation. [ADR-0018](docs/adr/0018-explicit-demo-environments-and-safe-exports.md) records the accepted extension: explicit Sandbox/Production selection, pinned environment hosts, an explicit Production-cost acknowledgement, safe request exports, and the Sandbox allowance policy. The paired backend design is ADR-0095 in the `aihub-be` worktree.
+[ADR-0018](docs/adr/0018-explicit-demo-environments-and-safe-exports.md) records the accepted demo flow: visitors may select Sandbox or Production, validate a key for the selected environment and skill, and use only that environment's pinned host. Without a valid key, the demo stays read-only and returns fixed fixtures. Production grading requires an explicit cost acknowledgement. The current implementation is in follow-up issue [#69](https://github.com/AiHub-Ecosystem/AiHub-Frontend/issues/69); until it is merged and deployed, production traffic still follows the deployed version. Backend admission, environment binding, and the shared Sandbox allowance are recorded in ADR-0095 in the `aihub-be` worktree.

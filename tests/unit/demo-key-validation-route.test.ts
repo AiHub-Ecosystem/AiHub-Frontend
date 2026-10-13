@@ -45,7 +45,12 @@ beforeEach(() => {
           valid: true,
           environment: "sandbox",
           scope: "writing.grade",
-          allowance: { monthly_limit: 5, reserved: 0 },
+          allowance: {
+            monthly_limit: 5,
+            reserved: 0,
+            shared_monthly_limit: 500,
+            shared_reserved: 0,
+          },
         },
         meta: { request_id: "req_test" },
       }),

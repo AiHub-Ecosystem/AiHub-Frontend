@@ -2,12 +2,12 @@
 
 - Status: Accepted
 - Date: 2026-10-13
-- Related: [Issue #68](https://github.com/AiHub-Ecosystem/AiHub-Frontend/issues/68), [FE PR #67](https://github.com/AiHub-Ecosystem/AiHub-Frontend/pull/67), [BE PR #602](https://github.com/AiHub-Ecosystem/aihub-be/pull/602), backend ADR-0095
+- Related: [Issue #68](https://github.com/AiHub-Ecosystem/AiHub-Frontend/issues/68), [follow-up issue #69](https://github.com/AiHub-Ecosystem/AiHub-Frontend/issues/69), [FE PR #67](https://github.com/AiHub-Ecosystem/AiHub-Frontend/pull/67), [BE PR #602](https://github.com/AiHub-Ecosystem/aihub-be/pull/602), backend ADR-0095
 - Amends: [ADR-0011](0011-console-creates-production-keys-only.md) for Console key creation; [ADR-0017](0017-sandbox-backed-scoring-demo.md) for demo environment choice and Sandbox allowance
 
 ## Decision
 
-This records the accepted design; implementation is pending.
+This records the accepted design implemented by the follow-up to issue #68. The decision describes the intended behavior; it becomes available to visitors when the changes are merged and deployed.
 
 The Writing and Speaking demos and the Console key-creation form offer an explicit `Sandbox` or `Production` environment choice, defaulting to Sandbox. The selected environment must match the key's backend-authorized environment. A mismatch is an error; the BFF never silently switches a request to Production. It selects only the fixed HTTPS host for the validated environment: `https://sandbox.aihubproduction.com` or `https://api.aihubproduction.com`.
 

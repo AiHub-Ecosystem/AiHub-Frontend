@@ -96,6 +96,40 @@ test("a Production key opens live grading on the Production tier", async ({
   await expect(page.getByText("LIVE RESPONSE").first()).toBeVisible();
 });
 
+test("the environment cannot change while a live grade is in flight", async ({
+  page,
+}) => {
+  await openDemo(page, "scoring");
+  await page.getByTestId("demo-environment-production").check();
+  await page.getByLabel("API key Production (tùy chọn)").fill(productionKey);
+  await page.getByRole("button", { name: "Kiểm tra key" }).click();
+  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await page.getByTestId("production-acknowledgement").check();
+
+  let releaseGrade!: () => void;
+  const gradeGate = new Promise<void>((resolve) => {
+    releaseGrade = resolve;
+  });
+  await page.route("**/api/demo/scoring/grade", async (route) => {
+    await gradeGate;
+    await route.continue();
+  });
+  await page.getByRole("button", { name: /Chấm thật Task 1/ }).click();
+
+  try {
+    await expect(
+      page.getByTestId("demo-environment-production")
+    ).toBeDisabled();
+    await expect(page.getByTestId("demo-environment-sandbox")).toBeDisabled();
+  } finally {
+    releaseGrade();
+  }
+
+  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  await expect(page.getByText("LIVE RESPONSE").first()).toBeVisible();
+});
+
 test("the first Production grade needs the billable acknowledgement", async ({
   page,
 }) => {
@@ -134,7 +168,9 @@ test("a Sandbox visit reports its allowance apart from key validity", async ({
   await page.getByRole("button", { name: "Kiểm tra key" }).click();
 
   const allowance = page.getByTestId("sandbox-allowance");
-  await expect(allowance).toContainText("còn 5/5 lượt chấm");
+  await expect(allowance).toContainText(
+    "còn 5 lượt khả dụng tháng này (Organization: 5/5; toàn Sandbox: 500/500)"
+  );
   await expect(
     page.getByTestId("demo-environment-production")
   ).not.toBeChecked();

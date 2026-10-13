@@ -20,10 +20,10 @@ import {
 /**
  * Gateway for the public Writing grading demo.
  *
- * The sandbox transport — host pinning, env resolution, same-origin — is
- * shared with Speaking in `lib/sandbox-gateway.ts`. What stays here is the
- * Writing contract: two task schemas, their field limits, and the idempotency
- * key every submission carries.
+ * The demo transport — environment host pinning, same-origin checks, and
+ * per-request key/identity headers — is shared with Speaking in
+ * `lib/demo-gateway.ts`. What stays here is the Writing contract: two task
+ * schemas, their field limits, and the idempotency key every submission carries.
  */
 
 /** The endpoint's own limits, verified against the backend schemas. */

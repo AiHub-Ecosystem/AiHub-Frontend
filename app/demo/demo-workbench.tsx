@@ -18,6 +18,8 @@ import type { SandboxAllowanceSnapshot } from "./demo-session-state";
 import {
   allowanceAdmitsOneMore,
   remainingAllowance,
+  remainingOrganizationAllowance,
+  remainingSharedAllowance,
 } from "./demo-session-state";
 
 export const DEMO_STEPS = [
@@ -241,6 +243,7 @@ export function DemoWorkbench({
                   <input
                     checked={environment === value}
                     data-testid={`demo-environment-${value}`}
+                    disabled={stepperDisabled}
                     name="demo-environment"
                     onChange={() => onEnvironmentChange(value)}
                     type="radio"
@@ -259,13 +262,17 @@ export function DemoWorkbench({
                 {sandboxAllowance &&
                 allowanceAdmitsOneMore(sandboxAllowance) ? (
                   <>
-                    Hạn mức Sandbox còn {remainingAllowance(sandboxAllowance)}/
-                    {sandboxAllowance.monthlyLimit} lượt chấm cho Organization.
+                    Sandbox còn {remainingAllowance(sandboxAllowance)} lượt khả
+                    dụng tháng này (Organization:{" "}
+                    {remainingOrganizationAllowance(sandboxAllowance)}/
+                    {sandboxAllowance.monthlyLimit}; toàn Sandbox:{" "}
+                    {remainingSharedAllowance(sandboxAllowance)}/
+                    {sandboxAllowance.sharedMonthlyLimit}).
                   </>
                 ) : sandboxAllowance ? (
                   <>
-                    Hạn mức Sandbox của Organization đã hết; lượt chấm sẽ bị từ
-                    chối.
+                    Đã hết lượt Sandbox khả dụng tháng này; hạn mức Organization
+                    hoặc trần dùng chung đã hết.
                   </>
                 ) : (
                   <>

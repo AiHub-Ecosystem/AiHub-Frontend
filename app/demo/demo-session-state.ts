@@ -105,6 +105,8 @@ export function clearDemoVisit(): DemoVisitState {
 export type SandboxAllowanceSnapshot = {
   monthlyLimit: number;
   reserved: number;
+  sharedMonthlyLimit: number;
+  sharedReserved: number;
 };
 
 /**
@@ -126,16 +128,43 @@ export function sandboxAllowanceFrom(
     allowance === null ||
     typeof (allowance as { monthly_limit?: unknown }).monthly_limit !==
       "number" ||
-    typeof (allowance as { reserved?: unknown }).reserved !== "number"
+    typeof (allowance as { reserved?: unknown }).reserved !== "number" ||
+    typeof (allowance as { shared_monthly_limit?: unknown })
+      .shared_monthly_limit !== "number" ||
+    typeof (allowance as { shared_reserved?: unknown }).shared_reserved !==
+      "number"
   )
     return null;
-  const counts = allowance as { monthly_limit: number; reserved: number };
-  return { monthlyLimit: counts.monthly_limit, reserved: counts.reserved };
+  const counts = allowance as {
+    monthly_limit: number;
+    reserved: number;
+    shared_monthly_limit: number;
+    shared_reserved: number;
+  };
+  return {
+    monthlyLimit: counts.monthly_limit,
+    reserved: counts.reserved,
+    sharedMonthlyLimit: counts.shared_monthly_limit,
+    sharedReserved: counts.shared_reserved,
+  };
 }
 
-/** Dispatches left in the Organization's allowance, never below zero. */
+/** Dispatches left under both the Organization and shared Sandbox caps. */
 export function remainingAllowance(snapshot: SandboxAllowanceSnapshot) {
+  return Math.min(
+    Math.max(0, snapshot.monthlyLimit - snapshot.reserved),
+    Math.max(0, snapshot.sharedMonthlyLimit - snapshot.sharedReserved)
+  );
+}
+
+export function remainingOrganizationAllowance(
+  snapshot: SandboxAllowanceSnapshot
+) {
   return Math.max(0, snapshot.monthlyLimit - snapshot.reserved);
+}
+
+export function remainingSharedAllowance(snapshot: SandboxAllowanceSnapshot) {
+  return Math.max(0, snapshot.sharedMonthlyLimit - snapshot.sharedReserved);
 }
 
 /**
