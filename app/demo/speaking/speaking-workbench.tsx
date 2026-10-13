@@ -306,8 +306,9 @@ export default function SpeakingWorkbench() {
 
   /**
    * Speaking's own grading call is a multipart upload this page makes, so the
-   * copyable artifact is the JSON endpoint with AIHUB's Published sample answer
-   * and the question now selected: it runs as copied on the selected host.
+   * copyable artifact is the JSON endpoint with AIHUB's Published sample answer.
+   * That recording answers one question only, so the body keeps its part and
+   * question rather than the one selected on screen.
    */
   const copyableExports =
     step === 1
@@ -315,18 +316,13 @@ export default function SpeakingWorkbench() {
       : buildDemoExports({
           environment,
           skill: "speaking",
-          title: `Speaking Part ${part}`,
+          title: `Speaking Part ${SPEAKING_SAMPLE_ANSWER_REQUEST.part}`,
           path: "/v1/ielts/speaking/grading-json",
           headers: [
             { name: "X-User-Identity", value: "<your end-user id>" },
             { name: "Content-Type", value: "application/json" },
           ],
-          body: {
-            ...SPEAKING_SAMPLE_ANSWER_REQUEST,
-            part,
-            question_id: prompt?.id ?? "",
-            prompt_text: prompt?.question ?? "",
-          },
+          body: SPEAKING_SAMPLE_ANSWER_REQUEST,
         });
 
   const changeStep = (next: DemoStep) => {

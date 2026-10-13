@@ -236,7 +236,10 @@ export default function ScoringWorkbench() {
               { name: "X-User-Identity", value: "<your end-user id>" },
               { name: "Content-Type", value: "application/json" },
             ],
-            body: requestBody,
+            // `task` only routes inside the BFF; the endpoint's schemas refuse it.
+            body: Object.fromEntries(
+              Object.entries(requestBody).filter(([name]) => name !== "task")
+            ),
             idempotencyKey: idempotencyKey ?? undefined,
           }),
     [environment, idempotencyKey, requestBody, step, task]
@@ -714,7 +717,13 @@ export default function ScoringWorkbench() {
       title="Chấm điểm IELTS Writing"
       description={`Thử Writing Task 1 và Task 2 theo đúng API contract. Bỏ qua key để xem fixture read-only; key ${demoEnvironmentName(environment)} hợp lệ mở chỉnh sửa và chấm thật.`}
       step={step}
-      onStepChange={setStep}
+      onStepChange={(next) => {
+        // The stepper can skip step 1, where the key is otherwise created.
+        setIdempotencyKey(
+          (current) => current ?? globalThis.crypto.randomUUID()
+        );
+        setStep(next);
+      }}
       stepperDisabled={grading || gradeStatus === "submitting"}
       mode={mode}
       status={

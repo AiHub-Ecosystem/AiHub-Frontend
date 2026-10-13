@@ -82,7 +82,7 @@ function bashCurl(url: string, request: DemoExportRequest): string {
     `  --data-raw ${posixQuoted(serialisedBody(request.body))}`,
   ];
   return lines
-    .map((line, index) => (index === 0 ? line : `${line} \\`))
+    .map((line, index) => (index < lines.length - 1 ? `${line} \\` : line))
     .join("\n");
 }
 

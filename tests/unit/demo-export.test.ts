@@ -88,9 +88,18 @@ describe("cURL for a Bash-compatible shell", () => {
       .split("\n")
       .filter((line) => !line.includes("X-API-Key")))
       expect(
-        line === "curl --request POST" ||
+        line === "curl --request POST \\" ||
           /^ {2}--(url|header|data-raw) '(?:[^']|'\\'')*'( \\)?$/.test(line)
       ).toBe(true);
+  });
+
+  it("continues every line but the last, so the block runs as one command", () => {
+    const lines = buildDemoExports(request()).curl.split("\n");
+
+    expect(lines.length).toBeGreaterThan(1);
+    for (const line of lines.slice(0, -1))
+      expect(line.endsWith(" \\")).toBe(true);
+    expect(lines.at(-1)?.endsWith("\\")).toBe(false);
   });
 
   it("reads the key from the holder's shell rather than writing it into the command", () => {
