@@ -5,6 +5,7 @@
 - Issue: [#68](https://github.com/AiHub-Ecosystem/AiHub-Frontend/issues/68)
 - Related: [BE PR #602](https://github.com/AiHub-Ecosystem/aihub-be/pull/602), [ADR-0009](0009-customer-sandbox-environment.md), [ADR-0011](0011-console-creates-production-keys-only.md)
 - Amends: ADR-0009 for public-demo live grading and the permitted Sandbox scopes
+- Extended by: [ADR-0018](0018-explicit-demo-environments-and-safe-exports.md), which accepts explicit Sandbox/Production selection and a revised Sandbox allowance; implementation is pending
 
 The public Writing and Speaking demos accept an optional Organization-owned Sandbox API key from either anonymous or signed-in visitors. The key may carry `writing.grade`, `speaking.grade`, or both; each page checks its own required scope. Without an eligible key, the demos show fixed read-only fixtures and a clearly labelled Mock result; submit stays local and does not dispatch a grading request. A matching Sandbox key enables editable answers and real grading through the Customer Web BFF. The key is shared across both demo pages for one visit, held only for that visit, and cleared when the visitor leaves the demo or signs out. Each step shows its request and response while redacting credentials.
 

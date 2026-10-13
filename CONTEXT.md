@@ -92,11 +92,14 @@ One capability an API key permits, named as a dotted string such as `writing.gra
 _Avoid_: permission, entitlement, feature
 
 **Environment**:
-The request tier AIHUB derives from the hostname a request is sent to; an API key only works in the Environments it allows. A customer may allow `production`, `staging`, or `sandbox`. The Sandbox Environment is AIHUB's capped test tier: calls do not count against the Organization's paid usage, and a Sandbox key cannot call Production. Customer Sandbox keys may carry `writing.grade`, `speaking.grade`, or both; public demos require the scope for the selected skill ([ADR-0017](docs/adr/0017-sandbox-backed-scoring-demo.md)). The signed-in Console still creates Production-only keys ([ADR-0011](docs/adr/0011-console-creates-production-keys-only.md)).
+The request tier AIHUB derives from the hostname a request is sent to; an API key only works in the Environments it allows. A customer may allow `production`, `staging`, or `sandbox`. The Sandbox Environment is AIHUB's capped test tier: calls do not count against the Organization's paid usage, and a Sandbox key cannot call Production. Customer Sandbox keys may carry `writing.grade`, `speaking.grade`, or both; public demos require the scope for the selected skill ([ADR-0017](docs/adr/0017-sandbox-backed-scoring-demo.md)). As implemented today, the public demos are Sandbox-only and the signed-in Console creates Production-only keys. The accepted extension in [ADR-0018](docs/adr/0018-explicit-demo-environments-and-safe-exports.md) adds explicit Sandbox/Production selection to both surfaces; implementation is pending.
 _Avoid_: mode, live/test
 
 **Customer Sandbox API key**:
-An Organization-owned key restricted to the Sandbox Environment and issued separately from its Production key. Customer key creation permits only `writing.grade`, `speaking.grade`, or both; the public demo checks the selected skill's scope ([ADR-0017](docs/adr/0017-sandbox-backed-scoring-demo.md)).
+An Organization-owned key restricted to the Sandbox Environment and issued separately from its Production key. Customer key creation permits only `writing.grade`, `speaking.grade`, or both; the public demo checks the selected skill's scope ([ADR-0017](docs/adr/0017-sandbox-backed-scoring-demo.md)). The accepted environment-selection and monthly-allowance extension is recorded in [ADR-0018](docs/adr/0018-explicit-demo-environments-and-safe-exports.md), pending implementation.
+
+**Customer Production API key**:
+An Organization-owned key restricted to Production. Its calls may incur charges under the Organization's Production policy; public-demo support is an accepted design pending implementation ([ADR-0018](docs/adr/0018-explicit-demo-environments-and-safe-exports.md)).
 
 **Sandbox API key**:
 The server-held key of AIHUB's dedicated demo Organization, separate from every Customer Sandbox API key.
@@ -144,3 +147,7 @@ _Avoid_: unsigned assertion, user ID, user-scoped ID
 **Identity Readiness**:
 Whether an Organization has a saved active Identity configuration. This reports configuration state, not current JWKS source reachability.
 _Avoid_: configured (when it could include a disabled configuration)
+
+## Accepted demo extension — implementation pending
+
+The existing runtime remains Sandbox-only for live demos and Production-only for Console key creation. [ADR-0018](docs/adr/0018-explicit-demo-environments-and-safe-exports.md) records the accepted extension: explicit Sandbox/Production selection, pinned environment hosts, an explicit Production-cost acknowledgement, safe request exports, and the Sandbox allowance policy. The paired backend design is ADR-0095 in the `aihub-be` worktree.

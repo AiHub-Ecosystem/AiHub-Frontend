@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-28
 - Supersedes: the Environment selection part of [ADR-0009](0009-customer-sandbox-environment.md)
-- Amended by: [ADR-0017](0017-sandbox-backed-scoring-demo.md) for public demo use of Organization-owned Sandbox keys; the signed-in Console still creates Production-only keys.
+- Amended by: [ADR-0017](0017-sandbox-backed-scoring-demo.md) for public demo use of Organization-owned Sandbox keys; the signed-in Console still creates Production-only keys under the current implementation. [ADR-0018](0018-explicit-demo-environments-and-safe-exports.md) accepts adding Sandbox/Production selection to the Console key form; that extension is pending implementation.
 
 The create-key dialog no longer offers an Environment choice. Every key the Console creates allows `production` alone, and every request made with it — including a first test call — counts against the Organization's paid usage. The dialog says so above the scopes.
 
