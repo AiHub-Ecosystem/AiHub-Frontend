@@ -20,6 +20,7 @@ export async function GET(request: Request, context: RouteContext) {
     return new Response(null, { status: 404, headers: identityNoStore });
   try {
     const upstream = await authenticatedAihubFetch(
+      request,
       webSessionIdFromRequest(request)!,
       `/v1/organizations/${encodeURIComponent(organizationId)}/identity-config`
     );
@@ -48,6 +49,7 @@ export async function PUT(request: Request, context: RouteContext) {
     );
   try {
     const upstream = await authenticatedAihubFetch(
+      request,
       webSessionIdFromRequest(request)!,
       `/v1/organizations/${encodeURIComponent(organizationId)}/identity-config`,
       {

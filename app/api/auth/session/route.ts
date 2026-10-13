@@ -1,4 +1,5 @@
 import {
+  endUserIpFromHeaders,
   getCurrentWebSession,
   isWebSessionId,
   originIsAllowed,
@@ -21,7 +22,12 @@ export async function POST(request: Request) {
     });
 
   try {
-    if (!(await getCurrentWebSession(token)))
+    if (
+      !(await getCurrentWebSession(
+        token,
+        endUserIpFromHeaders(request.headers)
+      ))
+    )
       return new Response(null, {
         status: 401,
         headers: { ...noStore, "Set-Cookie": webSessionCookie("", 0) },

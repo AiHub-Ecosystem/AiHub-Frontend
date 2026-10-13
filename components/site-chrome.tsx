@@ -1,8 +1,12 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import Link from "next/link";
-import { cookies } from "next/headers";
-import { getCurrentWebSession, WEB_SESSION_COOKIE } from "@/lib/auth-session";
+import { cookies, headers } from "next/headers";
+import {
+  endUserIpFromHeaders,
+  getCurrentWebSession,
+  WEB_SESSION_COOKIE,
+} from "@/lib/auth-session";
 
 /**
  * Header và footer giống hệt nhau từng byte trên cả 14 trang mirror, nên ta
@@ -287,10 +291,11 @@ function replaceMenuExtras(header: string, signedIn: boolean) {
 export async function SiteHeader() {
   const chrome = readChrome();
   const sessionId = (await cookies()).get(WEB_SESSION_COOKIE)?.value;
+  const endUserIp = endUserIpFromHeaders(await headers());
   let signedIn = false;
   if (sessionId) {
     try {
-      signedIn = !!(await getCurrentWebSession(sessionId));
+      signedIn = !!(await getCurrentWebSession(sessionId, endUserIp));
     } catch {
       // AIHUB trouble should not make public pages unavailable.
     }

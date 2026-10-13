@@ -47,6 +47,7 @@ export async function POST(request: Request) {
   }
   try {
     const upstream = await authenticatedAihubFetch(
+      request,
       sessionId,
       "/v1/organizations",
       {

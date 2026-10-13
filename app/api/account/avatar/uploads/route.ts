@@ -89,6 +89,7 @@ export async function POST(request: Request) {
 
   try {
     const upstream = await authenticatedAihubFetch(
+      request,
       webSessionIdFromRequest(request)!,
       "/v1/me/avatar/uploads",
       {

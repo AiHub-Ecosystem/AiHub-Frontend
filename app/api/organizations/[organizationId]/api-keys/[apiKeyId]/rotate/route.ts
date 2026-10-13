@@ -28,6 +28,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const upstream = await authenticatedAihubFetch(
+      request,
       webSessionIdFromRequest(request)!,
       `/v1/organizations/${encodeURIComponent(organizationId)}/api-keys/${encodeURIComponent(apiKeyId)}/rotate`,
       { method: "POST" }

@@ -69,6 +69,7 @@ describe("Organization BFF", () => {
     );
     expect(response.status).toBe(201);
     expect(auth.authenticatedAihubFetch).toHaveBeenCalledWith(
+      expect.any(Request),
       sessionId,
       "/v1/organizations",
       expect.objectContaining({

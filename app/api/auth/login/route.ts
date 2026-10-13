@@ -1,5 +1,6 @@
 import {
   customerWebOrigin,
+  endUserIpFromHeaders,
   originIsAllowed,
   postAihubWebSession,
   readCreatedWebSession,
@@ -70,10 +71,14 @@ export async function POST(request: Request) {
 
   let upstream: Response;
   try {
-    upstream = await postAihubWebSession("/v1/auth/web-sessions", {
-      email,
-      password,
-    });
+    upstream = await postAihubWebSession(
+      "/v1/auth/web-sessions",
+      {
+        email,
+        password,
+      },
+      endUserIpFromHeaders(request.headers)
+    );
   } catch {
     return redirectToLogin("unavailable", undefined, next, returnTo);
   }

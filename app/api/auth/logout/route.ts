@@ -1,5 +1,6 @@
 import {
   customerWebOrigin,
+  endUserIpFromHeaders,
   isWebSessionId,
   logoutFromAihubBestEffort,
   originIsAllowed,
@@ -15,7 +16,11 @@ export async function POST(request: Request) {
     });
 
   const token = webSessionIdFromRequest(request);
-  if (isWebSessionId(token)) void logoutFromAihubBestEffort(token);
+  if (isWebSessionId(token))
+    void logoutFromAihubBestEffort(
+      token,
+      endUserIpFromHeaders(request.headers)
+    );
 
   return new Response(null, {
     status: 303,

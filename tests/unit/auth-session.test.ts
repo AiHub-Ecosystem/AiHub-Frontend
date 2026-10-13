@@ -16,6 +16,8 @@ function sessionRequest() {
       Origin: origin,
       Cookie: `__Host-aihub_web_session=${token}`,
       "Content-Type": "application/json",
+      "X-Real-IP": "198.51.100.10",
+      "X-AIHUB-End-User-IP": "192.0.2.99",
     },
     body: "{}",
   });
@@ -40,13 +42,11 @@ describe("AIHUB Web Session BFF", () => {
     process.env.CUSTOMER_WEB_ORIGIN = origin;
     process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
     process.env.AIHUB_WEB_SESSION_CLIENT_SECRET = "server-only-secret";
-    const fetch = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(
-        Response.json({
-          data: { access_token: "jwt-server-only", expires_in: 900 },
-        })
-      );
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        data: { access_token: "jwt-server-only", expires_in: 900 },
+      })
+    );
 
     const response = await activity(sessionRequest());
 
@@ -61,6 +61,7 @@ describe("AIHUB Web Session BFF", () => {
         headers: {
           "Content-Type": "application/json",
           "X-AIHUB-Client-Secret": "server-only-secret",
+          "X-AIHUB-End-User-IP": "198.51.100.10",
         },
         body: JSON.stringify({ web_session_token: token }),
         cache: "no-store",
@@ -146,11 +147,23 @@ describe("AIHUB Web Session BFF", () => {
       .mockResolvedValueOnce(new Response(null, { status: 401 }));
 
     const response = await authenticatedAihubFetch(
+      new Request(`${origin}/api/organizations/me/members`, {
+        headers: { "X-Real-IP": "198.51.100.10" },
+      }),
       "r".repeat(43),
       "/v1/organizations/me/members"
     );
 
     expect(response.status).toBe(401);
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      "http://127.0.0.1:3101/v1/auth/web-sessions/exchange",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "X-AIHUB-End-User-IP": "198.51.100.10",
+        }),
+      })
+    );
     expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
     expect(await response.json()).toEqual({
       success: false,
@@ -165,6 +178,7 @@ describe("AIHUB Web Session BFF", () => {
     );
 
     const response = await authenticatedAihubFetch(
+      new Request(`${origin}/api/organizations/me/members`),
       "r".repeat(43),
       "/v1/organizations/me/members"
     );

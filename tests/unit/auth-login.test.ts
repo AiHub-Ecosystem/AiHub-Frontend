@@ -4,12 +4,15 @@ import { POST as logout } from "@/app/api/auth/logout/route";
 
 const request = (
   values: Record<string, string>,
-  origin: string | null = "http://localhost:3100"
+  origin: string | null = "http://localhost:3100",
+  extraHeaders: Record<string, string> = {}
 ) => {
   const headers = new Headers({
     "Content-Type": "application/x-www-form-urlencoded",
   });
   if (origin) headers.set("Origin", origin);
+  for (const [name, value] of Object.entries(extraHeaders))
+    headers.set(name, value);
   return new Request("http://localhost:3100/api/auth/login", {
     method: "POST",
     headers,
@@ -128,7 +131,14 @@ describe("Customer Web sign-in BFF", () => {
       );
 
       const response = await POST(
-        request({ email: "user@example.com", password: "secret", next })
+        request(
+          { email: "user@example.com", password: "secret", next },
+          "http://localhost:3100",
+          {
+            "X-Real-IP": "198.51.100.10",
+            "X-AIHUB-End-User-IP": "192.0.2.99",
+          }
+        )
       );
       const cookie = response.headers.get("set-cookie")!;
 
@@ -146,6 +156,7 @@ describe("Customer Web sign-in BFF", () => {
           headers: {
             "Content-Type": "application/json",
             "X-AIHUB-Client-Secret": "server-only-secret",
+            "X-AIHUB-End-User-IP": "198.51.100.10",
           },
           body: JSON.stringify({
             email: "user@example.com",
@@ -174,6 +185,7 @@ describe("Customer Web sign-in BFF", () => {
         headers: {
           Origin: "http://localhost:3100",
           Cookie: `__Host-aihub_web_session=${sessionId}`,
+          "X-Real-IP": "198.51.100.10",
         },
       })
     );
@@ -190,6 +202,7 @@ describe("Customer Web sign-in BFF", () => {
         headers: {
           "Content-Type": "application/json",
           "X-AIHUB-Client-Secret": "server-only-secret",
+          "X-AIHUB-End-User-IP": "198.51.100.10",
         },
         body: JSON.stringify({ web_session_token: sessionId }),
       })

@@ -1,6 +1,7 @@
 import { AUTH_NO_STORE, readAihubAuthError } from "@/lib/auth-bff";
 import {
   customerWebOrigin,
+  endUserIpFromHeaders,
   getCurrentWebSession,
   isWebSessionId,
   logoutFromAihubBestEffort,
@@ -57,7 +58,12 @@ async function verifyOnly(request: Request) {
   const cookies = [signupBindingCookie("", 0)];
   if (isWebSessionId(oldToken)) {
     try {
-      if (await getCurrentWebSession(oldToken))
+      if (
+        await getCurrentWebSession(
+          oldToken,
+          endUserIpFromHeaders(request.headers)
+        )
+      )
         return redirectTo("/console", cookies);
     } catch {
       return unavailable(true);
@@ -76,7 +82,11 @@ async function verificationSignIn(request: Request, upstream: Response) {
   }
 
   const oldToken = webSessionIdFromRequest(request);
-  if (isWebSessionId(oldToken)) void logoutFromAihubBestEffort(oldToken);
+  if (isWebSessionId(oldToken))
+    void logoutFromAihubBestEffort(
+      oldToken,
+      endUserIpFromHeaders(request.headers)
+    );
 
   return redirectTo("/console", [
     webSessionCookie(newToken, WEB_SESSION_TTL_SECONDS),
@@ -119,10 +129,14 @@ export async function POST(request: Request) {
   const browserBinding = signupBindingFromRequest(request);
   let upstream: Response;
   try {
-    upstream = await postAihubWebSession("/v1/auth/web-sessions/verification", {
-      token,
-      ...(browserBinding ? { browser_binding: browserBinding } : {}),
-    });
+    upstream = await postAihubWebSession(
+      "/v1/auth/web-sessions/verification",
+      {
+        token,
+        ...(browserBinding ? { browser_binding: browserBinding } : {}),
+      },
+      endUserIpFromHeaders(request.headers)
+    );
   } catch {
     return unavailable();
   }

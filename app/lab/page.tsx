@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import { ClearStaleSession } from "@/components/clear-stale-session";
 import { LoginForm } from "@/components/auth/login-form";
 import { SessionActivity } from "@/components/session-activity";
 import {
+  endUserIpFromHeaders,
   getCurrentWebSession,
   isWebSessionId,
   WEB_SESSION_COOKIE,
@@ -30,13 +31,14 @@ type LabPageProps = {
 export default async function LabPage({ searchParams }: LabPageProps) {
   const params = await searchParams;
   const sessionId = (await cookies()).get(WEB_SESSION_COOKIE)?.value;
+  const endUserIp = endUserIpFromHeaders(await headers());
   let clearStaleCookie = !!sessionId && !isWebSessionId(sessionId);
   let hasActiveSession = false;
   let sessionUnavailable = false;
 
   if (isWebSessionId(sessionId)) {
     try {
-      hasActiveSession = !!(await getCurrentWebSession(sessionId));
+      hasActiveSession = !!(await getCurrentWebSession(sessionId, endUserIp));
       clearStaleCookie = !hasActiveSession;
     } catch {
       sessionUnavailable = true;

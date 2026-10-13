@@ -9,6 +9,11 @@ export * from "@/lib/auth-cookies";
 export const WEB_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const ACCESS_TOKEN_EARLY_MS = 60_000;
 
+export function endUserIpFromHeaders(headers: Pick<Headers, "get">) {
+  // The VPS nginx overwrites X-Real-IP; AIHUB validates it at the trust boundary.
+  return headers.get("x-real-ip") ?? undefined;
+}
+
 type WebSession = {
   accessToken: string;
   accessTokenExpiresAt: number;
@@ -75,13 +80,18 @@ function clientSecret() {
   return secret;
 }
 
-export async function postAihubWebSession(path: string, body: unknown) {
+export async function postAihubWebSession(
+  path: string,
+  body: unknown,
+  endUserIp: string | undefined
+) {
   const secret = clientSecret();
   return fetch(aihubUrl(path), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(secret ? { "X-AIHUB-Client-Secret": secret } : {}),
+      ...(endUserIp ? { "X-AIHUB-End-User-IP": endUserIp } : {}),
     },
     body: JSON.stringify(body),
     cache: "no-store",
@@ -106,13 +116,20 @@ export async function readCreatedWebSession(response: Response) {
   return token;
 }
 
-async function exchangeWebSession(token: string): Promise<WebSession | null> {
+async function exchangeWebSession(
+  token: string,
+  endUserIp: string | undefined
+): Promise<WebSession | null> {
   if (!isWebSessionId(token)) return null;
   let response: Response;
   try {
-    response = await postAihubWebSession("/v1/auth/web-sessions/exchange", {
-      web_session_token: token,
-    });
+    response = await postAihubWebSession(
+      "/v1/auth/web-sessions/exchange",
+      {
+        web_session_token: token,
+      },
+      endUserIp
+    );
   } catch {
     throw new Error("AIHUB Web Session exchange failed");
   }
@@ -145,7 +162,10 @@ async function exchangeWebSession(token: string): Promise<WebSession | null> {
   return session;
 }
 
-export async function getCurrentWebSession(token: string) {
+export async function getCurrentWebSession(
+  token: string,
+  endUserIp: string | undefined
+) {
   if (!isWebSessionId(token)) return null;
   const cached = sessions.get(token);
   if (
@@ -156,7 +176,9 @@ export async function getCurrentWebSession(token: string) {
 
   let exchange = exchanges.get(token);
   if (!exchange) {
-    exchange = exchangeWebSession(token).finally(() => exchanges.delete(token));
+    exchange = exchangeWebSession(token, endUserIp).finally(() =>
+      exchanges.delete(token)
+    );
     exchanges.set(token, exchange);
   }
   return exchange;
@@ -176,7 +198,10 @@ export async function requireWebSession(request: Request) {
   if (!isWebSessionId(token)) return authRequired(headers);
 
   try {
-    if (await getCurrentWebSession(token)) return null;
+    if (
+      await getCurrentWebSession(token, endUserIpFromHeaders(request.headers))
+    )
+      return null;
   } catch {
     return new Response(
       JSON.stringify({
@@ -214,6 +239,7 @@ function authRequired(headers: Record<string, string>) {
 }
 
 export async function authenticatedAihubFetch(
+  request: Request,
   token: string,
   path: string,
   init: RequestInit = {}
@@ -222,7 +248,8 @@ export async function authenticatedAihubFetch(
   if (destination.origin !== new URL(aihubUrl("/")).origin)
     throw new Error("AIHUB path must be same-origin");
 
-  let session = await getCurrentWebSession(token);
+  const endUserIp = endUserIpFromHeaders(request.headers);
+  let session = await getCurrentWebSession(token, endUserIp);
   if (!session)
     return authRequired({
       "Cache-Control": "no-store",
@@ -242,7 +269,7 @@ export async function authenticatedAihubFetch(
   if (response.status !== 401) return response;
 
   sessions.delete(token);
-  session = await getCurrentWebSession(token);
+  session = await getCurrentWebSession(token, endUserIp);
   return session
     ? send(session.accessToken)
     : authRequired({
@@ -251,13 +278,20 @@ export async function authenticatedAihubFetch(
       });
 }
 
-export async function logoutFromAihubBestEffort(token: string) {
+export async function logoutFromAihubBestEffort(
+  token: string,
+  endUserIp: string | undefined
+) {
   if (!isWebSessionId(token)) return;
   clearWebSessionCache(token);
   try {
-    const response = await postAihubWebSession("/v1/auth/web-sessions/logout", {
-      web_session_token: token,
-    });
+    const response = await postAihubWebSession(
+      "/v1/auth/web-sessions/logout",
+      {
+        web_session_token: token,
+      },
+      endUserIp
+    );
     if (!response.ok) console.warn("[auth] AIHUB logout returned non-success");
   } catch {
     console.warn("[auth] AIHUB logout request failed");

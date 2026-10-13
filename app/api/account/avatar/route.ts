@@ -13,6 +13,7 @@ export async function DELETE(request: Request) {
   if (denied) return denied;
   try {
     const upstream = await authenticatedAihubFetch(
+      request,
       webSessionIdFromRequest(request)!,
       "/v1/me/avatar",
       { method: "DELETE" }

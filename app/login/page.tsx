@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
+  endUserIpFromHeaders,
   getCurrentWebSession,
   isWebSessionId,
   safeLocalPath,
@@ -29,11 +30,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     typeof params.next === "string" ? params.next : null
   );
   const sessionId = (await cookies()).get(WEB_SESSION_COOKIE)?.value;
+  const endUserIp = endUserIpFromHeaders(await headers());
   let clearStaleCookie = !!sessionId && !isWebSessionId(sessionId);
   let hasActiveSession = false;
   if (isWebSessionId(sessionId)) {
     try {
-      hasActiveSession = !!(await getCurrentWebSession(sessionId));
+      hasActiveSession = !!(await getCurrentWebSession(sessionId, endUserIp));
       clearStaleCookie = !hasActiveSession;
     } catch {
       // AIHUB is unavailable: keep the sign-in form usable and retain the cookie.

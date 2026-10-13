@@ -11,6 +11,7 @@ export async function GET(request: Request) {
   const sessionId = webSessionIdFromRequest(request)!;
   try {
     const upstream = await authenticatedAihubFetch(
+      request,
       sessionId,
       "/v1/organizations/me/members"
     );

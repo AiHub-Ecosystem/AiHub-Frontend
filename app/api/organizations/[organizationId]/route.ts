@@ -31,6 +31,7 @@ export async function PATCH(
   }
   try {
     const upstream = await authenticatedAihubFetch(
+      request,
       webSessionIdFromRequest(request)!,
       `/v1/organizations/${encodeURIComponent(organizationId)}`,
       {

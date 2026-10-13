@@ -16,8 +16,8 @@ export async function GET(request: Request) {
   const sessionId = webSessionIdFromRequest(request)!;
   try {
     const [identity, avatar] = await Promise.all([
-      authenticatedAihubFetch(sessionId, "/v1/me"),
-      authenticatedAihubFetch(sessionId, "/v1/me/avatar"),
+      authenticatedAihubFetch(request, sessionId, "/v1/me"),
+      authenticatedAihubFetch(request, sessionId, "/v1/me/avatar"),
     ]);
     if (!identity.ok) return upstreamFailure(identity, "ACCOUNT_UNAVAILABLE");
     if (!avatar.ok) return upstreamFailure(avatar, "AVATAR_UNAVAILABLE");
