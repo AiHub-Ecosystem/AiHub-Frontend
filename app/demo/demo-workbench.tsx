@@ -257,6 +257,12 @@ export function DemoWorkbench({
                 này; demo không tự đổi host.
               </p>
             </fieldset>
+            {stepperDisabled && (
+              <p className="demo-notice" role="status">
+                Đang có request chấm trong phiên demo. Chờ request kết thúc rồi
+                mới đổi API key hoặc môi trường.
+              </p>
+            )}
             {environment === "sandbox" && sandboxAllowance !== undefined && (
               <div className="demo-notice" data-testid="sandbox-allowance">
                 {sandboxAllowance &&

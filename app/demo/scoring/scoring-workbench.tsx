@@ -133,6 +133,9 @@ function httpSummary(trace: HttpTrace | null) {
 export default function ScoringWorkbench() {
   const {
     state,
+    grading,
+    beginGrading,
+    endGrading,
     setApiKey,
     setEnvironment,
     isSelectionCurrent,
@@ -362,6 +365,7 @@ export default function ScoringWorkbench() {
       });
       return;
     }
+    if (!beginGrading()) return;
 
     const submissionKey =
       result?.mode === "live" || !idempotencyKey
@@ -436,6 +440,7 @@ export default function ScoringWorkbench() {
     } finally {
       window.clearTimeout(timeout);
       setGradeStatus("idle");
+      endGrading();
     }
   };
 
@@ -652,7 +657,7 @@ export default function ScoringWorkbench() {
       description={`Thử Writing Task 1 và Task 2 theo đúng API contract. Bỏ qua key để xem fixture read-only; key ${demoEnvironmentName(environment)} hợp lệ mở chỉnh sửa và chấm thật.`}
       step={step}
       onStepChange={setStep}
-      stepperDisabled={gradeStatus === "submitting"}
+      stepperDisabled={grading || gradeStatus === "submitting"}
       mode={mode}
       status={
         gradeStatus === "submitting"
@@ -709,6 +714,7 @@ export default function ScoringWorkbench() {
             </label>
             <input
               autoComplete="off"
+              disabled={grading}
               id="writing-demo-key"
               onChange={(event) => {
                 setApiKey(event.target.value);
@@ -748,7 +754,7 @@ export default function ScoringWorkbench() {
           <div className="demo-step-actions">
             <button
               className="demo-btn-primary"
-              disabled={checkingKey || !apiKey.trim()}
+              disabled={grading || checkingKey || !apiKey.trim()}
               onClick={validateKey}
               type="button"
             >
@@ -756,7 +762,7 @@ export default function ScoringWorkbench() {
             </button>
             <button
               className="demo-btn-secondary"
-              disabled={checkingKey}
+              disabled={grading || checkingKey}
               onClick={useMock}
               type="button"
             >
@@ -953,6 +959,7 @@ export default function ScoringWorkbench() {
               className="demo-btn-primary"
               data-testid="button-grade"
               disabled={
+                grading ||
                 gradeStatus === "submitting" ||
                 (liveReady && (!!chartProblem || !draft.essay.trim()))
               }
@@ -967,7 +974,7 @@ export default function ScoringWorkbench() {
             </button>
             <button
               className="demo-btn-secondary"
-              disabled={gradeStatus === "submitting"}
+              disabled={grading || gradeStatus === "submitting"}
               onClick={() => setStep(3)}
               type="button"
             >

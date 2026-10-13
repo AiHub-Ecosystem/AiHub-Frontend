@@ -130,6 +130,52 @@ test("the environment cannot change while a live grade is in flight", async ({
   await expect(page.getByText("LIVE RESPONSE").first()).toBeVisible();
 });
 
+test("the shared key and environment stay locked across skills during grading", async ({
+  page,
+}) => {
+  await openDemo(page, "scoring");
+  await page.getByTestId("demo-environment-production").check();
+  await page.getByLabel("API key Production (tùy chọn)").fill(productionKey);
+  await page.getByRole("button", { name: "Kiểm tra key" }).click();
+  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await page.getByTestId("production-acknowledgement").check();
+
+  let releaseGrade!: () => void;
+  const gradeGate = new Promise<void>((resolve) => {
+    releaseGrade = resolve;
+  });
+  await page.route("**/api/demo/scoring/grade", async (route) => {
+    await gradeGate;
+    await route.continue();
+  });
+  await page.getByRole("button", { name: /Chấm thật Task 1/ }).click();
+
+  try {
+    await expect(
+      page.getByTestId("demo-environment-production")
+    ).toBeDisabled();
+    await page.getByRole("link", { name: "Speaking" }).click();
+    await expect(
+      page.getByTestId("demo-environment-production")
+    ).toBeDisabled();
+    await expect(
+      page.getByLabel("API key Production (tùy chọn)")
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Kiểm tra key" })
+    ).toBeDisabled();
+    await expect(
+      page.getByText("Đang có request chấm trong phiên demo")
+    ).toBeVisible();
+  } finally {
+    releaseGrade();
+  }
+
+  await expect(page.getByTestId("demo-environment-production")).toBeEnabled();
+  await expect(page.getByLabel("API key Production (tùy chọn)")).toBeEnabled();
+});
+
 test("the first Production grade needs the billable acknowledgement", async ({
   page,
 }) => {

@@ -140,6 +140,9 @@ function fileProblem(file: File | null) {
 export default function SpeakingWorkbench() {
   const {
     state,
+    grading,
+    beginGrading,
+    endGrading,
     setApiKey,
     setEnvironment,
     isSelectionCurrent,
@@ -561,6 +564,7 @@ export default function SpeakingWorkbench() {
       return;
     }
     if (!prompt || !file) return;
+    if (!beginGrading()) return;
 
     setSubmitting(true);
     setGradeAttempted(true);
@@ -635,6 +639,7 @@ export default function SpeakingWorkbench() {
     } finally {
       window.clearTimeout(timeout);
       setSubmitting(false);
+      endGrading();
     }
   };
 
@@ -982,7 +987,7 @@ export default function SpeakingWorkbench() {
       description={`Chọn Speaking Part, ghi âm hoặc tải câu trả lời lên khi dùng key ${demoEnvironmentName(environment)}. Bỏ qua key để xem fixture read-only và kết quả mẫu cố định.`}
       step={step}
       onStepChange={changeStep}
-      stepperDisabled={submitting}
+      stepperDisabled={grading || submitting}
       mode={mode}
       status={traceStatus}
       request={requestForStep()}
@@ -1022,6 +1027,7 @@ export default function SpeakingWorkbench() {
             </label>
             <input
               autoComplete="off"
+              disabled={grading}
               id="speaking-demo-key"
               onChange={(event) => {
                 setApiKey(event.target.value);
@@ -1067,7 +1073,7 @@ export default function SpeakingWorkbench() {
           <div className="demo-step-actions">
             <button
               className="demo-btn-primary"
-              disabled={checkingKey || !apiKey.trim()}
+              disabled={grading || checkingKey || !apiKey.trim()}
               onClick={validateKey}
               type="button"
             >
@@ -1075,7 +1081,7 @@ export default function SpeakingWorkbench() {
             </button>
             <button
               className="demo-btn-secondary"
-              disabled={checkingKey}
+              disabled={grading || checkingKey}
               onClick={useMock}
               type="button"
             >
@@ -1293,6 +1299,7 @@ export default function SpeakingWorkbench() {
             <button
               className="demo-btn-primary"
               disabled={
+                grading ||
                 submitting ||
                 (liveReady &&
                   (!prompt ||
@@ -1311,7 +1318,7 @@ export default function SpeakingWorkbench() {
             </button>
             <button
               className="demo-btn-secondary"
-              disabled={submitting}
+              disabled={grading || submitting}
               onClick={() => changeStep(3)}
               type="button"
             >

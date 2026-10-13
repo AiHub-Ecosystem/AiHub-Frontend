@@ -167,10 +167,20 @@ describe("Agent prompt", () => {
     expect(prompt).not.toMatch(/retry|repeat|again/i);
   });
 
+  it("keeps the visitor's answer out of the prompt and never asks the agent to execute", () => {
+    const { prompt } = buildDemoExports(request());
+
+    expect(prompt).not.toContain(HOSTILE_ESSAY);
+    expect(prompt).not.toContain("rm -rf /tmp");
+    expect(prompt).toContain("Body: <thay bằng JSON request của bạn");
+    expect(prompt).toContain("Không đọc môi trường máy, chạy tool, gọi mạng");
+    expect(prompt).toContain("không chạy request");
+  });
+
   it("tells the agent that a Production call can be billed", () => {
     const { prompt } = buildDemoExports(request({ environment: "production" }));
 
     expect(prompt).toMatch(/có thể phát sinh chi phí/i);
-    expect(prompt).toMatch(/xin phép trước lần gửi đầu tiên/i);
+    expect(prompt).toMatch(/để người dùng xem xét trước khi chạy/i);
   });
 });

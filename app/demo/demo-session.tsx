@@ -32,6 +32,9 @@ export type { DemoScope };
 
 type DemoSession = {
   state: DemoVisitState;
+  grading: boolean;
+  beginGrading: () => boolean;
+  endGrading: () => void;
   setApiKey: (value: string) => void;
   setEnvironment: (value: DemoEnvironment) => void;
   isSelectionCurrent: (apiKey: string, environment: DemoEnvironment) => boolean;
@@ -47,14 +50,16 @@ const DemoSessionContext = createContext<DemoSession | null>(null);
 
 /**
  * One Demo visit, shared by the Writing and Speaking pages. Everything here
- * lives in the page: the key, the selected environment, the validation results
- * and the Production acknowledgement (ADR-0018). Leaving the demo, a logout in
- * any tab, or a bfcache restore drops all of it.
+ * lives in the page: the key, the selected environment, the validation results,
+ * the Production acknowledgement, and the in-flight grade lock (ADR-0018).
+ * Leaving the demo, a logout in any tab, or a bfcache restore drops the visit.
  */
 export function DemoSessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState(createDemoVisitState);
+  const [grading, setGrading] = useState(false);
   const stateRef = useRef(state);
   const identity = useRef<string | null>(null);
+  const gradingRef = useRef(false);
 
   const update = useCallback((next: DemoVisitState) => {
     stateRef.current = next;
@@ -89,6 +94,16 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       update(setEnvironmentIn(stateRef.current, value)),
     [update]
   );
+  const beginGrading = useCallback(() => {
+    if (gradingRef.current) return false;
+    gradingRef.current = true;
+    setGrading(true);
+    return true;
+  }, []);
+  const endGrading = useCallback(() => {
+    gradingRef.current = false;
+    setGrading(false);
+  }, []);
   const isSelectionCurrent = useCallback(
     (apiKey: string, environment: DemoEnvironment) =>
       isSelectionCurrentIn(stateRef.current, apiKey, environment),
@@ -122,6 +137,9 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       state,
+      grading,
+      beginGrading,
+      endGrading,
       setApiKey,
       setEnvironment,
       isSelectionCurrent,
@@ -134,6 +152,9 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     }),
     [
       state,
+      grading,
+      beginGrading,
+      endGrading,
       setApiKey,
       setEnvironment,
       isSelectionCurrent,
