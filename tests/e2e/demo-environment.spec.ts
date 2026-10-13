@@ -342,3 +342,57 @@ test("a logout in another tab clears the key the demo is holding", async ({
   await expect(page.getByTestId("production-acknowledgement")).toHaveCount(0);
   await otherTab.close();
 });
+
+const UUID =
+  /Idempotency-Key: [0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+
+test("a Writing export sends the endpoint's body and an Idempotency-Key", async ({
+  page,
+}) => {
+  await openDemo(page, "scoring");
+  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
+  const artifact = page.getByTestId("export-artifact");
+
+  for (const task of [1, 2] as const) {
+    await page.getByTestId(`tab-task-${task}`).click();
+    await expect(artifact).toContainText("--data-raw");
+    await expect(artifact).toContainText(UUID);
+    // `task` routes inside the BFF; the endpoint's schemas refuse it.
+    await expect(artifact).not.toContainText(/"task"\s*:/);
+    await expect(artifact).toContainText(
+      task === 1 ? /"chart_type"\s*:/ : /"topic"\s*:/
+    );
+  }
+});
+
+test("jumping past key setup with the stepper still exports an Idempotency-Key", async ({
+  page,
+}) => {
+  await openDemo(page, "scoring");
+  await page
+    .getByRole("navigation", { name: "Các bước demo" })
+    .getByRole("button", { name: /Chấm và xem kết quả/ })
+    .click();
+
+  await expect(page.getByTestId("export-artifact")).toContainText(UUID);
+});
+
+test("a Speaking export keeps the sample recording's own question", async ({
+  page,
+}) => {
+  await openDemo(page, "speaking");
+  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
+  await page.getByRole("button", { name: "Part 3" }).click();
+  await page.locator(".demo-scenario-list button").nth(1).click();
+  await page
+    .getByRole("navigation", { name: "Các bước demo" })
+    .getByRole("button", { name: /Chấm và xem kết quả/ })
+    .click();
+
+  const artifact = page.getByTestId("export-artifact");
+  await expect(artifact).toContainText(
+    /"question_id"\s*:\s*"p1_do-you-enjoy-living-in-your-city-or-hometown"/
+  );
+  await expect(artifact).toContainText(/"part"\s*:\s*1\b/);
+  await expect(artifact).not.toContainText("p3_");
+});
