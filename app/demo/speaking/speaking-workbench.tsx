@@ -23,6 +23,7 @@ import { errorFromPayload, type PublicError } from "../scoring/scoring-client";
 
 const SCOPE: DemoScope = "speaking.grade";
 const PARTS = [1, 2, 3] as const;
+const SPEAKING_CLIENT_TIMEOUT_MS = 75_000;
 const SCENARIOS = [
   {
     id: "revoked",
@@ -264,6 +265,9 @@ export default function SpeakingWorkbench() {
   };
 
   const changeStep = (next: DemoStep) => {
+    if (step === 3 && next !== 3 && recorder.current?.state === "recording") {
+      recorder.current.stop();
+    }
     if (next === 2 && step !== 2 && liveReady) {
       setQuestionLoading(true);
       setQuestionError(null);
@@ -514,7 +518,13 @@ export default function SpeakingWorkbench() {
       state: "pending",
       request: `/v1/ielts/speaking/grading · Part ${part}`,
     });
+    const controller = new AbortController();
+    const timeout = window.setTimeout(
+      () => controller.abort("speaking-client-timeout"),
+      SPEAKING_CLIENT_TIMEOUT_MS
+    );
     let receivedHttpResponse = false;
+    let responseTrace: HttpTrace | null = null;
     try {
       const response = await fetch("/api/demo/speaking/grading", {
         method: "POST",
@@ -523,11 +533,14 @@ export default function SpeakingWorkbench() {
           "X-Demo-User-Identity": getUserIdentity(),
         },
         body: form,
+        signal: controller.signal,
         cache: "no-store",
       });
       receivedHttpResponse = true;
-      setGradeTrace(httpTrace(response));
+      responseTrace = httpTrace(response);
+      setGradeTrace(responseTrace);
       const payload: unknown = await response.json().catch(() => null);
+      if (controller.signal.aborted) throw new Error("speaking-client-timeout");
       setGradeResponse(payload);
       if (!response.ok) throw errorFromPayload(payload);
       if (!isSpeakingGradingEnvelope(payload))
@@ -543,17 +556,26 @@ export default function SpeakingWorkbench() {
         "code" in caught &&
         "message" in caught
           ? (caught as PublicError)
-          : {
-              code: "AI_SERVICE_UNAVAILABLE",
-              message: "Không gửi được audio. Kiểm tra kết nối rồi thử lại.",
-            };
+          : controller.signal.aborted
+            ? {
+                code: "AI_SERVICE_TIMEOUT",
+                message:
+                  "Chưa nhận được phản hồi sau 75 giây. Yêu cầu có thể đã được gửi để chấm; kiểm tra trạng thái trước khi gửi lại vì lần gửi lại là lượt mới.",
+              }
+            : {
+                code: "AI_SERVICE_UNAVAILABLE",
+                message: "Không gửi được audio. Kiểm tra kết nối rồi thử lại.",
+              };
       setError(publicError);
-      if (!receivedHttpResponse)
+      if (!receivedHttpResponse || controller.signal.aborted)
         setGradeResponse({
           error: { code: publicError.code, message: publicError.message },
-          http_response: null,
+          http_response: responseTrace
+            ? { status: responseTrace.status }
+            : null,
         });
     } finally {
+      window.clearTimeout(timeout);
       setSubmitting(false);
     }
   };
