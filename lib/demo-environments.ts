@@ -9,6 +9,9 @@ export type DemoEnvironment = (typeof DEMO_ENVIRONMENTS)[number];
 
 export const DEFAULT_DEMO_ENVIRONMENT: DemoEnvironment = "sandbox";
 
+/** What a demo key is validated for, shared by the page and its BFF route. */
+export type DemoScope = "writing.grade" | "speaking.grade";
+
 const DEMO_ENVIRONMENT_HOSTS: Record<DemoEnvironment, string> = {
   sandbox: "https://sandbox.aihubproduction.com",
   production: "https://api.aihubproduction.com",

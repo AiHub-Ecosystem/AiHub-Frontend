@@ -743,8 +743,6 @@ export function buildSampleRequests({
 export const RAW_KEY_IN_COMMAND_WARNING =
   "Lệnh đã chứa API key. Đừng chia sẻ lệnh này, và key có thể còn lại trong lịch sử của shell.";
 
-const RAW_KEY_FORMAT = API_KEY_RAW_FORMAT;
-
 /**
  * Whether a value the holder supplies is this key's raw key: the backend's key
  * format, starting with the key's own display prefix. Surrounding whitespace
@@ -756,7 +754,8 @@ export function isRawKeyFor(
 ): boolean {
   const candidate = value.trim();
   return (
-    RAW_KEY_FORMAT.test(candidate) && candidate.startsWith(apiKey.key_prefix)
+    API_KEY_RAW_FORMAT.test(candidate) &&
+    candidate.startsWith(apiKey.key_prefix)
   );
 }
 

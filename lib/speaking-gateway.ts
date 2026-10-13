@@ -11,6 +11,7 @@ import {
   isDemoEnvironment,
   isSameOrigin,
   readDemoApiKey,
+  readDemoEnvironment,
   readDemoUserIdentity,
   resolveDemoBaseUrl,
 } from "@/lib/demo-gateway";
@@ -452,7 +453,7 @@ export async function gradeSpeaking(
     toUpstreamForm(input),
     apiKey,
     userIdentity,
-    request.headers.get("x-demo-environment")?.trim() ?? ""
+    readDemoEnvironment(request)
   );
 }
 
@@ -493,6 +494,6 @@ export async function gradeSpeakingByUrl(
     }),
     apiKey,
     userIdentity,
-    request.headers.get("x-demo-environment")?.trim() ?? ""
+    readDemoEnvironment(request)
   );
 }

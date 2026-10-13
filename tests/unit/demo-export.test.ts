@@ -103,6 +103,15 @@ describe("cURL for a Bash-compatible shell", () => {
 });
 
 describe("PowerShell", () => {
+  it("doubles the typographic quotes PowerShell reads as single quotes", () => {
+    const essay = "it\u2019s; Write-Output PWNED; \u2018x\u201A\u201B";
+    const { powershell } = buildDemoExports(request({ body: { essay } }));
+
+    expect(powershell).toContain(
+      "\u2019\u2019s; Write-Output PWNED; \u2018\u2018x\u201A\u201A\u201B\u201B"
+    );
+  });
+
   it("keeps user-authored text inside the quoted body variable", () => {
     const { powershell } = buildDemoExports(request());
 

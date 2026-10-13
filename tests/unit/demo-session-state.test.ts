@@ -37,6 +37,7 @@ describe("Demo visit", () => {
       environment: "sandbox",
       validatedScopes: [],
       productionAcknowledged: false,
+      generation: 0,
     });
     expect(DEMO_ENVIRONMENTS[0]).toBe("sandbox");
     expect(requiresProductionAcknowledgement(state)).toBe(false);
@@ -76,26 +77,44 @@ describe("Changing the environment", () => {
 describe("A late validation response", () => {
   it("cannot unlock the key it was sent for once the key has changed", () => {
     const submitted = { apiKey: KEY, environment: "sandbox" } as const;
-    const changed = setApiKey(validated(), "aihub_prod_" + "C".repeat(43));
+    const before = validated();
+    const changed = setApiKey(before, "aihub_prod_" + "C".repeat(43));
 
     expect(
-      isSelectionCurrent(changed, submitted.apiKey, submitted.environment)
+      isSelectionCurrent(
+        changed,
+        submitted.apiKey,
+        submitted.environment,
+        before.generation
+      )
     ).toBe(false);
   });
 
   it("cannot unlock the environment it was sent for once the selection has changed", () => {
-    const changed = setEnvironment(
-      setApiKey(createDemoVisitState(), KEY),
-      "production"
-    );
+    const before = setApiKey(createDemoVisitState(), KEY);
+    const changed = setEnvironment(before, "production");
 
-    expect(isSelectionCurrent(changed, KEY, "sandbox")).toBe(false);
+    expect(isSelectionCurrent(changed, KEY, "sandbox", before.generation)).toBe(
+      false
+    );
+  });
+
+  it("cannot unlock a selection the visitor left and came back to (A, B, A)", () => {
+    const sent = setApiKey(createDemoVisitState(), KEY);
+    const back = setEnvironment(setEnvironment(sent, "production"), "sandbox");
+
+    expect(back.environment).toBe(sent.environment);
+    expect(isSelectionCurrent(back, KEY, "sandbox", sent.generation)).toBe(
+      false
+    );
   });
 
   it("still applies when neither has changed", () => {
     const state = setApiKey(createDemoVisitState(), `  ${KEY}  `);
 
-    expect(isSelectionCurrent(state, KEY, "sandbox")).toBe(true);
+    expect(isSelectionCurrent(state, KEY, "sandbox", state.generation)).toBe(
+      true
+    );
   });
 });
 
@@ -118,7 +137,11 @@ describe("Production acknowledgement", () => {
 
 describe("Leaving the demo", () => {
   it("clears the key, the validation and the acknowledgement", () => {
-    expect(clearDemoVisit()).toEqual(createDemoVisitState());
+    const before = validated();
+    const cleared = clearDemoVisit(before);
+
+    expect({ ...cleared, generation: 0 }).toEqual(createDemoVisitState());
+    expect(cleared.generation).toBeGreaterThan(before.generation);
   });
 });
 

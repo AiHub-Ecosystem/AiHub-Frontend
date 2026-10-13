@@ -1,3 +1,5 @@
+import { demoEnvironmentLabel } from "@/lib/demo-environments";
+
 /**
  * Every display prefix the backend issues a key under: one per Environment a new
  * key can be bound to, plus the shared prefix every key issued before that
@@ -26,8 +28,8 @@ export const API_KEY_ENVIRONMENTS = [
 export type ApiKeyEnvironment = (typeof API_KEY_ENVIRONMENTS)[number];
 
 const API_KEY_ENVIRONMENT_LABELS: Record<ApiKeyEnvironment, string> = {
-  production: "Production (tính phí)",
-  sandbox: "Sandbox (miễn phí)",
+  production: demoEnvironmentLabel("production"),
+  sandbox: demoEnvironmentLabel("sandbox"),
   staging: "Staging",
 };
 

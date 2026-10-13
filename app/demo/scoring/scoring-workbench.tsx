@@ -139,6 +139,7 @@ export default function ScoringWorkbench() {
     endGrading,
     setApiKey,
     setEnvironment,
+    selectionGeneration,
     isSelectionCurrent,
     isScopeValidated,
     markScopeValidated,
@@ -274,6 +275,7 @@ export default function ScoringWorkbench() {
   const validateKey = async () => {
     const submittedKey = apiKey.trim();
     const submittedEnvironment = environment;
+    const submittedGeneration = selectionGeneration();
     if (!submittedKey) {
       setKeyError({
         code: "UNAUTHORIZED",
@@ -301,11 +303,25 @@ export default function ScoringWorkbench() {
         cache: "no-store",
       });
       // A changed key or environment discards the answer to this question.
-      if (!isSelectionCurrent(submittedKey, submittedEnvironment)) return;
+      if (
+        !isSelectionCurrent(
+          submittedKey,
+          submittedEnvironment,
+          submittedGeneration
+        )
+      )
+        return;
       receivedTrace = httpTrace(response);
       setKeyCheckTrace(receivedTrace);
       const payload: unknown = await response.json().catch(() => null);
-      if (!isSelectionCurrent(submittedKey, submittedEnvironment)) return;
+      if (
+        !isSelectionCurrent(
+          submittedKey,
+          submittedEnvironment,
+          submittedGeneration
+        )
+      )
+        return;
       setKeyCheckResponse(payload);
       if (!response.ok) throw errorFromPayload(payload);
       if (
@@ -326,7 +342,14 @@ export default function ScoringWorkbench() {
       setIdempotencyKey(globalThis.crypto.randomUUID());
       setStep(2);
     } catch (caught) {
-      if (!isSelectionCurrent(submittedKey, submittedEnvironment)) return;
+      if (
+        !isSelectionCurrent(
+          submittedKey,
+          submittedEnvironment,
+          submittedGeneration
+        )
+      )
+        return;
       clearScopeValidation();
       const publicError =
         typeof caught === "object" &&

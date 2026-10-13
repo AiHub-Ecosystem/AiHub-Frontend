@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { readDemoEnvironment } from "@/lib/demo-gateway";
 import { getDemoBaseUrl, SpeakingBoundaryError } from "@/lib/speaking-gateway";
 
 export const runtime = "nodejs";
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
       "/v1/ielts/speaking/questions",
       // The catalog is public and unauthenticated, but it still answers for the
       // tier the visit selected, so it follows that host rather than a default.
-      `${getDemoBaseUrl(request.headers.get("x-demo-environment")?.trim() ?? "")}/`
+      `${getDemoBaseUrl(readDemoEnvironment(request))}/`
     );
     upstreamUrl.searchParams.set("part", String(part));
     const response = await fetch(upstreamUrl, {

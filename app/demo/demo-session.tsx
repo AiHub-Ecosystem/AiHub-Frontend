@@ -37,7 +37,13 @@ type DemoSession = {
   endGrading: () => void;
   setApiKey: (value: string) => void;
   setEnvironment: (value: DemoEnvironment) => void;
-  isSelectionCurrent: (apiKey: string, environment: DemoEnvironment) => boolean;
+  /** The counter to capture at submit and pass back to isSelectionCurrent. */
+  selectionGeneration: () => number;
+  isSelectionCurrent: (
+    apiKey: string,
+    environment: DemoEnvironment,
+    generation: number
+  ) => boolean;
   isScopeValidated: (scope: DemoScope) => boolean;
   markScopeValidated: (scope: DemoScope) => void;
   clearScopeValidation: () => void;
@@ -69,7 +75,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const forget = () => {
       identity.current = null;
-      update(clearDemoVisit());
+      update(clearDemoVisit(stateRef.current));
     };
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) forget();
@@ -104,9 +110,13 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     gradingRef.current = false;
     setGrading(false);
   }, []);
+  const selectionGeneration = useCallback(
+    () => stateRef.current.generation,
+    []
+  );
   const isSelectionCurrent = useCallback(
-    (apiKey: string, environment: DemoEnvironment) =>
-      isSelectionCurrentIn(stateRef.current, apiKey, environment),
+    (apiKey: string, environment: DemoEnvironment, generation: number) =>
+      isSelectionCurrentIn(stateRef.current, apiKey, environment, generation),
     []
   );
   const isScopeValidated = useCallback(
@@ -142,6 +152,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       endGrading,
       setApiKey,
       setEnvironment,
+      selectionGeneration,
       isSelectionCurrent,
       isScopeValidated,
       markScopeValidated,
@@ -157,6 +168,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       endGrading,
       setApiKey,
       setEnvironment,
+      selectionGeneration,
       isSelectionCurrent,
       isScopeValidated,
       markScopeValidated,

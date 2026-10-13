@@ -41,7 +41,7 @@ const MESSAGE_BY_CODE: Record<SpeakingErrorCode, string> = {
 const UPSTREAM_MESSAGES: Record<string, string> = {
   FORBIDDEN:
     "API key thiếu scope speaking.grade hoặc Organization đang bật Identity Configuration.",
-  ENVIRONMENT_NOT_ALLOWED: "Key không được phép cho môi trường đã chọn.",
+  ENVIRONMENT_NOT_ALLOWED: "Key không được phép cho môi trường demo đã chọn.",
   USER_IDENTITY_REQUIRED: "Thiếu User Identity của phiên demo.",
   RATE_LIMITED: "Bạn gửi hơi nhanh. Chờ một chút rồi thử lại.",
   CONCURRENCY_LIMIT: "AIHUB đang xử lý một bài khác. Chờ xong rồi thử lại.",

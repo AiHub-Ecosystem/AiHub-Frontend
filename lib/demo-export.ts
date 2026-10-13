@@ -40,8 +40,9 @@ function posixQuoted(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
+/** PowerShell also reads U+2018-U+201B as single quotes; each must be doubled. */
 function powershellQuoted(value: string) {
-  return `'${value.replaceAll("'", "''")}'`;
+  return `'${value.replace(/['‘-‛]/g, "$&$&")}'`;
 }
 
 /**

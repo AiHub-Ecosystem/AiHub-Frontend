@@ -1,7 +1,7 @@
-import type { DemoEnvironment } from "@/lib/demo-environments";
+import type { DemoEnvironment, DemoScope } from "@/lib/demo-environments";
 import { DEFAULT_DEMO_ENVIRONMENT } from "@/lib/demo-environments";
 
-export type DemoScope = "writing.grade" | "speaking.grade";
+export type { DemoScope };
 
 /**
  * One Demo visit's whole mutable state. Held in the page and nowhere else: no
@@ -15,6 +15,8 @@ export type DemoVisitState = {
   /** Scopes this key validated for, in the environment now selected. */
   validatedScopes: readonly DemoScope[];
   productionAcknowledged: boolean;
+  /** Bumps on every real change of key or environment, so A to B to A is not A. */
+  generation: number;
 };
 
 export function createDemoVisitState(): DemoVisitState {
@@ -23,6 +25,7 @@ export function createDemoVisitState(): DemoVisitState {
     environment: DEFAULT_DEMO_ENVIRONMENT,
     validatedScopes: [],
     productionAcknowledged: false,
+    generation: 0,
   };
 }
 
@@ -34,6 +37,7 @@ export function setApiKey(state: DemoVisitState, apiKey: string) {
     apiKey,
     validatedScopes: [],
     productionAcknowledged: false,
+    generation: state.generation + 1,
   };
 }
 
@@ -47,21 +51,26 @@ export function setEnvironment(
     environment,
     validatedScopes: [],
     productionAcknowledged: false,
+    generation: state.generation + 1,
   };
 }
 
 /**
  * Whether a validation response still belongs to the key and environment on
  * screen. A visitor who edits the key or switches environment while a check is
- * in flight must not have the late answer unlock the new selection.
+ * in flight must not have the late answer unlock the new selection. The
+ * generation also catches a return to an earlier selection (A, B, A again).
  */
 export function isSelectionCurrent(
   state: DemoVisitState,
   apiKey: string,
-  environment: DemoEnvironment
+  environment: DemoEnvironment,
+  generation: number
 ) {
   return (
-    state.apiKey.trim() === apiKey.trim() && state.environment === environment
+    state.generation === generation &&
+    state.apiKey.trim() === apiKey.trim() &&
+    state.environment === environment
   );
 }
 
@@ -93,8 +102,8 @@ export function acknowledgeProduction(state: DemoVisitState) {
 }
 
 /** Leaving the demo, logging out in any tab, or a bfcache restore. */
-export function clearDemoVisit(): DemoVisitState {
-  return createDemoVisitState();
+export function clearDemoVisit(state: DemoVisitState): DemoVisitState {
+  return { ...createDemoVisitState(), generation: state.generation + 1 };
 }
 
 /**
@@ -166,8 +175,8 @@ export function sandboxAllowanceFrom(
 /** Dispatches left under both the Organization and shared Sandbox caps. */
 export function remainingAllowance(snapshot: SandboxAllowanceSnapshot) {
   return Math.min(
-    Math.max(0, snapshot.monthlyLimit - snapshot.reserved),
-    Math.max(0, snapshot.sharedMonthlyLimit - snapshot.sharedReserved)
+    remainingOrganizationAllowance(snapshot),
+    remainingSharedAllowance(snapshot)
   );
 }
 

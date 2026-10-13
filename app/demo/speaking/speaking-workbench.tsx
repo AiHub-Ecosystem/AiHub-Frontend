@@ -14,7 +14,10 @@ import {
   isSpeakingGradingEnvelope,
   type SpeakingGradingEnvelope,
 } from "@/data/speaking-response";
-import { demoEnvironmentName } from "@/lib/demo-environments";
+import {
+  demoEnvironmentName,
+  type DemoEnvironment,
+} from "@/lib/demo-environments";
 import { buildDemoExports } from "@/lib/demo-export";
 import { useDemoSession, type DemoScope } from "@/app/demo/demo-session";
 import { sandboxAllowanceFrom } from "@/app/demo/demo-session-state";
@@ -26,6 +29,19 @@ import {
 import { errorFromPayload, type PublicError } from "../scoring/scoring-client";
 
 const SCOPE: DemoScope = "speaking.grade";
+
+/** Shown where a failed grade is retried and where retries are explained. */
+function SpeakingRetryNote({ environment }: { environment: DemoEnvironment }) {
+  return (
+    <div className="demo-notice" data-testid="speaking-retry-note">
+      Speaking không có Idempotency-Key và demo không tự gửi lại. Bấm “Chấm
+      thật” lần nữa là một lượt mới
+      {environment === "production"
+        ? " và có thể phát sinh chi phí thật."
+        : ", dùng thêm một lượt trong hạn mức Sandbox."}
+    </div>
+  );
+}
 const PARTS = [1, 2, 3] as const;
 const SPEAKING_CLIENT_TIMEOUT_MS = 75_000;
 const SCENARIOS = [
@@ -145,6 +161,7 @@ export default function SpeakingWorkbench() {
     endGrading,
     setApiKey,
     setEnvironment,
+    selectionGeneration,
     isSelectionCurrent,
     isScopeValidated,
     markScopeValidated,
@@ -331,6 +348,7 @@ export default function SpeakingWorkbench() {
   const validateKey = async () => {
     const submittedKey = apiKey.trim();
     const submittedEnvironment = environment;
+    const submittedGeneration = selectionGeneration();
     if (!submittedKey) {
       setKeyError({
         code: "UNAUTHORIZED",
@@ -366,11 +384,25 @@ export default function SpeakingWorkbench() {
         cache: "no-store",
       });
       // A changed key or environment discards the answer to this question.
-      if (!isSelectionCurrent(submittedKey, submittedEnvironment)) return;
+      if (
+        !isSelectionCurrent(
+          submittedKey,
+          submittedEnvironment,
+          submittedGeneration
+        )
+      )
+        return;
       receivedHttpResponse = true;
       setKeyCheckTrace(httpTrace(response));
       const payload: unknown = await response.json().catch(() => null);
-      if (!isSelectionCurrent(submittedKey, submittedEnvironment)) return;
+      if (
+        !isSelectionCurrent(
+          submittedKey,
+          submittedEnvironment,
+          submittedGeneration
+        )
+      )
+        return;
       setKeyCheckResponse(payload);
       if (!response.ok) throw errorFromPayload(payload);
       if (
@@ -397,7 +429,14 @@ export default function SpeakingWorkbench() {
       });
       setStep(2);
     } catch (caught) {
-      if (!isSelectionCurrent(submittedKey, submittedEnvironment)) return;
+      if (
+        !isSelectionCurrent(
+          submittedKey,
+          submittedEnvironment,
+          submittedGeneration
+        )
+      )
+        return;
       clearScopeValidation();
       const publicError =
         typeof caught === "object" &&
@@ -1298,6 +1337,9 @@ export default function SpeakingWorkbench() {
                 : ""}
             </div>
           )}
+          {liveReady && error && (
+            <SpeakingRetryNote environment={environment} />
+          )}
           <div className="demo-step-actions">
             <button
               className="demo-btn-primary"
@@ -1416,13 +1458,7 @@ export default function SpeakingWorkbench() {
             <span aria-hidden="true">⚠</span> Khi key bị thu hồi sau bước 1,
             backend sẽ từ chối request chấm trước khi dispatch.
           </div>
-          <div className="demo-notice" data-testid="speaking-retry-note">
-            Speaking không có Idempotency-Key và demo không tự gửi lại. Bấm
-            “Chấm thật” lần nữa là một lượt mới
-            {environment === "production"
-              ? " và có thể phát sinh chi phí thật."
-              : ", dùng thêm một lượt trong hạn mức Sandbox."}
-          </div>
+          <SpeakingRetryNote environment={environment} />
         </>
       )}
     </DemoWorkbench>

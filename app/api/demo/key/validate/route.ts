@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import type { DemoEnvironment } from "@/lib/demo-environments";
-import type { DemoScope } from "@/app/demo/demo-session-state";
+import type { DemoScope } from "@/lib/demo-environments";
 import {
   DemoBoundaryError,
   DemoCredentialError,

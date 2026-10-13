@@ -13,6 +13,7 @@ import {
   isDemoEnvironment,
   isSameOrigin,
   readDemoApiKey,
+  readDemoEnvironment,
   readDemoUserIdentity,
   resolveDemoBaseUrl,
 } from "@/lib/demo-gateway";
@@ -259,9 +260,7 @@ export async function gradeWriting(
     }
     throw error;
   }
-  const baseUrl = getDemoBaseUrl(
-    request.headers.get("x-demo-environment")?.trim() ?? ""
-  );
+  const baseUrl = getDemoBaseUrl(readDemoEnvironment(request));
 
   // The browser retains this key for retries of the same logical submission.
   const idempotencyKey = readIdempotencyKey(request);

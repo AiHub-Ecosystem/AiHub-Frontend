@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { apiKeyScopeOptions } from "@/lib/api-key-scopes";
+import { demoEnvironmentLabel } from "@/lib/demo-environments";
 import {
   Dialog,
   DialogContent,
@@ -25,8 +26,12 @@ export type CreateApiKeyResult = boolean | "uncertain";
  * a first call on it costs the Organization nothing (ADR-0018).
  */
 const CREATE_ENVIRONMENTS = [
-  { value: "sandbox", label: "Sandbox (miễn phí)", billed: false },
-  { value: "production", label: "Production (tính phí)", billed: true },
+  { value: "sandbox", label: demoEnvironmentLabel("sandbox"), billed: false },
+  {
+    value: "production",
+    label: demoEnvironmentLabel("production"),
+    billed: true,
+  },
 ] as const;
 
 type CreateEnvironment = (typeof CREATE_ENVIRONMENTS)[number]["value"];

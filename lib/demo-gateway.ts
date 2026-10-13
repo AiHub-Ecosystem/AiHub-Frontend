@@ -1,6 +1,7 @@
 import { isIP } from "node:net";
 
 import {
+  DEMO_ENVIRONMENTS,
   demoEnvironmentHost,
   type DemoEnvironment,
 } from "@/lib/demo-environments";
@@ -47,18 +48,13 @@ export function demoBffHeaders(request: Request): HeadersInit {
   if (required && !secret) throw new DemoBoundaryError();
 
   const forwardedFor = request.headers.get("x-forwarded-for");
-  const visitorIp = forwardedFor?.split(",").at(-1)?.trim();
-  if (!visitorIp || isIP(visitorIp) === 0) {
-    if (required) throw new DemoBoundaryError();
-    return {
-      ...(secret ? { "X-AIHUB-Client-Secret": secret } : {}),
-      "X-AIHUB-Visitor-IP": "127.0.0.1",
-    };
-  }
+  const forwardedIp = forwardedFor?.split(",").at(-1)?.trim();
+  const validIp = forwardedIp && isIP(forwardedIp) !== 0;
+  if (!validIp && required) throw new DemoBoundaryError();
 
   return {
     ...(secret ? { "X-AIHUB-Client-Secret": secret } : {}),
-    "X-AIHUB-Visitor-IP": visitorIp,
+    "X-AIHUB-Visitor-IP": validIp ? forwardedIp : "127.0.0.1",
   };
 }
 
@@ -140,7 +136,12 @@ export function readDemoUserIdentity(request: Request) {
 export function isDemoEnvironment(
   value: string | null | undefined
 ): value is DemoEnvironment {
-  return value === "sandbox" || value === "production";
+  return DEMO_ENVIRONMENTS.some((environment) => environment === value);
+}
+
+/** The raw environment header; callers validate it with their own error. */
+export function readDemoEnvironment(request: Request) {
+  return request.headers.get("x-demo-environment")?.trim() ?? "";
 }
 
 /** CSRF guard for the same-origin Browser-to-BFF requests. */
