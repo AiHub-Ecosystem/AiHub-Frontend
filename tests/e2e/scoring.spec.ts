@@ -240,10 +240,32 @@ test("grades the prefilled Task 1 sample without a login", async ({
   await page.goto("/demo/scoring");
   await openWriting(page, { step: 2 });
 
+  const mockQuestions = page.locator('[data-testid^="writing-mock-question-"]');
+  await expect(mockQuestions).toHaveCount(3);
+  await page.getByTestId("writing-mock-question-3").click();
+  await expect(page.getByTestId("writing-mock-question-3")).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  );
+  await expect(page.getByTestId("input-question")).toHaveCount(0);
+  await page.getByTestId("tab-task-2").click();
+  await expect(mockQuestions).toHaveCount(3);
+  await expect(page.getByTestId("input-topic")).toBeDisabled();
+  await page.getByTestId("writing-mock-question-3").click();
+  await page.getByRole("tab", { name: "Request" }).click();
+  await expect(page.locator(".demo-console .demo-console-code")).toContainText(
+    "Universities are expected by some people"
+  );
+  await page.getByTestId("tab-task-1").click();
+
   // The page must be runnable with no typing.
   await expect(page.getByTestId("select-chart-type")).toHaveValue("Bar Chart");
   await expect(page.getByTestId("input-image-url")).toHaveValue(/^https:\/\//);
   await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+  await page.getByRole("tab", { name: "Request" }).click();
+  await expect(page.locator(".demo-console .demo-console-code")).toContainText(
+    "The chart illustrates the number of minutes"
+  );
   const essay = await page.getByTestId("input-essay").inputValue();
   expect(essay.length).toBeGreaterThan(500);
   expect(essay).toContain("The bar chart illustrates");
@@ -467,7 +489,13 @@ test("the Task 2 tab opens without a page load and survives a return visit", asy
   await page.goto("/demo/scoring");
   await waitForHydration(page);
 
-  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
+  await page
+    .getByLabel("API key Sandbox (tùy chọn)")
+    .fill("aihub_sk_e2e_sandbox_key");
+  await page.getByRole("button", { name: "Kiểm tra key" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Chọn bài Writing" })
+  ).toBeVisible();
   // Nothing navigates: the task selector is a client transition in one document.
   await page.evaluate(() => {
     (window as unknown as { __stayed: boolean }).__stayed = true;

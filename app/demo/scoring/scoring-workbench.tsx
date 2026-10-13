@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MOCK_WRITING_RESULTS } from "@/data/demo-grading-fixtures";
+import { WRITING_DEMO_PROMPTS } from "@/data/writing-demo-prompts";
 import {
   isWritingGradingEnvelope,
   type WritingGradingEnvelope,
@@ -150,6 +151,12 @@ export default function ScoringWorkbench() {
   const environment = state.environment;
   const [task, setTask] = useState<1 | 2>(1);
   const [drafts, setDrafts] = useState<Record<1 | 2, Draft>>(SAMPLE_DRAFT);
+  const [mockPromptIndexes, setMockPromptIndexes] = useState<
+    Record<1 | 2, number>
+  >({
+    1: 0,
+    2: 0,
+  });
   const [step, setStep] = useState<DemoStep>(1);
   const [skipMock, setSkipMock] = useState(false);
   const [checkingKey, setCheckingKey] = useState(false);
@@ -184,23 +191,35 @@ export default function ScoringWorkbench() {
   const liveReady =
     apiKey.trim().length > 0 && isScopeValidated(SCOPE) && !skipMock;
   const mode = liveReady ? "live" : "mock";
+  const activeDraft = useMemo(
+    () =>
+      liveReady
+        ? draft
+        : {
+            ...SAMPLE_DRAFT[task],
+            question:
+              WRITING_DEMO_PROMPTS[task][mockPromptIndexes[task]] ??
+              WRITING_DEMO_PROMPTS[task][0],
+          },
+    [draft, liveReady, mockPromptIndexes, task]
+  );
   const requestBody = useMemo(
     () =>
       task === 1
         ? {
             task,
-            question: draft.question,
-            essay: draft.essay,
-            chart_type: draft.chartType,
-            image_url: draft.imageUrl,
+            question: activeDraft.question,
+            essay: activeDraft.essay,
+            chart_type: activeDraft.chartType,
+            image_url: activeDraft.imageUrl,
           }
         : {
             task,
-            question: draft.question,
-            essay: draft.essay,
-            topic: draft.topic,
+            question: activeDraft.question,
+            essay: activeDraft.essay,
+            topic: activeDraft.topic,
           },
-    [task, draft]
+    [task, activeDraft]
   );
   /** Every copyable artifact describes the AIHUB call, so Mock offers it too. */
   const copyableExports = useMemo(
@@ -229,9 +248,19 @@ export default function ScoringWorkbench() {
     ? sandboxAllowanceFrom(keyCheckResponse)
     : undefined;
   const chartProblem =
-    task === 1 && !isFetchableImageUrl(draft.imageUrl ?? "")
+    task === 1 && !isFetchableImageUrl(activeDraft.imageUrl ?? "")
       ? "Task 1 cần image_url HTTPS có thể tải được."
       : null;
+
+  const selectMockPrompt = (index: number) => {
+    setMockPromptIndexes((current) => ({ ...current, [task]: index }));
+    setIdempotencyKey(globalThis.crypto.randomUUID());
+    setGradeError(null);
+    setGradeResponse(null);
+    setGradeTrace(null);
+    setGradeAttempted(false);
+    setResult(null);
+  };
 
   useEffect(() => {
     if (gradeStatus !== "submitting") return;
@@ -348,7 +377,7 @@ export default function ScoringWorkbench() {
       setGradeTrace(null);
       const envelope = MOCK_WRITING_RESULTS[task];
       setGradeResponse(envelope);
-      setResult({ task, essay: draft.essay, envelope, mode: "mock" });
+      setResult({ task, essay: activeDraft.essay, envelope, mode: "mock" });
       return;
     }
     if (chartProblem) {
@@ -486,10 +515,13 @@ export default function ScoringWorkbench() {
         http_request: null,
         selection: {
           task,
-          question: draft.question,
+          question: activeDraft.question,
           ...(task === 1
-            ? { chart_type: draft.chartType, image_url: draft.imageUrl }
-            : { topic: draft.topic }),
+            ? {
+                chart_type: activeDraft.chartType,
+                image_url: activeDraft.imageUrl,
+              }
+            : { topic: activeDraft.topic }),
         },
       });
     if (step === 5)
@@ -579,10 +611,13 @@ export default function ScoringWorkbench() {
         source: "local fixture",
         http_response: null,
         task,
-        question: draft.question,
+        question: activeDraft.question,
         ...(task === 1
-          ? { chart_type: draft.chartType, image_url: draft.imageUrl }
-          : { topic: draft.topic }),
+          ? {
+              chart_type: activeDraft.chartType,
+              image_url: activeDraft.imageUrl,
+            }
+          : { topic: activeDraft.topic }),
       });
     if (step === 3)
       return pretty({
@@ -776,8 +811,8 @@ export default function ScoringWorkbench() {
         <>
           <h3>Chọn bài Writing</h3>
           <p>
-            Hai task dùng fixture đề bài cố định. Ở mock mode, nội dung này được
-            đọc từ trang, không tải catalog từ backend.
+            Mỗi task có 3 đề mẫu cố định. Ở mock mode, chọn đề chỉ đổi question;
+            bài làm và kết quả vẫn là fixture read-only chung của task.
           </p>
           <div
             className="demo-inline-actions"
@@ -817,7 +852,7 @@ export default function ScoringWorkbench() {
                   onChange={(event) =>
                     setDraft({ chartType: event.target.value })
                   }
-                  value={draft.chartType}
+                  value={activeDraft.chartType}
                 >
                   {WRITING_TASK1_CHART_TYPES.map((value) => (
                     <option key={value}>{value}</option>
@@ -836,7 +871,7 @@ export default function ScoringWorkbench() {
                   onChange={(event) =>
                     setDraft({ imageUrl: event.target.value })
                   }
-                  value={draft.imageUrl}
+                  value={activeDraft.imageUrl}
                 />
                 {chartProblem && liveReady && (
                   <div
@@ -859,9 +894,10 @@ export default function ScoringWorkbench() {
               <label htmlFor="writing-topic">topic</label>
               <input
                 data-testid="input-topic"
+                disabled={!liveReady}
                 id="writing-topic"
                 onChange={(event) => setDraft({ topic: event.target.value })}
-                value={draft.topic}
+                value={activeDraft.topic}
               />
               <p className="demo-help">
                 Topic là text tự do theo contract, tối đa 200 ký tự.
@@ -869,16 +905,44 @@ export default function ScoringWorkbench() {
             </div>
           )}
           <div className="demo-field">
-            <label htmlFor="writing-question">question</label>
-            <textarea
-              data-testid="input-question"
-              id="writing-question"
-              onChange={(event) => setDraft({ question: event.target.value })}
-              rows={4}
-              value={draft.question}
-            />
+            <label htmlFor={liveReady ? "writing-question" : undefined}>
+              {liveReady ? "question" : "Chọn một đề mẫu"}
+            </label>
+            {liveReady ? (
+              <textarea
+                data-testid="input-question"
+                id="writing-question"
+                onChange={(event) => setDraft({ question: event.target.value })}
+                rows={4}
+                value={activeDraft.question}
+              />
+            ) : (
+              <div
+                className="demo-scenario-list"
+                aria-label={`Đề mẫu Writing Task ${task}`}
+              >
+                {WRITING_DEMO_PROMPTS[task].map((question, index) => (
+                  <button
+                    aria-pressed={mockPromptIndexes[task] === index}
+                    className={
+                      mockPromptIndexes[task] === index ? "active" : ""
+                    }
+                    data-testid={`writing-mock-question-${index + 1}`}
+                    key={question}
+                    onClick={() => selectMockPrompt(index)}
+                    type="button"
+                  >
+                    <strong>Đề mẫu {index + 1}</strong>
+                    <br />
+                    <small>{question}</small>
+                  </button>
+                ))}
+              </div>
+            )}
             <p className="demo-help">
-              Question là text tự do; dùng đề và bài làm cùng một task.
+              {liveReady
+                ? "Question là text tự do theo API contract."
+                : "Chọn đề để xem request tương ứng. Bài làm và kết quả mẫu không thay đổi theo lựa chọn."}
             </p>
           </div>
           <div className="demo-step-actions">
@@ -906,8 +970,8 @@ export default function ScoringWorkbench() {
           </p>
           <div className="demo-field">
             <label htmlFor="writing-essay">
-              essay · {draft.essay.trim().split(/\s+/).filter(Boolean).length}{" "}
-              từ
+              essay ·{" "}
+              {activeDraft.essay.trim().split(/\s+/).filter(Boolean).length} từ
             </label>
             <textarea
               data-testid="input-essay"
@@ -915,13 +979,13 @@ export default function ScoringWorkbench() {
               onChange={(event) => setDraft({ essay: event.target.value })}
               readOnly={!liveReady}
               rows={12}
-              value={draft.essay}
+              value={activeDraft.essay}
             />
           </div>
           <div className="demo-step-actions">
             <button
               className="demo-btn-primary"
-              disabled={!draft.essay.trim()}
+              disabled={!activeDraft.essay.trim()}
               onClick={() => setStep(4)}
               type="button"
             >
@@ -961,7 +1025,7 @@ export default function ScoringWorkbench() {
               disabled={
                 grading ||
                 gradeStatus === "submitting" ||
-                (liveReady && (!!chartProblem || !draft.essay.trim()))
+                (liveReady && (!!chartProblem || !activeDraft.essay.trim()))
               }
               onClick={grade}
               type="button"

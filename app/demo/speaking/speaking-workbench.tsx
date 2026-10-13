@@ -423,6 +423,9 @@ export default function SpeakingWorkbench() {
   const useMock = () => {
     clearScopeValidation();
     setSkipMock(true);
+    setSelectedId(
+      MOCK_SPEAKING_PROMPTS.find((item) => item.part === part)?.id ?? ""
+    );
     setQuestionLoading(false);
     setQuestionError(null);
     setQuestionResponse(null);
