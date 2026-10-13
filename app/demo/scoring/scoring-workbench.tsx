@@ -16,7 +16,11 @@ import {
   DemoWorkbench,
   type DemoStep,
 } from "@/app/demo/demo-workbench";
-import { CLIENT_BUDGET_SECONDS, errorFromPayload, SAMPLE_DRAFT } from "./scoring-client";
+import {
+  CLIENT_BUDGET_SECONDS,
+  errorFromPayload,
+  SAMPLE_DRAFT,
+} from "./scoring-client";
 import type { Draft, PublicError } from "./scoring-client";
 import { GradeReport } from "./scoring-report";
 
@@ -28,29 +32,68 @@ const SCENARIOS = [
     id: "revoked",
     label: "Key bị thu hồi",
     status: "401 Unauthorized",
-    request: { method: "POST", headers: { "X-API-Key": "[REDACTED]", "X-User-Identity": "<demo UUID>" } },
-    response: { error: { code: "UNAUTHORIZED", message: "API key không hợp lệ hoặc đã bị thu hồi.", retryable: false } },
+    request: {
+      method: "POST",
+      headers: { "X-API-Key": "[REDACTED]", "X-User-Identity": "<demo UUID>" },
+    },
+    response: {
+      error: {
+        code: "UNAUTHORIZED",
+        message: "API key không hợp lệ hoặc đã bị thu hồi.",
+        retryable: false,
+      },
+    },
   },
   {
     id: "scope",
     label: "Thiếu writing.grade",
     status: "403 Forbidden",
-    request: { method: "POST", headers: { "X-API-Key": "[REDACTED]" }, body: { task: 1 } },
-    response: { error: { code: "FORBIDDEN", message: "API key không được phép dùng cho thao tác này.", retryable: false } },
+    request: {
+      method: "POST",
+      headers: { "X-API-Key": "[REDACTED]" },
+      body: { task: 1 },
+    },
+    response: {
+      error: {
+        code: "FORBIDDEN",
+        message: "API key không được phép dùng cho thao tác này.",
+        retryable: false,
+      },
+    },
   },
   {
     id: "quota",
     label: "Hết quota Sandbox",
     status: "429 Too Many Requests",
-    request: { method: "POST", headers: { "X-API-Key": "[REDACTED]" }, body: { task: 1 } },
-    response: { error: { code: "QUOTA_EXCEEDED", message: "Sandbox đã hết quota tháng.", retryable: false } },
+    request: {
+      method: "POST",
+      headers: { "X-API-Key": "[REDACTED]" },
+      body: { task: 1 },
+    },
+    response: {
+      error: {
+        code: "QUOTA_EXCEEDED",
+        message: "Sandbox đã hết quota tháng.",
+        retryable: false,
+      },
+    },
   },
   {
     id: "timeout",
     label: "Chấm quá thời gian",
     status: "504 Gateway Timeout",
-    request: { method: "POST", headers: { "X-API-Key": "[REDACTED]" }, body: { task: 1 } },
-    response: { error: { code: "AI_SERVICE_TIMEOUT", message: "Dịch vụ chấm mất quá lâu.", retryable: true } },
+    request: {
+      method: "POST",
+      headers: { "X-API-Key": "[REDACTED]" },
+      body: { task: 1 },
+    },
+    response: {
+      error: {
+        code: "AI_SERVICE_TIMEOUT",
+        message: "Dịch vụ chấm mất quá lâu.",
+        retryable: true,
+      },
+    },
   },
 ] as const;
 
@@ -60,7 +103,11 @@ type GradeResult = {
   envelope: WritingGradingEnvelope;
   mode: "mock" | "live";
 };
-type HttpTrace = { status: number; contentType: string | null; cacheControl: string | null };
+type HttpTrace = {
+  status: number;
+  contentType: string | null;
+  cacheControl: string | null;
+};
 
 function pretty(value: unknown) {
   return JSON.stringify(value, null, 2);
@@ -104,20 +151,25 @@ export default function ScoringWorkbench() {
   const [gradeTrace, setGradeTrace] = useState<HttpTrace | null>(null);
   const [gradeAttempted, setGradeAttempted] = useState(false);
   const [result, setResult] = useState<GradeResult | null>(null);
-  const [scenario, setScenario] = useState<(typeof SCENARIOS)[number]["id"]>("revoked");
+  const [scenario, setScenario] =
+    useState<(typeof SCENARIOS)[number]["id"]>("revoked");
   const [elapsed, setElapsed] = useState(0);
   const startedAt = useRef(0);
 
   const draft = drafts[task];
   const setDraft = (patch: Partial<Draft>) => {
-    setDrafts((current) => ({ ...current, [task]: { ...current[task], ...patch } }));
+    setDrafts((current) => ({
+      ...current,
+      [task]: { ...current[task], ...patch },
+    }));
     setGradeError(null);
     setGradeResponse(null);
     setGradeTrace(null);
     setGradeAttempted(false);
     setResult(null);
   };
-  const liveReady = apiKey.trim().length > 0 && isScopeValidated(SCOPE) && !skipMock;
+  const liveReady =
+    apiKey.trim().length > 0 && isScopeValidated(SCOPE) && !skipMock;
   const mode = liveReady ? "live" : "mock";
   const requestBody = useMemo(
     () =>
@@ -129,10 +181,16 @@ export default function ScoringWorkbench() {
             chart_type: draft.chartType,
             image_url: draft.imageUrl,
           }
-        : { task, question: draft.question, essay: draft.essay, topic: draft.topic },
-    [task, draft],
+        : {
+            task,
+            question: draft.question,
+            essay: draft.essay,
+            topic: draft.topic,
+          },
+    [task, draft]
   );
-  const activeScenario = SCENARIOS.find((item) => item.id === scenario) ?? SCENARIOS[0];
+  const activeScenario =
+    SCENARIOS.find((item) => item.id === scenario) ?? SCENARIOS[0];
   const activeResult = result?.task === task ? result : null;
   const chartProblem =
     task === 1 && !isFetchableImageUrl(draft.imageUrl ?? "")
@@ -143,7 +201,7 @@ export default function ScoringWorkbench() {
     if (gradeStatus !== "submitting") return;
     const timer = window.setInterval(
       () => setElapsed(Math.round((Date.now() - startedAt.current) / 1000)),
-      1000,
+      1000
     );
     return () => window.clearInterval(timer);
   }, [gradeStatus]);
@@ -151,7 +209,10 @@ export default function ScoringWorkbench() {
   const validateKey = async () => {
     const submittedKey = apiKey.trim();
     if (!submittedKey) {
-      setKeyError({ code: "UNAUTHORIZED", message: "Nhập API key Sandbox hoặc bỏ qua để dùng mẫu." });
+      setKeyError({
+        code: "UNAUTHORIZED",
+        message: "Nhập API key Sandbox hoặc bỏ qua để dùng mẫu.",
+      });
       return;
     }
     setCheckingKey(true);
@@ -163,7 +224,10 @@ export default function ScoringWorkbench() {
     try {
       const response = await fetch("/api/demo/key/validate", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Demo-API-Key": submittedKey },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Demo-API-Key": submittedKey,
+        },
         body: JSON.stringify({ scope: SCOPE }),
         cache: "no-store",
       });
@@ -184,19 +248,32 @@ export default function ScoringWorkbench() {
         !("valid" in payload.data) ||
         payload.data.valid !== true
       ) {
-        throw { code: "AI_SERVICE_CONTRACT_VIOLATION", message: "Response kiểm tra key không đúng định dạng." } satisfies PublicError;
+        throw {
+          code: "AI_SERVICE_CONTRACT_VIOLATION",
+          message: "Response kiểm tra key không đúng định dạng.",
+        } satisfies PublicError;
       }
       markScopeValidated(SCOPE);
       setStep(2);
     } catch (caught) {
       if (!isCurrentApiKey(submittedKey)) return;
       clearScopeValidation(SCOPE);
-      const publicError = typeof caught === "object" && caught !== null && "code" in caught && "message" in caught
+      const publicError =
+        typeof caught === "object" &&
+        caught !== null &&
+        "code" in caught &&
+        "message" in caught
           ? (caught as PublicError)
-          : { code: "AI_SERVICE_UNAVAILABLE", message: "Không kiểm tra được key. Thử lại hoặc dùng mẫu." };
+          : {
+              code: "AI_SERVICE_UNAVAILABLE",
+              message: "Không kiểm tra được key. Thử lại hoặc dùng mẫu.",
+            };
       setKeyError(publicError);
       if (!receivedTrace) {
-        setKeyCheckResponse({ error: { code: publicError.code, message: publicError.message }, http_response: null });
+        setKeyCheckResponse({
+          error: { code: publicError.code, message: publicError.message },
+          http_response: null,
+        });
       }
     } finally {
       setCheckingKey(false);
@@ -214,7 +291,11 @@ export default function ScoringWorkbench() {
     setGradeAttempted(false);
     setResult(null);
     setKeyCheckTrace(null);
-    setKeyCheckResponse({ mode: "mock", request: null, message: "Live validation cleared; fixed fixture selected without HTTP." });
+    setKeyCheckResponse({
+      mode: "mock",
+      request: null,
+      message: "Live validation cleared; fixed fixture selected without HTTP.",
+    });
     setStep(2);
   };
 
@@ -237,11 +318,17 @@ export default function ScoringWorkbench() {
     setGradeStatus("submitting");
     setGradeAttempted(true);
     setGradeTrace(null);
-    setGradeResponse({ state: "pending", request: "POST /v1/ielts/writing/task" + task + "/grade" });
+    setGradeResponse({
+      state: "pending",
+      request: "POST /v1/ielts/writing/task" + task + "/grade",
+    });
     setElapsed(0);
     startedAt.current = Date.now();
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), CLIENT_BUDGET_SECONDS * 1000);
+    const timeout = window.setTimeout(
+      () => controller.abort(),
+      CLIENT_BUDGET_SECONDS * 1000
+    );
     let receivedTrace: HttpTrace | null = null;
     try {
       const response = await fetch("/api/demo/scoring/grade", {
@@ -261,17 +348,35 @@ export default function ScoringWorkbench() {
       setGradeResponse(payload);
       if (!response.ok) throw errorFromPayload(payload);
       if (!isWritingGradingEnvelope(payload)) {
-        throw { code: "AI_SERVICE_CONTRACT_VIOLATION", message: "Kết quả từ AIHUB không đúng định dạng." } satisfies PublicError;
+        throw {
+          code: "AI_SERVICE_CONTRACT_VIOLATION",
+          message: "Kết quả từ AIHUB không đúng định dạng.",
+        } satisfies PublicError;
       }
       setResult({ task, essay: draft.essay, envelope: payload, mode: "live" });
     } catch (caught) {
-      const publicError = typeof caught === "object" && caught !== null && "code" in caught && "message" in caught
+      const publicError =
+        typeof caught === "object" &&
+        caught !== null &&
+        "code" in caught &&
+        "message" in caught
           ? (caught as PublicError)
           : controller.signal.aborted
-            ? { code: "AI_SERVICE_TIMEOUT", message: `Yêu cầu vượt ${CLIENT_BUDGET_SECONDS} giây.` }
-            : { code: "AI_SERVICE_UNAVAILABLE", message: "Không gửi được yêu cầu. Kiểm tra kết nối rồi thử lại." };
+            ? {
+                code: "AI_SERVICE_TIMEOUT",
+                message: `Yêu cầu vượt ${CLIENT_BUDGET_SECONDS} giây.`,
+              }
+            : {
+                code: "AI_SERVICE_UNAVAILABLE",
+                message:
+                  "Không gửi được yêu cầu. Kiểm tra kết nối rồi thử lại.",
+              };
       setGradeError(publicError);
-      if (!receivedTrace) setGradeResponse({ error: { code: publicError.code, message: publicError.message }, http_response: null });
+      if (!receivedTrace)
+        setGradeResponse({
+          error: { code: publicError.code, message: publicError.message },
+          http_response: null,
+        });
     } finally {
       window.clearTimeout(timeout);
       setGradeStatus("idle");
@@ -279,43 +384,175 @@ export default function ScoringWorkbench() {
   };
 
   const requestForStep = () => {
-    if (step === 1) return pretty(skipMock
-      ? { source: "local choice", http_request: null, message: "Đã bỏ qua kiểm tra key." }
-      : {
-          source: keyCheckResponse ? "request sent" : apiKey.trim() ? "preview · not sent" : "key optional · not sent",
-          browser_to_aihub_bff: { method: "POST", path: "/api/demo/key/validate", headers: { "X-Demo-API-Key": apiKey.trim() ? "[REDACTED]" : "(not set)", "Content-Type": "application/json" }, body: { scope: SCOPE } },
-          bff_to_sandbox: { method: "POST", path: "/v1/sandbox/demo/api-keys/validate", headers: { "X-API-Key": "[REDACTED]", "Content-Type": "application/json" }, body: { scope: SCOPE } },
-        });
-    if (step === 2) return pretty({ source: "local fixture", http_request: null, selection: { task, question: draft.question, ...(task === 1 ? { chart_type: draft.chartType, image_url: draft.imageUrl } : { topic: draft.topic }) } });
-    if (step === 5) return pretty({ source: "local error scenario · simulated, no HTTP", scenario: activeScenario.label, simulated_request: activeScenario.request });
-    if (step === 3) return pretty({
-      source: liveReady ? "local draft preview · not sent" : "read-only fixture · not sent",
-      planned_request: liveReady ? { method: "POST", browser_to_aihub_bff: "/api/demo/scoring/grade", bff_to_sandbox: `/v1/ielts/writing/task${task}/grade`, headers: { "X-Demo-API-Key": "[REDACTED]", "X-Demo-User-Identity": "<generated at submit>", "Content-Type": "application/json", "Idempotency-Key": "<generated by BFF>" } } : null,
-      body_preview: requestBody,
-      sent: false,
-    });
-    if (!liveReady) return pretty({ source: "local fixed fixture", http_request: null, message: "Submit chỉ trả kết quả mock cố định trong frontend." });
+    if (step === 1)
+      return pretty(
+        skipMock
+          ? {
+              source: "local choice",
+              http_request: null,
+              message: "Đã bỏ qua kiểm tra key.",
+            }
+          : {
+              source: keyCheckResponse
+                ? "request sent"
+                : apiKey.trim()
+                  ? "preview · not sent"
+                  : "key optional · not sent",
+              browser_to_aihub_bff: {
+                method: "POST",
+                path: "/api/demo/key/validate",
+                headers: {
+                  "X-Demo-API-Key": apiKey.trim() ? "[REDACTED]" : "(not set)",
+                  "Content-Type": "application/json",
+                },
+                body: { scope: SCOPE },
+              },
+              bff_to_sandbox: {
+                method: "POST",
+                path: "/v1/sandbox/demo/api-keys/validate",
+                headers: {
+                  "X-API-Key": "[REDACTED]",
+                  "Content-Type": "application/json",
+                },
+                body: { scope: SCOPE },
+              },
+            }
+      );
+    if (step === 2)
+      return pretty({
+        source: "local fixture",
+        http_request: null,
+        selection: {
+          task,
+          question: draft.question,
+          ...(task === 1
+            ? { chart_type: draft.chartType, image_url: draft.imageUrl }
+            : { topic: draft.topic }),
+        },
+      });
+    if (step === 5)
+      return pretty({
+        source: "local error scenario · simulated, no HTTP",
+        scenario: activeScenario.label,
+        simulated_request: activeScenario.request,
+      });
+    if (step === 3)
+      return pretty({
+        source: liveReady
+          ? "local draft preview · not sent"
+          : "read-only fixture · not sent",
+        planned_request: liveReady
+          ? {
+              method: "POST",
+              browser_to_aihub_bff: "/api/demo/scoring/grade",
+              bff_to_sandbox: `/v1/ielts/writing/task${task}/grade`,
+              headers: {
+                "X-Demo-API-Key": "[REDACTED]",
+                "X-Demo-User-Identity": "<generated at submit>",
+                "Content-Type": "application/json",
+                "Idempotency-Key": "<generated by BFF>",
+              },
+            }
+          : null,
+        body_preview: requestBody,
+        sent: false,
+      });
+    if (!liveReady)
+      return pretty({
+        source: "local fixed fixture",
+        http_request: null,
+        message: "Submit chỉ trả kết quả mock cố định trong frontend.",
+      });
     return pretty({
-      source: gradeAttempted ? "request sent via AIHUB BFF" : "request preview · not sent",
+      source: gradeAttempted
+        ? "request sent via AIHUB BFF"
+        : "request preview · not sent",
       method: "POST",
       browser_to_aihub_bff: "/api/demo/scoring/grade",
       bff_to_sandbox: `/v1/ielts/writing/task${task}/grade`,
-      headers: { "X-Demo-API-Key": "[REDACTED]", "X-Demo-User-Identity": gradeAttempted ? getUserIdentity() : "<generated at submit>", "Content-Type": "application/json", "Idempotency-Key": "<generated by BFF per submit>" },
+      headers: {
+        "X-Demo-API-Key": "[REDACTED]",
+        "X-Demo-User-Identity": gradeAttempted
+          ? getUserIdentity()
+          : "<generated at submit>",
+        "Content-Type": "application/json",
+        "Idempotency-Key": "<generated by BFF per submit>",
+      },
       body: requestBody,
       sent: gradeAttempted,
     });
   };
 
   const responseForStep = () => {
-    if (step === 1) return skipMock
-      ? pretty({ source: "local choice", http_response: null, message: "Đã bỏ qua kiểm tra key." })
-      : keyCheckResponse ? pretty({ http: keyCheckTrace ? { status: keyCheckTrace.status, headers: httpSummary(keyCheckTrace) } : null, body: keyCheckResponse })
-        : pretty({ http_response: null, message: "Chưa kiểm tra key; chưa có response." });
-    if (step === 2) return pretty({ source: "local fixture", http_response: null, task, question: draft.question, ...(task === 1 ? { chart_type: draft.chartType, image_url: draft.imageUrl } : { topic: draft.topic }) });
-    if (step === 3) return pretty({ source: "local draft preview", http_response: null, message: "Chưa gửi request. Payload preview nằm ở tab Request." });
-    if (step === 5) return pretty({ source: "local simulation · no HTTP", simulated_status: activeScenario.status, simulated_response: activeScenario.response });
-    if (!liveReady) return gradeResponse ? pretty({ source: "local fixed fixture", http_response: null, body: gradeResponse }) : pretty({ source: "local fixed fixture", http_response: null, message: "Chưa submit fixture mẫu." });
-    return gradeResponse ? pretty({ http: gradeTrace ? { status: gradeTrace.status, headers: httpSummary(gradeTrace) } : null, body: gradeResponse }) : pretty({ http_response: null, message: gradeStatus === "submitting" ? "Request đang chạy; chưa nhận response." : "Chưa gửi request." });
+    if (step === 1)
+      return skipMock
+        ? pretty({
+            source: "local choice",
+            http_response: null,
+            message: "Đã bỏ qua kiểm tra key.",
+          })
+        : keyCheckResponse
+          ? pretty({
+              http: keyCheckTrace
+                ? {
+                    status: keyCheckTrace.status,
+                    headers: httpSummary(keyCheckTrace),
+                  }
+                : null,
+              body: keyCheckResponse,
+            })
+          : pretty({
+              http_response: null,
+              message: "Chưa kiểm tra key; chưa có response.",
+            });
+    if (step === 2)
+      return pretty({
+        source: "local fixture",
+        http_response: null,
+        task,
+        question: draft.question,
+        ...(task === 1
+          ? { chart_type: draft.chartType, image_url: draft.imageUrl }
+          : { topic: draft.topic }),
+      });
+    if (step === 3)
+      return pretty({
+        source: "local draft preview",
+        http_response: null,
+        message: "Chưa gửi request. Payload preview nằm ở tab Request.",
+      });
+    if (step === 5)
+      return pretty({
+        source: "local simulation · no HTTP",
+        simulated_status: activeScenario.status,
+        simulated_response: activeScenario.response,
+      });
+    if (!liveReady)
+      return gradeResponse
+        ? pretty({
+            source: "local fixed fixture",
+            http_response: null,
+            body: gradeResponse,
+          })
+        : pretty({
+            source: "local fixed fixture",
+            http_response: null,
+            message: "Chưa submit fixture mẫu.",
+          });
+    return gradeResponse
+      ? pretty({
+          http: gradeTrace
+            ? { status: gradeTrace.status, headers: httpSummary(gradeTrace) }
+            : null,
+          body: gradeResponse,
+        })
+      : pretty({
+          http_response: null,
+          message:
+            gradeStatus === "submitting"
+              ? "Request đang chạy; chưa nhận response."
+              : "Chưa gửi request.",
+        });
   };
 
   const requestHeaders =
@@ -331,9 +568,14 @@ export default function ScoringWorkbench() {
             ? "Simulated request only — no request headers were sent."
             : "No HTTP request — local fixture.";
   const responseHeaders =
-    step === 1 ? keyCheckTrace ? httpSummary(keyCheckTrace) : "No HTTP response headers received."
-      : step === 4 && liveReady ? httpSummary(gradeTrace)
-        : step === 5 ? "No HTTP response headers — simulated status only."
+    step === 1
+      ? keyCheckTrace
+        ? httpSummary(keyCheckTrace)
+        : "No HTTP response headers received."
+      : step === 4 && liveReady
+        ? httpSummary(gradeTrace)
+        : step === 5
+          ? "No HTTP response headers — simulated status only."
           : "No HTTP response headers — local preview/fixture.";
   const consoleRequest = requestForStep();
   const consoleResponse = responseForStep();
@@ -348,44 +590,98 @@ export default function ScoringWorkbench() {
       onStepChange={setStep}
       stepperDisabled={gradeStatus === "submitting"}
       mode={mode}
-      status={gradeStatus === "submitting" ? `Đang chấm · ${elapsed}s` : activeResult ? (activeResult.mode === "mock" ? "KẾT QUẢ MẪU" : "LIVE RESPONSE") : gradeError?.code ?? (keyError ? "KEY INVALID" : "READY")}
+      status={
+        gradeStatus === "submitting"
+          ? `Đang chấm · ${elapsed}s`
+          : activeResult
+            ? activeResult.mode === "mock"
+              ? "KẾT QUẢ MẪU"
+              : "LIVE RESPONSE"
+            : (gradeError?.code ?? (keyError ? "KEY INVALID" : "READY"))
+      }
       request={consoleRequest}
       response={consoleResponse}
       requestHeaders={requestHeaders}
       responseHeaders={responseHeaders}
-      traceNote={step === 1
-        ? "Key validation checks Sandbox environment, scope and Organization identity configuration. It does not dispatch grading or consume grading quota. The key is redacted."
-        : step === 2 ? "Writing Task 1/2 use local fixed prompts. No HTTP request is sent."
-          : step === 3 ? "This is a local payload preview. The essay is sent only after the Step 4 button is pressed."
-            : step === 4 ? liveReady ? "Every live grading request reauthenticates the Sandbox key before quota and AI dispatch; trace redacts the key." : "The button returns a fixed frontend fixture. No grading API request is sent."
-              : "Error scenarios are simulated locally. No HTTP request or quota use."}
+      traceNote={
+        step === 1
+          ? "Key validation checks Sandbox environment, scope and Organization identity configuration. It does not dispatch grading or consume grading quota. The key is redacted."
+          : step === 2
+            ? "Writing Task 1/2 use local fixed prompts. No HTTP request is sent."
+            : step === 3
+              ? "This is a local payload preview. The essay is sent only after the Step 4 button is pressed."
+              : step === 4
+                ? liveReady
+                  ? "Every live grading request reauthenticates the Sandbox key before quota and AI dispatch; trace redacts the key."
+                  : "The button returns a fixed frontend fixture. No grading API request is sent."
+                : "Error scenarios are simulated locally. No HTTP request or quota use."
+      }
     >
-      <p className="demo-flow-eyebrow">BƯỚC {step} / 5 · {DEMO_STEPS[step - 1]}</p>
+      <p className="demo-flow-eyebrow">
+        BƯỚC {step} / 5 · {DEMO_STEPS[step - 1]}
+      </p>
 
       {step === 1 && (
         <>
           <h3>Kết nối Sandbox</h3>
-          <p>API key chỉ nằm trong bộ nhớ của trang. Key được kiểm tra theo scope <code>{SCOPE}</code>, không gọi AI và không dùng quota chấm.</p>
+          <p>
+            API key chỉ nằm trong bộ nhớ của trang. Key được kiểm tra theo scope{" "}
+            <code>{SCOPE}</code>, không gọi AI và không dùng quota chấm.
+          </p>
           <div className="demo-field">
             <label htmlFor="writing-demo-key">API key Sandbox (tùy chọn)</label>
             <input
               autoComplete="off"
               id="writing-demo-key"
-              onChange={(event) => { setApiKey(event.target.value); setSkipMock(false); setKeyError(null); setKeyCheckResponse(null); setKeyCheckTrace(null); setGradeError(null); setGradeResponse(null); setGradeTrace(null); setGradeAttempted(false); setResult(null); }}
+              onChange={(event) => {
+                setApiKey(event.target.value);
+                setSkipMock(false);
+                setKeyError(null);
+                setKeyCheckResponse(null);
+                setKeyCheckTrace(null);
+                setGradeError(null);
+                setGradeResponse(null);
+                setGradeTrace(null);
+                setGradeAttempted(false);
+                setResult(null);
+              }}
               placeholder="aihub_sk_…"
               spellCheck={false}
               type="password"
               value={apiKey}
             />
-            <p className="demo-help">Chỉ key thuộc riêng môi trường Sandbox và có scope writing.grade mới mở chế độ chấm thật.</p>
+            <p className="demo-help">
+              Chỉ key thuộc riêng môi trường Sandbox và có scope writing.grade
+              mới mở chế độ chấm thật.
+            </p>
           </div>
-          {keyError && <div className="demo-error" role="alert"><strong>{keyError.code}</strong> · {keyError.message}</div>}
-          {isScopeValidated(SCOPE) && apiKey && <div className="demo-success">Key đã qua kiểm tra bước 1. Mỗi lần chấm vẫn được BE xác thực lại.</div>}
+          {keyError && (
+            <div className="demo-error" role="alert">
+              <strong>{keyError.code}</strong> · {keyError.message}
+            </div>
+          )}
+          {isScopeValidated(SCOPE) && apiKey && (
+            <div className="demo-success">
+              Key đã qua kiểm tra bước 1. Mỗi lần chấm vẫn được BE xác thực lại.
+            </div>
+          )}
           <div className="demo-step-actions">
-            <button className="demo-btn-primary" disabled={checkingKey || !apiKey.trim()} onClick={validateKey} type="button">
+            <button
+              className="demo-btn-primary"
+              disabled={checkingKey || !apiKey.trim()}
+              onClick={validateKey}
+              type="button"
+            >
               {checkingKey ? "Đang kiểm tra · " : null}Kiểm tra key
             </button>
-            <button className="demo-btn-secondary" disabled={checkingKey} onClick={useMock} type="button">Bỏ qua, dùng mẫu</button>
+            <button
+              className="demo-btn-secondary"
+              disabled={checkingKey}
+              onClick={useMock}
+              type="button"
+            >
+              Bỏ qua, dùng mẫu
+            </button>
           </div>
         </>
       )}
@@ -393,56 +689,272 @@ export default function ScoringWorkbench() {
       {step === 2 && (
         <>
           <h3>Chọn bài Writing</h3>
-          <p>Hai task dùng fixture đề bài cố định. Ở mock mode, nội dung này được đọc từ trang, không tải catalog từ backend.</p>
-          <div className="demo-inline-actions" role="tablist" aria-label="Writing task">
-            {TASKS.map((value) => <button aria-selected={task === value} className={`demo-btn-secondary ${task === value ? "active" : ""}`} data-testid={`tab-task-${value}`} key={value} onClick={() => { setTask(value); setResult(null); setGradeError(null); setGradeResponse(null); setGradeTrace(null); setGradeAttempted(false); }} role="tab" type="button">Task {value}</button>)}
+          <p>
+            Hai task dùng fixture đề bài cố định. Ở mock mode, nội dung này được
+            đọc từ trang, không tải catalog từ backend.
+          </p>
+          <div
+            className="demo-inline-actions"
+            role="tablist"
+            aria-label="Writing task"
+          >
+            {TASKS.map((value) => (
+              <button
+                aria-selected={task === value}
+                className={`demo-btn-secondary ${task === value ? "active" : ""}`}
+                data-testid={`tab-task-${value}`}
+                key={value}
+                onClick={() => {
+                  setTask(value);
+                  setResult(null);
+                  setGradeError(null);
+                  setGradeResponse(null);
+                  setGradeTrace(null);
+                  setGradeAttempted(false);
+                }}
+                role="tab"
+                type="button"
+              >
+                Task {value}
+              </button>
+            ))}
           </div>
           {task === 1 && (
             <>
-              <div className="demo-field"><label htmlFor="writing-chart-type">chart_type</label><select data-testid="select-chart-type" disabled={!liveReady} id="writing-chart-type" onChange={(event) => setDraft({ chartType: event.target.value })} value={draft.chartType}>{WRITING_TASK1_CHART_TYPES.map((value) => <option key={value}>{value}</option>)}</select><p className="demo-help">Chọn đúng một trong bảy giá trị enum, phân biệt hoa thường.</p></div>
-              <div className="demo-field"><label htmlFor="writing-image-url">image_url</label><input data-testid="input-image-url" disabled={!liveReady} id="writing-image-url" onChange={(event) => setDraft({ imageUrl: event.target.value })} value={draft.imageUrl} />{chartProblem && liveReady && <div className="demo-error" data-testid="chart-url-problem" role="alert">{chartProblem}</div>}<p className="demo-help">Dịch vụ chấm tải ảnh qua HTTPS. Dùng URL tới ảnh thật khi chấm live.</p></div>
+              <div className="demo-field">
+                <label htmlFor="writing-chart-type">chart_type</label>
+                <select
+                  data-testid="select-chart-type"
+                  disabled={!liveReady}
+                  id="writing-chart-type"
+                  onChange={(event) =>
+                    setDraft({ chartType: event.target.value })
+                  }
+                  value={draft.chartType}
+                >
+                  {WRITING_TASK1_CHART_TYPES.map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
+                </select>
+                <p className="demo-help">
+                  Chọn đúng một trong bảy giá trị enum, phân biệt hoa thường.
+                </p>
+              </div>
+              <div className="demo-field">
+                <label htmlFor="writing-image-url">image_url</label>
+                <input
+                  data-testid="input-image-url"
+                  disabled={!liveReady}
+                  id="writing-image-url"
+                  onChange={(event) =>
+                    setDraft({ imageUrl: event.target.value })
+                  }
+                  value={draft.imageUrl}
+                />
+                {chartProblem && liveReady && (
+                  <div
+                    className="demo-error"
+                    data-testid="chart-url-problem"
+                    role="alert"
+                  >
+                    {chartProblem}
+                  </div>
+                )}
+                <p className="demo-help">
+                  Dịch vụ chấm tải ảnh qua HTTPS. Dùng URL tới ảnh thật khi chấm
+                  live.
+                </p>
+              </div>
             </>
           )}
-          {task === 2 && <div className="demo-field"><label htmlFor="writing-topic">topic</label><input data-testid="input-topic" disabled={!liveReady} id="writing-topic" onChange={(event) => setDraft({ topic: event.target.value })} value={draft.topic} /><p className="demo-help">Topic là text tự do theo contract, tối đa 200 ký tự.</p></div>}
-          <div className="demo-field"><label htmlFor="writing-question">question</label><textarea data-testid="input-question" disabled={!liveReady} id="writing-question" onChange={(event) => setDraft({ question: event.target.value })} rows={4} value={draft.question} /><p className="demo-help">Question là text tự do; dùng đề và bài làm cùng một task.</p></div>
-          <div className="demo-step-actions"><button className="demo-btn-primary" onClick={() => setStep(3)} type="button">Tiếp tục đến bài làm</button></div>
+          {task === 2 && (
+            <div className="demo-field">
+              <label htmlFor="writing-topic">topic</label>
+              <input
+                data-testid="input-topic"
+                id="writing-topic"
+                onChange={(event) => setDraft({ topic: event.target.value })}
+                value={draft.topic}
+              />
+              <p className="demo-help">
+                Topic là text tự do theo contract, tối đa 200 ký tự.
+              </p>
+            </div>
+          )}
+          <div className="demo-field">
+            <label htmlFor="writing-question">question</label>
+            <textarea
+              data-testid="input-question"
+              id="writing-question"
+              onChange={(event) => setDraft({ question: event.target.value })}
+              rows={4}
+              value={draft.question}
+            />
+            <p className="demo-help">
+              Question là text tự do; dùng đề và bài làm cùng một task.
+            </p>
+          </div>
+          <div className="demo-step-actions">
+            <button
+              className="demo-btn-primary"
+              onClick={() => setStep(3)}
+              type="button"
+            >
+              Tiếp tục đến bài làm
+            </button>
+          </div>
         </>
       )}
 
       {step === 3 && (
         <>
           <h3>Nhập bài làm</h3>
-          <p>{liveReady ? "Bạn có thể sửa bài trước khi gửi lên Sandbox." : "Mock mode hiển thị bài mẫu read-only; kết quả khi submit luôn là fixture cố định."}</p>
-          <div className="demo-field"><label htmlFor="writing-essay">essay · {draft.essay.trim().split(/\s+/).filter(Boolean).length} từ</label><textarea data-testid="input-essay" id="writing-essay" onChange={(event) => setDraft({ essay: event.target.value })} readOnly={!liveReady} rows={12} value={draft.essay} /></div>
-          <div className="demo-step-actions"><button className="demo-btn-primary" disabled={!draft.essay.trim()} onClick={() => setStep(4)} type="button">Xem bước chấm</button><button className="demo-btn-secondary" onClick={() => setStep(2)} type="button">Quay lại đề</button></div>
+          <p>
+            {liveReady
+              ? "Bạn có thể sửa bài trước khi gửi lên Sandbox."
+              : "Mock mode hiển thị bài mẫu read-only; kết quả khi submit luôn là fixture cố định."}
+          </p>
+          <div className="demo-field">
+            <label htmlFor="writing-essay">
+              essay · {draft.essay.trim().split(/\s+/).filter(Boolean).length}{" "}
+              từ
+            </label>
+            <textarea
+              data-testid="input-essay"
+              id="writing-essay"
+              onChange={(event) => setDraft({ essay: event.target.value })}
+              readOnly={!liveReady}
+              rows={12}
+              value={draft.essay}
+            />
+          </div>
+          <div className="demo-step-actions">
+            <button
+              className="demo-btn-primary"
+              disabled={!draft.essay.trim()}
+              onClick={() => setStep(4)}
+              type="button"
+            >
+              Xem bước chấm
+            </button>
+            <button
+              className="demo-btn-secondary"
+              onClick={() => setStep(2)}
+              type="button"
+            >
+              Quay lại đề
+            </button>
+          </div>
         </>
       )}
 
       {step === 4 && (
         <>
           <h3>{liveReady ? "Gửi chấm live" : "Xem kết quả mẫu"}</h3>
-          <p>{liveReady ? "Request sẽ dùng key Sandbox đã kiểm tra và UUID tạm của phiên demo. Backend xác thực lại key trước khi dispatch." : "Nút này chỉ chọn response mock cố định trong frontend. Không gọi route chấm hoặc AI service."}</p>
-          {gradeError && <div className="demo-error" role="alert"><strong>{gradeError.code}</strong> · {gradeError.message}{gradeError.retry_after_ms ? ` Thử lại sau ${Math.ceil(gradeError.retry_after_ms / 1000)} giây.` : ""}</div>}
-          <div className="demo-step-actions"><button className="demo-btn-primary" data-testid="button-grade" disabled={gradeStatus === "submitting" || (liveReady && (!!chartProblem || !draft.essay.trim()))} onClick={grade} type="button">{gradeStatus === "submitting" ? `Đang chấm ${elapsed}s` : liveReady ? `Chấm thật Task ${task}` : `Hiện kết quả mẫu Task ${task}`}</button><button className="demo-btn-secondary" disabled={gradeStatus === "submitting"} onClick={() => setStep(3)} type="button">Sửa bài</button></div>
+          <p>
+            {liveReady
+              ? "Request sẽ dùng key Sandbox đã kiểm tra và UUID tạm của phiên demo. Backend xác thực lại key trước khi dispatch."
+              : "Nút này chỉ chọn response mock cố định trong frontend. Không gọi route chấm hoặc AI service."}
+          </p>
+          {gradeError && (
+            <div className="demo-error" role="alert">
+              <strong>{gradeError.code}</strong> · {gradeError.message}
+              {gradeError.retry_after_ms
+                ? ` Thử lại sau ${Math.ceil(gradeError.retry_after_ms / 1000)} giây.`
+                : ""}
+            </div>
+          )}
+          <div className="demo-step-actions">
+            <button
+              className="demo-btn-primary"
+              data-testid="button-grade"
+              disabled={
+                gradeStatus === "submitting" ||
+                (liveReady && (!!chartProblem || !draft.essay.trim()))
+              }
+              onClick={grade}
+              type="button"
+            >
+              {gradeStatus === "submitting"
+                ? `Đang chấm ${elapsed}s`
+                : liveReady
+                  ? `Chấm thật Task ${task}`
+                  : `Hiện kết quả mẫu Task ${task}`}
+            </button>
+            <button
+              className="demo-btn-secondary"
+              disabled={gradeStatus === "submitting"}
+              onClick={() => setStep(3)}
+              type="button"
+            >
+              Sửa bài
+            </button>
+          </div>
           {activeResult && (
-            <section className="demo-result-card" aria-label="Kết quả chấm Writing">
-              <p className="demo-flow-eyebrow">{activeResult.mode === "mock" ? "KẾT QUẢ MẪU CỐ ĐỊNH" : "LIVE RESPONSE"}</p>
-              <div className="demo-result-band">Band {activeResult.envelope.data.overall_band.toFixed(1)}</div>
+            <section
+              className="demo-result-card"
+              aria-label="Kết quả chấm Writing"
+            >
+              <p className="demo-flow-eyebrow">
+                {activeResult.mode === "mock"
+                  ? "KẾT QUẢ MẪU CỐ ĐỊNH"
+                  : "LIVE RESPONSE"}
+              </p>
+              <div className="demo-result-band">
+                Band {activeResult.envelope.data.overall_band.toFixed(1)}
+              </div>
               <p>{activeResult.envelope.data.summary}</p>
-              <div className="demo-result-criteria">{activeResult.envelope.data.criteria.map((criterion) => <div key={criterion.id}><strong>{criterion.name}</strong><span>{criterion.band.toFixed(1)}</span></div>)}</div>
-              <ul>{activeResult.envelope.data.suggestions.map((item) => <li key={item}>{item}</li>)}</ul>
+              <div className="demo-result-criteria">
+                {activeResult.envelope.data.criteria.map((criterion) => (
+                  <div key={criterion.id}>
+                    <strong>{criterion.name}</strong>
+                    <span>{criterion.band.toFixed(1)}</span>
+                  </div>
+                ))}
+              </div>
+              <ul>
+                {activeResult.envelope.data.suggestions.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
             </section>
           )}
-          {activeResult && <GradeReport result={activeResult.envelope} essay={activeResult.essay} task={activeResult.task} />}
+          {activeResult && (
+            <GradeReport
+              result={activeResult.envelope}
+              essay={activeResult.essay}
+              task={activeResult.task}
+            />
+          )}
         </>
       )}
 
       {step === 5 && (
         <>
           <h3>Retry và lỗi</h3>
-          <p>Các kịch bản bên dưới chỉ minh họa request/response; chọn chúng không gọi Sandbox và không dùng quota.</p>
-          <div className="demo-scenario-list">{SCENARIOS.map((item) => <button aria-pressed={scenario === item.id} className={scenario === item.id ? "active" : ""} key={item.id} onClick={() => setScenario(item.id)} type="button">{item.label}<br /><strong>{item.status}</strong></button>)}</div>
-          <div className="demo-notice">Mỗi lần chấm thật là một request mới. Khi timeout, kiểm tra request_id trước khi bấm lại để tránh tạo lượt chấm mới.</div>
+          <p>
+            Các kịch bản bên dưới chỉ minh họa request/response; chọn chúng
+            không gọi Sandbox và không dùng quota.
+          </p>
+          <div className="demo-scenario-list">
+            {SCENARIOS.map((item) => (
+              <button
+                aria-pressed={scenario === item.id}
+                className={scenario === item.id ? "active" : ""}
+                key={item.id}
+                onClick={() => setScenario(item.id)}
+                type="button"
+              >
+                {item.label}
+                <br />
+                <strong>{item.status}</strong>
+              </button>
+            ))}
+          </div>
+          <div className="demo-notice">
+            Mỗi lần chấm thật là một request mới. Khi timeout, kiểm tra
+            request_id trước khi bấm lại để tránh tạo lượt chấm mới.
+          </div>
         </>
       )}
     </DemoWorkbench>
