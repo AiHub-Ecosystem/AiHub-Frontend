@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  getSandboxBaseUrl,
+  getDemoBaseUrl,
   gradeSpeaking,
   gradeSpeakingByUrl,
   parseSpeakingJsonRequest,
@@ -23,6 +23,7 @@ function jsonRequest(body: unknown) {
       "Content-Type": "application/json",
       Origin: "http://127.0.0.1",
       "X-Demo-Api-Key": "sandbox-test-key",
+      "X-Demo-Environment": "sandbox",
       "X-Demo-User-Identity": "00000000-0000-4000-8000-000000000001",
     },
     body: JSON.stringify(body),
@@ -43,8 +44,6 @@ function stubUpstream() {
   const sent: string[] = [];
   // The sandbox host is pinned; fetch is stubbed so nothing leaves the test.
   vi.stubEnv("AIHUB_SANDBOX_BASE_URL", "https://sandbox.aihubproduction.com");
-  vi.stubEnv("AIHUB_SANDBOX_API_KEY", "aihub_sk_test");
-  vi.stubEnv("AIHUB_SANDBOX_ORGANIZATION_ID", "org-test-00000000");
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
@@ -165,6 +164,7 @@ describe("Speaking multipart request", () => {
       headers: {
         Origin: "http://127.0.0.1",
         "X-Demo-Api-Key": "sandbox-test-key",
+        "X-Demo-Environment": "sandbox",
         "X-Demo-User-Identity": "00000000-0000-4000-8000-000000000001",
       },
       body: form,
@@ -243,21 +243,21 @@ describe("Speaking multipart request", () => {
   });
 });
 
-describe("Speaking sandbox URL", () => {
+describe("Speaking demo host", () => {
   it("allows the explicitly configured loopback mock only in development", () => {
     const mockUrl = "http://127.0.0.1:3101";
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("AIHUB_SANDBOX_BASE_URL", mockUrl);
     vi.stubEnv("AIHUB_SANDBOX_E2E_MOCK_BASE_URL", mockUrl);
 
-    expect(getSandboxBaseUrl()).toBe(mockUrl);
+    expect(getDemoBaseUrl("sandbox")).toBe(mockUrl);
 
     vi.stubEnv("NODE_ENV", "production");
-    expect(() => getSandboxBaseUrl()).toThrow(SpeakingBoundaryError);
+    expect(() => getDemoBaseUrl("sandbox")).toThrow(SpeakingBoundaryError);
 
     const sandboxUrl = "https://sandbox.aihubproduction.com";
     vi.stubEnv("AIHUB_SANDBOX_BASE_URL", sandboxUrl);
-    expect(getSandboxBaseUrl()).toBe(sandboxUrl);
+    expect(getDemoBaseUrl("sandbox")).toBe(sandboxUrl);
   });
 
   it("rejects an unconfigured loopback target", () => {
@@ -265,6 +265,19 @@ describe("Speaking sandbox URL", () => {
     vi.stubEnv("AIHUB_SANDBOX_BASE_URL", "http://127.0.0.1:3101");
     vi.stubEnv("AIHUB_SANDBOX_E2E_MOCK_BASE_URL", "http://127.0.0.1:3102");
 
-    expect(() => getSandboxBaseUrl()).toThrow(SpeakingBoundaryError);
+    expect(() => getDemoBaseUrl("sandbox")).toThrow(SpeakingBoundaryError);
+  });
+
+  it("sends Production only to the Production host", () => {
+    vi.stubEnv("AIHUB_SANDBOX_BASE_URL", "https://sandbox.aihubproduction.com");
+    vi.stubEnv("AIHUB_PRODUCTION_BASE_URL", "https://api.aihubproduction.com");
+
+    expect(getDemoBaseUrl("production")).toBe(
+      "https://api.aihubproduction.com"
+    );
+  });
+
+  it("refuses an environment it does not name", () => {
+    expect(() => getDemoBaseUrl("staging")).toThrow(SpeakingBoundaryError);
   });
 });

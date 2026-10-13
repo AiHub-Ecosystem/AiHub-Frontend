@@ -26,22 +26,26 @@ const STATUS_BY_CODE: Record<SpeakingErrorCode, number> = {
 const MESSAGE_BY_CODE: Record<SpeakingErrorCode, string> = {
   INVALID_REQUEST: "Kiểm tra audio và đề Speaking rồi thử lại.",
   PAYLOAD_TOO_LARGE: "Audio cần nhỏ hơn hoặc bằng 25 MB.",
-  UNAUTHORIZED: "API key Sandbox không hợp lệ hoặc đã bị thu hồi.",
-  INVALID_USER_IDENTITY: "Organization đang bật Identity Configuration hoặc phiên demo không hợp lệ.",
+  UNAUTHORIZED: "API key không hợp lệ hoặc đã bị thu hồi.",
+  INVALID_USER_IDENTITY:
+    "Organization đang bật Identity Configuration hoặc phiên demo không hợp lệ.",
   AI_SERVICE_ERROR: "Dịch vụ chấm Speaking trả về lỗi. Thử lại sau.",
-  AI_SERVICE_CONTRACT_VIOLATION: "Dịch vụ chấm Speaking trả về response không đúng định dạng.",
-  AI_SERVICE_THROTTLED: "Dịch vụ Speaking đang giới hạn. Chờ một chút rồi thử lại.",
+  AI_SERVICE_CONTRACT_VIOLATION:
+    "Dịch vụ chấm Speaking trả về response không đúng định dạng.",
+  AI_SERVICE_THROTTLED:
+    "Dịch vụ Speaking đang giới hạn. Chờ một chút rồi thử lại.",
   AI_SERVICE_UNAVAILABLE: "Dịch vụ chấm Speaking tạm thời không truy cập được.",
   AI_SERVICE_TIMEOUT: "Chấm Speaking mất quá lâu. Thử lại sau.",
 };
 
 const UPSTREAM_MESSAGES: Record<string, string> = {
-  FORBIDDEN: "API key thiếu scope speaking.grade hoặc Organization đang bật Identity Configuration.",
-  ENVIRONMENT_NOT_ALLOWED: "Chỉ chấp nhận API key được giới hạn riêng cho môi trường Sandbox.",
+  FORBIDDEN:
+    "API key thiếu scope speaking.grade hoặc Organization đang bật Identity Configuration.",
+  ENVIRONMENT_NOT_ALLOWED: "Key không được phép cho môi trường đã chọn.",
   USER_IDENTITY_REQUIRED: "Thiếu User Identity của phiên demo.",
   RATE_LIMITED: "Bạn gửi hơi nhanh. Chờ một chút rồi thử lại.",
-  CONCURRENCY_LIMIT: "Sandbox đang xử lý một bài khác. Chờ xong rồi thử lại.",
-  QUOTA_EXCEEDED: "Sandbox đã hết hạn mức chấm trong tháng.",
+  CONCURRENCY_LIMIT: "AIHUB đang xử lý một bài khác. Chờ xong rồi thử lại.",
+  QUOTA_EXCEEDED: "Môi trường đã hết hạn mức chấm trong tháng.",
   AI_SERVICE_TIMEOUT: "Chấm Speaking vượt thời gian cho phép. Thử lại sau.",
   AI_SERVICE_UNAVAILABLE: "Dịch vụ chấm Speaking tạm thời không truy cập được.",
 };
@@ -64,7 +68,8 @@ export async function POST(request: Request) {
         {
           error: {
             code: error.code,
-            message: UPSTREAM_MESSAGES[error.code] ?? "Yêu cầu bị AIHUB từ chối.",
+            message:
+              UPSTREAM_MESSAGES[error.code] ?? "Yêu cầu bị AIHUB từ chối.",
             retryable: error.retryable,
             ...(error.retry_after_ms === undefined
               ? {}
@@ -72,13 +77,19 @@ export async function POST(request: Request) {
           },
           meta: { request_id: requestId, service: "speaking" },
         },
-        error.status,
+        error.status
       );
     }
-    const code: SpeakingErrorCode = error instanceof SpeakingBoundaryError ? error.code : "AI_SERVICE_UNAVAILABLE";
+    const code: SpeakingErrorCode =
+      error instanceof SpeakingBoundaryError
+        ? error.code
+        : "AI_SERVICE_UNAVAILABLE";
     return noStore(
-      { error: { code, message: MESSAGE_BY_CODE[code] }, meta: { request_id: requestId, service: "speaking" } },
-      STATUS_BY_CODE[code],
+      {
+        error: { code, message: MESSAGE_BY_CODE[code] },
+        meta: { request_id: requestId, service: "speaking" },
+      },
+      STATUS_BY_CODE[code]
     );
   }
 }

@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import {
   isFetchableImageUrl,
   WRITING_TASK1_CHART_TYPES,
@@ -9,13 +7,15 @@ import {
   type WritingGradingEnvelope,
 } from "@/data/scoring-response";
 import {
+  DemoBoundaryError,
   DemoCredentialError,
+  demoBffHeaders,
+  isDemoEnvironment,
   isSameOrigin,
   readDemoApiKey,
   readDemoUserIdentity,
-  resolveSandboxBaseUrl,
-  SandboxBoundaryError,
-} from "@/lib/sandbox-gateway";
+  resolveDemoBaseUrl,
+} from "@/lib/demo-gateway";
 
 /**
  * Gateway for the public Writing grading demo.
@@ -68,6 +68,18 @@ export type WritingRequest = {
   topic?: string;
 };
 
+function readIdempotencyKey(request: Request): string {
+  const key = request.headers.get("idempotency-key")?.trim() ?? "";
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      key
+    )
+  ) {
+    throw new ScoringBoundaryError("INVALID_REQUEST");
+  }
+  return key;
+}
+
 /**
  * An upstream failure keeps its code, its `retryable` flag and its
  * `retry_after_ms`. `RATE_LIMITED`, `QUOTA_EXCEEDED` and `FORBIDDEN` are
@@ -92,11 +104,14 @@ function invalidRequest() {
   return new ScoringBoundaryError("INVALID_REQUEST");
 }
 
-function getSandboxBaseUrl() {
+/** Only the pinned host of the tier the demo selected, or nothing at all. */
+function getDemoBaseUrl(environment: string) {
+  if (!isDemoEnvironment(environment))
+    throw new ScoringBoundaryError("INVALID_REQUEST");
   try {
-    return resolveSandboxBaseUrl();
+    return resolveDemoBaseUrl(environment);
   } catch (error) {
-    if (error instanceof SandboxBoundaryError) {
+    if (error instanceof DemoBoundaryError) {
       throw new ScoringBoundaryError("AI_SERVICE_UNAVAILABLE");
     }
     throw error;
@@ -244,10 +259,12 @@ export async function gradeWriting(
     }
     throw error;
   }
-  const baseUrl = getSandboxBaseUrl();
+  const baseUrl = getDemoBaseUrl(
+    request.headers.get("x-demo-environment")?.trim() ?? ""
+  );
 
-  // Each submit is one billable attempt. The BFF does not retry a grade.
-  const idempotencyKey = randomUUID();
+  // The browser retains this key for retries of the same logical submission.
+  const idempotencyKey = readIdempotencyKey(request);
 
   const controller = new AbortController();
   // The upstream budget is 60s and this route's maxDuration is 90s, so abort
@@ -271,6 +288,7 @@ export async function gradeWriting(
           "X-User-Identity": userIdentity,
           "X-Correlation-Id": requestId,
           "Idempotency-Key": idempotencyKey,
+          ...demoBffHeaders(request),
         },
         body: JSON.stringify(toUpstreamBody(input)),
         cache: "no-store",

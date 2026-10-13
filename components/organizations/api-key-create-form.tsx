@@ -20,8 +20,16 @@ export type CreateApiKeyPayload = {
 
 export type CreateApiKeyResult = boolean | "uncertain";
 
-/** Every Console-created key is production and billed; see ADR-0011. */
-const ENVIRONMENT = "production";
+/**
+ * The environments a new key may be bound to, and the default. Sandbox first:
+ * a first call on it costs the Organization nothing (ADR-0018).
+ */
+const CREATE_ENVIRONMENTS = [
+  { value: "sandbox", label: "Sandbox (miễn phí)", billed: false },
+  { value: "production", label: "Production (tính phí)", billed: true },
+] as const;
+
+type CreateEnvironment = (typeof CREATE_ENVIRONMENTS)[number]["value"];
 
 export function ApiKeyCreateForm({
   entitlements,
@@ -36,9 +44,13 @@ export function ApiKeyCreateForm({
 }) {
   const [validationError, setValidationError] = useState("");
   const [open, setOpen] = useState(false);
+  const [environment, setEnvironment] = useState<CreateEnvironment>("sandbox");
   const [selectedScopes, setSelectedScopes] = useState<string[]>([]);
   const scopes = apiKeyScopeOptions(entitlements);
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const selected = CREATE_ENVIRONMENTS.find(
+    (option) => option.value === environment
+  );
 
   function clearError() {
     setValidationError("");
@@ -52,6 +64,7 @@ export function ApiKeyCreateForm({
   function handleOpenChange(next: boolean) {
     setOpen(next);
     if (next) return;
+    setEnvironment("sandbox");
     setSelectedScopes([]);
     setValidationError("");
   }
@@ -97,11 +110,12 @@ export function ApiKeyCreateForm({
     const succeeded = await onCreate({
       name: name.trim(),
       scopes: selectedScopes,
-      allowed_environments: [ENVIRONMENT],
+      allowed_environments: [environment],
       ...(expiresAt ? { expires_at: expiresAt } : {}),
     });
     if (succeeded === true) {
       form.reset();
+      setEnvironment("sandbox");
       setSelectedScopes([]);
       setOpen(false);
     } else if (succeeded === "uncertain") setOpen(false);
@@ -140,9 +154,39 @@ export function ApiKeyCreateForm({
             />
 
             <p className="api-key-help">
-              Key chạy trên production. Mọi request, kể cả gọi thử, đều tính vào
-              hạn mức sử dụng của Organization.
+              Key chỉ chạy trên một môi trường. Sandbox không tính vào hạn mức
+              trả phí của Organization; Production thì có.
             </p>
+
+            <fieldset className="api-key-options">
+              <legend>Môi trường</legend>
+              {CREATE_ENVIRONMENTS.map((option) => (
+                <label className="api-key-option" key={option.value}>
+                  <input
+                    checked={environment === option.value}
+                    name="environment"
+                    onChange={() => {
+                      // The permitted scope set belongs to an Environment, so a
+                      // selection made for the other one is dropped rather than
+                      // sent against a key the holder never chose it for.
+                      setEnvironment(option.value);
+                      setSelectedScopes([]);
+                      clearError();
+                    }}
+                    type="radio"
+                    value={option.value}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </fieldset>
+
+            {selected?.billed && (
+              <p className="api-key-help">
+                Key Production được tính phí. Mọi request, kể cả gọi thử, đều
+                tính vào hạn mức sử dụng của Organization.
+              </p>
+            )}
 
             <fieldset className="api-key-options">
               <legend>Scopes</legend>

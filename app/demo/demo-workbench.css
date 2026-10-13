@@ -600,6 +600,95 @@
   margin: 12px 0 0;
 }
 
+/* The environment choice belongs to the visit, so it sits above every step. */
+.demo-visit-controls {
+  border-bottom: 1px solid var(--demo-line);
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding-bottom: 16px;
+}
+
+.demo-env-picker {
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.demo-env-picker legend {
+  color: var(--demo-muted);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  padding: 0 0 6px;
+  text-transform: uppercase;
+  width: 100%;
+}
+
+.demo-env-picker label {
+  align-items: center;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 8px;
+  margin: 0;
+}
+
+.demo-env-picker .demo-help {
+  width: 100%;
+}
+
+.demo-billable {
+  border-left: 3px solid #f0b429;
+}
+
+.demo-billable-ack {
+  align-items: flex-start;
+  color: #475467;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.demo-billable-ack input {
+  margin-top: 3px;
+}
+
+.demo-exports {
+  border: 1px solid var(--demo-line);
+  border-radius: 18px;
+  margin-top: 20px;
+  padding: 22px;
+}
+
+/* The copy panel sits on the page, not in the dark console, so it is restyled. */
+.demo-exports .demo-console-tabs {
+  border-bottom-color: var(--demo-line);
+}
+
+.demo-exports .demo-console-tabs button {
+  color: var(--demo-muted);
+}
+
+.demo-exports .demo-console-tabs button.active {
+  border-color: var(--demo-brand);
+  color: var(--demo-brand-text);
+}
+
+.demo-exports .demo-console-code {
+  background: var(--demo-surface);
+  border-color: var(--demo-line);
+  color: var(--demo-ink);
+}
+
+.demo-exports .demo-console-note {
+  color: var(--demo-muted) !important;
+}
+
 .demo-result-card {
   background: #f8f9fc;
   border: 1px solid var(--demo-line);

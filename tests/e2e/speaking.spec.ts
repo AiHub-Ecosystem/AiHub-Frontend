@@ -70,7 +70,9 @@ async function startLiveSession(page: Page) {
   await expect(
     page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
   ).toBeVisible();
-  await expect(page.getByText("E2E_ONLY_QUESTION_1")).toBeVisible();
+  await expect(
+    page.locator(".demo-scenario-list").getByText("E2E_ONLY_QUESTION_1")
+  ).toBeVisible();
 }
 
 async function prepareLiveGrading(page: Page) {
@@ -116,7 +118,7 @@ test("Speaking without a key uses a read-only fixture and grades locally", async
     page.getByRole("region", { name: "Kết quả chấm Speaking" })
   ).toBeVisible();
   await page.getByRole("tab", { name: "Response" }).click();
-  await expect(page.locator(".demo-console-code")).toContainText(
+  await expect(page.locator(".demo-console .demo-console-code")).toContainText(
     "local fixture"
   );
 
@@ -216,6 +218,7 @@ test("Speaking grading rejects an invalid key if the client bypasses validation"
       method: "POST",
       headers: {
         "X-Demo-API-Key": "invalid-sandbox-key",
+        "X-Demo-Environment": "sandbox",
         "X-Demo-User-Identity": "00000000-0000-4000-8000-000000000001",
       },
       body: form,

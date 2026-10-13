@@ -1,0 +1,174 @@
+import { describe, expect, it } from "vitest";
+import { DEMO_ENVIRONMENTS } from "@/lib/demo-environments";
+import {
+  acknowledgeProduction,
+  allowanceAdmitsOneMore,
+  clearDemoVisit,
+  createDemoVisitState,
+  isScopeValidated,
+  isSelectionCurrent,
+  markScopeValidated,
+  remainingAllowance,
+  requiresProductionAcknowledgement,
+  sandboxAllowanceFrom,
+  setApiKey,
+  setEnvironment,
+  type DemoVisitState,
+} from "@/app/demo/demo-session-state";
+
+const KEY = "aihub_sandbox_" + "A".repeat(43);
+
+/** One Production visit that has already had its key validated and acknowledged. */
+function validated(): DemoVisitState {
+  return acknowledgeProduction(
+    markScopeValidated(
+      setApiKey(setEnvironment(createDemoVisitState(), "production"), KEY),
+      "writing.grade"
+    )
+  );
+}
+
+describe("Demo visit", () => {
+  it("starts on Sandbox with no key and no acknowledgement", () => {
+    const state = createDemoVisitState();
+
+    expect(state).toEqual({
+      apiKey: "",
+      environment: "sandbox",
+      validatedScopes: [],
+      productionAcknowledged: false,
+    });
+    expect(DEMO_ENVIRONMENTS[0]).toBe("sandbox");
+    expect(requiresProductionAcknowledgement(state)).toBe(false);
+  });
+});
+
+describe("Changing the key", () => {
+  it("drops the validation and the Production acknowledgement it was given for", () => {
+    const next = setApiKey(validated(), "aihub_prod_" + "B".repeat(43));
+
+    expect(isScopeValidated(next, "writing.grade")).toBe(false);
+    expect(requiresProductionAcknowledgement(next)).toBe(true);
+  });
+
+  it("keeps the visit as it was when the value did not actually change", () => {
+    const before = validated();
+
+    expect(setApiKey(before, KEY)).toBe(before);
+  });
+});
+
+describe("Changing the environment", () => {
+  it("drops the validation and the Production acknowledgement", () => {
+    const next = setEnvironment(validated(), "sandbox");
+
+    expect(isScopeValidated(next, "writing.grade")).toBe(false);
+    expect(requiresProductionAcknowledgement(next)).toBe(false);
+  });
+
+  it("keeps the visit as it was when the selection did not actually change", () => {
+    const before = validated();
+
+    expect(setEnvironment(before, "production")).toBe(before);
+  });
+});
+
+describe("A late validation response", () => {
+  it("cannot unlock the key it was sent for once the key has changed", () => {
+    const submitted = { apiKey: KEY, environment: "sandbox" } as const;
+    const changed = setApiKey(validated(), "aihub_prod_" + "C".repeat(43));
+
+    expect(
+      isSelectionCurrent(changed, submitted.apiKey, submitted.environment)
+    ).toBe(false);
+  });
+
+  it("cannot unlock the environment it was sent for once the selection has changed", () => {
+    const changed = setEnvironment(
+      setApiKey(createDemoVisitState(), KEY),
+      "production"
+    );
+
+    expect(isSelectionCurrent(changed, KEY, "sandbox")).toBe(false);
+  });
+
+  it("still applies when neither has changed", () => {
+    const state = setApiKey(createDemoVisitState(), `  ${KEY}  `);
+
+    expect(isSelectionCurrent(state, KEY, "sandbox")).toBe(true);
+  });
+});
+
+describe("Production acknowledgement", () => {
+  it("is required before the first Production grade of a visit", () => {
+    const state = setEnvironment(createDemoVisitState(), "production");
+
+    expect(requiresProductionAcknowledgement(state)).toBe(true);
+    expect(
+      requiresProductionAcknowledgement(acknowledgeProduction(state))
+    ).toBe(false);
+  });
+
+  it("does not block a Sandbox grade", () => {
+    expect(
+      requiresProductionAcknowledgement(setApiKey(createDemoVisitState(), KEY))
+    ).toBe(false);
+  });
+});
+
+describe("Leaving the demo", () => {
+  it("clears the key, the validation and the acknowledgement", () => {
+    expect(clearDemoVisit()).toEqual(createDemoVisitState());
+  });
+});
+
+describe("The Sandbox allowance snapshot", () => {
+  const valid = {
+    data: {
+      valid: true,
+      environment: "sandbox",
+      scope: "writing.grade",
+      allowance: { monthly_limit: 5, reserved: 2 },
+    },
+  };
+
+  it("reads the counts out of a validation response", () => {
+    expect(sandboxAllowanceFrom(valid)).toEqual({
+      monthlyLimit: 5,
+      reserved: 2,
+    });
+    expect(remainingAllowance({ monthlyLimit: 5, reserved: 2 })).toBe(3);
+  });
+
+  it("reports no snapshot where the backend reports none", () => {
+    expect(
+      sandboxAllowanceFrom({
+        data: {
+          valid: true,
+          environment: "sandbox",
+          scope: "writing.grade",
+          allowance: null,
+        },
+      })
+    ).toBeNull();
+  });
+
+  it("treats a snapshot it cannot read as no snapshot", () => {
+    expect(
+      sandboxAllowanceFrom({
+        data: { valid: true, allowance: { monthly_limit: "five" } },
+      })
+    ).toBeNull();
+  });
+
+  it("does not show an exhausted Organization as available", () => {
+    expect(allowanceAdmitsOneMore({ monthlyLimit: 5, reserved: 5 })).toBe(
+      false
+    );
+    expect(allowanceAdmitsOneMore({ monthlyLimit: 5, reserved: 4 })).toBe(true);
+  });
+
+  it("does not claim availability when the policy could not be read", () => {
+    expect(allowanceAdmitsOneMore(null)).toBeNull();
+  });
+});

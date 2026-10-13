@@ -6,8 +6,8 @@ const mockUrl = "http://127.0.0.1:3101";
 const speakingEnv = {
   AIHUB_SANDBOX_BASE_URL: mockUrl,
   AIHUB_SANDBOX_E2E_MOCK_BASE_URL: mockUrl,
-  AIHUB_SANDBOX_API_KEY: "aihub_sk_e2e_sandbox_key",
-  AIHUB_SANDBOX_ORGANIZATION_ID: "org-e2e-00000000",
+  AIHUB_PRODUCTION_BASE_URL: mockUrl,
+  AIHUB_PRODUCTION_E2E_MOCK_BASE_URL: mockUrl,
 };
 
 export default defineConfig({

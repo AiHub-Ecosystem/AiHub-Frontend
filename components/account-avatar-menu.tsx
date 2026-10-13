@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import type { Avatar } from "@/lib/avatar-contract";
 import { AVATAR_CONTENT_TYPES, AVATAR_MAX_BYTES } from "@/lib/avatar-contract";
+import { broadcastLogout } from "@/lib/logout-signal";
 
 const CONTENT_TYPES: readonly string[] = AVATAR_CONTENT_TYPES;
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -302,7 +303,7 @@ export function AccountAvatarMenu() {
           Xóa ảnh
         </button>
       )}
-      <form action="/api/auth/logout" method="post">
+      <form action="/api/auth/logout" method="post" onSubmit={broadcastLogout}>
         <button type="submit">Đăng xuất</button>
       </form>
       <ConfirmationDialog

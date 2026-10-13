@@ -10,7 +10,10 @@ import {
   isFetchableImageUrl,
   WRITING_TASK1_CHART_TYPES,
 } from "@/data/writing-task1-request";
+import { demoEnvironmentName } from "@/lib/demo-environments";
+import { buildDemoExports } from "@/lib/demo-export";
 import { useDemoSession, type DemoScope } from "@/app/demo/demo-session";
+import { sandboxAllowanceFrom } from "@/app/demo/demo-session-state";
 import {
   DEMO_STEPS,
   DemoWorkbench,
@@ -63,7 +66,7 @@ const SCENARIOS = [
   },
   {
     id: "quota",
-    label: "Hết quota Sandbox",
+    label: "Hết hạn mức môi trường",
     status: "429 Too Many Requests",
     request: {
       method: "POST",
@@ -73,7 +76,7 @@ const SCENARIOS = [
     response: {
       error: {
         code: "QUOTA_EXCEEDED",
-        message: "Sandbox đã hết quota tháng.",
+        message: "Môi trường đã hết hạn mức tháng.",
         retryable: false,
       },
     },
@@ -129,14 +132,19 @@ function httpSummary(trace: HttpTrace | null) {
 
 export default function ScoringWorkbench() {
   const {
-    apiKey,
+    state,
     setApiKey,
-    isCurrentApiKey,
+    setEnvironment,
+    isSelectionCurrent,
     isScopeValidated,
     markScopeValidated,
     clearScopeValidation,
+    requiresProductionAcknowledgement,
+    acknowledgeProduction,
     getUserIdentity,
   } = useDemoSession();
+  const apiKey = state.apiKey;
+  const environment = state.environment;
   const [task, setTask] = useState<1 | 2>(1);
   const [drafts, setDrafts] = useState<Record<1 | 2, Draft>>(SAMPLE_DRAFT);
   const [step, setStep] = useState<DemoStep>(1);
@@ -150,6 +158,7 @@ export default function ScoringWorkbench() {
   const [gradeResponse, setGradeResponse] = useState<unknown>(null);
   const [gradeTrace, setGradeTrace] = useState<HttpTrace | null>(null);
   const [gradeAttempted, setGradeAttempted] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const [result, setResult] = useState<GradeResult | null>(null);
   const [scenario, setScenario] =
     useState<(typeof SCENARIOS)[number]["id"]>("revoked");
@@ -158,6 +167,7 @@ export default function ScoringWorkbench() {
 
   const draft = drafts[task];
   const setDraft = (patch: Partial<Draft>) => {
+    setIdempotencyKey(globalThis.crypto.randomUUID());
     setDrafts((current) => ({
       ...current,
       [task]: { ...current[task], ...patch },
@@ -189,9 +199,32 @@ export default function ScoringWorkbench() {
           },
     [task, draft]
   );
+  /** Every copyable artifact describes the AIHUB call, so Mock offers it too. */
+  const copyableExports = useMemo(
+    () =>
+      step === 1
+        ? null
+        : buildDemoExports({
+            environment,
+            skill: "writing",
+            title: `Writing Task ${task}`,
+            path: `/v1/ielts/writing/task${task}/grade`,
+            headers: [
+              { name: "X-User-Identity", value: "<your end-user id>" },
+              { name: "Content-Type", value: "application/json" },
+            ],
+            body: requestBody,
+            idempotencyKey: idempotencyKey ?? undefined,
+          }),
+    [environment, idempotencyKey, requestBody, step, task]
+  );
   const activeScenario =
     SCENARIOS.find((item) => item.id === scenario) ?? SCENARIOS[0];
   const activeResult = result?.task === task ? result : null;
+  /** Informational only: every grade re-checks the allowance upstream. */
+  const allowance = isScopeValidated(SCOPE)
+    ? sandboxAllowanceFrom(keyCheckResponse)
+    : undefined;
   const chartProblem =
     task === 1 && !isFetchableImageUrl(draft.imageUrl ?? "")
       ? "Task 1 cần image_url HTTPS có thể tải được."
@@ -208,10 +241,11 @@ export default function ScoringWorkbench() {
 
   const validateKey = async () => {
     const submittedKey = apiKey.trim();
+    const submittedEnvironment = environment;
     if (!submittedKey) {
       setKeyError({
         code: "UNAUTHORIZED",
-        message: "Nhập API key Sandbox hoặc bỏ qua để dùng mẫu.",
+        message: `Nhập API key ${demoEnvironmentName(environment)} hoặc bỏ qua để dùng mẫu.`,
       });
       return;
     }
@@ -228,15 +262,18 @@ export default function ScoringWorkbench() {
           "Content-Type": "application/json",
           "X-Demo-API-Key": submittedKey,
         },
-        body: JSON.stringify({ scope: SCOPE }),
+        body: JSON.stringify({
+          environment: submittedEnvironment,
+          scope: SCOPE,
+        }),
         cache: "no-store",
       });
-      // A changed input clears scope validation; ignore a response for the old key.
-      if (!isCurrentApiKey(submittedKey)) return;
+      // A changed key or environment discards the answer to this question.
+      if (!isSelectionCurrent(submittedKey, submittedEnvironment)) return;
       receivedTrace = httpTrace(response);
       setKeyCheckTrace(receivedTrace);
       const payload: unknown = await response.json().catch(() => null);
-      if (!isCurrentApiKey(submittedKey)) return;
+      if (!isSelectionCurrent(submittedKey, submittedEnvironment)) return;
       setKeyCheckResponse(payload);
       if (!response.ok) throw errorFromPayload(payload);
       if (
@@ -254,10 +291,11 @@ export default function ScoringWorkbench() {
         } satisfies PublicError;
       }
       markScopeValidated(SCOPE);
+      setIdempotencyKey(globalThis.crypto.randomUUID());
       setStep(2);
     } catch (caught) {
-      if (!isCurrentApiKey(submittedKey)) return;
-      clearScopeValidation(SCOPE);
+      if (!isSelectionCurrent(submittedKey, submittedEnvironment)) return;
+      clearScopeValidation();
       const publicError =
         typeof caught === "object" &&
         caught !== null &&
@@ -281,8 +319,7 @@ export default function ScoringWorkbench() {
   };
 
   const useMock = () => {
-    clearScopeValidation("writing.grade");
-    clearScopeValidation("speaking.grade");
+    clearScopeValidation();
     setSkipMock(true);
     setKeyError(null);
     setGradeError(null);
@@ -296,6 +333,7 @@ export default function ScoringWorkbench() {
       request: null,
       message: "Live validation cleared; fixed fixture selected without HTTP.",
     });
+    setIdempotencyKey(globalThis.crypto.randomUUID());
     setStep(2);
   };
 
@@ -314,6 +352,22 @@ export default function ScoringWorkbench() {
       setGradeError({ code: "INVALID_REQUEST", message: chartProblem });
       return;
     }
+    // The first Production grade of a visit needs the billable acknowledgement;
+    // it is not a spend cap, only a gate the backend still enforces afterwards.
+    if (requiresProductionAcknowledgement()) {
+      setGradeError({
+        code: "PRODUCTION_ACKNOWLEDGEMENT_REQUIRED",
+        message:
+          "Xác nhận ở khung “Môi trường demo” rằng request Production có thể tính phí trước khi chấm.",
+      });
+      return;
+    }
+
+    const submissionKey =
+      result?.mode === "live" || !idempotencyKey
+        ? globalThis.crypto.randomUUID()
+        : idempotencyKey;
+    setIdempotencyKey(submissionKey);
 
     setGradeStatus("submitting");
     setGradeAttempted(true);
@@ -336,7 +390,9 @@ export default function ScoringWorkbench() {
         headers: {
           "Content-Type": "application/json",
           "X-Demo-API-Key": apiKey.trim(),
+          "X-Demo-Environment": environment,
           "X-Demo-User-Identity": getUserIdentity(),
+          "Idempotency-Key": submissionKey,
         },
         body: JSON.stringify(requestBody),
         signal: controller.signal,
@@ -407,7 +463,8 @@ export default function ScoringWorkbench() {
                 },
                 body: { scope: SCOPE },
               },
-              bff_to_sandbox: {
+              bff_to_selected_environment: {
+                environment: demoEnvironmentName(environment),
                 method: "POST",
                 path: "/v1/sandbox/demo/api-keys/validate",
                 headers: {
@@ -445,12 +502,16 @@ export default function ScoringWorkbench() {
           ? {
               method: "POST",
               browser_to_aihub_bff: "/api/demo/scoring/grade",
-              bff_to_sandbox: `/v1/ielts/writing/task${task}/grade`,
+              bff_to_selected_environment: {
+                environment: demoEnvironmentName(environment),
+                path: `/v1/ielts/writing/task${task}/grade`,
+              },
               headers: {
                 "X-Demo-API-Key": "[REDACTED]",
                 "X-Demo-User-Identity": "<generated at submit>",
                 "Content-Type": "application/json",
-                "Idempotency-Key": "<generated by BFF>",
+                "Idempotency-Key":
+                  idempotencyKey ?? "<generated before submit>",
               },
             }
           : null,
@@ -469,14 +530,17 @@ export default function ScoringWorkbench() {
         : "request preview · not sent",
       method: "POST",
       browser_to_aihub_bff: "/api/demo/scoring/grade",
-      bff_to_sandbox: `/v1/ielts/writing/task${task}/grade`,
+      bff_to_selected_environment: {
+        environment: demoEnvironmentName(environment),
+        path: `/v1/ielts/writing/task${task}/grade`,
+      },
       headers: {
         "X-Demo-API-Key": "[REDACTED]",
         "X-Demo-User-Identity": gradeAttempted
           ? getUserIdentity()
           : "<generated at submit>",
         "Content-Type": "application/json",
-        "Idempotency-Key": "<generated by BFF per submit>",
+        "Idempotency-Key": idempotencyKey ?? "<generated before submit>",
       },
       body: requestBody,
       sent: gradeAttempted,
@@ -559,11 +623,11 @@ export default function ScoringWorkbench() {
     step === 1
       ? skipMock || (!apiKey.trim() && !keyCheckResponse)
         ? "No HTTP request — key check skipped or not started."
-        : `${keyCheckResponse ? "Sent" : "Preview only; not sent"}\nBrowser → AIHUB BFF: X-Demo-API-Key: ${apiKey.trim() ? "[REDACTED]" : "(not set)"}\nContent-Type: application/json\nBFF → Sandbox: X-API-Key: [REDACTED]\nContent-Type: application/json`
+        : `${keyCheckResponse ? "Sent" : "Preview only; not sent"}\nBrowser → AIHUB BFF: X-Demo-API-Key: ${apiKey.trim() ? "[REDACTED]" : "(not set)"}\nContent-Type: application/json\nBFF → ${demoEnvironmentName(environment)}: X-API-Key: [REDACTED]\nContent-Type: application/json`
       : step === 3 || (step === 4 && !liveReady)
         ? "No HTTP request — local preview/mock."
         : step === 4
-          ? `${gradeAttempted ? "Sent" : "Preview only; not sent"}\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nX-Demo-User-Identity: ${gradeAttempted ? getUserIdentity() : "<generated at submit>"}\nContent-Type: application/json\nBFF → Sandbox: X-API-Key: [REDACTED]\nX-User-Identity: <demo UUID>`
+          ? `${gradeAttempted ? "Sent" : "Preview only; not sent"}\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nX-Demo-User-Identity: ${gradeAttempted ? getUserIdentity() : "<generated at submit>"}\nContent-Type: application/json\nIdempotency-Key: ${idempotencyKey ?? "<generated before submit>"}\nBFF → ${demoEnvironmentName(environment)}: X-API-Key: [REDACTED]\nX-User-Identity: <demo UUID>`
           : step === 5
             ? "Simulated request only — no request headers were sent."
             : "No HTTP request — local fixture.";
@@ -585,7 +649,7 @@ export default function ScoringWorkbench() {
       skill="scoring"
       scope={SCOPE}
       title="Chấm điểm IELTS Writing"
-      description="Thử Writing Task 1 và Task 2 theo đúng API contract. Bỏ qua key để xem fixture read-only; key Sandbox hợp lệ mở chỉnh sửa và chấm thật."
+      description={`Thử Writing Task 1 và Task 2 theo đúng API contract. Bỏ qua key để xem fixture read-only; key ${demoEnvironmentName(environment)} hợp lệ mở chỉnh sửa và chấm thật.`}
       step={step}
       onStepChange={setStep}
       stepperDisabled={gradeStatus === "submitting"}
@@ -603,16 +667,26 @@ export default function ScoringWorkbench() {
       response={consoleResponse}
       requestHeaders={requestHeaders}
       responseHeaders={responseHeaders}
+      environment={environment}
+      onEnvironmentChange={(value) => {
+        setEnvironment(value);
+        setIdempotencyKey(globalThis.crypto.randomUUID());
+      }}
+      productionAcknowledged={state.productionAcknowledged}
+      requiresProductionAcknowledgement={requiresProductionAcknowledgement()}
+      onAcknowledgeProduction={acknowledgeProduction}
+      sandboxAllowance={allowance}
+      exports={copyableExports}
       traceNote={
         step === 1
-          ? "Key validation checks Sandbox environment, scope and Organization identity configuration. It does not dispatch grading or consume grading quota. The key is redacted."
+          ? "Key validation checks the selected environment, scope and Organization identity configuration. It does not dispatch grading or consume grading quota. The key is redacted."
           : step === 2
             ? "Writing Task 1/2 use local fixed prompts. No HTTP request is sent."
             : step === 3
               ? "This is a local payload preview. The essay is sent only after the Step 4 button is pressed."
               : step === 4
                 ? liveReady
-                  ? "Every live grading request reauthenticates the Sandbox key before quota and AI dispatch; trace redacts the key."
+                  ? `Every live grading request reauthenticates the ${demoEnvironmentName(environment)} key before quota and AI dispatch; trace redacts the key.`
                   : "The button returns a fixed frontend fixture. No grading API request is sent."
                 : "Error scenarios are simulated locally. No HTTP request or quota use."
       }
@@ -623,18 +697,22 @@ export default function ScoringWorkbench() {
 
       {step === 1 && (
         <>
-          <h3>Kết nối Sandbox</h3>
+          <h3>Chọn môi trường và key</h3>
           <p>
             API key chỉ nằm trong bộ nhớ của trang. Key được kiểm tra theo scope{" "}
-            <code>{SCOPE}</code>, không gọi AI và không dùng quota chấm.
+            <code>{SCOPE}</code> và theo môi trường đã chọn, không gọi AI và
+            không dùng quota chấm.
           </p>
           <div className="demo-field">
-            <label htmlFor="writing-demo-key">API key Sandbox (tùy chọn)</label>
+            <label htmlFor="writing-demo-key">
+              API key {demoEnvironmentName(environment)} (tùy chọn)
+            </label>
             <input
               autoComplete="off"
               id="writing-demo-key"
               onChange={(event) => {
                 setApiKey(event.target.value);
+                setIdempotencyKey(globalThis.crypto.randomUUID());
                 setSkipMock(false);
                 setKeyError(null);
                 setKeyCheckResponse(null);
@@ -645,14 +723,16 @@ export default function ScoringWorkbench() {
                 setGradeAttempted(false);
                 setResult(null);
               }}
-              placeholder="aihub_sk_…"
+              placeholder={
+                environment === "sandbox" ? "aihub_sandbox_…" : "aihub_prod_…"
+              }
               spellCheck={false}
               type="password"
               value={apiKey}
             />
             <p className="demo-help">
-              Chỉ key thuộc riêng môi trường Sandbox và có scope writing.grade
-              mới mở chế độ chấm thật.
+              Chỉ key thuộc riêng môi trường {demoEnvironmentName(environment)}{" "}
+              và có scope writing.grade mới mở chế độ chấm thật.
             </p>
           </div>
           {keyError && (
@@ -706,6 +786,7 @@ export default function ScoringWorkbench() {
                 key={value}
                 onClick={() => {
                   setTask(value);
+                  setIdempotencyKey(globalThis.crypto.randomUUID());
                   setResult(null);
                   setGradeError(null);
                   setGradeResponse(null);
@@ -797,7 +878,10 @@ export default function ScoringWorkbench() {
           <div className="demo-step-actions">
             <button
               className="demo-btn-primary"
-              onClick={() => setStep(3)}
+              onClick={() => {
+                setIdempotencyKey(globalThis.crypto.randomUUID());
+                setStep(3);
+              }}
               type="button"
             >
               Tiếp tục đến bài làm
@@ -811,7 +895,7 @@ export default function ScoringWorkbench() {
           <h3>Nhập bài làm</h3>
           <p>
             {liveReady
-              ? "Bạn có thể sửa bài trước khi gửi lên Sandbox."
+              ? `Bạn có thể sửa bài trước khi gửi lên ${demoEnvironmentName(environment)}.`
               : "Mock mode hiển thị bài mẫu read-only; kết quả khi submit luôn là fixture cố định."}
           </p>
           <div className="demo-field">
@@ -853,7 +937,7 @@ export default function ScoringWorkbench() {
           <h3>{liveReady ? "Gửi chấm live" : "Xem kết quả mẫu"}</h3>
           <p>
             {liveReady
-              ? "Request sẽ dùng key Sandbox đã kiểm tra và UUID tạm của phiên demo. Backend xác thực lại key trước khi dispatch."
+              ? `Request sẽ dùng key ${demoEnvironmentName(environment)} đã kiểm tra và UUID tạm của phiên demo. Backend xác thực lại key trước khi dispatch.`
               : "Nút này chỉ chọn response mock cố định trong frontend. Không gọi route chấm hoặc AI service."}
           </p>
           {gradeError && (
@@ -934,7 +1018,7 @@ export default function ScoringWorkbench() {
           <h3>Retry và lỗi</h3>
           <p>
             Các kịch bản bên dưới chỉ minh họa request/response; chọn chúng
-            không gọi Sandbox và không dùng quota.
+            không gọi API chấm và không dùng quota.
           </p>
           <div className="demo-scenario-list">
             {SCENARIOS.map((item) => (

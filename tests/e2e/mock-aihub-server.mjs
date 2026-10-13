@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
+import { isIP } from "node:net";
 
 const host = "127.0.0.1";
 const port = 3101;
@@ -10,6 +11,20 @@ const organizationRequests = [];
 const speakingRequests = [];
 const speakingAssertions = [];
 const scoringRequests = [];
+/**
+ * The demo keys the E2E run holds. Authorization reads `environments`, not the
+ * raw key's prefix, exactly as aihub-be does.
+ */
+const DEMO_KEYS = {
+  aihub_sk_e2e_sandbox_key: {
+    environments: ["sandbox"],
+    scopes: ["writing.grade", "speaking.grade"],
+  },
+  aihub_prod_e2e_production_key: {
+    environments: ["production"],
+    scopes: ["writing.grade", "speaking.grade"],
+  },
+};
 // `noAnnotations` reproduces a grade whose essay carries nothing worth
 // quoting, which is the state the empty-state wording exists for.
 let scoringConfig = { noAnnotations: false };
@@ -75,6 +90,14 @@ function sendJson(response, status, body, headers = {}) {
     ...headers,
   });
   response.end(JSON.stringify(body));
+}
+
+function hasTrustedDemoBffHeaders(request) {
+  return (
+    request.headers["x-aihub-client-secret"] === "e2e-web-session-secret" &&
+    typeof request.headers["x-aihub-visitor-ip"] === "string" &&
+    isIP(request.headers["x-aihub-visitor-ip"]) !== 0
+  );
 }
 
 async function readJson(request) {
@@ -486,13 +509,15 @@ const server = createServer(async (request, response) => {
       scopes: body.scopes,
       allowed_environments: body.allowed_environments,
     });
-    // Mirrors the backend: a Sandbox key allows that Environment and Writing
-    // only, so an E2E run fails when the form sends anything else.
+    // Mirrors the backend: a Sandbox key is bound to that Environment alone and
+    // may carry only the demo grading pair, so an E2E run fails when the form
+    // sends anything else.
     if (
       body.allowed_environments?.includes("sandbox") &&
       (body.allowed_environments.length !== 1 ||
-        body.scopes.length !== 1 ||
-        body.scopes[0] !== "writing.grade")
+        !body.scopes.every((scope) =>
+          ["writing.grade", "speaking.grade"].includes(scope)
+        ))
     ) {
       sendJson(response, 400, {
         error: {
@@ -1031,18 +1056,38 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  if (request.method === "POST" && pathname === "/v1/sandbox/demo/api-keys/validate") {
-    const { scope } = await readJson(request);
-    if (request.headers["x-api-key"] !== "aihub_sk_e2e_sandbox_key") {
+  if (
+    request.method === "POST" &&
+    pathname === "/v1/sandbox/demo/api-keys/validate"
+  ) {
+    const { environment = "sandbox", scope } = await readJson(request);
+    // Mirrors aihub-be: authorization reads the key's stored binding, never its
+    // prefix, and the allowance is reported for Sandbox only.
+    if (!hasTrustedDemoBffHeaders(request)) {
       sendJson(response, 401, { error: { code: "UNAUTHORIZED" } });
       return;
     }
-    if (scope !== "writing.grade" && scope !== "speaking.grade") {
+    const demoKey = DEMO_KEYS[request.headers["x-api-key"]];
+    if (!demoKey) {
+      sendJson(response, 401, { error: { code: "UNAUTHORIZED" } });
+      return;
+    }
+    if (!demoKey.environments.includes(environment)) {
+      sendJson(response, 403, { error: { code: "FORBIDDEN" } });
+      return;
+    }
+    if (!demoKey.scopes.includes(scope)) {
       sendJson(response, 403, { error: { code: "FORBIDDEN" } });
       return;
     }
     sendJson(response, 200, {
-      data: { valid: true, environment: "sandbox", scope },
+      data: {
+        valid: true,
+        environment,
+        scope,
+        allowance:
+          environment === "sandbox" ? { monthly_limit: 5, reserved: 0 } : null,
+      },
       meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
     });
     return;
@@ -1097,7 +1142,11 @@ const server = createServer(async (request, response) => {
     for await (const chunk of request) chunks.push(chunk);
     const body = Buffer.concat(chunks).toString("utf8");
 
-    if (request.headers["x-api-key"] !== "aihub_sk_e2e_sandbox_key") {
+    if (!hasTrustedDemoBffHeaders(request)) {
+      sendJson(response, 401, { error: { code: "UNAUTHORIZED" } });
+      return;
+    }
+    if (!DEMO_KEYS[request.headers["x-api-key"]]) {
       sendJson(response, 401, { error: { code: "UNAUTHORIZED" } });
       return;
     }
@@ -1204,7 +1253,11 @@ const server = createServer(async (request, response) => {
     const task = scoringGradingMatch[1];
     const body = await readJson(request);
 
-    if (request.headers["x-api-key"] !== "aihub_sk_e2e_sandbox_key") {
+    if (!hasTrustedDemoBffHeaders(request)) {
+      sendJson(response, 401, { error: { code: "UNAUTHORIZED" } });
+      return;
+    }
+    if (!DEMO_KEYS[request.headers["x-api-key"]]) {
       sendJson(response, 401, { error: { code: "UNAUTHORIZED" } });
       return;
     }
