@@ -33,3 +33,21 @@ An optional customer-supplied image that identifies one User Account. A User Acc
 
 **Username initial fallback**:
 The uppercase first visible Unicode grapheme of a Username, shown when its Avatar is absent or cannot be loaded.
+
+### Scoring demos
+
+**Customer Sandbox API key**:
+An Organization-owned API key restricted to the Sandbox Environment, distinct from AIHUB's own server-held demo key. It may carry `writing.grade`, `speaking.grade`, or both.
+
+**Demo visit**:
+One temporary visit shared by the Writing and Speaking demos, with one demo identity and optionally one Customer Sandbox API key.
+
+**Demo identity**:
+A random UUID used as the temporary End-User ID for one demo visit's Sandbox calls; it is shared by Writing and Speaking and separate from the participant's AIHUB User Account identity.
+_Avoid_: AIHUB username
+
+**Mock result**:
+A fixed example grading response that shows the report format without claiming to evaluate the visitor's answer.
+
+**Live grading**:
+A Writing or Speaking grading attempt against the Sandbox Environment using a Customer Sandbox API key with the matching scope.
