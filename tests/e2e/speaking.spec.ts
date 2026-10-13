@@ -153,16 +153,15 @@ test("live Speaking never falls back to fixture questions when the catalog is un
   await expect(
     page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
   ).toBeVisible();
-  await expect(page.getByRole("alert")).toContainText(
-    "Sandbox hiện không có câu hỏi"
-  );
+  const questionError = page.locator('.demo-error[role="alert"]');
+  await expect(questionError).toContainText("Sandbox hiện không có câu hỏi");
   await expect(page.locator(".demo-scenario-list button")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Tiếp tục đến câu trả lời" })
   ).toBeDisabled();
 
   await page.getByRole("button", { name: "Part 2" }).click();
-  await expect(page.getByRole("alert")).toContainText("Sandbox unavailable.");
+  await expect(questionError).toContainText("Sandbox unavailable.");
   await page
     .getByRole("navigation", { name: "Các bước demo" })
     .getByRole("button", { name: /Chấm và xem kết quả/ })
