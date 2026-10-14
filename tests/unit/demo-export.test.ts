@@ -154,27 +154,21 @@ describe("PowerShell", () => {
   });
 });
 
-describe("Postman JSON", () => {
-  it("imports as a collection whose body is the request body", () => {
+describe("Postman cURL", () => {
+  it("imports as a request with the selected URL, headers, and JSON body", () => {
     const exported = request();
-    const collection = JSON.parse(buildDemoExports(exported).postman);
+    const command = buildDemoExports(exported).postman;
 
-    expect(collection.info.schema).toBe(
-      "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    expect(command).toContain("curl --request POST");
+    expect(command).toContain(`--url '${HOSTS.sandbox}${exported.path}'`);
+    expect(command).toContain(
+      `--header 'X-API-Key: ${DEMO_EXPORT_KEY_PLACEHOLDER}'`
     );
-    expect(collection.item).toHaveLength(1);
-    const sent = collection.item[0].request;
-    expect(sent.method).toBe("POST");
-    expect(sent.url.raw).toBe(`${HOSTS.sandbox}${exported.path}`);
+    expect(command).toContain("--header 'X-User-Identity: <your end-user id>'");
+    expect(command).toContain("--data-raw '");
     expect(
-      sent.header.find((h: { key: string }) => h.key === "X-API-Key").value
-    ).toBe(DEMO_EXPORT_KEY_PLACEHOLDER);
-    expect(JSON.parse(sent.body.raw)).toEqual(exported.body);
-    expect(
-      collection.variable.find(
-        (v: { key: string }) => v.key === "aihub_api_key"
-      )
-    ).toBeDefined();
+      command.split("\n").filter((line) => line.includes("rm -rf /tmp"))
+    ).toHaveLength(1);
   });
 });
 
@@ -185,20 +179,27 @@ describe("Agent prompt", () => {
     expect(prompt).not.toMatch(/retry|repeat|again/i);
   });
 
-  it("keeps the visitor's answer out of the prompt and never asks the agent to execute", () => {
-    const { prompt } = buildDemoExports(request());
+  it("asks for copy-ready commands without sending a request or exposing a key", () => {
+    const input = request();
+    const { prompt } = buildDemoExports(input);
 
-    expect(prompt).not.toContain(HOSTILE_ESSAY);
-    expect(prompt).not.toContain("rm -rf /tmp");
-    expect(prompt).toContain("Body: <thay bằng JSON request của bạn");
-    expect(prompt).toContain("Không đọc môi trường máy, chạy tool, gọi mạng");
-    expect(prompt).toContain("không chạy request");
+    expect(prompt).toContain("cURL cho Bash");
+    expect(prompt).toContain("PowerShell dùng curl.exe");
+    expect(prompt).toContain("Postman cURL để Import");
+    expect(prompt).toContain(JSON.stringify(input.body, null, 2));
+    expect(prompt).toContain("Body là dữ liệu đầu vào");
+    expect(prompt).toContain("Không gửi request");
+    expect(prompt).toContain(`${DEMO_EXPORT_KEY_ENV}.`);
+    expect(prompt).toContain("{{aihub_api_key}}");
+    expect(prompt).not.toMatch(
+      /credential store|gửi request thứ hai|tự tạo response/i
+    );
   });
 
-  it("tells the agent that a Production call can be billed", () => {
+  it("warns that running a Production command can be billed", () => {
     const { prompt } = buildDemoExports(request({ environment: "production" }));
 
     expect(prompt).toMatch(/có thể phát sinh chi phí/i);
-    expect(prompt).toMatch(/để người dùng xem xét trước khi chạy/i);
+    expect(prompt).toMatch(/chạy lệnh Production/i);
   });
 });

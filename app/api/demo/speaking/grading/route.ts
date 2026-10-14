@@ -29,12 +29,12 @@ const MESSAGE_BY_CODE: Record<SpeakingErrorCode, string> = {
   UNAUTHORIZED: "API key không hợp lệ hoặc đã bị thu hồi.",
   INVALID_USER_IDENTITY:
     "Organization đang bật Identity Configuration hoặc phiên demo không hợp lệ.",
-  AI_SERVICE_ERROR: "Dịch vụ chấm Speaking trả về lỗi. Thử lại sau.",
+  AI_SERVICE_ERROR: "Không thể hoàn tất yêu cầu chấm Speaking. Thử lại sau.",
   AI_SERVICE_CONTRACT_VIOLATION:
-    "Dịch vụ chấm Speaking trả về response không đúng định dạng.",
+    "Kết quả chấm Speaking không đúng định dạng. Thử lại sau.",
   AI_SERVICE_THROTTLED:
-    "Dịch vụ Speaking đang giới hạn. Chờ một chút rồi thử lại.",
-  AI_SERVICE_UNAVAILABLE: "Dịch vụ chấm Speaking tạm thời không truy cập được.",
+    "Yêu cầu chấm Speaking đang quá tải. Vui lòng thử lại sau.",
+  AI_SERVICE_UNAVAILABLE: "Hiện chưa thể chấm Speaking. Vui lòng thử lại sau.",
   AI_SERVICE_TIMEOUT: "Chấm Speaking mất quá lâu. Thử lại sau.",
 };
 
@@ -47,7 +47,7 @@ const UPSTREAM_MESSAGES: Record<string, string> = {
   CONCURRENCY_LIMIT: "AIHUB đang xử lý một bài khác. Chờ xong rồi thử lại.",
   QUOTA_EXCEEDED: "Môi trường đã hết hạn mức chấm trong tháng.",
   AI_SERVICE_TIMEOUT: "Chấm Speaking vượt thời gian cho phép. Thử lại sau.",
-  AI_SERVICE_UNAVAILABLE: "Dịch vụ chấm Speaking tạm thời không truy cập được.",
+  AI_SERVICE_UNAVAILABLE: "Hiện chưa thể chấm Speaking. Vui lòng thử lại sau.",
 };
 
 function noStore(payload: unknown, status: number) {

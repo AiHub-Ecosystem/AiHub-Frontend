@@ -33,7 +33,7 @@ async function openWriting(
   await waitForHydration(page);
   if (mode === "live") {
     await page
-      .getByLabel("API key Sandbox (tùy chọn)")
+      .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
       .fill("aihub_sk_e2e_sandbox_key");
     await page.getByRole("button", { name: "Kiểm tra key" }).click();
     await expect(
@@ -229,6 +229,36 @@ test("the catalog offers the scoring demo as Stable with a link", async ({
   await expect(page.locator("main.aihub-demo-flow")).toBeVisible();
 });
 
+test("the Task 1 overview animates the API flow without sending a grade", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/demo/scoring");
+  await expect(
+    page.getByRole("region", { name: "Luồng hoạt động của Chấm Task 1" })
+  ).toBeVisible();
+  const stepper = page.getByRole("navigation", { name: "Các bước demo" });
+  await expect(stepper.getByRole("listitem")).toHaveCount(4);
+  await expect(stepper.getByRole("button")).toHaveCount(0);
+  await page.getByRole("button", { name: /POST …\/task1\/grade/ }).focus();
+  await expect(page.getByText(/Server gắn X-API-Key/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Nộp bài", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Đang chạy…" })).toBeDisabled();
+  await expect(page.getByText("Xong", { exact: true })).toBeVisible({
+    timeout: 8000,
+  });
+  await expect(page.getByRole("button", { name: "Chạy lại" })).toBeEnabled();
+  expect((await scoringLog(request)).requests).toHaveLength(0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page
+      .locator(".scoring-overview-card")
+      .evaluate((element) => element.scrollWidth <= element.clientWidth)
+  ).toBe(true);
+});
+
 test("grades the prefilled Task 1 sample without a login", async ({
   page,
   request,
@@ -242,6 +272,9 @@ test("grades the prefilled Task 1 sample without a login", async ({
 
   const mockQuestions = page.locator('[data-testid^="writing-mock-question-"]');
   await expect(mockQuestions).toHaveCount(3);
+  await expect(
+    page.getByText(/Mẫu chỉ đọc: chọn Task và đề mẫu để xem fixture/)
+  ).toBeVisible();
   await page.getByTestId("writing-mock-question-3").click();
   await expect(page.getByTestId("writing-mock-question-3")).toHaveAttribute(
     "aria-pressed",
@@ -252,26 +285,29 @@ test("grades the prefilled Task 1 sample without a login", async ({
   await expect(mockQuestions).toHaveCount(3);
   await expect(page.getByTestId("input-topic")).toBeDisabled();
   await page.getByTestId("writing-mock-question-3").click();
-  await page.getByRole("tab", { name: "Request" }).click();
-  await expect(page.locator(".demo-console .demo-console-code")).toContainText(
-    "Universities are expected by some people"
-  );
+  await expect(page.locator(".demo-console")).toHaveCount(0);
+  await expect(page.getByTestId("export-artifact")).toHaveCount(0);
   await page.getByTestId("tab-task-1").click();
 
   // The page must be runnable with no typing.
   await expect(page.getByTestId("select-chart-type")).toHaveValue("Bar Chart");
   await expect(page.getByTestId("input-image-url")).toHaveValue(/^https:\/\//);
   await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
-  await page.getByRole("tab", { name: "Request" }).click();
-  await expect(page.locator(".demo-console .demo-console-code")).toContainText(
-    "The chart illustrates the number of minutes"
-  );
+  await expect(page.locator(".demo-console")).toHaveCount(0);
+  await expect(page.getByTestId("export-artifact")).toHaveCount(0);
   const essay = await page.getByTestId("input-essay").inputValue();
   expect(essay.length).toBeGreaterThan(500);
   expect(essay).toContain("The bar chart illustrates");
   await expect(page.getByTestId("input-essay")).toHaveAttribute("readonly", "");
+  await expect(
+    page.getByText(
+      /Mẫu chỉ đọc: bài viết tham khảo và kết quả mẫu luôn cố định/
+    )
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await expect(page.locator(".demo-console")).toBeVisible();
+  await expect(page.getByTestId("export-artifact")).toBeVisible();
   await page.getByTestId("button-grade").click();
   await expect(page.getByTestId("scoring-report")).toBeVisible();
 
@@ -279,12 +315,10 @@ test("grades the prefilled Task 1 sample without a login", async ({
   const log = await scoringLog(request);
   expect(log.requests).toHaveLength(0);
   await page.getByRole("tab", { name: "Response" }).click();
-  await expect(page.locator(".demo-console .demo-console-code")).toContainText(
-    "local fixed fixture"
-  );
-  await expect(page.locator(".demo-console .demo-console-code")).toContainText(
-    "overall_band"
-  );
+  const response = page.locator(".demo-console .demo-console-code");
+  await expect(response).toContainText('"overall_band"');
+  await expect(response).not.toContainText("http_response");
+  await expect(response).not.toContainText("local fixed fixture");
 
   // The API key never reaches the page. The AIHUB host does: the copy panel
   // hands out commands for it, and that host is published API documentation.
@@ -437,7 +471,7 @@ test("a rejected submission shows its code and no credential leaked", async ({
   await waitForHydration(page);
 
   await page
-    .getByLabel("API key Sandbox (tùy chọn)")
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
     .fill("invalid-sandbox-key");
   await page.getByRole("button", { name: "Kiểm tra key" }).click();
 
@@ -445,7 +479,7 @@ test("a rejected submission shows its code and no credential leaked", async ({
   await expect(error).toBeVisible();
   await expect(error).toContainText("UNAUTHORIZED");
   await expect(
-    page.getByRole("heading", { name: "Chọn môi trường và key" })
+    page.getByRole("heading", { name: "Kiểm tra API key" })
   ).toBeVisible();
 });
 
@@ -490,12 +524,13 @@ test("the Task 2 tab opens without a page load and survives a return visit", asy
   await waitForHydration(page);
 
   await page
-    .getByLabel("API key Sandbox (tùy chọn)")
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
     .fill("aihub_sk_e2e_sandbox_key");
   await page.getByRole("button", { name: "Kiểm tra key" }).click();
   await expect(
     page.getByRole("heading", { name: "Chọn bài Writing" })
   ).toBeVisible();
+  await expect(page.getByText("Đã xác thực · có thể chỉnh sửa")).toBeVisible();
   // Nothing navigates: the task selector is a client transition in one document.
   await page.evaluate(() => {
     (window as unknown as { __stayed: boolean }).__stayed = true;
@@ -514,6 +549,11 @@ test("the Task 2 tab opens without a page load and survives a return visit", asy
     "aria-selected",
     "true"
   );
+  await expect(
+    page.getByText(
+      /Key Sandbox đã xác thực\. Bạn có thể sửa đề và các trường request/
+    )
+  ).toBeVisible();
   const topic = page.getByTestId("input-topic");
   const question = page.getByTestId("input-question");
   await expect(topic).toBeEnabled();
@@ -532,13 +572,24 @@ test("live Task 2 grading sends topic and no Task 1 field", async ({
   await page.goto("/demo/scoring");
   await openWriting(page, { mode: "live", task: 2, step: 2 });
 
-  await expect(page.getByTestId("input-topic")).toHaveValue("education");
-  await expect(page.getByTestId("input-question")).toHaveValue(/vocational/);
+  const topic = page.getByTestId("input-topic");
+  const question = page.getByTestId("input-question");
+  await expect(topic).toBeEnabled();
+  await expect(question).toBeEnabled();
+  await topic.fill("custom live topic");
+  await question.fill("A custom live question.");
   await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
 
-  const essay = await page.getByTestId("input-essay").inputValue();
-  expect(essay.length).toBeGreaterThan(500);
-  expect(essay).toContain("Universities have traditionally focused");
+  const essay = page.getByTestId("input-essay");
+  await expect(essay).toBeEditable();
+  const sampleEssay = await essay.inputValue();
+  expect(sampleEssay.length).toBeGreaterThan(500);
+  expect(sampleEssay).toContain("Universities have traditionally focused");
+  const editedEssay = `${sampleEssay}\n\nA user-added sentence verifies live editing.`;
+  await essay.fill(editedEssay);
+  await expect(
+    page.getByText(/Key đã xác thực: bạn có thể sửa bài bên dưới/)
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "Xem bước chấm" }).click();
   await page.getByTestId("button-grade").click();
@@ -549,7 +600,11 @@ test("live Task 2 grading sends topic and no Task 1 field", async ({
   expect(log.requests).toHaveLength(1);
   expect(log.requests[0].task).toBe("2");
   expect(log.requests[0].idempotencyKey).toBeTruthy();
-  expect(log.requests[0].body).toMatchObject({ topic: "education" });
+  expect(log.requests[0].body).toMatchObject({
+    topic: "custom live topic",
+    question: "A custom live question.",
+    essay: editedEssay,
+  });
   expect(log.requests[0].body).not.toHaveProperty("chart_type");
   expect(log.requests[0].body).not.toHaveProperty("image_url");
 });
@@ -698,15 +753,12 @@ test("a scrolled report clears the fixed site header instead of hiding behind it
   // report exists it is taller than any viewport, and scrolling it past the
   // header is what a reader wants.
 
-  // A quarter of the way down, not a fixed pixel count: this lands inside the
-  // band where the panel is actually pinned, whatever the page's length. A
-  // hardcoded offset quietly falls past that band the day the page gets
-  // shorter, and the test then measures a panel that is no longer stuck.
   await gradeWriting(page);
-  await page.evaluate(() => {
-    const max = document.documentElement.scrollHeight - window.innerHeight;
-    window.scrollTo(0, Math.round(max * 0.25));
-  });
+  // Align the panel to the viewport so this checks its sticky offset directly,
+  // independent of the amount of content above the demo.
+  await page
+    .locator(".demo-console")
+    .evaluate((panel) => panel.scrollIntoView({ block: "start" }));
 
   // The header animates from 120px down to 72px as the page scrolls. A fixed
   // sleep, and a threshold like "under 100px", both catch it mid-transition and
@@ -760,7 +812,9 @@ test("the visitor can leave the optional Sandbox key empty", async ({
   await page.goto("/demo/scoring");
   await waitForHydration(page);
 
-  await expect(page.getByLabel("API key Sandbox (tùy chọn)")).toHaveValue("");
+  await expect(
+    page.getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+  ).toHaveValue("");
   await expect(
     page.getByText(
       /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
@@ -875,33 +929,42 @@ test("an essay with nothing to quote says so, rather than showing a count of zer
   }
 });
 
-test("the Request and Response console updates at every step", async ({
+test("the Request and Response console appears only on the grading step", async ({
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
   await page.goto("/demo/scoring");
   await waitForHydration(page);
-  const code = page.locator(".demo-console .demo-console-code");
-  await expect(code).toContainText("key optional");
-  await page.getByRole("tab", { name: "Response" }).click();
-  await expect(code).toContainText("Chưa kiểm tra key");
+  const stepper = page.getByRole("navigation", { name: "Các bước demo" });
+  await expect(stepper.getByRole("listitem")).toHaveCount(4);
+  await expect(stepper.getByRole("button")).toHaveCount(0);
+  await expect(stepper.locator('[aria-current="step"]')).toContainText(
+    "Kiểm tra API key"
+  );
+  await expect(page.locator(".demo-overview-steps")).toHaveCount(0);
+  await expect(page.locator(".scoring-flow-step-button")).toHaveCount(5);
+  await expect(page.locator(".demo-console")).toHaveCount(0);
+  await expect(page.getByTestId("export-artifact")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
-  await page.getByRole("tab", { name: "Request" }).click();
-  await expect(code).toContainText("local fixture");
-  await page.getByRole("tab", { name: "Response" }).click();
-  await expect(code).toContainText("local fixture");
-
+  await expect(page.locator(".demo-console")).toHaveCount(0);
+  await page.getByRole("button", { name: "Quay lại API key" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Kiểm tra API key" })
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
   await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
-  await page.getByRole("tab", { name: "Request" }).click();
-  await expect(code).toContainText("read-only fixture");
-  await page.getByRole("tab", { name: "Response" }).click();
-  await expect(code).toContainText("local draft preview");
-
+  await expect(page.locator(".demo-console")).toHaveCount(0);
+  await expect(page.getByTestId("export-artifact")).toHaveCount(0);
   await page.getByRole("button", { name: "Xem bước chấm" }).click();
+
+  await expect(page.locator(".demo-console")).toBeVisible();
+  await expect(page.getByTestId("export-artifact")).toBeVisible();
+  const code = page.locator(".demo-console .demo-console-code");
   await page.getByRole("tab", { name: "Request" }).click();
-  await expect(code).toContainText("local fixed fixture");
+  await expect(code).toContainText("mock preview · not sent");
   await page.getByRole("tab", { name: "Response" }).click();
+  await expect(code).toContainText("Chưa submit fixture mẫu");
   await page.getByTestId("button-grade").click();
   await expect(code).toContainText("overall_band");
 });

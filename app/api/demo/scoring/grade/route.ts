@@ -36,12 +36,11 @@ const MESSAGE_BY_CODE: Record<WritingErrorCode, string> = {
   PAYLOAD_TOO_LARGE: "Nội dung gửi lên vượt quá 256 KB. Rút ngắn bài làm.",
   UNAUTHORIZED: "API key không hợp lệ hoặc đã bị thu hồi.",
   INVALID_USER_IDENTITY: "Phiên demo không hợp lệ. Tải lại trang rồi thử lại.",
-  AI_SERVICE_ERROR: "Dịch vụ chấm bài trả về lỗi. Thử lại sau.",
+  AI_SERVICE_ERROR: "Không thể hoàn tất yêu cầu chấm bài. Thử lại sau.",
   AI_SERVICE_CONTRACT_VIOLATION:
-    "Dịch vụ chấm bài trả về kết quả không đúng định dạng.",
-  AI_SERVICE_THROTTLED: "Dịch vụ chấm bài đang giới hạn. Lùi rồi thử lại.",
-  AI_SERVICE_UNAVAILABLE:
-    "Dịch vụ chấm bài tạm thời không truy cập được. Thử lại sau.",
+    "Kết quả chấm bài không đúng định dạng. Thử lại sau.",
+  AI_SERVICE_THROTTLED: "Yêu cầu chấm bài đang quá tải. Vui lòng thử lại sau.",
+  AI_SERVICE_UNAVAILABLE: "Hiện chưa thể chấm bài. Vui lòng thử lại sau.",
   AI_SERVICE_TIMEOUT:
     "Chấm bài mất quá lâu. Bấm lại nút chấm để thử lại bằng một lần chấm mới.",
 };
@@ -66,11 +65,11 @@ const UPSTREAM_MESSAGES: Record<string, string> = {
     "Organization đang bật Identity Configuration hoặc User Identity của phiên demo không hợp lệ.",
   IDEMPOTENCY_CONFLICT:
     "Idempotency-Key này đã được dùng cho nội dung khác. Hãy sửa bài để tạo lượt gửi mới.",
-  AI_SERVICE_THROTTLED: "Dịch vụ chấm bên dưới đang giới hạn. Lùi rồi bấm lại.",
+  AI_SERVICE_THROTTLED: "Yêu cầu chấm bài đang quá tải. Vui lòng thử lại sau.",
   AI_SERVICE_TIMEOUT:
     "Chấm bài vượt ngân sách 60 giây. Bấm lại nút chấm để thử lại.",
-  AI_SERVICE_UNAVAILABLE: "Không tới được dịch vụ chấm. Thử lại sau.",
-  AI_SERVICE_ERROR: "Dịch vụ chấm bài trả về lỗi. Thử lại sau.",
+  AI_SERVICE_UNAVAILABLE: "Hiện chưa thể chấm bài. Vui lòng thử lại sau.",
+  AI_SERVICE_ERROR: "Không thể hoàn tất yêu cầu chấm bài. Thử lại sau.",
   INTERNAL_ERROR:
     "Lỗi phía AIHUB. Bấm lại nút chấm; nếu vẫn lỗi, báo lại kèm request_id.",
 };

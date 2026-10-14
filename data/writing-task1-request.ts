@@ -72,4 +72,4 @@ export const WRITING_TASK1_CHART_TYPES = [
  * fetches it, grades regardless, and returns a confident wrong result.
  */
 export const WRITING_TASK1_IMAGE_NOTE =
-  "image_url trong ví dụ trỏ tới biểu đồ mẫu AIHUB công bố, nên lệnh chạy được ngay. Khi chấm bài thật, thay bằng ảnh biểu đồ của bạn và đảm bảo dịch vụ chấm tải được ảnh đó: dịch vụ chấm không trả lỗi khi không tải được ảnh, nó vẫn chấm và trả kết quả, nên kết quả sẽ sai.";
+  "image_url trong ví dụ trỏ tới biểu đồ mẫu AIHUB công bố, nên lệnh chạy được ngay. Khi chấm bài thật, thay bằng ảnh biểu đồ của bạn và đảm bảo AIHUB có thể truy cập ảnh. Nếu không tải được ảnh, yêu cầu vẫn có thể trả kết quả không chính xác.";

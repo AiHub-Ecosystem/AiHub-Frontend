@@ -11,7 +11,11 @@ import {
   isFetchableImageUrl,
   WRITING_TASK1_CHART_TYPES,
 } from "@/data/writing-task1-request";
-import { demoEnvironmentName } from "@/lib/demo-environments";
+import {
+  demoEnvironmentHintFromApiKey,
+  demoEnvironmentHost,
+  demoEnvironmentName,
+} from "@/lib/demo-environments";
 import { buildDemoExports } from "@/lib/demo-export";
 import { useDemoSession, type DemoScope } from "@/app/demo/demo-session";
 import { sandboxAllowanceFrom } from "@/app/demo/demo-session-state";
@@ -30,76 +34,7 @@ import { GradeReport } from "./scoring-report";
 
 const SCOPE: DemoScope = "writing.grade";
 const TASKS = [1, 2] as const;
-
-const SCENARIOS = [
-  {
-    id: "revoked",
-    label: "Key bị thu hồi",
-    status: "401 Unauthorized",
-    request: {
-      method: "POST",
-      headers: { "X-API-Key": "[REDACTED]", "X-User-Identity": "<demo UUID>" },
-    },
-    response: {
-      error: {
-        code: "UNAUTHORIZED",
-        message: "API key không hợp lệ hoặc đã bị thu hồi.",
-        retryable: false,
-      },
-    },
-  },
-  {
-    id: "scope",
-    label: "Thiếu writing.grade",
-    status: "403 Forbidden",
-    request: {
-      method: "POST",
-      headers: { "X-API-Key": "[REDACTED]" },
-      body: { task: 1 },
-    },
-    response: {
-      error: {
-        code: "FORBIDDEN",
-        message: "API key không được phép dùng cho thao tác này.",
-        retryable: false,
-      },
-    },
-  },
-  {
-    id: "quota",
-    label: "Hết hạn mức môi trường",
-    status: "429 Too Many Requests",
-    request: {
-      method: "POST",
-      headers: { "X-API-Key": "[REDACTED]" },
-      body: { task: 1 },
-    },
-    response: {
-      error: {
-        code: "QUOTA_EXCEEDED",
-        message: "Môi trường đã hết hạn mức tháng.",
-        retryable: false,
-      },
-    },
-  },
-  {
-    id: "timeout",
-    label: "Chấm quá thời gian",
-    status: "504 Gateway Timeout",
-    request: {
-      method: "POST",
-      headers: { "X-API-Key": "[REDACTED]" },
-      body: { task: 1 },
-    },
-    response: {
-      error: {
-        code: "AI_SERVICE_TIMEOUT",
-        message: "Dịch vụ chấm mất quá lâu.",
-        retryable: true,
-      },
-    },
-  },
-] as const;
+const SCORING_STEPS = ["Kiểm tra API key", ...DEMO_STEPS.slice(1, 4)];
 
 type GradeResult = {
   task: 1 | 2;
@@ -129,6 +64,267 @@ function httpSummary(trace: HttpTrace | null) {
   return trace
     ? `HTTP ${trace.status}\nContent-Type: ${trace.contentType ?? "(not returned)"}\nCache-Control: ${trace.cacheControl ?? "(not returned)"}`
     : "No HTTP response headers received.";
+}
+
+const SCORING_FLOW_STAGES = [
+  {
+    title: "Học viên bấm Nộp bài, app gửi đề + bài làm",
+    detail:
+      "App gửi đề và bài làm về server của bạn: Task 1 có chart_type, image_url; Task 2 có topic. App không giữ API key.",
+    direction: "right",
+  },
+  {
+    title: "POST …/writing/taskN/grade",
+    detail:
+      "N là 1 hoặc 2. Server gắn X-API-Key, X-User-Identity và Idempotency-Key cho mỗi bài làm rồi gọi AIHub. Timeout phía client tối thiểu 90 giây.",
+    direction: "right",
+  },
+  {
+    title: "Chấm 4 tiêu chí",
+    detail:
+      "AIHub chấm Task Achievement (Task 1) hoặc Task Response (Task 2), cùng Coherence & Cohesion, Lexical Resource và Grammatical Range & Accuracy.",
+    direction: "none",
+  },
+  {
+    title: "Trả band, criteria, annotations",
+    detail:
+      "Response gồm overall_band, 4 criteria theo task và annotations trích nguyên văn câu cần góp ý.",
+    direction: "left",
+  },
+  {
+    title: "Lưu kết quả, trả feedback cho app",
+    detail:
+      "Server lưu kết quả theo Idempotency-Key; app hiển thị band và ghim nhận xét lên đúng câu trong bài.",
+    direction: "left",
+  },
+] as const;
+
+function ScoringFlowOverview() {
+  const [flowStep, setFlowStep] = useState(0);
+  const [hoveredStep, setHoveredStep] = useState<number | null>(null);
+  const [previewTask, setPreviewTask] = useState<1 | 2>(1);
+  const previewDraft = SAMPLE_DRAFT[previewTask];
+
+  useEffect(() => {
+    if (flowStep < 1 || flowStep > SCORING_FLOW_STAGES.length) return;
+    const timer = window.setTimeout(
+      () => setFlowStep((current) => current + 1),
+      1100
+    );
+    return () => window.clearTimeout(timer);
+  }, [flowStep]);
+
+  const activeStep =
+    hoveredStep ?? (flowStep <= SCORING_FLOW_STAGES.length ? flowStep : 0);
+  const explanation = activeStep
+    ? {
+        tag: `Bước ${activeStep}`,
+        text: SCORING_FLOW_STAGES[activeStep - 1].detail,
+      }
+    : flowStep > SCORING_FLOW_STAGES.length
+      ? {
+          tag: "Xong",
+          text: "Đó là toàn bộ luồng. Kéo xuống phần demo Writing để thử Task 1 hoặc Task 2 và xem request/response.",
+        }
+      : {
+          tag: "Gợi ý",
+          text: "Mô phỏng này không gửi request. Bấm “Nộp bài” để chạy luồng, hoặc rê chuột/chọn từng chặng để xem giải thích.",
+        };
+  const running = flowStep > 0 && flowStep <= SCORING_FLOW_STAGES.length;
+
+  return (
+    <div className="scoring-overview">
+      <section aria-labelledby="scoring-overview-title">
+        <div className="scoring-overview-heading">
+          <span className="scoring-overview-badge">TRƯỚC TIÊN</span>
+          <h2 id="scoring-overview-title">
+            Luồng hoạt động chấm IELTS Writing (Task 1 &amp; Task 2)
+          </h2>
+          <span>Tổng quan trước khi thử demo</span>
+        </div>
+
+        <div className="scoring-overview-card">
+          <article
+            className={
+              previewTask === 2
+                ? "scoring-app-preview scoring-app-preview--compact"
+                : "scoring-app-preview"
+            }
+            aria-label="Màn hình nộp bài mẫu"
+          >
+            <div className="scoring-browser-bar">
+              <span className="scoring-browser-dots" aria-hidden="true">
+                <i /> <i /> <i />
+              </span>
+              <span className="scoring-overview-mono">
+                app-cua-ban.com/writing/task{previewTask}
+              </span>
+            </div>
+            <div className="scoring-app-content">
+              <p className="scoring-task-label">
+                IELTS WRITING · TASK {previewTask}
+              </p>
+              <div
+                aria-label="Chọn Task Writing minh họa"
+                className="demo-inline-actions"
+                role="group"
+              >
+                {([1, 2] as const).map((value) => (
+                  <button
+                    aria-pressed={previewTask === value}
+                    className={`demo-btn-secondary ${previewTask === value ? "active" : ""}`}
+                    key={value}
+                    onClick={() => setPreviewTask(value)}
+                    type="button"
+                  >
+                    Task {value}
+                  </button>
+                ))}
+              </div>
+              <p className="scoring-task-prompt">{previewDraft.question}</p>
+              {previewTask === 1 ? (
+                <div
+                  aria-label="Ảnh biểu đồ đề bài (placeholder)"
+                  className="scoring-chart-preview"
+                  role="img"
+                >
+                  <span className="scoring-chart-label scoring-overview-mono">
+                    [Ảnh biểu đồ · image_url]
+                  </span>
+                  {[0, 1, 2].map((group) => (
+                    <span
+                      className="scoring-chart-bars"
+                      aria-hidden="true"
+                      key={group}
+                    >
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="scoring-topic-preview">
+                  <span className="scoring-topic-label scoring-overview-mono">
+                    [Chủ đề · topic]
+                  </span>
+                  <span className="scoring-topic-value">
+                    {previewDraft.topic}
+                  </span>
+                </div>
+              )}
+              <div className="scoring-essay-preview">
+                {previewDraft.essay.slice(0, 170).trimEnd()}…
+              </div>
+              <div className="scoring-submit-row">
+                <span>Bấm để chạy toàn bộ luồng</span>
+                <button
+                  className="scoring-overview-submit"
+                  disabled={running}
+                  onClick={() => {
+                    setHoveredStep(null);
+                    setFlowStep(
+                      window.matchMedia("(prefers-reduced-motion: reduce)")
+                        .matches
+                        ? SCORING_FLOW_STAGES.length + 1
+                        : 1
+                    );
+                  }}
+                  type="button"
+                >
+                  {running
+                    ? "Đang chạy…"
+                    : flowStep > SCORING_FLOW_STAGES.length
+                      ? "Chạy lại"
+                      : "Nộp bài"}
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <div className="scoring-sequence" aria-label="Luồng xử lý bài chấm">
+            <div className="scoring-lanes" aria-hidden="true">
+              <div>
+                <strong>App của bạn</strong>
+                <span>học viên nộp bài</span>
+              </div>
+              <div>
+                <strong>Server của bạn</strong>
+                <span>giữ API key</span>
+              </div>
+              <div>
+                <strong>AIHub</strong>
+                <span>chấm IELTS Writing</span>
+              </div>
+            </div>
+            <div className="scoring-sequence-grid">
+              {SCORING_FLOW_STAGES.map((item, index) => {
+                const number = index + 1;
+                const active = activeStep === number;
+                const pending =
+                  hoveredStep === null && running && number > flowStep;
+                return (
+                  <div
+                    className={`scoring-flow-step scoring-flow-step--${number}`}
+                    key={item.title}
+                    onMouseEnter={() => setHoveredStep(number)}
+                    onMouseLeave={() => setHoveredStep(null)}
+                  >
+                    <button
+                      aria-current={active ? "step" : undefined}
+                      aria-describedby="scoring-flow-explanation"
+                      className="scoring-flow-step-button"
+                      data-active={active || undefined}
+                      data-pending={pending || undefined}
+                      onFocus={() => setHoveredStep(number)}
+                      onBlur={() => setHoveredStep(null)}
+                      onClick={() => setHoveredStep(number)}
+                      type="button"
+                    >
+                      <strong>{number}</strong>
+                      {item.title}
+                      {number === 3 && <small>4 tiêu chí · Task 1 / 2</small>}
+                      {number === 2 && (
+                        <small className="scoring-overview-mono">
+                          X-API-Key · X-User-Identity · Idempotency-Key
+                        </small>
+                      )}
+                    </button>
+                    {item.direction !== "none" && (
+                      <span
+                        aria-hidden="true"
+                        className={`scoring-flow-arrow scoring-flow-arrow--${item.direction}`}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+              <div
+                className={`scoring-flow-result${flowStep >= 5 && hoveredStep === null ? " is-active" : flowStep > 0 && flowStep < 5 && hoveredStep === null ? " is-pending" : ""}`}
+              >
+                Hiển thị band + highlight lỗi
+              </div>
+            </div>
+            <p
+              className="scoring-flow-explanation"
+              id="scoring-flow-explanation"
+              aria-live="polite"
+            >
+              <span className="scoring-overview-badge">{explanation.tag}</span>
+              <span>{explanation.text}</span>
+            </p>
+          </div>
+        </div>
+      </section>
+      <section
+        className="scoring-after-overview"
+        aria-labelledby="scoring-demo-title"
+      >
+        <p className="demo-flow-eyebrow">SAU ĐÓ</p>
+        <h2 id="scoring-demo-title">Thử chấm Writing Task 1 hoặc Task 2</h2>
+      </section>
+    </div>
+  );
 }
 
 export default function ScoringWorkbench() {
@@ -171,8 +367,6 @@ export default function ScoringWorkbench() {
   const [gradeAttempted, setGradeAttempted] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const [result, setResult] = useState<GradeResult | null>(null);
-  const [scenario, setScenario] =
-    useState<(typeof SCENARIOS)[number]["id"]>("revoked");
   const [elapsed, setElapsed] = useState(0);
   const startedAt = useRef(0);
 
@@ -222,10 +416,17 @@ export default function ScoringWorkbench() {
           },
     [task, activeDraft]
   );
+  const upstreamRequestBody = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(requestBody).filter(([name]) => name !== "task")
+      ),
+    [requestBody]
+  );
   /** Every copyable artifact describes the AIHUB call, so Mock offers it too. */
   const copyableExports = useMemo(
     () =>
-      step === 1
+      step !== 4
         ? null
         : buildDemoExports({
             environment,
@@ -236,16 +437,11 @@ export default function ScoringWorkbench() {
               { name: "X-User-Identity", value: "<your end-user id>" },
               { name: "Content-Type", value: "application/json" },
             ],
-            // `task` only routes inside the BFF; the endpoint's schemas refuse it.
-            body: Object.fromEntries(
-              Object.entries(requestBody).filter(([name]) => name !== "task")
-            ),
+            body: upstreamRequestBody,
             idempotencyKey: idempotencyKey ?? undefined,
           }),
-    [environment, idempotencyKey, requestBody, step, task]
+    [environment, idempotencyKey, step, task, upstreamRequestBody]
   );
-  const activeScenario =
-    SCENARIOS.find((item) => item.id === scenario) ?? SCENARIOS[0];
   const activeResult = result?.task === task ? result : null;
   /** Informational only: every grade re-checks the allowance upstream. */
   const allowance = isScopeValidated(SCOPE)
@@ -277,7 +473,10 @@ export default function ScoringWorkbench() {
 
   const validateKey = async () => {
     const submittedKey = apiKey.trim();
-    const submittedEnvironment = environment;
+    const submittedEnvironment =
+      demoEnvironmentHintFromApiKey(submittedKey) ?? environment;
+    if (submittedEnvironment !== environment)
+      setEnvironment(submittedEnvironment);
     const submittedGeneration = selectionGeneration();
     if (!submittedKey) {
       setKeyError({
@@ -499,6 +698,18 @@ export default function ScoringWorkbench() {
     }
   };
 
+  const scoringRequestPreview = {
+    method: "POST",
+    url: `${demoEnvironmentHost(environment)}/v1/ielts/writing/task${task}/grade`,
+    headers: {
+      "X-API-Key": "${AIHUB_API_KEY:?Set AIHUB_API_KEY to your API key first}",
+      "X-User-Identity": "<your end-user id>",
+      "Content-Type": "application/json",
+      "Idempotency-Key": idempotencyKey ?? "<generate UUID before submit>",
+    },
+    body: upstreamRequestBody,
+  };
+
   const requestForStep = () => {
     if (step === 1)
       return pretty(
@@ -550,12 +761,6 @@ export default function ScoringWorkbench() {
             : { topic: activeDraft.topic }),
         },
       });
-    if (step === 5)
-      return pretty({
-        source: "local error scenario · simulated, no HTTP",
-        scenario: activeScenario.label,
-        simulated_request: activeScenario.request,
-      });
     if (step === 3)
       return pretty({
         source: liveReady
@@ -581,33 +786,7 @@ export default function ScoringWorkbench() {
         body_preview: requestBody,
         sent: false,
       });
-    if (!liveReady)
-      return pretty({
-        source: "local fixed fixture",
-        http_request: null,
-        message: "Submit chỉ trả kết quả mock cố định trong frontend.",
-      });
-    return pretty({
-      source: gradeAttempted
-        ? "request sent via AIHUB BFF"
-        : "request preview · not sent",
-      method: "POST",
-      browser_to_aihub_bff: "/api/demo/scoring/grade",
-      bff_to_selected_environment: {
-        environment: demoEnvironmentName(environment),
-        path: `/v1/ielts/writing/task${task}/grade`,
-      },
-      headers: {
-        "X-Demo-API-Key": "[REDACTED]",
-        "X-Demo-User-Identity": gradeAttempted
-          ? getUserIdentity()
-          : "<generated at submit>",
-        "Content-Type": "application/json",
-        "Idempotency-Key": idempotencyKey ?? "<generated before submit>",
-      },
-      body: requestBody,
-      sent: gradeAttempted,
-    });
+    return pretty(scoringRequestPreview);
   };
 
   const responseForStep = () => {
@@ -651,33 +830,15 @@ export default function ScoringWorkbench() {
         http_response: null,
         message: "Chưa gửi request. Payload preview nằm ở tab Request.",
       });
-    if (step === 5)
-      return pretty({
-        source: "local simulation · no HTTP",
-        simulated_status: activeScenario.status,
-        simulated_response: activeScenario.response,
-      });
     if (!liveReady)
       return gradeResponse
-        ? pretty({
-            source: "local fixed fixture",
-            http_response: null,
-            body: gradeResponse,
-          })
+        ? pretty(gradeResponse)
         : pretty({
-            source: "local fixed fixture",
-            http_response: null,
             message: "Chưa submit fixture mẫu.",
           });
     return gradeResponse
-      ? pretty({
-          http: gradeTrace
-            ? { status: gradeTrace.status, headers: httpSummary(gradeTrace) }
-            : null,
-          body: gradeResponse,
-        })
+      ? pretty(gradeResponse)
       : pretty({
-          http_response: null,
           message:
             gradeStatus === "submitting"
               ? "Request đang chạy; chưa nhận response."
@@ -685,28 +846,6 @@ export default function ScoringWorkbench() {
         });
   };
 
-  const requestHeaders =
-    step === 1
-      ? skipMock || (!apiKey.trim() && !keyCheckResponse)
-        ? "No HTTP request — key check skipped or not started."
-        : `${keyCheckResponse ? "Sent" : "Preview only; not sent"}\nBrowser → AIHUB BFF: X-Demo-API-Key: ${apiKey.trim() ? "[REDACTED]" : "(not set)"}\nContent-Type: application/json\nBFF → ${demoEnvironmentName(environment)}: X-API-Key: [REDACTED]\nContent-Type: application/json`
-      : step === 3 || (step === 4 && !liveReady)
-        ? "No HTTP request — local preview/mock."
-        : step === 4
-          ? `${gradeAttempted ? "Sent" : "Preview only; not sent"}\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nX-Demo-User-Identity: ${gradeAttempted ? getUserIdentity() : "<generated at submit>"}\nContent-Type: application/json\nIdempotency-Key: ${idempotencyKey ?? "<generated before submit>"}\nBFF → ${demoEnvironmentName(environment)}: X-API-Key: [REDACTED]\nX-User-Identity: <demo UUID>`
-          : step === 5
-            ? "Simulated request only — no request headers were sent."
-            : "No HTTP request — local fixture.";
-  const responseHeaders =
-    step === 1
-      ? keyCheckTrace
-        ? httpSummary(keyCheckTrace)
-        : "No HTTP response headers received."
-      : step === 4 && liveReady
-        ? httpSummary(gradeTrace)
-        : step === 5
-          ? "No HTTP response headers — simulated status only."
-          : "No HTTP response headers — local preview/fixture.";
   const consoleRequest = requestForStep();
   const consoleResponse = responseForStep();
 
@@ -717,13 +856,9 @@ export default function ScoringWorkbench() {
       title="Chấm điểm IELTS Writing"
       description={`Thử Writing Task 1 và Task 2 theo đúng API contract. Bỏ qua key để xem fixture read-only; key ${demoEnvironmentName(environment)} hợp lệ mở chỉnh sửa và chấm thật.`}
       step={step}
-      onStepChange={(next) => {
-        // The stepper can skip step 1, where the key is otherwise created.
-        setIdempotencyKey(
-          (current) => current ?? globalThis.crypto.randomUUID()
-        );
-        setStep(next);
-      }}
+      steps={SCORING_STEPS}
+      showTrace={step === 4}
+      showEnvironmentPicker={false}
       stepperDisabled={grading || gradeStatus === "submitting"}
       mode={mode}
       status={
@@ -732,13 +867,14 @@ export default function ScoringWorkbench() {
           : activeResult
             ? activeResult.mode === "mock"
               ? "KẾT QUẢ MẪU"
-              : "LIVE RESPONSE"
+              : gradeTrace
+                ? `HTTP ${gradeTrace.status}`
+                : "LIVE RESPONSE"
             : (gradeError?.code ?? (keyError ? "KEY INVALID" : "READY"))
       }
       request={consoleRequest}
       response={consoleResponse}
-      requestHeaders={requestHeaders}
-      responseHeaders={responseHeaders}
+      overview={<ScoringFlowOverview />}
       environment={environment}
       onEnvironmentChange={(value) => {
         setEnvironment(value);
@@ -748,36 +884,30 @@ export default function ScoringWorkbench() {
       requiresProductionAcknowledgement={requiresProductionAcknowledgement()}
       onAcknowledgeProduction={acknowledgeProduction}
       sandboxAllowance={allowance}
+      productionKeyValidated={isScopeValidated(SCOPE) && Boolean(apiKey)}
       exports={copyableExports}
       traceNote={
-        step === 1
-          ? "Key validation checks the selected environment, scope and Organization identity configuration. It does not dispatch grading or consume grading quota. The key is redacted."
-          : step === 2
-            ? "Writing Task 1/2 use local fixed prompts. No HTTP request is sent."
-            : step === 3
-              ? "This is a local payload preview. The essay is sent only after the Step 4 button is pressed."
-              : step === 4
-                ? liveReady
-                  ? `Every live grading request reauthenticates the ${demoEnvironmentName(environment)} key before quota and AI dispatch; trace redacts the key.`
-                  : "The button returns a fixed frontend fixture. No grading API request is sent."
-                : "Error scenarios are simulated locally. No HTTP request or quota use."
+        liveReady
+          ? `Every live grading request reauthenticates the ${demoEnvironmentName(environment)} key before quota and AI dispatch; trace redacts the key.`
+          : "Request is shown as a preview. The button returns a fixed frontend fixture; no grading API request is sent."
       }
     >
       <p className="demo-flow-eyebrow">
-        BƯỚC {step} / 5 · {DEMO_STEPS[step - 1]}
+        BƯỚC {step} / {SCORING_STEPS.length} · {SCORING_STEPS[step - 1]}
       </p>
 
       {step === 1 && (
         <>
-          <h3>Chọn môi trường và key</h3>
+          <h3>Kiểm tra API key</h3>
           <p>
-            API key chỉ nằm trong bộ nhớ của trang. Key được kiểm tra theo scope{" "}
-            <code>{SCOPE}</code> và theo môi trường đã chọn, không gọi AI và
-            không dùng quota chấm.
+            Phiên mới mặc định dùng Sandbox. Key có tiền tố Sandbox hoặc
+            Production sẽ được kiểm tra ở môi trường tương ứng; key không có
+            tiền tố môi trường dùng môi trường hiện tại. Bước này xác thực scope{" "}
+            <code>{SCOPE}</code>, không gọi AI và không dùng quota chấm.
           </p>
           <div className="demo-field">
             <label htmlFor="writing-demo-key">
-              API key {demoEnvironmentName(environment)} (tùy chọn)
+              API key (Sandbox hoặc Production, tùy chọn)
             </label>
             <input
               autoComplete="off"
@@ -796,16 +926,14 @@ export default function ScoringWorkbench() {
                 setGradeAttempted(false);
                 setResult(null);
               }}
-              placeholder={
-                environment === "sandbox" ? "aihub_sandbox_…" : "aihub_prod_…"
-              }
+              placeholder="aihub_sandbox_… hoặc aihub_prod_…"
               spellCheck={false}
               type="password"
               value={apiKey}
             />
             <p className="demo-help">
-              Chỉ key thuộc riêng môi trường {demoEnvironmentName(environment)}{" "}
-              và có scope writing.grade mới mở chế độ chấm thật.
+              Backend kiểm tra môi trường và quyền chấm Writing trước khi mở
+              tính năng chấm thật.
             </p>
           </div>
           {keyError && (
@@ -843,8 +971,9 @@ export default function ScoringWorkbench() {
         <>
           <h3>Chọn bài Writing</h3>
           <p>
-            Mỗi task có 3 đề mẫu cố định. Ở mock mode, chọn đề chỉ đổi question;
-            bài làm và kết quả vẫn là fixture read-only chung của task.
+            {liveReady
+              ? `Key ${demoEnvironmentName(environment)} đã xác thực. Bạn có thể sửa đề và các trường request ở bước này; dữ liệu đã nhập sẽ được dùng khi chấm.`
+              : "Mẫu chỉ đọc: chọn Task và đề mẫu để xem fixture. Các trường request và bài làm bị khóa; nhập key hợp lệ ở bước 1 để mở chỉnh sửa và chấm live."}
           </p>
           <div
             className="demo-inline-actions"
@@ -891,7 +1020,9 @@ export default function ScoringWorkbench() {
                   ))}
                 </select>
                 <p className="demo-help">
-                  Chọn đúng một trong bảy giá trị enum, phân biệt hoa thường.
+                  {liveReady
+                    ? "Chọn đúng một trong bảy giá trị enum, phân biệt hoa thường; giá trị này sẽ được gửi trong request."
+                    : "Mẫu chỉ đọc. Nhập key hợp lệ để chỉnh trường này."}
                 </p>
               </div>
               <div className="demo-field">
@@ -915,8 +1046,9 @@ export default function ScoringWorkbench() {
                   </div>
                 )}
                 <p className="demo-help">
-                  Dịch vụ chấm tải ảnh qua HTTPS. Dùng URL tới ảnh thật khi chấm
-                  live.
+                  {liveReady
+                    ? "AIHUB cần truy cập ảnh qua HTTPS. Dùng URL ảnh thật khi chấm live."
+                    : "Mẫu chỉ đọc. Nhập key hợp lệ để sửa image_url trước khi chấm live."}
                 </p>
               </div>
             </>
@@ -932,7 +1064,9 @@ export default function ScoringWorkbench() {
                 value={activeDraft.topic}
               />
               <p className="demo-help">
-                Topic là text tự do theo contract, tối đa 200 ký tự.
+                {liveReady
+                  ? "Topic là text tự do theo contract, tối đa 200 ký tự; giá trị này sẽ được gửi trong request."
+                  : "Mẫu chỉ đọc. Nhập key hợp lệ để chỉnh topic (tối đa 200 ký tự)."}
               </p>
             </div>
           )}
@@ -973,11 +1107,18 @@ export default function ScoringWorkbench() {
             )}
             <p className="demo-help">
               {liveReady
-                ? "Question là text tự do theo API contract."
-                : "Chọn đề để xem request tương ứng. Bài làm và kết quả mẫu không thay đổi theo lựa chọn."}
+                ? "Question là text tự do theo API contract; nội dung sẽ được gửi theo đúng phần bạn nhập."
+                : "Chọn đề mẫu để xem nội dung. Bài làm và kết quả mẫu không đổi theo lựa chọn; request và bài làm chỉ mở khi key hợp lệ."}
             </p>
           </div>
           <div className="demo-step-actions">
+            <button
+              className="demo-btn-secondary"
+              onClick={() => setStep(1)}
+              type="button"
+            >
+              Quay lại API key
+            </button>
             <button
               className="demo-btn-primary"
               onClick={() => {
@@ -997,8 +1138,8 @@ export default function ScoringWorkbench() {
           <h3>Nhập bài làm</h3>
           <p>
             {liveReady
-              ? `Bạn có thể sửa bài trước khi gửi lên ${demoEnvironmentName(environment)}.`
-              : "Mock mode hiển thị bài mẫu read-only; kết quả khi submit luôn là fixture cố định."}
+              ? `Key đã xác thực: bạn có thể sửa bài bên dưới. Nội dung chỉ được gửi lên ${demoEnvironmentName(environment)} khi bấm chấm ở bước 4.`
+              : "Mẫu chỉ đọc: bài viết tham khảo và kết quả mẫu luôn cố định. Nhập key hợp lệ ở bước 1 để mở trình soạn thảo và chấm live."}
           </p>
           <div className="demo-field">
             <label htmlFor="writing-essay">
@@ -1040,7 +1181,7 @@ export default function ScoringWorkbench() {
           <p>
             {liveReady
               ? `Request sẽ dùng key ${demoEnvironmentName(environment)} đã kiểm tra và UUID tạm của phiên demo. Backend xác thực lại key trước khi dispatch.`
-              : "Nút này chỉ chọn response mock cố định trong frontend. Không gọi route chấm hoặc AI service."}
+              : "Nút này chỉ hiển thị kết quả mẫu có sẵn. Không gửi yêu cầu chấm bài."}
           </p>
           {gradeError && (
             <div className="demo-error" role="alert">
@@ -1113,35 +1254,6 @@ export default function ScoringWorkbench() {
               task={activeResult.task}
             />
           )}
-        </>
-      )}
-
-      {step === 5 && (
-        <>
-          <h3>Retry và lỗi</h3>
-          <p>
-            Các kịch bản bên dưới chỉ minh họa request/response; chọn chúng
-            không gọi API chấm và không dùng quota.
-          </p>
-          <div className="demo-scenario-list">
-            {SCENARIOS.map((item) => (
-              <button
-                aria-pressed={scenario === item.id}
-                className={scenario === item.id ? "active" : ""}
-                key={item.id}
-                onClick={() => setScenario(item.id)}
-                type="button"
-              >
-                {item.label}
-                <br />
-                <strong>{item.status}</strong>
-              </button>
-            ))}
-          </div>
-          <div className="demo-notice">
-            Mỗi lần chấm thật là một request mới. Khi timeout, kiểm tra
-            request_id trước khi bấm lại để tránh tạo lượt chấm mới.
-          </div>
         </>
       )}
     </DemoWorkbench>
