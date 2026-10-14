@@ -721,6 +721,12 @@ export default function SpeakingWorkbench() {
       : null;
 
   const changeStep = (next: DemoStep) => {
+    if (
+      step === 3 &&
+      next === 4 &&
+      (recording || recorder.current?.state === "recording")
+    )
+      return;
     if (step === 3 && next !== 3 && recorder.current?.state === "recording") {
       recorder.current.stop();
     }
@@ -1653,11 +1659,12 @@ export default function SpeakingWorkbench() {
             <button
               className="demo-btn-primary"
               disabled={
-                liveReady &&
-                (!prompt ||
-                  !livePrompts?.length ||
-                  (!file && !sampleAudioSelected) ||
-                  !!currentFileProblem)
+                recording ||
+                (liveReady &&
+                  (!prompt ||
+                    !livePrompts?.length ||
+                    (!file && !sampleAudioSelected) ||
+                    !!currentFileProblem))
               }
               onClick={() => changeStep(4)}
               type="button"

@@ -18,7 +18,7 @@ test("the shared four-step workbench styles apply", async ({ page }) => {
 
   await expect(page.locator(".demo-step-panel")).toBeVisible();
   await expect(page.locator(".demo-console")).toHaveCount(0);
-  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
+  await page.getByRole("button", { name: "Xem câu hỏi mẫu" }).click();
   await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
   await page.getByRole("button", { name: "Xem bước chấm" }).click();
   await expect(page.locator(".demo-console")).toBeVisible();
