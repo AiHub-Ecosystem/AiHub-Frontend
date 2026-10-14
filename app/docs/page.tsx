@@ -243,7 +243,7 @@ const ERRORS = [
     status: "502 / 503",
     code: "AI_SERVICE_*",
     cause:
-      "Dịch vụ chấm phía sau trả lỗi, quá tải hoặc không kết nối được (AI_SERVICE_ERROR, AI_SERVICE_THROTTLED, AI_SERVICE_UNAVAILABLE). AI_SERVICE_CONTRACT_VIOLATION là lỗi hình dạng dữ liệu.",
+      "Yêu cầu chấm có thể gặp lỗi, quá tải, gián đoạn hoặc trả về kết quả không đúng định dạng.",
     action:
       "Retry có backoff khi retryable là true. Với CONTRACT_VIOLATION thì không retry, báo request_id.",
   },
@@ -491,8 +491,8 @@ export default function Page() {
                 <li>
                   <strong>Tránh dùng email:</strong> Nên dùng ID không mang
                   nghĩa (opaque). AIHUB lưu mã trong bản ghi sử dụng và chuyển
-                  tiếp nguyên văn cho dịch vụ chấm; email sẽ trở thành dữ liệu
-                  cá nhân.
+                  tiếp nguyên văn trong quá trình xử lý; email sẽ trở thành dữ
+                  liệu cá nhân.
                 </li>
               </ul>
               <aside className="docs-notice docs-notice--security">
@@ -831,10 +831,9 @@ export default function Page() {
               <aside className="docs-notice docs-notice--billing">
                 <strong>Khi nào bị trừ lượt?</strong>
                 <p>
-                  Lần gọi đến dịch vụ chấm phía sau bị lỗi hoặc hết thời gian
-                  chờ vẫn trừ lượt. Gửi lại yêu cầu <em>đã hoàn tất</em> với
-                  cùng <code>Idempotency-Key</code> và nội dung thì không trừ
-                  thêm.
+                  Yêu cầu chấm bị lỗi hoặc hết thời gian chờ vẫn có thể trừ
+                  lượt. Gửi lại yêu cầu <em>đã hoàn tất</em> với cùng{" "}
+                  <code>Idempotency-Key</code> và nội dung thì không trừ thêm.
                 </p>
               </aside>
               <p className="aihub-prose">

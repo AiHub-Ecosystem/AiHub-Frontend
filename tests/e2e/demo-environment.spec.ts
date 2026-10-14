@@ -4,7 +4,6 @@ import { waitForHydration } from "./hydration";
 const mockUrl = "http://127.0.0.1:3101";
 const password = "correct horse battery staple";
 const demoKey = "aihub_sandbox_" + "A".repeat(43);
-const sandboxKey = "aihub_sk_e2e_sandbox_key";
 const productionKey = "aihub_prod_e2e_production_key";
 
 /** Every browser request to a demo BFF route, which Mock mode must never make. */
@@ -23,71 +22,160 @@ async function openDemo(page: Page, skill: "scoring" | "speaking") {
   return page;
 }
 
-test("a demo visit starts on Sandbox and can be moved to Production", async ({
+async function openGradingStep(page: Page) {
+  await page
+    .getByRole("button", { name: /Tiếp tục đến (bài làm|câu trả lời)/ })
+    .click();
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
+}
+
+test("Writing and Speaking default to Sandbox without an environment picker", async ({
   page,
 }) => {
   await openDemo(page, "scoring");
 
-  const sandbox = page.getByTestId("demo-environment-sandbox");
-  const production = page.getByTestId("demo-environment-production");
-  await expect(sandbox).toBeChecked();
-  await expect(production).not.toBeChecked();
-  await expect(page.getByLabel("API key Sandbox (tùy chọn)")).toBeVisible();
+  await expect(page.locator(".demo-env-picker")).toHaveCount(0);
+  await expect(page.locator(".demo-flow-statuses .demo-mode-badge")).toHaveText(
+    "Sandbox · Mẫu local"
+  );
+  await expect(
+    page.getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Kiểm tra API key" })
+  ).toBeVisible();
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(demoKey);
+  await expect(page.locator(".demo-env-picker")).toHaveCount(0);
 
-  await production.check();
-  await expect(production).toBeChecked();
-  await expect(page.getByLabel("API key Production (tùy chọn)")).toBeVisible();
+  await page.getByRole("link", { name: "Speaking", exact: true }).click();
+  await waitForHydration(page);
+  await expect(page.locator(".demo-env-picker")).toHaveCount(0);
+  await expect(page.locator(".demo-flow-statuses .demo-mode-badge")).toHaveText(
+    "Sandbox · Mẫu local"
+  );
+  await expect(
+    page.getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Kiểm tra API key" })
+  ).toBeVisible();
 });
 
-test("the Production billable acknowledgement appears and is cleared by a change", async ({
+test("Speaking detects a Production key and clears its acknowledgement on Sandbox change", async ({
   page,
 }) => {
-  await openDemo(page, "scoring");
+  await openDemo(page, "speaking");
+  const apiKey = page.getByLabel("API key (Sandbox hoặc Production, tùy chọn)");
   const acknowledgement = page.getByTestId("production-acknowledgement");
   await expect(acknowledgement).toHaveCount(0);
 
-  await page.getByTestId("demo-environment-production").check();
-  await expect(page.getByText(/có thể phát sinh chi phí thật/)).toBeVisible();
+  await apiKey.fill(productionKey);
+  await page.getByRole("button", { name: "Kiểm tra key" }).click();
+  await expect(page.getByTestId("production-key-warning")).toBeVisible();
   await acknowledgement.check();
   await expect(acknowledgement).toBeChecked();
 
-  await page.getByTestId("demo-environment-sandbox").check();
-  await page.getByTestId("demo-environment-production").check();
-  await expect(acknowledgement).not.toBeChecked();
+  await page.getByRole("button", { name: "Quay lại API key" }).click();
+  await apiKey.fill(demoKey);
+  await page.getByRole("button", { name: "Kiểm tra key" }).click();
+  await expect(page.getByTestId("sandbox-allowance")).toBeVisible();
+  await expect(acknowledgement).toHaveCount(0);
 });
 
-test("a Production visit is refused a Sandbox key, and never falls back to one", async ({
+test("an environment-less key can select Production before validation", async ({
   page,
 }) => {
-  const calls = countDemoApiCalls(page);
+  const validationEnvironments: string[] = [];
+  page.on("request", (browserRequest) => {
+    if (new URL(browserRequest.url()).pathname === "/api/demo/key/validate") {
+      validationEnvironments.push(
+        JSON.parse(browserRequest.postData() ?? "{}").environment
+      );
+    }
+  });
+
   await openDemo(page, "scoring");
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill("aihub_sk_e2e_legacy_production_key");
+  await expect(page.locator(".demo-env-picker")).toBeVisible();
   await page.getByTestId("demo-environment-production").check();
-  await page.getByLabel("API key Production (tùy chọn)").fill(sandboxKey);
   await page.getByRole("button", { name: "Kiểm tra key" }).click();
 
-  await expect(page.locator(".demo-error[role=alert]")).toContainText(
-    "FORBIDDEN"
+  await expect(page.getByTestId("production-key-warning")).toBeVisible();
+  expect(validationEnvironments).toEqual(["production"]);
+});
+
+test("a Production key pasted into the default Sandbox flow is detected and warned", async ({
+  page,
+}) => {
+  const validationEnvironments: string[] = [];
+  page.on("request", (browserRequest) => {
+    if (new URL(browserRequest.url()).pathname === "/api/demo/key/validate") {
+      validationEnvironments.push(
+        JSON.parse(browserRequest.postData() ?? "{}").environment
+      );
+    }
+  });
+
+  await openDemo(page, "scoring");
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(productionKey);
+  await page.getByRole("button", { name: "Kiểm tra key" }).click();
+
+  await expect(page.getByTestId("production-key-warning")).toContainText(
+    "API key Production đã được xác thực"
   );
-  await expect(page.getByTestId("demo-environment-production")).toBeChecked();
-  expect(calls).toEqual(["/api/demo/key/validate"]);
+  await expect(
+    page.getByTestId("production-acknowledgement")
+  ).not.toBeChecked();
+  expect(validationEnvironments).toEqual(["production"]);
+});
+
+test("a Production key pasted into Speaking is checked on Production", async ({
+  page,
+}) => {
+  const validationEnvironments: string[] = [];
+  page.on("request", (browserRequest) => {
+    if (new URL(browserRequest.url()).pathname === "/api/demo/key/validate") {
+      validationEnvironments.push(
+        JSON.parse(browserRequest.postData() ?? "{}").environment
+      );
+    }
+  });
+
+  await openDemo(page, "speaking");
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(productionKey);
+  await page.getByRole("button", { name: "Kiểm tra key" }).click();
+
+  await expect(page.getByTestId("production-key-warning")).toBeVisible();
+  await expect(
+    page.getByTestId("production-acknowledgement")
+  ).not.toBeChecked();
+  expect(validationEnvironments).toEqual(["production"]);
 });
 
 test("a Production key opens live grading on the Production tier", async ({
   page,
 }) => {
   await openDemo(page, "scoring");
-  await page.getByTestId("demo-environment-production").check();
-  await page.getByLabel("API key Production (tùy chọn)").fill(productionKey);
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(productionKey);
   await page.getByRole("button", { name: "Kiểm tra key" }).click();
 
   await expect(
     page.getByRole("heading", { name: "Chọn bài Writing" })
   ).toBeVisible();
-  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
-  await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await openGradingStep(page);
   await page.getByRole("tab", { name: "Request" }).click();
   const requestTrace = page.locator(".demo-console .demo-console-code");
-  await expect(requestTrace).toContainText('"environment": "Production"');
+  await expect(requestTrace).toContainText("https://api.aihubproduction.com/");
   await expect(requestTrace).not.toContainText("bff_to_sandbox");
   await page.getByTestId("production-acknowledgement").check();
   await page.getByRole("button", { name: /Chấm thật Task 1/ }).click();
@@ -96,15 +184,15 @@ test("a Production key opens live grading on the Production tier", async ({
   await expect(page.getByText("LIVE RESPONSE").first()).toBeVisible();
 });
 
-test("the environment cannot change while a live grade is in flight", async ({
+test("the Production acknowledgement is locked while a grade is in flight", async ({
   page,
 }) => {
   await openDemo(page, "scoring");
-  await page.getByTestId("demo-environment-production").check();
-  await page.getByLabel("API key Production (tùy chọn)").fill(productionKey);
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(productionKey);
   await page.getByRole("button", { name: "Kiểm tra key" }).click();
-  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
-  await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await openGradingStep(page);
   await page.getByTestId("production-acknowledgement").check();
 
   let releaseGrade!: () => void;
@@ -118,10 +206,8 @@ test("the environment cannot change while a live grade is in flight", async ({
   await page.getByRole("button", { name: /Chấm thật Task 1/ }).click();
 
   try {
-    await expect(
-      page.getByTestId("demo-environment-production")
-    ).toBeDisabled();
-    await expect(page.getByTestId("demo-environment-sandbox")).toBeDisabled();
+    await expect(page.locator(".demo-env-picker")).toHaveCount(0);
+    await expect(page.getByTestId("production-acknowledgement")).toBeDisabled();
   } finally {
     releaseGrade();
   }
@@ -134,11 +220,11 @@ test("the shared key and environment stay locked across skills during grading", 
   page,
 }) => {
   await openDemo(page, "scoring");
-  await page.getByTestId("demo-environment-production").check();
-  await page.getByLabel("API key Production (tùy chọn)").fill(productionKey);
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(productionKey);
   await page.getByRole("button", { name: "Kiểm tra key" }).click();
-  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
-  await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await openGradingStep(page);
   await page.getByTestId("production-acknowledgement").check();
 
   let releaseGrade!: () => void;
@@ -152,15 +238,11 @@ test("the shared key and environment stay locked across skills during grading", 
   await page.getByRole("button", { name: /Chấm thật Task 1/ }).click();
 
   try {
-    await expect(
-      page.getByTestId("demo-environment-production")
-    ).toBeDisabled();
+    await expect(page.locator(".demo-env-picker")).toHaveCount(0);
     await page.getByRole("link", { name: "Speaking" }).click();
+    await expect(page.locator(".demo-env-picker")).toHaveCount(0);
     await expect(
-      page.getByTestId("demo-environment-production")
-    ).toBeDisabled();
-    await expect(
-      page.getByLabel("API key Production (tùy chọn)")
+      page.getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
     ).toBeDisabled();
     await expect(
       page.getByRole("button", { name: "Kiểm tra key" })
@@ -172,19 +254,21 @@ test("the shared key and environment stay locked across skills during grading", 
     releaseGrade();
   }
 
-  await expect(page.getByTestId("demo-environment-production")).toBeEnabled();
-  await expect(page.getByLabel("API key Production (tùy chọn)")).toBeEnabled();
+  await expect(page.locator(".demo-env-picker")).toHaveCount(0);
+  await expect(
+    page.getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+  ).toBeEnabled();
 });
 
 test("the first Production grade needs the billable acknowledgement", async ({
   page,
 }) => {
   await openDemo(page, "scoring");
-  await page.getByTestId("demo-environment-production").check();
-  await page.getByLabel("API key Production (tùy chọn)").fill(productionKey);
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(productionKey);
   await page.getByRole("button", { name: "Kiểm tra key" }).click();
-  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
-  await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await openGradingStep(page);
 
   const gradingRequests: string[] = [];
   page.on("request", (browserRequest) => {
@@ -210,16 +294,16 @@ test("a Sandbox visit reports its allowance apart from key validity", async ({
   page,
 }) => {
   await openDemo(page, "scoring");
-  await page.getByLabel("API key Sandbox (tùy chọn)").fill(sandboxKey);
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(demoKey);
   await page.getByRole("button", { name: "Kiểm tra key" }).click();
 
   const allowance = page.getByTestId("sandbox-allowance");
   await expect(allowance).toContainText(
-    "còn 5 lượt khả dụng tháng này (Organization: 5/5; toàn Sandbox: 500/500)"
+    "Organization 0/5; toàn Sandbox 0/500. Còn 5 lượt khả dụng cho key này."
   );
-  await expect(
-    page.getByTestId("demo-environment-production")
-  ).not.toBeChecked();
+  await expect(page.locator(".demo-env-picker")).toHaveCount(0);
 });
 
 test("skipping key setup keeps the whole visit off the network", async ({
@@ -228,8 +312,7 @@ test("skipping key setup keeps the whole visit off the network", async ({
   const calls = countDemoApiCalls(page);
   await openDemo(page, "scoring");
   await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
-  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
-  await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await openGradingStep(page);
   await page.getByTestId("button-grade").click();
 
   await expect(page.getByTestId("scoring-report")).toBeVisible();
@@ -240,48 +323,59 @@ test("a copied artifact names the selected host and never the supplied key", asy
   page,
 }) => {
   await openDemo(page, "scoring");
-  await page.getByTestId("demo-environment-production").check();
-  await page.getByLabel("API key Production (tùy chọn)").fill(demoKey);
-  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(productionKey);
+  await page.getByRole("button", { name: "Kiểm tra key" }).click();
+  await expect(page.getByTestId("production-key-warning")).toBeVisible();
+  await openGradingStep(page);
 
   const artifact = page.getByTestId("export-artifact");
   await expect(artifact).toContainText("https://api.aihubproduction.com");
-  await expect(artifact).not.toContainText(demoKey);
+  await expect(artifact).not.toContainText(productionKey);
 
-  for (const tab of ["PowerShell", "Postman JSON", "Agent prompt"]) {
+  for (const tab of ["PowerShell", "Postman cURL", "Agent prompt"]) {
     await page.getByRole("tab", { name: tab }).click();
     await expect(artifact).toContainText("api.aihubproduction.com");
-    await expect(artifact).not.toContainText(demoKey);
+    await expect(artifact).not.toContainText(productionKey);
+    if (tab === "Postman cURL")
+      await expect(artifact).toContainText("{{aihub_api_key}}");
   }
-
-  await page.getByTestId("demo-environment-sandbox").check();
-  await expect(artifact).toContainText("https://sandbox.aihubproduction.com");
 });
 
 test("a key entered in one demo skill is still there in the other", async ({
   page,
 }) => {
   await openDemo(page, "scoring");
-  await page.getByLabel("API key Sandbox (tùy chọn)").fill(demoKey);
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(demoKey);
 
   await page.getByRole("link", { name: "Speaking" }).click();
   await waitForHydration(page);
-  await expect(page.getByLabel("API key Sandbox (tùy chọn)")).toHaveValue(
-    demoKey
-  );
-  await expect(page.getByTestId("demo-environment-sandbox")).toBeChecked();
+  await expect(
+    page.getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+  ).toHaveValue(demoKey);
+  await expect(page.locator(".demo-env-picker")).toHaveCount(0);
 });
 
 test("restoring the page from the back/forward cache clears the key", async ({
   page,
 }) => {
   await openDemo(page, "scoring");
-  await page.getByLabel("API key Sandbox (tùy chọn)").fill(demoKey);
-  await page.getByTestId("demo-environment-production").check();
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(productionKey);
+  await page.getByRole("button", { name: "Kiểm tra key" }).click();
+  await expect(page.getByTestId("production-key-warning")).toBeVisible();
   await page.getByTestId("production-acknowledgement").check();
-  await expect(page.getByLabel("API key Production (tùy chọn)")).toHaveValue(
-    demoKey
-  );
+  await page.getByRole("link", { name: "Speaking" }).click();
+  await waitForHydration(page);
+  await expect(page.locator(".demo-env-picker")).toHaveCount(0);
+  await expect(page.getByTestId("production-acknowledgement")).toBeChecked();
+  await expect(
+    page.getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+  ).toHaveValue(productionKey);
 
   // The event the browser fires when it hands a page back from bfcache.
   await page.evaluate(() => {
@@ -290,8 +384,10 @@ test("restoring the page from the back/forward cache clears the key", async ({
     );
   });
 
-  await expect(page.getByLabel("API key Sandbox (tùy chọn)")).toHaveValue("");
-  await expect(page.getByTestId("demo-environment-sandbox")).toBeChecked();
+  await expect(
+    page.getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+  ).toHaveValue("");
+  await expect(page.locator(".demo-env-picker")).toHaveCount(0);
   await expect(page.getByTestId("production-acknowledgement")).toHaveCount(0);
 });
 
@@ -323,13 +419,14 @@ test("a logout in another tab clears the key the demo is holding", async ({
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(page).toHaveURL(/\/console\/orgs\/org-keys-12345678$/);
 
-  await openDemo(page, "scoring");
-  await page.getByLabel("API key Sandbox (tùy chọn)").fill(demoKey);
-  await page.getByTestId("demo-environment-production").check();
-  await page.getByTestId("production-acknowledgement").check();
-  await expect(page.getByLabel("API key Production (tùy chọn)")).toHaveValue(
-    demoKey
-  );
+  await openDemo(page, "speaking");
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(demoKey);
+  await expect(
+    page.getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+  ).toHaveValue(demoKey);
+  await expect(page.locator(".demo-env-picker")).toHaveCount(0);
 
   const otherTab = await page.context().newPage();
   await otherTab.goto("/console/orgs/org-keys-12345678");
@@ -337,8 +434,10 @@ test("a logout in another tab clears the key the demo is holding", async ({
   await otherTab.locator("details.account-menu > summary").click();
   await otherTab.getByRole("button", { name: "Đăng xuất" }).first().click();
 
-  await expect(page.getByLabel("API key Sandbox (tùy chọn)")).toHaveValue("");
-  await expect(page.getByTestId("demo-environment-sandbox")).toBeChecked();
+  await expect(
+    page.getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+  ).toHaveValue("");
+  await expect(page.locator(".demo-env-picker")).toHaveCount(0);
   await expect(page.getByTestId("production-acknowledgement")).toHaveCount(0);
   await otherTab.close();
 });
@@ -354,7 +453,13 @@ test("a Writing export sends the endpoint's body and an Idempotency-Key", async 
   const artifact = page.getByTestId("export-artifact");
 
   for (const task of [1, 2] as const) {
+    if (task === 2) {
+      await page.getByRole("button", { name: "Sửa bài" }).click();
+      await page.getByRole("button", { name: "Quay lại đề" }).click();
+    }
     await page.getByTestId(`tab-task-${task}`).click();
+    await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+    await page.getByRole("button", { name: "Xem bước chấm" }).click();
     await expect(artifact).toContainText("--data-raw");
     await expect(artifact).toContainText(UUID);
     // `task` routes inside the BFF; the endpoint's schemas refuse it.
@@ -365,14 +470,14 @@ test("a Writing export sends the endpoint's body and an Idempotency-Key", async 
   }
 });
 
-test("jumping past key setup with the stepper still exports an Idempotency-Key", async ({
+test("the sequential flow creates an Idempotency-Key after key setup is skipped", async ({
   page,
 }) => {
   await openDemo(page, "scoring");
-  await page
-    .getByRole("navigation", { name: "Các bước demo" })
-    .getByRole("button", { name: /Chấm và xem kết quả/ })
-    .click();
+  await expect(page.getByTestId("export-artifact")).toHaveCount(0);
+  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
+  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
 
   await expect(page.getByTestId("export-artifact")).toContainText(UUID);
 });
@@ -384,10 +489,8 @@ test("a Speaking export keeps the sample recording's own question", async ({
   await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
   await page.getByRole("button", { name: "Part 3" }).click();
   await page.locator(".demo-scenario-list button").nth(1).click();
-  await page
-    .getByRole("navigation", { name: "Các bước demo" })
-    .getByRole("button", { name: /Chấm và xem kết quả/ })
-    .click();
+  await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
 
   const artifact = page.getByTestId("export-artifact");
   await expect(artifact).toContainText(

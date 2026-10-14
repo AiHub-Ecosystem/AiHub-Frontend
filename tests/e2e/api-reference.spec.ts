@@ -180,7 +180,7 @@ test("Writing Task 1 reference shows the request contract and AIHUB's published 
   await expect(notes).toContainText("biểu đồ mẫu AIHUB công bố");
   // The published chart is AIHUB's example, not the reader's.
   await expect(notes).toContainText("thay bằng ảnh biểu đồ của bạn");
-  await expect(notes).toContainText("kết quả sẽ sai");
+  await expect(notes).toContainText("trả kết quả không chính xác");
 });
 
 test("Writing Task 1 reference shows four ordered criteria in the response", async ({

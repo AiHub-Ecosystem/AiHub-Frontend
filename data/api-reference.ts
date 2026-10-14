@@ -392,7 +392,7 @@ export const WRITING_SCORING_STEPS: IntegrationStep[] = [
   {
     title: "Gửi đề bài và bài làm",
     description:
-      "Task 1 cần thêm image_url tới một ảnh biểu đồ mà dịch vụ chấm truy cập được, cùng chart_type đúng loại biểu đồ. Task 2 không cần ảnh, chỉ cần topic. Cả hai đều trả nhận xét tiếng Việt. Đặt timeout phía client tối thiểu 90 giây.",
+      "Task 1 cần thêm image_url tới ảnh biểu đồ AIHUB có thể truy cập, cùng chart_type đúng loại biểu đồ. Task 2 không cần ảnh, chỉ cần topic. Cả hai đều trả nhận xét tiếng Việt. Đặt timeout phía client tối thiểu 90 giây.",
   },
   {
     title: "Hiển thị feedback theo đúng thứ tự tiêu chí",
@@ -628,7 +628,7 @@ export const WRITING_SCORING_REFERENCE: Record<string, EndpointReference> = {
         type: "string (uri)",
         required: true,
         description:
-          "Ảnh biểu đồ dạng HTTP(S), tối đa 2.000 ký tự. Phải trỏ tới ảnh thật mà dịch vụ chấm tải được.",
+          "Ảnh biểu đồ dạng HTTP(S), tối đa 2.000 ký tự. Phải trỏ tới ảnh thật mà AIHUB có thể truy cập.",
       },
       {
         name: "language",
@@ -810,33 +810,33 @@ const WRITING_GATEWAY_ERRORS: GatewayError[] = [
     status: "502",
     code: "AI_SERVICE_ERROR",
     tone: "error",
-    title: "Dịch vụ AI lỗi",
+    title: "Lỗi khi chấm bài",
     description:
-      "Dịch vụ AI trả về lỗi. retryable là false với lỗi 4xx từ dịch vụ AI (như ví dụ), true với lỗi 5xx; chỉ thử lại khi response thực tế cho phép.",
+      "Yêu cầu không hoàn tất. retryable là false với lỗi 4xx (như ví dụ), true với lỗi 5xx; chỉ thử lại khi response thực tế cho phép.",
   },
   {
     status: "502",
     code: "AI_SERVICE_CONTRACT_VIOLATION",
     tone: "error",
-    title: "Dịch vụ AI sai hợp đồng",
+    title: "Kết quả không đúng định dạng",
     description:
-      "Dịch vụ AI trả về cấu trúc không hợp lệ. Không retry; báo lại kèm request_id.",
+      "Kết quả trả về có cấu trúc không hợp lệ. Không retry; báo lại kèm request_id.",
   },
   {
     status: "503",
     code: "AI_SERVICE_THROTTLED",
     tone: "error",
-    title: "Dịch vụ AI đang giới hạn",
+    title: "Yêu cầu đang quá tải",
     description:
-      "Dịch vụ AI đang giới hạn. Lùi rồi thử lại; mã này không có retry_after_ms nên chọn thời gian lùi phù hợp.",
+      "Lùi rồi thử lại; mã này không có retry_after_ms nên chọn thời gian lùi phù hợp.",
     retryable: true,
   },
   {
     status: "503",
     code: "AI_SERVICE_UNAVAILABLE",
     tone: "error",
-    title: "Dịch vụ AI không truy cập được",
-    description: "Không tới được dịch vụ AI. Thử lại với backoff.",
+    title: "Tạm thời chưa thể xử lý",
+    description: "Thử lại với backoff.",
     retryable: true,
   },
   {
@@ -1388,15 +1388,15 @@ const SPEAKING_GATEWAY_ERRORS: GatewayError[] = [
     status: "502",
     code: "AI_SERVICE_ERROR",
     tone: "error",
-    title: "Dịch vụ AI trả về lỗi",
-    description: "Phía dịch vụ AI báo lỗi. Thử lại sau nếu retryable là true.",
+    title: "Lỗi khi chấm bài",
+    description: "Yêu cầu không hoàn tất. Thử lại sau nếu retryable là true.",
     retryable: true,
   },
   {
     status: "502",
     code: "AI_SERVICE_CONTRACT_VIOLATION",
     tone: "error",
-    title: "Dịch vụ AI trả về sai hình dạng",
+    title: "Kết quả không đúng định dạng",
     description:
       "Không retry. Báo lại kèm request_id — đây là lỗi phía chúng tôi, không phải phía bạn.",
   },
@@ -1404,16 +1404,15 @@ const SPEAKING_GATEWAY_ERRORS: GatewayError[] = [
     status: "503",
     code: "AI_SERVICE_THROTTLED",
     tone: "warn",
-    title: "Dịch vụ AI đang giới hạn tải",
-    description:
-      "Dịch vụ đang throttle. Lùi rồi thử lại; lỗi này không kèm retry_after_ms.",
+    title: "Yêu cầu đang quá tải",
+    description: "Lùi rồi thử lại; lỗi này không kèm retry_after_ms.",
     retryable: true,
   },
   {
     status: "503",
     code: "AI_SERVICE_UNAVAILABLE",
     tone: "error",
-    title: "Không tới được dịch vụ AI",
+    title: "Tạm thời chưa thể xử lý",
     description: "Thử lại với backoff.",
     retryable: true,
   },

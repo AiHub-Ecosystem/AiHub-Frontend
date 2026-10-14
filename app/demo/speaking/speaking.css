@@ -1,1 +1,136 @@
-@import "../demo-workbench.css";
+@import "../scoring/scoring.css";
+
+.speaking-audio-preview {
+  position: relative;
+  display: flex;
+  min-height: 110px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 10px;
+  padding: 28px 16px 12px;
+  background: #f7f7fb;
+}
+
+.speaking-audio-label {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  color: #5c5d77;
+  font-size: 11px;
+}
+
+.speaking-audio-player {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #5b5fef;
+}
+
+.speaking-audio-play {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: #5b5fef;
+  color: white;
+}
+
+.speaking-audio-play svg {
+  width: 10px;
+  height: 12px;
+  fill: currentColor;
+}
+
+.speaking-audio-waveform {
+  display: flex;
+  height: 48px;
+  align-items: center;
+  gap: 3px;
+}
+
+.speaking-audio-waveform i {
+  width: 4px;
+  border-radius: 99px;
+  background: currentColor;
+}
+
+.speaking-audio-waveform i:nth-child(3n) {
+  color: #9c9dc2;
+}
+
+.aihub-demo-flow .speaking-result-report {
+  margin-top: 16px;
+}
+
+.aihub-demo-flow .speaking-result-transcript {
+  display: grid;
+  gap: 7px;
+}
+
+.aihub-demo-flow .speaking-pronunciation-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.aihub-demo-flow .speaking-pronunciation-stats span {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--demo-line);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--demo-muted);
+  font-size: 11px;
+}
+
+.aihub-demo-flow .speaking-pronunciation-stats strong {
+  color: var(--demo-ink);
+  font-size: 17px;
+}
+
+.aihub-demo-flow .speaking-word-details,
+.aihub-demo-flow .speaking-vocabulary-list {
+  margin-top: 9px;
+  border-top: 1px solid var(--demo-line);
+  padding-top: 8px;
+}
+
+.aihub-demo-flow .speaking-word-details summary {
+  color: var(--demo-brand-text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.aihub-demo-flow .speaking-metric-list {
+  display: grid;
+  gap: 3px;
+}
+
+.speaking-audio-duration {
+  color: #5c5d77;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+@media (max-width: 480px) {
+  .speaking-audio-player {
+    gap: 8px;
+  }
+
+  .speaking-audio-waveform {
+    gap: 2px;
+  }
+
+  .speaking-audio-waveform i {
+    width: 3px;
+  }
+
+  .aihub-demo-flow .speaking-pronunciation-stats {
+    grid-template-columns: 1fr;
+  }
+}

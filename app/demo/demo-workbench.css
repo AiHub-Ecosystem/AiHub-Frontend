@@ -45,6 +45,28 @@
   gap: 18px 28px;
   align-items: end;
   margin-bottom: 34px;
+  position: static;
+}
+
+.aihub-demo-flow--custom-overview .demo-flow-hero > div:first-child {
+  display: none;
+}
+
+.aihub-demo-flow--custom-overview .demo-flow-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin-bottom: 18px;
+}
+
+.aihub-demo-flow--custom-overview .demo-flow-statuses {
+  justify-content: flex-start;
+}
+
+.aihub-demo-flow--custom-overview .demo-skill-switch {
+  grid-column: auto;
+  margin-top: 0;
 }
 
 .demo-flow-eyebrow {
@@ -198,6 +220,10 @@
   padding: 0;
 }
 
+.demo-overview-steps--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .demo-overview-steps li {
   background: #f8f9fc;
   border: 1px solid var(--demo-line);
@@ -252,6 +278,16 @@
   grid-template-columns: minmax(0, 0.96fr) minmax(400px, 1.04fr);
 }
 
+.demo-flow-grid--no-trace {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.demo-flow-grid--no-trace > .demo-step-panel {
+  margin-inline: auto;
+  max-width: 920px;
+  width: 100%;
+}
+
 .demo-step-panel,
 .demo-console {
   min-width: 0;
@@ -263,17 +299,20 @@
   display: grid;
   gap: 6px;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin-top: 18px;
-  padding-bottom: 14px;
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0 0 14px;
 }
 
-.demo-stepper button {
+.demo-stepper--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.demo-stepper li {
   align-items: center;
   background: transparent;
-  border: 0;
   border-radius: 9px;
   color: var(--demo-muted);
-  cursor: pointer;
   display: flex;
   flex-direction: column;
   font-size: 10px;
@@ -284,12 +323,7 @@
   text-align: center;
 }
 
-.demo-stepper button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.demo-stepper button > span {
+.demo-stepper li > span {
   align-items: center;
   border: 1px solid #cbd5e1;
   border-radius: 50%;
@@ -301,13 +335,13 @@
   width: 25px;
 }
 
-.demo-stepper button.active {
+.demo-stepper li.active {
   background: #f0f3ff;
   color: var(--demo-brand-text);
   font-weight: 700;
 }
 
-.demo-stepper button.active > span {
+.demo-stepper li.active > span {
   background: var(--demo-brand);
   border-color: var(--demo-brand);
   color: #fff;
@@ -370,7 +404,6 @@
 .demo-field input:focus,
 .demo-field textarea:focus,
 .demo-field select:focus,
-.demo-stepper button:focus-visible,
 .demo-console-tabs button:focus-visible {
   outline: 3px solid #c7d2fe;
   outline-offset: 1px;
@@ -665,7 +698,7 @@
   padding: 22px;
 }
 
-/* The copy panel sits on the page, not in the dark console, so it is restyled. */
+/* Keep the copy controls and note in the page theme. */
 .demo-exports .demo-console-tabs {
   border-bottom-color: var(--demo-line);
 }
@@ -677,12 +710,6 @@
 .demo-exports .demo-console-tabs button.active {
   border-color: var(--demo-brand);
   color: var(--demo-brand-text);
-}
-
-.demo-exports .demo-console-code {
-  background: var(--demo-surface);
-  border-color: var(--demo-line);
-  color: var(--demo-ink);
 }
 
 .demo-exports .demo-console-note {
@@ -792,6 +819,10 @@
     grid-template-columns: 1fr;
   }
 
+  .aihub-demo-flow--custom-overview .demo-flow-hero {
+    flex-wrap: wrap;
+  }
+
   .demo-flow-statuses {
     justify-content: flex-start;
   }
@@ -815,7 +846,7 @@
     gap: 2px;
   }
 
-  .demo-stepper button {
+  .demo-stepper li {
     font-size: 9px;
   }
 
@@ -825,5 +856,11 @@
 
   .demo-result-criteria {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 380px) {
+  .demo-exports .demo-console-tabs {
+    flex-wrap: wrap;
   }
 }

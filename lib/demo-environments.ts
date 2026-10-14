@@ -1,8 +1,4 @@
-/**
- * The Demo environment: the request tier a demo visit explicitly selects. The
- * selected tier must match the key's backend-authorized environment; the BFF
- * never silently switches a request to another host (ADR-0018).
- */
+/** Environment used for validation and grading; the backend remains authoritative. */
 export const DEMO_ENVIRONMENTS = ["sandbox", "production"] as const;
 
 export type DemoEnvironment = (typeof DEMO_ENVIRONMENTS)[number];
@@ -38,4 +34,17 @@ export function demoEnvironmentName(environment: DemoEnvironment) {
 
 export function demoEnvironmentLabel(environment: DemoEnvironment) {
   return DEMO_ENVIRONMENT_LABELS[environment];
+}
+
+/** Routes newly issued key prefixes to validation; only the backend authorizes them. */
+export function demoEnvironmentHintFromApiKey(
+  apiKey: string
+): DemoEnvironment | null {
+  if (apiKey.startsWith("aihub_sandbox_")) return "sandbox";
+  if (apiKey.startsWith("aihub_prod_")) return "production";
+  return null;
+}
+
+export function demoEnvironmentRequiresSelection(apiKey: string) {
+  return apiKey.startsWith("aihub_sk_");
 }

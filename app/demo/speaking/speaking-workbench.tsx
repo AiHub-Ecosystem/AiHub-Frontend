@@ -15,7 +15,10 @@ import {
   type SpeakingGradingEnvelope,
 } from "@/data/speaking-response";
 import {
+  demoEnvironmentHintFromApiKey,
+  demoEnvironmentHost,
   demoEnvironmentName,
+  demoEnvironmentRequiresSelection,
   type DemoEnvironment,
 } from "@/lib/demo-environments";
 import { buildDemoExports } from "@/lib/demo-export";
@@ -42,57 +45,246 @@ function SpeakingRetryNote({ environment }: { environment: DemoEnvironment }) {
     </div>
   );
 }
+
 const PARTS = [1, 2, 3] as const;
 const SPEAKING_CLIENT_TIMEOUT_MS = 75_000;
-const SCENARIOS = [
+const SPEAKING_FLOW_STAGES = [
   {
-    id: "revoked",
-    label: "Key bị thu hồi",
-    status: "401 Unauthorized",
-    response: {
-      code: "UNAUTHORIZED",
-      message: "API key không hợp lệ hoặc đã bị thu hồi.",
-      retryable: false,
-    },
+    title: "Học viên ghi âm, app gửi audio + câu hỏi",
+    detail:
+      "App gửi file audio cùng part, question_id, prompt_text và test_type tới server của bạn. API key chỉ được giữ ở server.",
+    direction: "right",
   },
   {
-    id: "scope",
-    label: "Thiếu speaking.grade",
-    status: "403 Forbidden",
-    response: {
-      code: "FORBIDDEN",
-      message: "API key thiếu scope speaking.grade.",
-      retryable: false,
-    },
+    title: "POST …/speaking/grading",
+    detail:
+      "Server gắn X-API-Key và X-User-Identity, rồi gửi multipart/form-data tới AIHub. Speaking không dùng Idempotency-Key.",
+    direction: "right",
   },
   {
-    id: "quota",
-    label: "Hết hạn mức môi trường",
-    status: "429 Too Many Requests",
-    response: {
-      code: "QUOTA_EXCEEDED",
-      message: "Môi trường đã hết hạn mức tháng.",
-      retryable: false,
-    },
+    title: "Phân tích câu trả lời nói",
+    detail:
+      "AIHub xử lý audio, tạo transcript và đánh giá fluency, vocabulary, grammar, pronunciation.",
+    direction: "none",
   },
   {
-    id: "timeout",
-    label: "Chấm quá thời gian",
-    status: "504 Gateway Timeout",
-    response: {
-      code: "AI_SERVICE_TIMEOUT",
-      message: "Dịch vụ chấm mất quá lâu.",
-      retryable: true,
-    },
+    title: "Trả transcript, estimated_band, feedback",
+    detail:
+      "Response gồm transcript, overall band, điểm 4 tiêu chí Speaking, nhận xét và kế hoạch cải thiện.",
+    direction: "left",
+  },
+  {
+    title: "Lưu kết quả, phản hồi học viên",
+    detail:
+      "Server lưu kết quả và trả transcript, band cùng feedback về app để học viên xem lại.",
+    direction: "left",
   },
 ] as const;
+
+function SpeakingFlowOverview() {
+  const [flowStep, setFlowStep] = useState(0);
+  const [hoveredStep, setHoveredStep] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (flowStep < 1 || flowStep > SPEAKING_FLOW_STAGES.length) return;
+    const timer = window.setTimeout(
+      () => setFlowStep((current) => current + 1),
+      1100
+    );
+    return () => window.clearTimeout(timer);
+  }, [flowStep]);
+
+  const activeStep =
+    hoveredStep ?? (flowStep <= SPEAKING_FLOW_STAGES.length ? flowStep : 0);
+  const explanation = activeStep
+    ? {
+        tag: `Bước ${activeStep}`,
+        text: SPEAKING_FLOW_STAGES[activeStep - 1].detail,
+      }
+    : flowStep > SPEAKING_FLOW_STAGES.length
+      ? {
+          tag: "Xong",
+          text: "Đó là toàn bộ luồng. Kéo xuống “Thử chấm Speaking” để chạy demo và xem request/response ở bước 4.",
+        }
+      : {
+          tag: "Gợi ý",
+          text: "Mô phỏng này không gửi request. Bấm “Gửi câu trả lời” để chạy luồng, hoặc rê chuột/chọn từng chặng để xem giải thích.",
+        };
+  const running = flowStep > 0 && flowStep <= SPEAKING_FLOW_STAGES.length;
+
+  return (
+    <div className="scoring-overview">
+      <section aria-labelledby="speaking-overview-title">
+        <div className="scoring-overview-heading">
+          <span className="scoring-overview-badge">TRƯỚC TIÊN</span>
+          <h2 id="speaking-overview-title">
+            Luồng hoạt động của Chấm điểm Speaking
+          </h2>
+          <span>Tổng quan trước khi thử demo</span>
+        </div>
+
+        <div className="scoring-overview-card">
+          <article
+            className="scoring-app-preview scoring-app-preview--compact"
+            aria-label="Màn hình trả lời Speaking mẫu"
+          >
+            <div className="scoring-browser-bar">
+              <span className="scoring-browser-dots" aria-hidden="true">
+                <i /> <i /> <i />
+              </span>
+              <span className="scoring-overview-mono">
+                app-cua-ban.com/speaking
+              </span>
+            </div>
+            <div className="scoring-app-content">
+              <p className="scoring-task-label">IELTS SPEAKING · PART 1–3</p>
+              <p className="scoring-task-prompt">
+                Trả lời câu hỏi theo từng phần của bài thi Speaking.
+              </p>
+              <div
+                aria-label="Audio mẫu dài 24 giây"
+                className="speaking-audio-preview"
+                role="img"
+              >
+                <span className="speaking-audio-label scoring-overview-mono">
+                  AUDIO MẪU
+                </span>
+                <span className="speaking-audio-player" aria-hidden="true">
+                  <span className="speaking-audio-play">
+                    <svg viewBox="0 0 12 14" focusable="false">
+                      <path d="M1 1v12l10-6z" />
+                    </svg>
+                  </span>
+                  <span className="speaking-audio-waveform">
+                    {[
+                      10, 17, 24, 13, 30, 38, 21, 15, 28, 42, 26, 18, 34, 46,
+                      25, 16, 31, 22, 12, 27, 37, 19, 11,
+                    ].map((height, index) => (
+                      <i key={index} style={{ height }} />
+                    ))}
+                  </span>
+                  <span className="speaking-audio-duration">00:24</span>
+                </span>
+              </div>
+              <div className="scoring-essay-preview">
+                Audio của Part 1, 2 hoặc 3 được gửi cùng question_id,
+                prompt_text và test_type.
+              </div>
+              <div className="scoring-submit-row">
+                <span>Bấm để chạy toàn bộ luồng</span>
+                <button
+                  className="scoring-overview-submit"
+                  disabled={running}
+                  onClick={() => {
+                    setHoveredStep(null);
+                    setFlowStep(
+                      window.matchMedia("(prefers-reduced-motion: reduce)")
+                        .matches
+                        ? SPEAKING_FLOW_STAGES.length + 1
+                        : 1
+                    );
+                  }}
+                  type="button"
+                >
+                  {running
+                    ? "Đang chạy…"
+                    : flowStep > SPEAKING_FLOW_STAGES.length
+                      ? "Chạy lại"
+                      : "Gửi câu trả lời"}
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <div className="scoring-sequence" aria-label="Luồng chấm Speaking">
+            <div className="scoring-lanes" aria-hidden="true">
+              <div>
+                <strong>App của bạn</strong>
+                <span>học viên ghi âm</span>
+              </div>
+              <div>
+                <strong>Server của bạn</strong>
+                <span>giữ API key</span>
+              </div>
+              <div>
+                <strong>AIHub</strong>
+                <span>chấm Speaking</span>
+              </div>
+            </div>
+            <div className="scoring-sequence-grid">
+              {SPEAKING_FLOW_STAGES.map((item, index) => {
+                const number = index + 1;
+                const active = activeStep === number;
+                const pending =
+                  hoveredStep === null && running && number > flowStep;
+                return (
+                  <div
+                    className={`scoring-flow-step scoring-flow-step--${number}`}
+                    key={item.title}
+                    onMouseEnter={() => setHoveredStep(number)}
+                    onMouseLeave={() => setHoveredStep(null)}
+                  >
+                    <button
+                      aria-current={active ? "step" : undefined}
+                      aria-describedby="speaking-flow-explanation"
+                      className="scoring-flow-step-button"
+                      data-active={active || undefined}
+                      data-pending={pending || undefined}
+                      onFocus={() => setHoveredStep(number)}
+                      onBlur={() => setHoveredStep(null)}
+                      onClick={() => setHoveredStep(number)}
+                      type="button"
+                    >
+                      <strong>{number}</strong>
+                      {item.title}
+                      {number === 2 && (
+                        <small className="scoring-overview-mono">
+                          X-API-Key · X-User-Identity
+                        </small>
+                      )}
+                    </button>
+                    {item.direction !== "none" && (
+                      <span
+                        aria-hidden="true"
+                        className={`scoring-flow-arrow scoring-flow-arrow--${item.direction}`}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+              <div
+                className={`scoring-flow-result${flowStep >= 5 && hoveredStep === null ? " is-active" : flowStep > 0 && flowStep < 5 && hoveredStep === null ? " is-pending" : ""}`}
+              >
+                Hiển thị band + transcript + feedback
+              </div>
+            </div>
+            <p
+              className="scoring-flow-explanation"
+              id="speaking-flow-explanation"
+              aria-live="polite"
+            >
+              <span className="scoring-overview-badge">{explanation.tag}</span>
+              <span>{explanation.text}</span>
+            </p>
+          </div>
+        </div>
+      </section>
+      <section
+        className="scoring-after-overview"
+        aria-labelledby="speaking-demo-title"
+      >
+        <p className="demo-flow-eyebrow">SAU ĐÓ</p>
+        <h2 id="speaking-demo-title">Thử chấm Speaking</h2>
+      </section>
+    </div>
+  );
+}
 
 type Result = {
   part: SpeakingPart;
   envelope: SpeakingGradingEnvelope;
   mode: "mock" | "live";
 };
-type ScenarioId = (typeof SCENARIOS)[number]["id"];
 type HttpTrace = {
   status: number;
   contentType: string | null;
@@ -153,6 +345,206 @@ function fileProblem(file: File | null) {
   return null;
 }
 
+function speakingMetric(
+  value: number | null | undefined,
+  unit: string,
+  digits = 1
+) {
+  if (value == null) return "Chưa có dữ liệu";
+  const formatted = Number.isInteger(value)
+    ? String(value)
+    : value.toFixed(digits);
+  return `${formatted} ${unit}`;
+}
+
+function SpeakingResultReport({
+  envelope,
+  mode,
+  part,
+}: {
+  envelope: SpeakingGradingEnvelope;
+  mode: "mock" | "live";
+  part: SpeakingPart;
+}) {
+  const { data } = envelope;
+  const canDisplayBand =
+    data.scorability.is_scorable && data.scorability.display_band;
+  const criteria = [
+    ["Fluency & Coherence", data.estimated_band.fluency_coherence, "coherence"],
+    ["Lexical Resource", data.estimated_band.lexical_resource, "lexical"],
+    ["Grammar", data.estimated_band.grammatical_range_accuracy, "grammar"],
+    ["Pronunciation", data.estimated_band.pronunciation, "achieve"],
+  ] as const;
+
+  return (
+    <section
+      className="feedback-dashboard speaking-result-report"
+      aria-label="Kết quả chấm Speaking"
+      data-testid="speaking-result-report"
+    >
+      <div className="feedback-header">
+        <div>
+          <h3>Báo cáo chấm Speaking Part {part}</h3>
+          <p>
+            {mode === "mock"
+              ? "Kết quả mẫu cố định."
+              : `Mã yêu cầu ${envelope.meta.request_id}`}
+          </p>
+        </div>
+        <span className="score-badge">
+          {canDisplayBand
+            ? `Overall Band: ${data.estimated_band.overall.toFixed(1)}`
+            : "Chưa đủ dữ liệu chấm band"}
+        </span>
+      </div>
+
+      {!canDisplayBand && data.scorability.message_vi && (
+        <div className="demo-notice" role="status">
+          {data.scorability.message_vi}
+        </div>
+      )}
+
+      <div className="feedback-grid speaking-score-grid">
+        {criteria.map(([label, score, tone]) => (
+          <div className={`score-card criterion-card tone-${tone}`} key={label}>
+            <div className="score-label">{label}</div>
+            <div className="score-value">
+              {canDisplayBand ? score.toFixed(1) : "—"} <em>/ 9.0</em>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="speaking-result-transcript">
+        <div className="section-kicker">
+          BẢN GHI CÂU TRẢ LỜI
+          <span>
+            {data.transcript.word_count} từ ·{" "}
+            {data.transcript.duration_seconds.toFixed(1)} giây
+          </span>
+        </div>
+        <div className="scoring-essay">{data.transcript.text}</div>
+      </div>
+
+      <div className="rubric-grid">
+        <div className="rubric-card">
+          <div className="section-kicker">MỨC ĐỘ LIÊN QUAN</div>
+          <p>
+            {data.relevance.on_topic ? "Đúng trọng tâm" : "Chưa sát câu hỏi"} ·{" "}
+            {(data.relevance.score * 100).toFixed(0)}%
+          </p>
+          {data.relevance.feedback_vi && <p>{data.relevance.feedback_vi}</p>}
+        </div>
+        <div className="rubric-card">
+          <div className="section-kicker">NHỊP NÓI</div>
+          {data.fluency_metrics ? (
+            <ul className="scoring-plain-list speaking-metric-list">
+              <li>
+                Tốc độ:{" "}
+                {speakingMetric(
+                  data.fluency_metrics.speech_rate_wpm,
+                  "từ/phút"
+                )}
+              </li>
+              <li>
+                Số lần ngừng:{" "}
+                {speakingMetric(data.fluency_metrics.pause_count, "lần", 0)}
+              </li>
+              <li>
+                Độ dài trung bình mỗi mạch nói:{" "}
+                {speakingMetric(
+                  data.fluency_metrics.mean_length_run_words,
+                  "từ"
+                )}
+              </li>
+            </ul>
+          ) : (
+            <p>Chưa có dữ liệu nhịp nói cho lượt này.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="rubric-grid">
+        <div className="rubric-card">
+          <div className="section-kicker">PHÁT ÂM THEO TỪ</div>
+          <div className="speaking-pronunciation-stats">
+            <span>
+              <strong>{data.pronunciation_detail.summary.good_count}</strong>Tốt
+            </span>
+            <span>
+              <strong>{data.pronunciation_detail.summary.fair_count}</strong>Cần
+              luyện
+            </span>
+            <span>
+              <strong>{data.pronunciation_detail.summary.poor_count}</strong>Cần
+              chú ý
+            </span>
+          </div>
+          {data.pronunciation_detail.words.length > 0 && (
+            <details className="speaking-word-details">
+              <summary>
+                Chi tiết {data.pronunciation_detail.words.length} từ
+              </summary>
+              <ul className="scoring-plain-list">
+                {data.pronunciation_detail.words.map((item, index) => (
+                  <li key={`${item.word}-${index}`}>
+                    <strong>{item.word}</strong> ·{" "}
+                    {item.quality_score.toFixed(1)}% · {item.syllables.length}{" "}
+                    âm tiết · {item.phonemes.length} âm
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+        <div className="rubric-card">
+          <div className="section-kicker">NGÔN NGỮ</div>
+          {data.language_analysis.grammar_errors.length === 0 ? (
+            <p>Không có lỗi ngữ pháp được ghi nhận.</p>
+          ) : (
+            <ul className="scoring-plain-list">
+              {data.language_analysis.grammar_errors.map((item, index) => (
+                <li key={`${item.error_segment}-${index}`}>
+                  “{item.error_segment}” → “{item.correction}” ·{" "}
+                  {item.explanation_vi}
+                </li>
+              ))}
+            </ul>
+          )}
+          {data.language_analysis.vocabulary_upgrades.length > 0 && (
+            <ul className="scoring-plain-list speaking-vocabulary-list">
+              {data.language_analysis.vocabulary_upgrades.map((item, index) => (
+                <li key={`${item.original_word}-${index}`}>
+                  <strong>
+                    {item.original_word} → {item.suggested_word}
+                  </strong>{" "}
+                  ({item.cefr_level}) · {item.reason_vi}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <div className="rubric-grid">
+        <div className="rubric-card">
+          <div className="section-kicker">NHẬN XÉT</div>
+          <p>{data.feedback.summary_vi}</p>
+        </div>
+        <div className="rubric-card">
+          <div className="section-kicker">ĐIỂM TỐT &amp; BƯỚC TIẾP THEO</div>
+          <p>
+            <strong>Điểm tốt:</strong> {data.feedback.strong_point_vi}
+          </p>
+          <p>
+            <strong>Bước tiếp theo:</strong> {data.feedback.action_plan_vi}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function SpeakingWorkbench() {
   const {
     state,
@@ -193,7 +585,6 @@ export default function SpeakingWorkbench() {
   const [gradeAttempted, setGradeAttempted] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [scenario, setScenario] = useState<ScenarioId>("revoked");
   const recorder = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const chunks = useRef<Blob[]>([]);
@@ -209,8 +600,6 @@ export default function SpeakingWorkbench() {
   const prompts = liveReady ? (livePrompts ?? []) : localPrompts;
   const prompt = prompts.find((item) => item.id === selectedId) ?? prompts[0];
   const activeResult = result?.part === part ? result : null;
-  const activeScenario =
-    SCENARIOS.find((item) => item.id === scenario) ?? SCENARIOS[0];
   const currentFileProblem = fileProblem(file);
   /** Informational only: every grade re-checks the allowance upstream. */
   const allowance = isScopeValidated(SCOPE)
@@ -311,9 +700,8 @@ export default function SpeakingWorkbench() {
    * question rather than the one selected on screen.
    */
   const copyableExports =
-    step === 1
-      ? null
-      : buildDemoExports({
+    step === 4
+      ? buildDemoExports({
           environment,
           skill: "speaking",
           title: `Speaking Part ${SPEAKING_SAMPLE_ANSWER_REQUEST.part}`,
@@ -323,7 +711,8 @@ export default function SpeakingWorkbench() {
             { name: "Content-Type", value: "application/json" },
           ],
           body: SPEAKING_SAMPLE_ANSWER_REQUEST,
-        });
+        })
+      : null;
 
   const changeStep = (next: DemoStep) => {
     if (step === 3 && next !== 3 && recorder.current?.state === "recording") {
@@ -343,7 +732,10 @@ export default function SpeakingWorkbench() {
 
   const validateKey = async () => {
     const submittedKey = apiKey.trim();
-    const submittedEnvironment = environment;
+    const submittedEnvironment =
+      demoEnvironmentHintFromApiKey(submittedKey) ?? environment;
+    if (submittedEnvironment !== environment)
+      setEnvironment(submittedEnvironment);
     const submittedGeneration = selectionGeneration();
     if (!submittedKey) {
       setKeyError({
@@ -758,7 +1150,7 @@ export default function SpeakingWorkbench() {
       return pretty({
         source: liveReady
           ? "local draft preview · chưa gửi HTTP"
-          : "local mock fixture · không gửi HTTP",
+          : "bản mẫu local · không gửi HTTP",
         planned_request: liveReady
           ? {
               method: "POST",
@@ -775,61 +1167,31 @@ export default function SpeakingWorkbench() {
         body_preview: requestBody,
         sent: false,
       });
-    if (step === 5)
-      return pretty({
-        source: "local error scenario · simulated, no HTTP",
-        scenario: activeScenario.label,
-        simulated_request: {
-          method: "POST",
-          path: "/v1/ielts/speaking/grading",
-          headers: {
-            "X-API-Key": "[REDACTED]",
-            "X-User-Identity": "<demo UUID>",
-          },
-          body: requestBody,
-        },
-      });
-    if (!liveReady)
-      return pretty({
-        source: "local fixture submit",
-        http_request: null,
-        result:
-          "Clicking the button returns MOCK_SPEAKING_RESULTS for this Part.",
-      });
-    if (!gradeAttempted)
-      return pretty({
-        source: "request preview · chưa gửi",
-        method: "POST",
-        browser_to_aihub_bff: "/api/demo/speaking/grading",
-        bff_to_selected_environment: {
-          environment: demoEnvironmentName(environment),
-          path: "/v1/ielts/speaking/grading",
-        },
-        headers: {
-          "X-Demo-API-Key": "[REDACTED]",
-          "X-Demo-User-Identity": "<generated at submit>",
-          "Content-Type": "multipart/form-data; browser generated boundary",
-        },
-        body_summary: requestBody,
-        audio_binary_included: Boolean(file),
-        sent: false,
-      });
+    const requestBodyPreview = {
+      part,
+      question_id: prompt?.id ?? "",
+      prompt_text: prompt?.question ?? "",
+      test_type: "Practice",
+      audio: file
+        ? {
+            filename: file.name,
+            bytes: file.size,
+            type: file.type || "application/octet-stream",
+            content: "<binary audio omitted>",
+          }
+        : "<audio file required for live grading>",
+    };
     return pretty({
-      source: "request sent via AIHUB BFF",
       method: "POST",
-      browser_to_aihub_bff: "/api/demo/speaking/grading",
-      bff_to_selected_environment: {
-        environment: demoEnvironmentName(environment),
-        path: "/v1/ielts/speaking/grading",
-      },
+      url: `${demoEnvironmentHost(environment)}/v1/ielts/speaking/grading`,
       headers: {
-        "X-Demo-API-Key": "[REDACTED]",
-        "X-Demo-User-Identity": "<demo UUID>",
-        "Content-Type": "multipart/form-data; browser generated boundary",
+        "X-API-Key":
+          "${AIHUB_API_KEY:?Set AIHUB_API_KEY to your API key first}",
+        "X-User-Identity": "<your end-user id>",
+        "Content-Type":
+          "multipart/form-data; boundary=<generated automatically>",
       },
-      body_summary: requestBody,
-      audio_binary_included: Boolean(file),
-      sent: true,
+      body: requestBodyPreview,
     });
   };
 
@@ -882,99 +1244,22 @@ export default function SpeakingWorkbench() {
         http_response: null,
         message: liveReady
           ? "Chưa gửi. Audio chỉ được gửi ở bước 4 sau khi bấm chấm."
-          : "Mock chỉ đọc fixture; không gửi audio.",
+          : "Bản mẫu chỉ đọc; chưa gửi audio.",
       });
-    if (step === 5)
-      return pretty({
-        source: "local simulation · not HTTP",
-        simulated_status: activeScenario.status,
-        simulated_response: activeScenario.response,
-      });
-    if (!liveReady)
-      return gradeResponse
-        ? pretty({
-            source: "local fixture",
-            http_response: null,
-            body: gradeResponse,
-          })
-        : pretty({
-            source: "local fixture",
-            http_response: null,
-            message: "Chưa chọn hiển thị kết quả mẫu.",
-          });
     return gradeResponse
-      ? pretty({
-          http: gradeTrace
-            ? {
-                status: gradeTrace.status,
-                headers: responseHeaderSummary(gradeTrace),
-              }
-            : null,
-          body: gradeResponse,
-        })
+      ? pretty(gradeResponse)
       : pretty({
-          http_response: null,
-          message: gradeAttempted
-            ? "Request đã gửi nhưng chưa nhận response HTTP."
-            : "Chưa gửi request.",
+          message: liveReady
+            ? gradeAttempted
+              ? "Request đã gửi nhưng chưa nhận response HTTP."
+              : "Chưa gửi request."
+            : "Chưa chọn hiển thị kết quả mẫu.",
         });
   };
 
-  const requestHeaders = () => {
-    if (step === 1)
-      return validationSkipped || (!apiKey.trim() && !keyCheckResponse)
-        ? "No HTTP request."
-        : `${keyCheckResponse ? "Sent or in progress" : "Preview only; not sent"}\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nContent-Type: application/json\nAIHUB BFF → ${demoEnvironmentName(environment)}: X-API-Key: [REDACTED]\nContent-Type: application/json`;
-    if (step === 2)
-      return liveReady
-        ? "GET question catalog via BFF. No API key or grading request is sent. Browser-managed headers omitted."
-        : "No HTTP request — question fixture is local.";
-    if (step === 3)
-      return liveReady
-        ? `Preview only; not sent yet.\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nX-Demo-User-Identity: generated at submit\nContent-Type: multipart/form-data (browser boundary)\nBFF → ${demoEnvironmentName(environment)}: X-API-Key: [REDACTED]\nX-User-Identity: <demo UUID>`
-        : "No HTTP request — read-only fixture.";
-    if (step === 5)
-      return "Simulated request only; no request headers were sent.\nX-API-Key: [REDACTED]";
-    if (!liveReady) return "No HTTP request — fixture is generated locally.";
-    return `${gradeAttempted ? "Sent" : "Preview only; not sent"}\nBrowser → AIHUB BFF: X-Demo-API-Key: [REDACTED]\nX-Demo-User-Identity: ${gradeAttempted ? "<demo UUID>" : "generated at submit"}\nContent-Type: multipart/form-data (browser boundary)\nBFF → ${demoEnvironmentName(environment)}: X-API-Key: [REDACTED]\nX-User-Identity: <demo UUID>`;
-  };
-
-  const responseHeaders = () => {
-    if (step === 1)
-      return keyCheckTrace
-        ? responseHeaderSummary(keyCheckTrace)
-        : validationSkipped
-          ? "No HTTP response — step skipped."
-          : "No HTTP response received.";
-    if (step === 2)
-      return liveReady
-        ? responseHeaderSummary(questionTrace)
-        : "No HTTP response — local fixture.";
-    if (step === 3) return "No HTTP response — draft preview only.";
-    if (step === 5) return "No HTTP response headers — simulated status only.";
-    if (!liveReady || result?.mode === "mock")
-      return "No HTTP response — local fixture.";
-    return gradeTrace
-      ? responseHeaderSummary(gradeTrace)
-      : "No HTTP response received.";
-  };
-
-  const traceNote =
-    step === 1
-      ? "Key validation goes through the AIHUB BFF and checks scope/environment only; it does not grade or consume grading quota. The key is redacted."
-      : step === 2
-        ? liveReady
-          ? "The public question catalog is fetched through the BFF; it does not send a grading request or consume grading quota."
-          : "Local question fixtures only. No HTTP request is sent."
-        : step === 3
-          ? liveReady
-            ? "This is a local draft preview. Audio is sent only after the Step 4 grading button is pressed."
-            : "Read-only fixture preview. No audio or grading request is sent."
-          : step === 4
-            ? liveReady
-              ? `The BFF rechecks the ${demoEnvironmentName(environment)} key on every grading request; the API key is redacted in this trace.`
-              : "The button returns a fixed fixture in the browser. No grading or AI service request is sent."
-            : "Scenario request and response are simulated locally. No HTTP request or quota use.";
+  const traceNote = liveReady
+    ? `Every live grading request reauthenticates the ${demoEnvironmentName(environment)} key before quota and dispatch; trace redacts the key.`
+    : "Request is shown as a preview. The button returns a fixed frontend fixture; no grading API request is sent.";
 
   const traceStatus =
     step === 1
@@ -1003,19 +1288,17 @@ export default function SpeakingWorkbench() {
           ? liveReady
             ? "DRAFT PREVIEW · NOT SENT"
             : "READ-ONLY FIXTURE"
-          : step === 4
-            ? submitting
-              ? "GRADING"
-              : !liveReady
-                ? activeResult
-                  ? "LOCAL FIXTURE RESULT"
-                  : "LOCAL · NO HTTP"
-                : gradeTrace
-                  ? `HTTP ${gradeTrace.status}`
-                  : gradeAttempted
-                    ? "NO HTTP RESPONSE"
-                    : "PREVIEW · NOT SENT"
-            : "SIMULATED · NO HTTP";
+          : submitting
+            ? "GRADING"
+            : !liveReady
+              ? activeResult
+                ? "KẾT QUẢ MẪU"
+                : "READY"
+              : gradeTrace
+                ? `HTTP ${gradeTrace.status}`
+                : gradeAttempted
+                  ? "NO HTTP RESPONSE"
+                  : "PREVIEW · NOT SENT";
 
   return (
     <DemoWorkbench
@@ -1024,14 +1307,13 @@ export default function SpeakingWorkbench() {
       title="Chấm IELTS Speaking"
       description={`Chọn Speaking Part, ghi âm hoặc tải câu trả lời lên khi dùng key ${demoEnvironmentName(environment)}. Bỏ qua key để xem fixture read-only và kết quả mẫu cố định.`}
       step={step}
-      onStepChange={changeStep}
+      showTrace={step === 4}
+      showEnvironmentPicker={demoEnvironmentRequiresSelection(apiKey.trim())}
       stepperDisabled={grading || submitting}
       mode={mode}
       status={traceStatus}
       request={requestForStep()}
       response={responseForStep()}
-      requestHeaders={requestHeaders()}
-      responseHeaders={responseHeaders()}
       environment={environment}
       onEnvironmentChange={(value) => {
         setEnvironment(value);
@@ -1044,24 +1326,27 @@ export default function SpeakingWorkbench() {
       requiresProductionAcknowledgement={requiresProductionAcknowledgement()}
       onAcknowledgeProduction={acknowledgeProduction}
       sandboxAllowance={allowance}
+      productionKeyValidated={isScopeValidated(SCOPE) && Boolean(apiKey)}
       exports={copyableExports}
+      overview={<SpeakingFlowOverview />}
       traceNote={traceNote}
     >
       <p className="demo-flow-eyebrow">
-        BƯỚC {step} / 5 · {DEMO_STEPS[step - 1]}
+        BƯỚC {step} / {DEMO_STEPS.length} · {DEMO_STEPS[step - 1]}
       </p>
 
       {step === 1 && (
         <>
-          <h3>Chọn môi trường và key</h3>
+          <h3>Kiểm tra API key</h3>
           <p>
-            Kiểm tra key theo scope <code>{SCOPE}</code> và theo môi trường đã
-            chọn. Endpoint chỉ xác thực key, không gọi AI và không tiêu quota
-            chấm.
+            Phiên mới mặc định dùng Sandbox. Key có tiền tố Sandbox hoặc
+            Production sẽ được kiểm tra ở môi trường tương ứng; key không có
+            tiền tố môi trường dùng môi trường hiện tại. Bước này xác thực scope{" "}
+            <code>{SCOPE}</code>, không gọi AI và không dùng quota chấm.
           </p>
           <div className="demo-field">
             <label htmlFor="speaking-demo-key">
-              API key {demoEnvironmentName(environment)} (tùy chọn)
+              API key (Sandbox hoặc Production, tùy chọn)
             </label>
             <input
               autoComplete="off"
@@ -1084,17 +1369,14 @@ export default function SpeakingWorkbench() {
                 setGradeAttempted(false);
                 setError(null);
               }}
-              placeholder={
-                environment === "sandbox" ? "aihub_sandbox_…" : "aihub_prod_…"
-              }
+              placeholder="aihub_sandbox_… hoặc aihub_prod_…"
               spellCheck={false}
               type="password"
               value={apiKey}
             />
             <p className="demo-help">
-              Key phải chỉ thuộc môi trường{" "}
-              {demoEnvironmentName(environment).toLowerCase()}, có scope
-              speaking.grade, Organization chưa bật Identity Configuration.
+              Backend kiểm tra môi trường và quyền chấm Speaking trước khi mở
+              tính năng chấm thật.
             </p>
           </div>
           {keyError && (
@@ -1134,8 +1416,8 @@ export default function SpeakingWorkbench() {
           <h3>Chọn câu hỏi Speaking</h3>
           <p>
             {liveReady
-              ? `Live mode tải danh sách câu hỏi công khai từ ${demoEnvironmentName(environment)}; thao tác này không chấm bài và không dùng quota.`
-              : "Mock mode dùng fixture local theo từng Part, không tải catalog từ backend."}
+              ? `Key ${demoEnvironmentName(environment)} đã xác thực. Chọn Part và câu hỏi từ danh sách; bước này chỉ tải câu hỏi, chưa gửi request chấm hoặc dùng quota.`
+              : "Mẫu chỉ đọc: chọn Part và câu hỏi có sẵn để xem fixture. Nhập key hợp lệ ở bước 1 để tải câu hỏi và mở ghi âm/tải audio chấm live."}
           </p>
           <div className="demo-inline-actions" aria-label="Speaking part">
             {PARTS.map((value) => (
@@ -1191,6 +1473,13 @@ export default function SpeakingWorkbench() {
           )}
           <div className="demo-step-actions">
             <button
+              className="demo-btn-secondary"
+              onClick={() => changeStep(1)}
+              type="button"
+            >
+              Quay lại API key
+            </button>
+            <button
               className="demo-btn-primary"
               disabled={!prompt || questionLoading}
               onClick={() => changeStep(3)}
@@ -1207,8 +1496,8 @@ export default function SpeakingWorkbench() {
           <h3>Câu trả lời bằng audio</h3>
           <p>
             {liveReady
-              ? "Ghi âm trực tiếp hoặc tải tệp lên. File chỉ giữ trong bộ nhớ trang và được gửi khi bạn bấm chấm."
-              : "Mock mode hiển thị transcript mẫu read-only. Để gửi câu trả lời của bạn, nhập key hợp lệ ở bước 1."}
+              ? "Key đã xác thực: ghi âm hoặc tải audio của bạn, rồi nghe lại, xóa hoặc thay tệp trước khi gửi ở bước 4. Tệp chỉ giữ trong bộ nhớ trang."
+              : "Mẫu chỉ đọc: transcript tham khảo không chỉnh sửa được. Nhập key hợp lệ ở bước 1 để ghi âm/tải câu trả lời; kết quả mẫu luôn cố định."}
           </p>
           {!liveReady ? (
             <div className="demo-field">
@@ -1281,7 +1570,7 @@ export default function SpeakingWorkbench() {
               )}
               {file && (
                 <p className="demo-help">
-                  Tối đa 25 MB. Supported: WAV, MP3, M4A, WebM, OGG.
+                  Tối đa 25 MB. Định dạng hỗ trợ: WAV, MP3, M4A, WebM hoặc OGG.
                 </p>
               )}
             </>
@@ -1323,7 +1612,7 @@ export default function SpeakingWorkbench() {
           <p>
             {liveReady
               ? `AIHUB gửi multipart audio tới ${demoEnvironmentName(environment)}. API key được xác thực lại trước quota và dispatch.`
-              : "Submit chỉ trả fixture tĩnh theo Part. Không có request grading hoặc AI service call."}
+              : "Nút này chỉ hiển thị kết quả mẫu theo Part. Không gửi yêu cầu chấm bài."}
           </p>
           {error && (
             <div className="demo-error" role="alert">
@@ -1367,94 +1656,12 @@ export default function SpeakingWorkbench() {
             </button>
           </div>
           {activeResult && (
-            <section
-              className="demo-result-card"
-              aria-label="Kết quả chấm Speaking"
-            >
-              <p className="demo-flow-eyebrow">
-                {activeResult.mode === "mock"
-                  ? "KẾT QUẢ MẪU CỐ ĐỊNH"
-                  : "LIVE RESPONSE"}
-              </p>
-              <div className="demo-result-band">
-                Band{" "}
-                {activeResult.envelope.data.scorability.display_band
-                  ? activeResult.envelope.data.estimated_band.overall.toFixed(1)
-                  : "—"}
-              </div>
-              <div className="demo-result-criteria">
-                {[
-                  [
-                    "Fluency",
-                    activeResult.envelope.data.estimated_band.fluency_coherence,
-                  ],
-                  [
-                    "Lexical",
-                    activeResult.envelope.data.estimated_band.lexical_resource,
-                  ],
-                  [
-                    "Grammar",
-                    activeResult.envelope.data.estimated_band
-                      .grammatical_range_accuracy,
-                  ],
-                  [
-                    "Pronunciation",
-                    activeResult.envelope.data.estimated_band.pronunciation,
-                  ],
-                ].map(([label, score]) => (
-                  <div key={String(label)}>
-                    <strong>{label}</strong>
-                    <span>{Number(score).toFixed(1)}</span>
-                  </div>
-                ))}
-              </div>
-              <blockquote className="demo-result-transcript">
-                {activeResult.envelope.data.transcript.text}
-              </blockquote>
-              <p>
-                <strong>Nhận xét:</strong>{" "}
-                {activeResult.envelope.data.feedback.summary_vi}
-              </p>
-              <p>
-                <strong>Điểm tốt:</strong>{" "}
-                {activeResult.envelope.data.feedback.strong_point_vi}
-              </p>
-              <p>
-                <strong>Bước tiếp theo:</strong>{" "}
-                {activeResult.envelope.data.feedback.action_plan_vi}
-              </p>
-            </section>
+            <SpeakingResultReport
+              envelope={activeResult.envelope}
+              mode={activeResult.mode}
+              part={activeResult.part}
+            />
           )}
-        </>
-      )}
-
-      {step === 5 && (
-        <>
-          <h3>Retry và lỗi</h3>
-          <p>
-            Các ví dụ request/response bên dưới được mô phỏng tại frontend;
-            chúng không gọi API và không dùng quota.
-          </p>
-          <div className="demo-scenario-list">
-            {SCENARIOS.map((item) => (
-              <button
-                aria-pressed={scenario === item.id}
-                className={scenario === item.id ? "active" : ""}
-                key={item.id}
-                onClick={() => setScenario(item.id)}
-                type="button"
-              >
-                {item.label}
-                <br />
-                <strong>{item.status}</strong>
-              </button>
-            ))}
-          </div>
-          <div className="demo-notice">
-            <span aria-hidden="true">⚠</span> Khi key bị thu hồi sau bước 1,
-            backend sẽ từ chối request chấm trước khi dispatch.
-          </div>
-          <SpeakingRetryNote environment={environment} />
         </>
       )}
     </DemoWorkbench>

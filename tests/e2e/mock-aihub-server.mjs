@@ -16,11 +16,19 @@ const scoringRequests = [];
  * raw key's prefix, exactly as aihub-be does.
  */
 const DEMO_KEYS = {
+  ["aihub_sandbox_" + "A".repeat(43)]: {
+    environments: ["sandbox"],
+    scopes: ["writing.grade", "speaking.grade"],
+  },
   aihub_sk_e2e_sandbox_key: {
     environments: ["sandbox"],
     scopes: ["writing.grade", "speaking.grade"],
   },
   aihub_prod_e2e_production_key: {
+    environments: ["production"],
+    scopes: ["writing.grade", "speaking.grade"],
+  },
+  aihub_sk_e2e_legacy_production_key: {
     environments: ["production"],
     scopes: ["writing.grade", "speaking.grade"],
   },

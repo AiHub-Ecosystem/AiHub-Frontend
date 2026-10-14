@@ -65,19 +65,32 @@ async function keepBrowserTrafficLocal(page: Page) {
 
 async function startLiveSession(page: Page) {
   await waitForHydration(page);
-  await page.getByLabel("API key Sandbox (tùy chọn)").fill(sandboxKey);
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(sandboxKey);
   await page.getByRole("button", { name: "Kiểm tra key" }).click();
   await expect(
     page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
   ).toBeVisible();
+  await expect(page.getByText("Đã xác thực · có thể chỉnh sửa")).toBeVisible();
   await expect(
     page.locator(".demo-scenario-list").getByText("E2E_ONLY_QUESTION_1")
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Key Sandbox đã xác thực\. Chọn Part và câu hỏi/)
   ).toBeVisible();
 }
 
 async function prepareLiveGrading(page: Page) {
   await startLiveSession(page);
   await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
+  await expect(
+    page.getByText(/Key đã xác thực: ghi âm hoặc tải audio của bạn/)
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Tải audio" })).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Ghi âm", exact: true })
+  ).toBeEnabled();
   await page.getByTestId("input-audio-file").setInputFiles({
     name: "e2e-answer.wav",
     mimeType: "audio/wav",
@@ -105,9 +118,17 @@ test("Speaking without a key uses a read-only fixture and grades locally", async
   await page.goto("/demo/speaking");
   await waitForHydration(page);
   await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
+  await page.getByRole("button", { name: "Quay lại API key" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Kiểm tra API key" })
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
 
   await expect(
     page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Mẫu chỉ đọc: chọn Part và câu hỏi có sẵn/)
   ).toBeVisible();
   const mockQuestions = page.locator(".demo-scenario-list button");
   await expect(mockQuestions).toHaveCount(3);
@@ -119,6 +140,9 @@ test("Speaking without a key uses a read-only fixture and grades locally", async
   await expect(mockQuestions).toHaveCount(3);
   await page.getByRole("button", { name: "Part 1" }).click();
   await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
+  await expect(
+    page.getByText(/Mẫu chỉ đọc: transcript tham khảo không chỉnh sửa được/)
+  ).toBeVisible();
   await expect(page.locator("textarea[readonly]")).toBeVisible();
   await page.getByRole("button", { name: "Xem bước chấm" }).click();
   await page.getByRole("button", { name: "Hiện kết quả mẫu Part 1" }).click();
@@ -128,7 +152,7 @@ test("Speaking without a key uses a read-only fixture and grades locally", async
   ).toBeVisible();
   await page.getByRole("tab", { name: "Response" }).click();
   await expect(page.locator(".demo-console .demo-console-code")).toContainText(
-    "local fixture"
+    '"estimated_band"'
   );
 
   const log = await speakingLog(request);
@@ -159,7 +183,9 @@ test("live Speaking never falls back to fixture questions when the catalog is un
 
   await page.goto("/demo/speaking");
   await waitForHydration(page);
-  await page.getByLabel("API key Sandbox (tùy chọn)").fill(sandboxKey);
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(sandboxKey);
   await page.getByRole("button", { name: "Kiểm tra key" }).click();
   await expect(
     page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
@@ -175,12 +201,13 @@ test("live Speaking never falls back to fixture questions when the catalog is un
   await expect(questionError).toContainText(
     "Không tải được câu hỏi Speaking từ Sandbox."
   );
-  await page
-    .getByRole("navigation", { name: "Các bước demo" })
-    .getByRole("button", { name: /Chấm và xem kết quả/ })
-    .click();
+  const stepper = page.getByRole("navigation", { name: "Các bước demo" });
+  await expect(stepper.getByRole("button")).toHaveCount(0);
+  await expect(stepper.locator('[aria-current="step"]')).toContainText(
+    "Chọn đề"
+  );
   await expect(
-    page.getByRole("button", { name: "Chấm thật Part 2" })
+    page.getByRole("button", { name: "Tiếp tục đến câu trả lời" })
   ).toBeDisabled();
 
   const log = await speakingLog(request);
