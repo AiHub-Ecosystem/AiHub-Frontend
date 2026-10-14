@@ -93,6 +93,11 @@ export function DemoUserIdentityField({
         Mã ngẫu nhiên được tạo sẵn. Bạn có thể thay bằng ID người dùng trong ứng
         dụng của mình; không dùng email, tên hoặc số điện thoại.
       </p>
+      <p className="demo-help">
+        Nếu tổ chức yêu cầu mã người dùng có chữ ký từ máy chủ, bản thử này
+        không thể thay máy chủ tạo chữ ký đó. Đăng nhập AIHUB hoặc nhập ID thông
+        thường cũng không thay thế được; hãy gửi yêu cầu từ máy chủ của bạn.
+      </p>
       {value.length > 0 && !isEndUserId(value) && (
         <p className="demo-error" role="alert">
           Mã cần có 1–256 ký tự, không chứa khoảng trắng.
