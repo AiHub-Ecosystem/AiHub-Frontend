@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireWebSession } from "@/lib/auth-session";
+import { originIsAllowed, requireWebSession } from "@/lib/auth-session";
 
 const BACKEND_URL =
   process.env.API_BASE_URL ||
@@ -7,6 +7,11 @@ const BACKEND_URL =
   "http://localhost:3020";
 
 export async function POST(request: Request) {
+  if (!originIsAllowed(request))
+    return new Response(null, {
+      status: 403,
+      headers: { "Cache-Control": "no-store" },
+    });
   const authFailure = await requireWebSession(request);
   if (authFailure) return authFailure;
 
