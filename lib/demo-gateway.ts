@@ -1,5 +1,6 @@
 import { isIP } from "node:net";
 
+import { isEndUserId } from "@/lib/end-user-id";
 import {
   DEMO_ENVIRONMENTS,
   demoEnvironmentHost,
@@ -115,13 +116,8 @@ export function readDemoApiKey(request: Request) {
 }
 
 export function readDemoUserIdentity(request: Request) {
-  const value = request.headers.get("x-demo-user-identity")?.trim();
-  if (
-    !value ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      value
-    )
-  ) {
+  const value = request.headers.get("x-demo-user-identity");
+  if (!isEndUserId(value)) {
     throw new DemoCredentialError("INVALID_USER_IDENTITY");
   }
   return value;

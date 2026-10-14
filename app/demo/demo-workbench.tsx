@@ -12,6 +12,7 @@ import {
   DEMO_EXPORT_KEY_ENV,
   type DemoExports,
 } from "@/lib/demo-export";
+import { isEndUserId } from "@/lib/end-user-id";
 import type { SandboxAllowanceSnapshot } from "./demo-session-state";
 
 export const DEMO_STEPS = [
@@ -62,6 +63,44 @@ const STEP_SUMMARY = [
   "Nhập bài viết hoặc chuẩn bị câu trả lời bằng giọng nói.",
   "Xem điểm và nhận xét.",
 ];
+
+export function DemoUserIdentityField({
+  id,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="demo-field">
+      <label htmlFor={id}>Mã người dùng của ứng dụng (X-User-Identity)</label>
+      <input
+        autoComplete="off"
+        disabled={disabled}
+        id={id}
+        maxLength={256}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Tự tạo mã ngẫu nhiên"
+        spellCheck={false}
+        type="text"
+        value={value}
+      />
+      <p className="demo-help">
+        Mã ngẫu nhiên được tạo sẵn. Bạn có thể thay bằng ID người dùng trong ứng
+        dụng của mình; không dùng email, tên hoặc số điện thoại.
+      </p>
+      {value.length > 0 && !isEndUserId(value) && (
+        <p className="demo-error" role="alert">
+          Mã cần có 1–256 ký tự, không chứa khoảng trắng.
+        </p>
+      )}
+    </div>
+  );
+}
 
 function consoleStatusTone(status: string) {
   if (/^HTTP 2\d\d|đã chấm thật|đã nhận kết quả/i.test(status)) return "live";

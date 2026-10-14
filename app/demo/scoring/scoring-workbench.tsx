@@ -18,11 +18,13 @@ import {
   demoEnvironmentRequiresSelection,
 } from "@/lib/demo-environments";
 import { buildDemoExports } from "@/lib/demo-export";
+import { isEndUserId } from "@/lib/end-user-id";
 import { useDemoSession, type DemoScope } from "@/app/demo/demo-session";
 import { sandboxAllowanceFrom } from "@/app/demo/demo-session-state";
 import {
   DEMO_STEPS,
   DemoWorkbench,
+  DemoUserIdentityField,
   type DemoStep,
 } from "@/app/demo/demo-workbench";
 import {
@@ -353,7 +355,8 @@ export default function ScoringWorkbench() {
     clearScopeValidation,
     requiresProductionAcknowledgement,
     acknowledgeProduction,
-    getUserIdentity,
+    userIdentity,
+    setUserIdentity,
   } = useDemoSession();
   const apiKey = state.apiKey;
   const environment = state.environment;
@@ -396,6 +399,7 @@ export default function ScoringWorkbench() {
   };
   const liveReady =
     apiKey.trim().length > 0 && isScopeValidated(SCOPE) && !skipMock;
+  const userIdentityValid = isEndUserId(userIdentity);
   const mode = liveReady ? "live" : "mock";
   const activeDraft = useMemo(
     () =>
@@ -446,7 +450,10 @@ export default function ScoringWorkbench() {
             apiKey: liveReady ? apiKey.trim() : undefined,
             path: `/v1/ielts/writing/task${task}/grade`,
             headers: [
-              { name: "X-User-Identity", value: "<your end-user id>" },
+              {
+                name: "X-User-Identity",
+                value: userIdentityValid ? userIdentity : "<your end-user id>",
+              },
               { name: "Content-Type", value: "application/json" },
             ],
             body: upstreamRequestBody,
@@ -460,6 +467,8 @@ export default function ScoringWorkbench() {
       step,
       task,
       upstreamRequestBody,
+      userIdentity,
+      userIdentityValid,
     ]
   );
   const activeResult = result?.task === task ? result : null;
@@ -630,6 +639,13 @@ export default function ScoringWorkbench() {
       setGradeError({ code: "INVALID_REQUEST", message: chartProblem });
       return;
     }
+    if (!userIdentityValid) {
+      setGradeError({
+        code: "INVALID_USER_IDENTITY",
+        message: "Nhập mã người dùng gồm 1–256 ký tự, không chứa khoảng trắng.",
+      });
+      return;
+    }
     // The first Production grade of a visit needs the billable acknowledgement;
     // it is not a spend cap, only a gate the backend still enforces afterwards.
     if (requiresProductionAcknowledgement()) {
@@ -670,7 +686,7 @@ export default function ScoringWorkbench() {
           "Content-Type": "application/json",
           "X-Demo-API-Key": apiKey.trim(),
           "X-Demo-Environment": environment,
-          "X-Demo-User-Identity": getUserIdentity(),
+          "X-Demo-User-Identity": userIdentity,
           "Idempotency-Key": submissionKey,
         },
         body: JSON.stringify(requestBody),
@@ -724,7 +740,9 @@ export default function ScoringWorkbench() {
     url: `${demoEnvironmentHost(environment)}/v1/ielts/writing/task${task}/grade`,
     headers: {
       "X-API-Key": liveReady ? apiKey.trim() : "[chưa có mã API hợp lệ]",
-      "X-User-Identity": "<your end-user id>",
+      "X-User-Identity": userIdentityValid
+        ? userIdentity
+        : "<your end-user id>",
       "Content-Type": "application/json",
       "Idempotency-Key": idempotencyKey ?? "<generate UUID before submit>",
     },
@@ -795,7 +813,9 @@ export default function ScoringWorkbench() {
               },
               headers: {
                 "X-Demo-API-Key": "[REDACTED]",
-                "X-Demo-User-Identity": "<generated at submit>",
+                "X-Demo-User-Identity": userIdentityValid
+                  ? userIdentity
+                  : "<your end-user id>",
                 "Content-Type": "application/json",
                 "Idempotency-Key":
                   idempotencyKey ?? "<generated before submit>",
@@ -948,6 +968,20 @@ export default function ScoringWorkbench() {
               tính phí.
             </p>
           </div>
+          <DemoUserIdentityField
+            disabled={grading}
+            id="writing-demo-user-identity"
+            onChange={(value) => {
+              setUserIdentity(value);
+              setIdempotencyKey(globalThis.crypto.randomUUID());
+              setGradeError(null);
+              setGradeResponse(null);
+              setGradeTrace(null);
+              setGradeAttempted(false);
+              setResult(null);
+            }}
+            value={userIdentity}
+          />
           {keyError && (
             <div className="demo-error" role="alert">
               {keyError.message}

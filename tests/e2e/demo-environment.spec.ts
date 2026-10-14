@@ -42,6 +42,11 @@ test("Writing and Speaking default to Sandbox without an environment picker", as
   await expect(
     page.getByRole("heading", { name: "Nhập mã API" })
   ).toBeVisible();
+  const userIdentity = page.getByLabel(
+    "Mã người dùng của ứng dụng (X-User-Identity)"
+  );
+  await expect(userIdentity).toHaveValue(/^[0-9a-f-]{36}$/);
+  const initialIdentity = await userIdentity.inputValue();
   await page.getByLabel("Mã API (không bắt buộc)").fill(demoKey);
   await expect(page.locator(".demo-env-picker")).toHaveCount(0);
 
@@ -52,6 +57,9 @@ test("Writing and Speaking default to Sandbox without an environment picker", as
     "Kết quả mẫu có sẵn"
   );
   await expect(page.getByLabel("Mã API (không bắt buộc)")).toBeVisible();
+  await expect(
+    page.getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
+  ).toHaveValue(initialIdentity);
   await expect(
     page.getByRole("heading", { name: "Nhập mã API" })
   ).toBeVisible();
@@ -154,6 +162,10 @@ test("a Production key opens live grading on the Production tier", async ({
   page,
 }) => {
   await openDemo(page, "scoring");
+  const userIdentity = "customer_42";
+  await page
+    .getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
+    .fill(userIdentity);
   await page.getByLabel("Mã API (không bắt buộc)").fill(productionKey);
   await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
 
@@ -164,12 +176,23 @@ test("a Production key opens live grading on the Production tier", async ({
   await page.getByRole("tab", { name: "Thông tin gửi đi" }).click();
   const requestTrace = page.locator(".demo-console .demo-console-code");
   await expect(requestTrace).toContainText("https://api.aihubproduction.com/");
+  await expect(requestTrace).toContainText(
+    `"X-User-Identity": "${userIdentity}"`
+  );
   await expect(requestTrace).not.toContainText("bff_to_sandbox");
+  const submittedIdentities: string[] = [];
+  page.on("request", (browserRequest) => {
+    if (new URL(browserRequest.url()).pathname === "/api/demo/scoring/grade")
+      submittedIdentities.push(
+        browserRequest.headers()["x-demo-user-identity"] ?? "(missing)"
+      );
+  });
   await page.getByTestId("production-acknowledgement").check();
   await page.getByRole("button", { name: /Chấm thật Task 1/ }).click();
 
   await expect(page.getByTestId("scoring-report")).toBeVisible();
   await expect(page.getByText("KẾT QUẢ CHẤM THẬT").first()).toBeVisible();
+  expect(submittedIdentities).toEqual([userIdentity]);
 });
 
 test("the Production acknowledgement is locked while a grade is in flight", async ({
@@ -302,6 +325,10 @@ test("request details and commands use the validated key without putting it in t
   page,
 }) => {
   await openDemo(page, "scoring");
+  const userIdentity = "customer_42";
+  await page
+    .getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
+    .fill(userIdentity);
   await page.getByLabel("Mã API (không bắt buộc)").fill(productionKey);
   await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
   await expect(page.getByTestId("production-key-warning")).toBeVisible();
@@ -310,8 +337,12 @@ test("request details and commands use the validated key without putting it in t
   const artifact = page.getByTestId("export-artifact");
   await expect(artifact).toContainText("https://api.aihubproduction.com");
   await expect(artifact).toContainText(productionKey);
+  await expect(artifact).toContainText(`X-User-Identity: ${userIdentity}`);
   await expect(page.locator(".demo-console .demo-console-code")).toContainText(
     `"X-API-Key": "${productionKey}"`
+  );
+  await expect(page.locator(".demo-console .demo-console-code")).toContainText(
+    `"X-User-Identity": "${userIdentity}"`
   );
   await expect(page.locator(".demo-console-note").first()).toContainText(
     "Hãy giữ kín"
@@ -332,10 +363,16 @@ test("a key entered in one demo skill is still there in the other", async ({
 }) => {
   await openDemo(page, "scoring");
   await page.getByLabel("Mã API (không bắt buộc)").fill(demoKey);
+  await page
+    .getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
+    .fill("learner_7");
 
   await page.getByRole("link", { name: "Speaking" }).click();
   await waitForHydration(page);
   await expect(page.getByLabel("Mã API (không bắt buộc)")).toHaveValue(demoKey);
+  await expect(
+    page.getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
+  ).toHaveValue("learner_7");
   await expect(page.locator(".demo-env-picker")).toHaveCount(0);
 });
 

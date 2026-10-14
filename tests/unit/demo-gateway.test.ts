@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DemoBoundaryError,
+  DemoCredentialError,
   demoBffHeaders,
+  readDemoUserIdentity,
   resolveDemoBaseUrl,
 } from "@/lib/demo-gateway";
 
@@ -99,5 +101,36 @@ describe("server-to-server demo headers", () => {
     expect(
       demoBffHeaders(new Request("http://localhost:3100/api/demo"))
     ).toEqual({ "X-AIHUB-Visitor-IP": "127.0.0.1" });
+  });
+});
+
+describe("demo user identity", () => {
+  it("accepts the end-user ID format supported by AIHUB", () => {
+    expect(
+      readDemoUserIdentity(
+        new Request("https://customer.test/api/demo", {
+          headers: { "X-Demo-User-Identity": "customer_42" },
+        })
+      )
+    ).toBe("customer_42");
+    expect(
+      readDemoUserIdentity(
+        new Request("https://customer.test/api/demo", {
+          headers: { "X-Demo-User-Identity": "x".repeat(256) },
+        })
+      )
+    ).toHaveLength(256);
+  });
+
+  it("rejects values the AIHUB identity contract cannot accept", () => {
+    for (const value of ["", "two words", "é", "x".repeat(257)]) {
+      expect(() =>
+        readDemoUserIdentity(
+          new Request("https://customer.test/api/demo", {
+            headers: { "X-Demo-User-Identity": value },
+          })
+        )
+      ).toThrow(DemoCredentialError);
+    }
   });
 });

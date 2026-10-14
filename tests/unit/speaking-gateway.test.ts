@@ -42,11 +42,13 @@ function baseSpeakingRequest(overrides: Record<string, unknown> = {}) {
 /** The demo must not merely parse a widened field, it must forward it. */
 function stubUpstream() {
   const sent: string[] = [];
+  const sentHeaders: Headers[] = [];
   // The sandbox host is pinned; fetch is stubbed so nothing leaves the test.
   vi.stubEnv("AIHUB_SANDBOX_BASE_URL", "https://sandbox.aihubproduction.com");
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      sentHeaders.push(new Headers(init?.headers));
       const body = init?.body;
       sent.push(
         body instanceof FormData
@@ -65,7 +67,7 @@ function stubUpstream() {
       );
     })
   );
-  return sent;
+  return { sent, sentHeaders };
 }
 
 describe("Speaking JSON request", () => {
@@ -89,7 +91,7 @@ describe("Speaking JSON request", () => {
   });
 
   it("defaults the test type upstream, not in the parser", async () => {
-    const sent = stubUpstream();
+    const { sent } = stubUpstream();
 
     // The stub response is not a full envelope; only the sent body matters.
     await gradeSpeakingByUrl(
@@ -103,7 +105,7 @@ describe("Speaking JSON request", () => {
   });
 
   it("forwards the widened fields upstream instead of dropping them", async () => {
-    const sent = stubUpstream();
+    const { sent } = stubUpstream();
 
     await gradeSpeakingByUrl(
       jsonRequest(
@@ -145,6 +147,20 @@ describe("Speaking JSON request", () => {
         jsonRequest(baseSpeakingRequest({ learner_id: "42" }))
       )
     ).rejects.toThrow(SpeakingBoundaryError);
+  });
+
+  it("forwards the visitor's declared identity unchanged", async () => {
+    const { sentHeaders } = stubUpstream();
+    const request = jsonRequest(baseSpeakingRequest());
+    const headers = new Headers(request.headers);
+    headers.set("X-Demo-User-Identity", "customer_42");
+    const customizedRequest = new Request(request, { headers });
+
+    await gradeSpeakingByUrl(customizedRequest, "req_test").catch(
+      () => undefined
+    );
+
+    expect(sentHeaders.at(-1)?.get("X-User-Identity")).toBe("customer_42");
   });
 });
 
@@ -223,7 +239,7 @@ describe("Speaking multipart request", () => {
   });
 
   it("forwards the widened fields upstream instead of dropping them", async () => {
-    const sent = stubUpstream();
+    const { sent } = stubUpstream();
 
     await gradeSpeaking(
       multipartRequest({
