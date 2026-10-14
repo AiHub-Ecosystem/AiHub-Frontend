@@ -15,7 +15,6 @@ import {
 } from "@/lib/demo-export";
 import type { DemoScope } from "./demo-session";
 import type { SandboxAllowanceSnapshot } from "./demo-session-state";
-import { remainingAllowance } from "./demo-session-state";
 
 export const DEMO_STEPS = [
   "Kiểm tra API key",
@@ -286,23 +285,17 @@ export function DemoWorkbench({
                 <div className="demo-notice" data-testid="sandbox-allowance">
                   {sandboxAllowance ? (
                     <>
-                      Đã tính vào hạn mức tháng này: Organization{" "}
-                      {sandboxAllowance.reserved}/
-                      {sandboxAllowance.monthlyLimit}; toàn Sandbox{" "}
-                      {sandboxAllowance.sharedReserved}/
-                      {sandboxAllowance.sharedMonthlyLimit}. Còn{" "}
-                      {remainingAllowance(sandboxAllowance)} lượt khả dụng cho
-                      key này.
+                      Tổ chức hiện tại đã dùng {sandboxAllowance.reserved}/
+                      {sandboxAllowance.monthlyLimit} lượt Sandbox trong tháng.{" "}
+                      Đây là số liệu tại lúc kiểm tra key; mỗi lần chấm backend
+                      sẽ kiểm tra hạn mức lại.
                     </>
                   ) : (
                     <>
-                      Demo không đọc được hạn mức Sandbox lúc này, nên không
-                      khẳng định là còn lượt.
+                      Không đọc được hạn mức Sandbox của tổ chức hiện tại. Hạn
+                      mức sẽ được kiểm tra lại khi chấm.
                     </>
-                  )}{" "}
-                  Đây là ảnh chụp tại thời điểm kiểm tra, tách khỏi việc key có
-                  hợp lệ không, và không giữ chỗ: mỗi lần chấm backend kiểm tra
-                  lại.
+                  )}
                 </div>
               )}
               {environment === "production" && (
