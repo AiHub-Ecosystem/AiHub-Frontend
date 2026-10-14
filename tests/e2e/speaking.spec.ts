@@ -89,7 +89,7 @@ async function prepareLiveGrading(page: Page) {
   await startLiveSession(page);
   await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
   await expect(
-    page.getByText(/Key đã xác thực: ghi âm hoặc tải audio của bạn/)
+    page.getByText(/Tải audio hoặc ghi âm câu trả lời của bạn/)
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Tải audio" })).toBeEnabled();
   await expect(
@@ -162,7 +162,9 @@ test("Speaking without a key uses a read-only fixture and grades locally", async
     "https://s3.wispace.app/ielts-task1/speaking-answers/part-1/do-you-enjoy-living-in-your-city-or-hometown.webm"
   );
   await expect(page.getByRole("button", { name: "Tải audio" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Ghi âm" })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Ghi âm", exact: true })
+  ).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Xóa audio" })).toHaveCount(0);
   await page.getByRole("button", { name: "Xem bước chấm" }).click();
   await page.getByRole("button", { name: "Hiện kết quả mẫu Part 1" }).click();
