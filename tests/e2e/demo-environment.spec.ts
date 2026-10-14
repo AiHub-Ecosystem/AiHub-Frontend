@@ -298,7 +298,7 @@ test("skipping key setup keeps the whole visit off the network", async ({
   expect(calls).toEqual([]);
 });
 
-test("a copied artifact names the selected host and never the supplied key", async ({
+test("request details and commands use the validated key without putting it in the AI prompt", async ({
   page,
 }) => {
   await openDemo(page, "scoring");
@@ -309,15 +309,22 @@ test("a copied artifact names the selected host and never the supplied key", asy
 
   const artifact = page.getByTestId("export-artifact");
   await expect(artifact).toContainText("https://api.aihubproduction.com");
-  await expect(artifact).not.toContainText(productionKey);
+  await expect(artifact).toContainText(productionKey);
+  await expect(page.locator(".demo-console .demo-console-code")).toContainText(
+    `"X-API-Key": "${productionKey}"`
+  );
+  await expect(page.locator(".demo-console-note").first()).toContainText(
+    "Hãy giữ kín"
+  );
 
-  for (const tab of ["PowerShell", "Postman cURL", "Hướng dẫn tạo lệnh"]) {
+  for (const tab of ["PowerShell", "Postman cURL"]) {
     await page.getByRole("tab", { name: tab }).click();
     await expect(artifact).toContainText("api.aihubproduction.com");
-    await expect(artifact).not.toContainText(productionKey);
-    if (tab === "Postman cURL")
-      await expect(artifact).toContainText("{{aihub_api_key}}");
+    await expect(artifact).toContainText(productionKey);
   }
+
+  await page.getByRole("tab", { name: "Hướng dẫn tạo lệnh" }).click();
+  await expect(artifact).not.toContainText(productionKey);
 });
 
 test("a key entered in one demo skill is still there in the other", async ({

@@ -5,9 +5,9 @@ export type { DemoScope };
 
 /**
  * One Demo visit's whole mutable state. Held in the page and nowhere else: no
- * cookie, no web storage, no URL, and nothing that reaches a copied artifact
- * (ADR-0018). The Demo identity lives beside it in the provider and goes when
- * this does.
+ * cookie, web storage, URL, logs, or analytics. A validated key may appear in
+ * copied commands by design (ADR-0020). The Demo identity lives beside this in
+ * the provider and goes when this does.
  */
 export type DemoVisitState = {
   apiKey: string;

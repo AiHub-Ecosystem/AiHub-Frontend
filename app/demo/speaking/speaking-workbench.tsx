@@ -711,6 +711,7 @@ export default function SpeakingWorkbench() {
           environment,
           skill: "speaking",
           title: `Speaking Part ${SPEAKING_SAMPLE_ANSWER_REQUEST.part}`,
+          apiKey: liveReady ? apiKey.trim() : undefined,
           path: "/v1/ielts/speaking/grading-json",
           headers: [
             { name: "X-User-Identity", value: "<your end-user id>" },
@@ -1220,9 +1221,7 @@ export default function SpeakingWorkbench() {
       method: "POST",
       url: `${demoEnvironmentHost(environment)}/v1/ielts/speaking/${gradingPath}`,
       headers: {
-        "X-API-Key": apiKey.trim()
-          ? "[đã nhập, giá trị được ẩn]"
-          : "[chưa nhập]",
+        "X-API-Key": liveReady ? apiKey.trim() : "[chưa có mã API hợp lệ]",
         "X-User-Identity": "<your end-user id>",
         "Content-Type": sampleAudioSelected
           ? "application/json"
@@ -1295,7 +1294,7 @@ export default function SpeakingWorkbench() {
   };
 
   const traceNote = liveReady
-    ? "Mỗi lần gửi bài đều kiểm tra lại mã API. Mã API được ẩn trong phần chi tiết."
+    ? "Mã API xuất hiện trong thông tin gửi đi và lệnh được sao chép. Hãy giữ kín ảnh chụp và nội dung đã sao chép."
     : "Nút này chỉ hiển thị kết quả mẫu có sẵn; bài của bạn không được gửi đi chấm.";
 
   const traceStatus =
@@ -1365,6 +1364,7 @@ export default function SpeakingWorkbench() {
       sandboxAllowance={allowance}
       productionKeyValidated={isScopeValidated(SCOPE) && Boolean(apiKey)}
       exports={copyableExports}
+      exportsContainApiKey={liveReady}
       overview={<SpeakingFlowOverview />}
       traceNote={traceNote}
     >

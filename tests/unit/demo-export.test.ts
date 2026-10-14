@@ -64,7 +64,7 @@ describe("Environment-specific host", () => {
 });
 
 describe("The supplied key", () => {
-  it("never reaches a copied artifact, only a placeholder", () => {
+  it("uses a placeholder when no validated key is supplied", () => {
     const exports = buildDemoExports(request());
 
     expect(JSON.stringify(exports)).not.toMatch(
@@ -74,6 +74,26 @@ describe("The supplied key", () => {
     expect(exports.powershell).toContain(DEMO_EXPORT_KEY_ENV);
     expect(exports.prompt).toContain(DEMO_EXPORT_KEY_ENV);
     expect(exports.postman).toContain(DEMO_EXPORT_KEY_PLACEHOLDER);
+  });
+
+  it("appears in request commands but stays out of the AI prompt", () => {
+    const apiKey = "aihub_sandbox_" + "A".repeat(43);
+    const exports = buildDemoExports(request({ apiKey }));
+
+    expect(exports.curl).toContain(`X-API-Key: ${apiKey}`);
+    expect(exports.powershell).toContain(`X-API-Key: ${apiKey}`);
+    expect(exports.postman).toContain(`X-API-Key: ${apiKey}`);
+    expect(exports.prompt).not.toContain(apiKey);
+    expect(exports.prompt).toContain(DEMO_EXPORT_KEY_ENV);
+  });
+
+  it("quotes a key as data in Bash, PowerShell, and Postman commands", () => {
+    const apiKey = "key'; echo not-run; $value";
+    const { curl, powershell, postman } = buildDemoExports(request({ apiKey }));
+
+    expect(curl).toContain("'X-API-Key: key'\\''; echo not-run; $value'");
+    expect(postman).toContain("'X-API-Key: key'\\''; echo not-run; $value'");
+    expect(powershell).toContain("'X-API-Key: key''; echo not-run; $value'");
   });
 });
 

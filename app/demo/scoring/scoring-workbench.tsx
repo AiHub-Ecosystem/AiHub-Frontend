@@ -443,6 +443,7 @@ export default function ScoringWorkbench() {
             environment,
             skill: "writing",
             title: `Writing Task ${task}`,
+            apiKey: liveReady ? apiKey.trim() : undefined,
             path: `/v1/ielts/writing/task${task}/grade`,
             headers: [
               { name: "X-User-Identity", value: "<your end-user id>" },
@@ -451,7 +452,15 @@ export default function ScoringWorkbench() {
             body: upstreamRequestBody,
             idempotencyKey: idempotencyKey ?? undefined,
           }),
-    [environment, idempotencyKey, step, task, upstreamRequestBody]
+    [
+      apiKey,
+      environment,
+      idempotencyKey,
+      liveReady,
+      step,
+      task,
+      upstreamRequestBody,
+    ]
   );
   const activeResult = result?.task === task ? result : null;
   /** Informational only: every grade re-checks the allowance upstream. */
@@ -714,7 +723,7 @@ export default function ScoringWorkbench() {
     method: "POST",
     url: `${demoEnvironmentHost(environment)}/v1/ielts/writing/task${task}/grade`,
     headers: {
-      "X-API-Key": apiKey.trim() ? "[đã nhập, giá trị được ẩn]" : "[chưa nhập]",
+      "X-API-Key": liveReady ? apiKey.trim() : "[chưa có mã API hợp lệ]",
       "X-User-Identity": "<your end-user id>",
       "Content-Type": "application/json",
       "Idempotency-Key": idempotencyKey ?? "<generate UUID before submit>",
@@ -897,9 +906,10 @@ export default function ScoringWorkbench() {
       exports={copyableExports}
       traceNote={
         liveReady
-          ? "Mỗi lần gửi bài đều kiểm tra lại mã API. Mã API được ẩn trong phần chi tiết."
+          ? "Mã API xuất hiện trong thông tin gửi đi và lệnh được sao chép. Hãy giữ kín ảnh chụp và nội dung đã sao chép."
           : "Nút này chỉ hiển thị điểm và nhận xét mẫu có sẵn; bài của bạn không được gửi đi chấm."
       }
+      exportsContainApiKey={liveReady}
     >
       <p className="demo-flow-eyebrow">
         BƯỚC {step} / {SCORING_STEPS.length} · {SCORING_STEPS[step - 1]}

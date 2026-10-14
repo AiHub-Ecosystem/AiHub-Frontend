@@ -51,6 +51,7 @@ type DemoWorkbenchProps = {
   requiresProductionAcknowledgement: boolean;
   onAcknowledgeProduction: () => void;
   exports: DemoExports | null;
+  exportsContainApiKey?: boolean;
   overview?: ReactNode;
   children: ReactNode;
 };
@@ -122,6 +123,7 @@ export function DemoWorkbench({
   requiresProductionAcknowledgement,
   onAcknowledgeProduction,
   exports,
+  exportsContainApiKey = false,
   overview,
   children,
 }: DemoWorkbenchProps) {
@@ -402,8 +404,8 @@ export function DemoWorkbench({
             <p className="demo-console-note">
               {traceNote ??
                 (mode === "mock"
-                  ? "Đây là thông tin minh họa; bài không được gửi đi chấm. Mã API luôn được ẩn."
-                  : "Mã API luôn được ẩn trong phần thông tin này.")}
+                  ? "Đây là thông tin minh họa; bài không được gửi đi chấm."
+                  : "Thông tin gửi đi mô tả yêu cầu chấm hiện tại.")}
             </p>
           </aside>
         )}
@@ -457,13 +459,15 @@ export function DemoWorkbench({
           <p className="demo-console-note">
             {skill === "speaking" &&
               "Lệnh mẫu dùng bản ghi âm có sẵn. Nếu muốn gửi bản ghi của mình, hãy chọn Bash hoặc PowerShell."}{" "}
-            {exportFormat === "postman"
-              ? "Trong Postman, chọn Import (Nhập) và dán lệnh đã sao chép. Điền mã API vào ô aihub_api_key trước khi gửi. Lệnh này không chứa mã API của bạn."
-              : exportFormat === "powershell"
-                ? `Lệnh không chứa mã API. Trước khi chạy, hãy điền mã vào biến $env:${DEMO_EXPORT_KEY_ENV} trong PowerShell.`
-                : exportFormat === "curl"
-                  ? `Lệnh không chứa mã API. Hãy điền mã vào biến ${DEMO_EXPORT_KEY_ENV} trong cửa sổ lệnh trước khi chạy.`
-                  : "Dán hướng dẫn vào ChatGPT hoặc công cụ lập trình AI để soạn lệnh Bash, PowerShell hoặc Postman. Hướng dẫn chỉ tạo lệnh, không tự gửi bài và không chứa mã API của bạn."}
+            {exportFormat === "prompt"
+              ? "Dán hướng dẫn vào ChatGPT hoặc công cụ lập trình AI để soạn lệnh Bash, PowerShell hoặc Postman. Hướng dẫn chỉ tạo lệnh, không tự gửi bài và không chứa mã API của bạn."
+              : exportsContainApiKey
+                ? "Lệnh này có chứa mã API của bạn. Hãy giữ kín nội dung đã sao chép."
+                : exportFormat === "postman"
+                  ? "Trong Postman, chọn Import (Nhập) và dán lệnh đã sao chép. Điền mã API vào ô aihub_api_key trước khi gửi. Lệnh chưa chứa mã API của bạn."
+                  : exportFormat === "powershell"
+                    ? `Lệnh chưa chứa mã API. Trước khi chạy, hãy điền mã vào biến $env:${DEMO_EXPORT_KEY_ENV} trong PowerShell.`
+                    : `Lệnh chưa chứa mã API. Hãy điền mã vào biến ${DEMO_EXPORT_KEY_ENV} trong cửa sổ lệnh trước khi chạy.`}
           </p>
         </section>
       )}
