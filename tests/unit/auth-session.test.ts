@@ -192,7 +192,7 @@ describe("AIHUB Web Session BFF", () => {
   it("drops expired access tokens instead of keeping every abandoned session", async () => {
     process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
     vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-10-14T00:00:00Z"));
+    vi.setSystemTime(new Date("2099-01-01T00:00:00Z"));
     vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       Response.json({ data: { access_token: "jwt", expires_in: 900 } })
     );
@@ -201,7 +201,7 @@ describe("AIHUB Web Session BFF", () => {
       await getCurrentWebSession("x".repeat(43), undefined);
       expect(cachedWebSessionCount()).toBe(before + 1);
 
-      vi.setSystemTime(new Date("2026-10-14T00:16:00Z"));
+      vi.setSystemTime(new Date("2099-01-01T00:16:00Z"));
       await getCurrentWebSession("o".repeat(43), undefined);
 
       expect(cachedWebSessionCount()).toBe(before + 1);

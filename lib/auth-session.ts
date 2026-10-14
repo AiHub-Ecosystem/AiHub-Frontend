@@ -165,8 +165,14 @@ async function exchangeWebSession(
 
 // A session the browser abandons is never looked up again, so its entry would
 // otherwise stay for the life of the process. Expired entries are useless: the
-// next lookup exchanges again either way.
+// next lookup exchanges again either way. The sweep runs at most once a minute,
+// so a burst of exchanges costs one pass over the cache, not one pass each.
+const PRUNE_INTERVAL_MS = 60_000;
+let lastPrunedAt = 0;
+
 function pruneExpiredSessions(now = Date.now()) {
+  if (now - lastPrunedAt < PRUNE_INTERVAL_MS) return;
+  lastPrunedAt = now;
   for (const [token, session] of sessions) {
     if (session.accessTokenExpiresAt <= now) sessions.delete(token);
   }
