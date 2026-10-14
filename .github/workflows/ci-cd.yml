@@ -32,10 +32,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -46,10 +48,10 @@ jobs:
       - name: Lint Dockerfile
         # DL3006 cannot see through the NODE_IMAGE build arg. The base is tagged by
         # default and the reproducible-image job overrides it with a digest.
-        run: docker run --rm -v "$PWD:/repo" -w /repo --entrypoint hadolint hadolint/hadolint:2.12.0 --ignore DL3006 Dockerfile
+        run: docker run --rm -v "$PWD:/repo" -w /repo --entrypoint hadolint hadolint/hadolint:2.12.0@sha256:30a8fd2e785ab6176eed53f74769e04f125afb2f74a6c52aef7d463583b6d45e --ignore DL3006 Dockerfile
 
       - name: Lint workflows
-        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9
 
       - name: Unit tests
         run: npm test
@@ -85,10 +87,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -109,13 +113,15 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Build production image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           outputs: type=docker,compression=zstd
@@ -191,10 +197,12 @@ jobs:
       PARITY_CACHE_SCOPE: aihub-frontend-parity-${{ github.run_id }}
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Create shared parity inputs
         id: parity-inputs
@@ -221,7 +229,7 @@ jobs:
         run: echo "CACHE_FILL_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Fill production GHA cache with a cold build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           provenance: false
@@ -246,7 +254,7 @@ jobs:
         run: echo "PRODUCTION_WARM_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Build production image with warm GHA cache
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           outputs: type=docker,compression=zstd
@@ -268,7 +276,7 @@ jobs:
           docker image rm aihub-frontend:validation-cache-warm
 
       - name: Build parity image to seed isolated GHA cache
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           provenance: false
@@ -291,7 +299,7 @@ jobs:
         run: echo "PARITY_WARM_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Build parity image with warm GHA cache
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           provenance: false
@@ -322,7 +330,7 @@ jobs:
         run: docker buildx prune --all --force
 
       - name: Build parity image without cache
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           provenance: false
@@ -390,14 +398,16 @@ jobs:
       VPS_COMPOSE_FILE: ${{ secrets.VPS_COMPOSE_FILE }}
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Build production image with cache
         id: cached-build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         continue-on-error: true
         with:
           context: .
@@ -411,7 +421,7 @@ jobs:
 
       - name: Build production image without cache (fallback)
         if: steps.cached-build.outcome == 'failure'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           outputs: type=docker,compression=zstd
