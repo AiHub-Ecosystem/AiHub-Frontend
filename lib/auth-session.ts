@@ -158,8 +158,23 @@ async function exchangeWebSession(
     accessToken,
     accessTokenExpiresAt: Date.now() + expiresIn * 1000,
   };
+  pruneExpiredSessions();
   sessions.set(token, session);
   return session;
+}
+
+// A session the browser abandons is never looked up again, so its entry would
+// otherwise stay for the life of the process. Expired entries are useless: the
+// next lookup exchanges again either way.
+function pruneExpiredSessions(now = Date.now()) {
+  for (const [token, session] of sessions) {
+    if (session.accessTokenExpiresAt <= now) sessions.delete(token);
+  }
+}
+
+/** Test seam: how many access tokens the process currently holds. */
+export function cachedWebSessionCount() {
+  return sessions.size;
 }
 
 export async function getCurrentWebSession(
