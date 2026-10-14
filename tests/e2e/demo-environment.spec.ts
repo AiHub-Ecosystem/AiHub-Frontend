@@ -301,8 +301,9 @@ test("a Sandbox visit reports its allowance apart from key validity", async ({
 
   const allowance = page.getByTestId("sandbox-allowance");
   await expect(allowance).toContainText(
-    "Organization 0/5; toàn Sandbox 0/500. Còn 5 lượt khả dụng cho key này."
+    "Tổ chức hiện tại đã dùng 0/5 lượt Sandbox trong tháng."
   );
+  await expect(allowance).not.toContainText("500");
   await expect(page.locator(".demo-env-picker")).toHaveCount(0);
 });
 

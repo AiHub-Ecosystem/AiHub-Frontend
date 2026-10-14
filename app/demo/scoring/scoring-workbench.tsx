@@ -900,12 +900,6 @@ export default function ScoringWorkbench() {
       {step === 1 && (
         <>
           <h3>Kiểm tra API key</h3>
-          <p>
-            Phiên mới mặc định dùng Sandbox. Key có tiền tố Sandbox hoặc
-            Production sẽ được kiểm tra ở môi trường tương ứng; key không có
-            tiền tố môi trường dùng môi trường hiện tại. Bước này xác thực scope{" "}
-            <code>{SCOPE}</code>, không gọi AI và không dùng quota chấm.
-          </p>
           <div className="demo-field">
             <label htmlFor="writing-demo-key">
               API key (Sandbox hoặc Production, tùy chọn)

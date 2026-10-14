@@ -17,9 +17,9 @@
 
 .aihub-demo-flow .feedback-dashboard {
   display: grid;
-  gap: 14px;
+  gap: 18px;
   margin-top: 16px;
-  padding: 16px;
+  padding: 20px;
   border: 1px solid var(--demo-line);
   border-radius: 14px;
   background: #fff;
@@ -65,10 +65,12 @@
 .aihub-demo-flow .rubric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 12px;
 }
 
 .aihub-demo-flow .scoring-criteria {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
   margin-top: 0;
 }
 
@@ -78,7 +80,12 @@
   border: 1px solid var(--demo-line);
   border-radius: 10px;
   background: #f8fafc;
-  padding: 11px;
+  padding: 14px;
+}
+
+.aihub-demo-flow .rubric-card {
+  display: grid;
+  gap: 10px;
 }
 
 .aihub-demo-flow .criterion-card {
@@ -91,7 +98,7 @@
   justify-content: space-between;
   gap: 6px;
   color: var(--demo-body);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -131,7 +138,7 @@
   border: 1px solid var(--demo-line);
   border-radius: 9px;
   background: #f8fafc;
-  padding: 12px;
+  padding: 16px;
   color: var(--demo-body);
   font-size: 13px;
   line-height: 1.9;
@@ -792,10 +799,18 @@
 
 .aihub-demo-flow .scoring-annotation p,
 .aihub-demo-flow .rubric-card p {
-  margin: 6px 0 0;
   color: var(--demo-body);
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.aihub-demo-flow .scoring-annotation p {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
+.aihub-demo-flow .rubric-card p {
+  margin: 0;
 }
 
 .aihub-demo-flow .scoring-annotation-issue {
@@ -807,17 +822,54 @@
 .aihub-demo-flow .scoring-criterion-lists {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 10px;
+  gap: 24px;
+  margin-top: 0;
 }
 
 .aihub-demo-flow .scoring-criterion-lists ul,
 .aihub-demo-flow .scoring-plain-list {
-  margin: 6px 0 0;
-  padding-left: 17px;
+  margin: 8px 0 0;
+  padding-left: 20px;
   color: inherit;
-  font-size: 11px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.aihub-demo-flow .scoring-criterion-lists li + li,
+.aihub-demo-flow .scoring-plain-list li + li {
+  margin-top: 6px;
+}
+
+.aihub-demo-flow .demo-result-card {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+
+.aihub-demo-flow .demo-result-card > .demo-flow-eyebrow,
+.aihub-demo-flow .demo-result-card > p,
+.aihub-demo-flow .demo-result-card > ul {
+  margin: 0;
+}
+
+.aihub-demo-flow .demo-result-card > p:not(.demo-flow-eyebrow) {
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.aihub-demo-flow .demo-result-criteria {
+  gap: 10px;
+  margin-top: 0;
+}
+
+.aihub-demo-flow .demo-result-card > ul {
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.aihub-demo-flow .demo-result-card > ul li + li {
+  margin-top: 6px;
 }
 
 @media (max-width: 640px) {

@@ -576,7 +576,10 @@ export default function SpeakingWorkbench() {
   const [questionTrace, setQuestionTrace] = useState<HttpTrace | null>(null);
   const [questionLoading, setQuestionLoading] = useState(false);
   const [questionError, setQuestionError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState(MOCK_SPEAKING_PROMPTS[0].id);
+  const [selectedId, setSelectedId] = useState(
+    SPEAKING_SAMPLE_ANSWER_REQUEST.question_id
+  );
+  const [sampleAudioRemoved, setSampleAudioRemoved] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<PublicError | null>(null);
@@ -598,9 +601,14 @@ export default function SpeakingWorkbench() {
     (item) => item.part === part
   );
   const prompts = liveReady ? (livePrompts ?? []) : localPrompts;
-  const prompt = prompts.find((item) => item.id === selectedId) ?? prompts[0];
+  const prompt = prompts.find((item) => item.id === selectedId);
+  const sampleAudioSelected =
+    !file &&
+    !sampleAudioRemoved &&
+    part === SPEAKING_SAMPLE_ANSWER_REQUEST.part &&
+    prompt?.id === SPEAKING_SAMPLE_ANSWER_REQUEST.question_id;
   const activeResult = result?.part === part ? result : null;
-  const currentFileProblem = fileProblem(file);
+  const currentFileProblem = sampleAudioSelected ? null : fileProblem(file);
   /** Informational only: every grade re-checks the allowance upstream. */
   const allowance = isScopeValidated(SCOPE)
     ? sandboxAllowanceFrom(keyCheckResponse)
@@ -641,9 +649,7 @@ export default function SpeakingWorkbench() {
         if (cancelled) return;
         setLivePrompts(loaded);
         setSelectedId((current) =>
-          loaded.some((item) => item.id === current)
-            ? current
-            : (loaded[0]?.id ?? "")
+          loaded.some((item) => item.id === current) ? current : ""
         );
       })
       .catch((caught: unknown) => {
@@ -679,19 +685,21 @@ export default function SpeakingWorkbench() {
     []
   );
 
-  const requestBody = {
-    part,
-    question_id: prompt?.id ?? "",
-    prompt_text: prompt?.question ?? "",
-    test_type: "Practice",
-    audio: file
-      ? {
-          filename: file.name,
-          bytes: file.size,
-          type: file.type || "application/octet-stream",
-        }
-      : null,
-  };
+  const requestBody = sampleAudioSelected
+    ? SPEAKING_SAMPLE_ANSWER_REQUEST
+    : {
+        part,
+        question_id: prompt?.id ?? "",
+        prompt_text: prompt?.question ?? "",
+        test_type: "Practice",
+        audio: file
+          ? {
+              filename: file.name,
+              bytes: file.size,
+              type: file.type || "application/octet-stream",
+            }
+          : null,
+      };
 
   /**
    * Speaking's own grading call is a multipart upload this page makes, so the
@@ -850,6 +858,7 @@ export default function SpeakingWorkbench() {
   const useMock = () => {
     clearScopeValidation();
     setSkipMock(true);
+    setSampleAudioRemoved(false);
     setSelectedId(
       MOCK_SPEAKING_PROMPTS.find((item) => item.part === part)?.id ?? ""
     );
@@ -884,8 +893,8 @@ export default function SpeakingWorkbench() {
         request: `/v1/ielts/speaking/questions?part=${value}`,
       });
     }
-    const first = MOCK_SPEAKING_PROMPTS.find((item) => item.part === value);
-    setSelectedId(first?.id ?? "");
+    setSelectedId("");
+    setSampleAudioRemoved(false);
     setFile(null);
     setResult(null);
     setGradeResponse(null);
@@ -905,6 +914,7 @@ export default function SpeakingWorkbench() {
       return;
     }
     setFile(next);
+    setSampleAudioRemoved(true);
     setError(null);
     setResult(null);
     setGradeResponse(null);
@@ -988,26 +998,33 @@ export default function SpeakingWorkbench() {
       });
       return;
     }
-    const problem = fileProblem(file);
+    const problem = sampleAudioSelected ? null : fileProblem(file);
     if (problem) {
       setError({ code: "INVALID_REQUEST", message: problem });
       return;
     }
-    if (!prompt || !file) return;
+    if (!prompt || (!file && !sampleAudioSelected)) return;
     if (!beginGrading()) return;
 
     setSubmitting(true);
     setGradeAttempted(true);
     setGradeTrace(null);
-    const form = new FormData();
-    form.append("audio", file, file.name);
-    form.append("part", String(part));
-    form.append("question_id", prompt.id);
-    form.append("prompt_text", prompt.question);
-    form.append("test_type", "Practice");
+    const form = sampleAudioSelected ? null : new FormData();
+    if (form && file) {
+      form.append("audio", file, file.name);
+      form.append("part", String(part));
+      form.append("question_id", prompt.id);
+      form.append("prompt_text", prompt.question);
+      form.append("test_type", "Practice");
+    }
+    const gradingPath = sampleAudioSelected
+      ? "/api/demo/speaking/grading-json"
+      : "/api/demo/speaking/grading";
     setGradeResponse({
       state: "pending",
-      request: `/v1/ielts/speaking/grading · Part ${part}`,
+      request: `/v1/ielts/speaking/${
+        sampleAudioSelected ? "grading-json" : "grading"
+      } · Part ${part}`,
     });
     const controller = new AbortController();
     const timeout = window.setTimeout(
@@ -1017,14 +1034,19 @@ export default function SpeakingWorkbench() {
     let receivedHttpResponse = false;
     let responseTrace: HttpTrace | null = null;
     try {
-      const response = await fetch("/api/demo/speaking/grading", {
+      const response = await fetch(gradingPath, {
         method: "POST",
         headers: {
           "X-Demo-API-Key": apiKey.trim(),
           "X-Demo-Environment": environment,
           "X-Demo-User-Identity": getUserIdentity(),
+          ...(sampleAudioSelected
+            ? { "Content-Type": "application/json" }
+            : {}),
         },
-        body: form,
+        body: sampleAudioSelected
+          ? JSON.stringify(SPEAKING_SAMPLE_ANSWER_REQUEST)
+          : form,
         signal: controller.signal,
         cache: "no-store",
       });
@@ -1154,42 +1176,51 @@ export default function SpeakingWorkbench() {
         planned_request: liveReady
           ? {
               method: "POST",
-              path: "/api/demo/speaking/grading",
-              upstream_path: "/v1/ielts/speaking/grading",
+              path: sampleAudioSelected
+                ? "/api/demo/speaking/grading-json"
+                : "/api/demo/speaking/grading",
+              upstream_path: sampleAudioSelected
+                ? "/v1/ielts/speaking/grading-json"
+                : "/v1/ielts/speaking/grading",
               headers: {
                 "X-Demo-API-Key": "[REDACTED]",
                 "X-Demo-User-Identity": "<generated at submit>",
-                "Content-Type":
-                  "multipart/form-data; browser generated boundary",
+                "Content-Type": sampleAudioSelected
+                  ? "application/json"
+                  : "multipart/form-data; browser generated boundary",
               },
             }
           : null,
         body_preview: requestBody,
         sent: false,
       });
-    const requestBodyPreview = {
-      part,
-      question_id: prompt?.id ?? "",
-      prompt_text: prompt?.question ?? "",
-      test_type: "Practice",
-      audio: file
-        ? {
-            filename: file.name,
-            bytes: file.size,
-            type: file.type || "application/octet-stream",
-            content: "<binary audio omitted>",
-          }
-        : "<audio file required for live grading>",
-    };
+    const requestBodyPreview = sampleAudioSelected
+      ? SPEAKING_SAMPLE_ANSWER_REQUEST
+      : {
+          part,
+          question_id: prompt?.id ?? "",
+          prompt_text: prompt?.question ?? "",
+          test_type: "Practice",
+          audio: file
+            ? {
+                filename: file.name,
+                bytes: file.size,
+                type: file.type || "application/octet-stream",
+                content: "<binary audio omitted>",
+              }
+            : "<audio file required for live grading>",
+        };
+    const gradingPath = sampleAudioSelected ? "grading-json" : "grading";
     return pretty({
       method: "POST",
-      url: `${demoEnvironmentHost(environment)}/v1/ielts/speaking/grading`,
+      url: `${demoEnvironmentHost(environment)}/v1/ielts/speaking/${gradingPath}`,
       headers: {
         "X-API-Key":
           "${AIHUB_API_KEY:?Set AIHUB_API_KEY to your API key first}",
         "X-User-Identity": "<your end-user id>",
-        "Content-Type":
-          "multipart/form-data; boundary=<generated automatically>",
+        "Content-Type": sampleAudioSelected
+          ? "application/json"
+          : "multipart/form-data; boundary=<generated automatically>",
       },
       body: requestBodyPreview,
     });
@@ -1338,12 +1369,6 @@ export default function SpeakingWorkbench() {
       {step === 1 && (
         <>
           <h3>Kiểm tra API key</h3>
-          <p>
-            Phiên mới mặc định dùng Sandbox. Key có tiền tố Sandbox hoặc
-            Production sẽ được kiểm tra ở môi trường tương ứng; key không có
-            tiền tố môi trường dùng môi trường hiện tại. Bước này xác thực scope{" "}
-            <code>{SCOPE}</code>, không gọi AI và không dùng quota chấm.
-          </p>
           <div className="demo-field">
             <label htmlFor="speaking-demo-key">
               API key (Sandbox hoặc Production, tùy chọn)
@@ -1453,10 +1478,13 @@ export default function SpeakingWorkbench() {
                 key={item.id}
                 onClick={() => {
                   setSelectedId(item.id);
+                  setFile(null);
+                  setSampleAudioRemoved(false);
                   setResult(null);
                   setGradeResponse(null);
                   setGradeTrace(null);
                   setGradeAttempted(false);
+                  setError(null);
                 }}
                 type="button"
               >
@@ -1494,20 +1522,46 @@ export default function SpeakingWorkbench() {
       {step === 3 && (
         <>
           <h3>Câu trả lời bằng audio</h3>
+          {prompt && (
+            <div className="demo-notice">
+              <strong>Part {part} · Câu hỏi đã chọn</strong>
+              <br />
+              {prompt.question}
+              {prompt.cue && (
+                <>
+                  <br />
+                  <strong>Gợi ý:</strong> {prompt.cue}
+                </>
+              )}
+            </div>
+          )}
           <p>
             {liveReady
-              ? "Key đã xác thực: ghi âm hoặc tải audio của bạn, rồi nghe lại, xóa hoặc thay tệp trước khi gửi ở bước 4. Tệp chỉ giữ trong bộ nhớ trang."
-              : "Mẫu chỉ đọc: transcript tham khảo không chỉnh sửa được. Nhập key hợp lệ ở bước 1 để ghi âm/tải câu trả lời; kết quả mẫu luôn cố định."}
+              ? sampleAudioSelected
+                ? "Audio mẫu đã có sẵn cho câu hỏi này. Bạn có thể nghe thử, xóa để tải audio khác hoặc ghi âm câu trả lời của mình."
+                : "Tải audio hoặc ghi âm câu trả lời của bạn, rồi nghe lại, xóa hoặc thay tệp trước khi gửi ở bước 4. Tệp chỉ giữ trong bộ nhớ trang."
+              : sampleAudioSelected
+                ? "Audio mẫu chỉ để nghe trong chế độ này; không thể xóa hoặc thay đổi. Kết quả mẫu luôn cố định."
+                : `Chưa có audio mẫu cho câu hỏi Part ${part}; hiện chỉ có bản ghi mẫu cho một câu Part 1. Kết quả mẫu luôn cố định.`}
           </p>
           {!liveReady ? (
-            <div className="demo-field">
-              <label>Transcript mẫu · Part {part}</label>
-              <textarea
-                readOnly
-                rows={6}
-                value={MOCK_SPEAKING_RESULTS[part].data.transcript.text}
-              />
-            </div>
+            sampleAudioSelected ? (
+              <div className="demo-field">
+                <span className="demo-field-label">Audio mẫu · Part 1</span>
+                <audio
+                  aria-label="Nghe audio mẫu Speaking"
+                  className="demo-audio-player"
+                  controls
+                  preload="metadata"
+                  src={SPEAKING_SAMPLE_ANSWER_REQUEST.audio_url}
+                />
+              </div>
+            ) : (
+              <div className="demo-notice" role="status">
+                Audio mẫu cố định hiện có cho câu hỏi Part 1: “
+                {SPEAKING_SAMPLE_ANSWER_REQUEST.prompt_text}”
+              </div>
+            )
           ) : (
             <>
               <input
@@ -1515,7 +1569,11 @@ export default function SpeakingWorkbench() {
                 aria-label="Chọn file audio Speaking"
                 className="demo-sr-only"
                 data-testid="input-audio-file"
-                onChange={(event) => saveFile(event.target.files?.[0] ?? null)}
+                onChange={(event) => {
+                  const next = event.currentTarget.files?.[0] ?? null;
+                  event.currentTarget.value = "";
+                  saveFile(next);
+                }}
                 ref={filePicker}
                 tabIndex={-1}
                 type="file"
@@ -1543,25 +1601,37 @@ export default function SpeakingWorkbench() {
                   ? "Đang ghi âm…"
                   : file
                     ? `${file.name} · ${Math.ceil(file.size / 1024)} KB`
-                    : "Chưa chọn audio."}
+                    : sampleAudioSelected
+                      ? "Audio mẫu · câu trả lời có sẵn"
+                      : "Chưa chọn audio."}
               </div>
-              {file && (
+              {file ? (
                 <audio
                   aria-label="Nghe lại audio đã chọn"
                   className="demo-audio-player"
                   controls
                   ref={audioPlayer}
                 />
-              )}
-              {file && (
+              ) : sampleAudioSelected ? (
+                <audio
+                  aria-label="Nghe audio mẫu Speaking"
+                  className="demo-audio-player"
+                  controls
+                  preload="metadata"
+                  src={SPEAKING_SAMPLE_ANSWER_REQUEST.audio_url}
+                />
+              ) : null}
+              {(file || sampleAudioSelected) && (
                 <button
                   className="demo-btn-secondary"
                   onClick={() => {
                     setFile(null);
+                    setSampleAudioRemoved(true);
                     setResult(null);
                     setGradeResponse(null);
                     setGradeTrace(null);
                     setGradeAttempted(false);
+                    setError(null);
                   }}
                   type="button"
                 >
@@ -1587,7 +1657,7 @@ export default function SpeakingWorkbench() {
                 liveReady &&
                 (!prompt ||
                   !livePrompts?.length ||
-                  !file ||
+                  (!file && !sampleAudioSelected) ||
                   !!currentFileProblem)
               }
               onClick={() => changeStep(4)}
@@ -1611,7 +1681,7 @@ export default function SpeakingWorkbench() {
           <h3>{liveReady ? "Gửi audio chấm thật" : "Xem kết quả mẫu"}</h3>
           <p>
             {liveReady
-              ? `AIHUB gửi multipart audio tới ${demoEnvironmentName(environment)}. API key được xác thực lại trước quota và dispatch.`
+              ? `Audio ${sampleAudioSelected ? "mẫu qua JSON" : "của bạn qua multipart"} sẽ được gửi tới ${demoEnvironmentName(environment)}. API key được xác thực lại trước khi xử lý.`
               : "Nút này chỉ hiển thị kết quả mẫu theo Part. Không gửi yêu cầu chấm bài."}
           </p>
           {error && (
@@ -1634,7 +1704,7 @@ export default function SpeakingWorkbench() {
                 (liveReady &&
                   (!prompt ||
                     !livePrompts?.length ||
-                    !file ||
+                    (!file && !sampleAudioSelected) ||
                     !!currentFileProblem))
               }
               onClick={grade}
