@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
  * share breaks: the page still loads and still grades, it just loses its
  * layout. This is the check that the shared rules actually reach the page.
  */
-test("the shared five-step workbench styles apply", async ({ page }) => {
+test("the shared four-step workbench styles apply", async ({ page }) => {
   const failed: string[] = [];
   page.on("console", (m) => {
     if (m.type() === "error") failed.push(m.text());
@@ -17,6 +17,10 @@ test("the shared five-step workbench styles apply", async ({ page }) => {
   await expect(root).toBeVisible();
 
   await expect(page.locator(".demo-step-panel")).toBeVisible();
+  await expect(page.locator(".demo-console")).toHaveCount(0);
+  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
+  await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
   await expect(page.locator(".demo-console")).toBeVisible();
 
   // The shared control rule.

@@ -15,6 +15,7 @@ import {
   demoEnvironmentHintFromApiKey,
   demoEnvironmentHost,
   demoEnvironmentName,
+  demoEnvironmentRequiresSelection,
 } from "@/lib/demo-environments";
 import { buildDemoExports } from "@/lib/demo-export";
 import { useDemoSession, type DemoScope } from "@/app/demo/demo-session";
@@ -858,7 +859,7 @@ export default function ScoringWorkbench() {
       step={step}
       steps={SCORING_STEPS}
       showTrace={step === 4}
-      showEnvironmentPicker={false}
+      showEnvironmentPicker={demoEnvironmentRequiresSelection(apiKey.trim())}
       stepperDisabled={grading || gradeStatus === "submitting"}
       mode={mode}
       status={

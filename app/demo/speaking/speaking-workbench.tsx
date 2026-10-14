@@ -18,6 +18,7 @@ import {
   demoEnvironmentHintFromApiKey,
   demoEnvironmentHost,
   demoEnvironmentName,
+  demoEnvironmentRequiresSelection,
   type DemoEnvironment,
 } from "@/lib/demo-environments";
 import { buildDemoExports } from "@/lib/demo-export";
@@ -1307,7 +1308,7 @@ export default function SpeakingWorkbench() {
       description={`Chọn Speaking Part, ghi âm hoặc tải câu trả lời lên khi dùng key ${demoEnvironmentName(environment)}. Bỏ qua key để xem fixture read-only và kết quả mẫu cố định.`}
       step={step}
       showTrace={step === 4}
-      showEnvironmentPicker={false}
+      showEnvironmentPicker={demoEnvironmentRequiresSelection(apiKey.trim())}
       stepperDisabled={grading || submitting}
       mode={mode}
       status={traceStatus}

@@ -4,7 +4,6 @@ import { waitForHydration } from "./hydration";
 const mockUrl = "http://127.0.0.1:3101";
 const password = "correct horse battery staple";
 const demoKey = "aihub_sandbox_" + "A".repeat(43);
-const sandboxKey = "aihub_sk_e2e_sandbox_key";
 const productionKey = "aihub_prod_e2e_production_key";
 
 /** Every browser request to a demo BFF route, which Mock mode must never make. */
@@ -45,6 +44,10 @@ test("Writing and Speaking default to Sandbox without an environment picker", as
   await expect(
     page.getByRole("heading", { name: "Kiểm tra API key" })
   ).toBeVisible();
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill(demoKey);
+  await expect(page.locator(".demo-env-picker")).toHaveCount(0);
 
   await page.getByRole("link", { name: "Speaking", exact: true }).click();
   await waitForHydration(page);
@@ -74,10 +77,35 @@ test("Speaking detects a Production key and clears its acknowledgement on Sandbo
   await acknowledgement.check();
   await expect(acknowledgement).toBeChecked();
 
+  await page.getByRole("button", { name: "Quay lại API key" }).click();
   await apiKey.fill(demoKey);
   await page.getByRole("button", { name: "Kiểm tra key" }).click();
   await expect(page.getByTestId("sandbox-allowance")).toBeVisible();
   await expect(acknowledgement).toHaveCount(0);
+});
+
+test("an environment-less key can select Production before validation", async ({
+  page,
+}) => {
+  const validationEnvironments: string[] = [];
+  page.on("request", (browserRequest) => {
+    if (new URL(browserRequest.url()).pathname === "/api/demo/key/validate") {
+      validationEnvironments.push(
+        JSON.parse(browserRequest.postData() ?? "{}").environment
+      );
+    }
+  });
+
+  await openDemo(page, "scoring");
+  await page
+    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
+    .fill("aihub_sk_e2e_legacy_production_key");
+  await expect(page.locator(".demo-env-picker")).toBeVisible();
+  await page.getByTestId("demo-environment-production").check();
+  await page.getByRole("button", { name: "Kiểm tra key" }).click();
+
+  await expect(page.getByTestId("production-key-warning")).toBeVisible();
+  expect(validationEnvironments).toEqual(["production"]);
 });
 
 test("a Production key pasted into the default Sandbox flow is detected and warned", async ({
@@ -268,7 +296,7 @@ test("a Sandbox visit reports its allowance apart from key validity", async ({
   await openDemo(page, "scoring");
   await page
     .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
-    .fill(sandboxKey);
+    .fill(demoKey);
   await page.getByRole("button", { name: "Kiểm tra key" }).click();
 
   const allowance = page.getByTestId("sandbox-allowance");

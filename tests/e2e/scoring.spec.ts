@@ -235,12 +235,16 @@ test("the Task 1 overview animates the API flow without sending a grade", async 
 }) => {
   await page.goto("/demo/scoring");
   await expect(
-    page.getByRole("region", { name: "Luồng hoạt động của Chấm Task 1" })
+    page.getByRole("region", {
+      name: "Luồng hoạt động chấm IELTS Writing (Task 1 & Task 2)",
+    })
   ).toBeVisible();
   const stepper = page.getByRole("navigation", { name: "Các bước demo" });
   await expect(stepper.getByRole("listitem")).toHaveCount(4);
   await expect(stepper.getByRole("button")).toHaveCount(0);
-  await page.getByRole("button", { name: /POST …\/task1\/grade/ }).focus();
+  await page
+    .getByRole("button", { name: /POST …\/writing\/taskN\/grade/ })
+    .focus();
   await expect(page.getByText(/Server gắn X-API-Key/)).toBeVisible();
 
   await page.getByRole("button", { name: "Nộp bài", exact: true }).click();
@@ -680,7 +684,8 @@ test("a Task 1 report does not reappear under the Task 2 tab", async ({
     "Báo cáo chấm bài Task 1"
   );
 
-  await page.getByRole("button", { name: /2 Chọn đề/ }).click();
+  await page.getByRole("button", { name: "Sửa bài" }).click();
+  await page.getByRole("button", { name: "Quay lại đề" }).click();
   await page.getByTestId("tab-task-2").click();
   await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
   await page.getByRole("button", { name: "Xem bước chấm" }).click();
@@ -962,7 +967,11 @@ test("the Request and Response console appears only on the grading step", async 
   await expect(page.getByTestId("export-artifact")).toBeVisible();
   const code = page.locator(".demo-console .demo-console-code");
   await page.getByRole("tab", { name: "Request" }).click();
-  await expect(code).toContainText("mock preview · not sent");
+  await expect(code).toContainText('"method": "POST"');
+  await expect(code).toContainText(
+    '"url": "https://sandbox.aihubproduction.com/v1/ielts/writing/task1/grade"'
+  );
+  await expect(code).toContainText('"image_url":');
   await page.getByRole("tab", { name: "Response" }).click();
   await expect(code).toContainText("Chưa submit fixture mẫu");
   await page.getByTestId("button-grade").click();

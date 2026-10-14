@@ -271,9 +271,8 @@ export function DemoWorkbench({
                     </label>
                   ))}
                   <p className="demo-help">
-                    Key mới được định tuyến kiểm tra theo tiền tố môi trường;
-                    backend vẫn xác thực môi trường đã cấp. Key cũ dùng lựa chọn
-                    này.
+                    Chọn môi trường được cấp cho key này. Backend sẽ kiểm tra
+                    lại môi trường và scope.
                   </p>
                 </fieldset>
               )}

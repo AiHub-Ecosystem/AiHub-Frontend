@@ -225,14 +225,13 @@ describe("Writing Task 1 Sample request", () => {
     ).toMatch(/telephone calls in the UK/);
   });
 
-  it("says AIHUB's image works and that an unreachable replacement is not an error", () => {
+  it("says AIHUB's image works and warns when a replacement is unreachable", () => {
     const note = task1()?.note ?? "";
 
     expect(note).not.toMatch(/URL giữ chỗ/);
     expect(note).toMatch(/biểu đồ mẫu AIHUB công bố/);
     expect(note).toMatch(/thay bằng ảnh biểu đồ của bạn/);
-    expect(note).toMatch(/không trả lỗi/);
-    expect(note).toMatch(/kết quả sẽ sai/);
+    expect(note).toMatch(/yêu cầu vẫn có thể trả kết quả không chính xác/);
   });
 
   it("keeps the image note off the Task 2 request", () => {

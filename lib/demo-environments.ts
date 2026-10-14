@@ -44,3 +44,7 @@ export function demoEnvironmentHintFromApiKey(
   if (apiKey.startsWith("aihub_prod_")) return "production";
   return null;
 }
+
+export function demoEnvironmentRequiresSelection(apiKey: string) {
+  return apiKey.startsWith("aihub_sk_");
+}

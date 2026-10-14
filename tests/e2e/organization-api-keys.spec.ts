@@ -401,10 +401,7 @@ test("a key holding writing.grade shows a Task 1 request beside Task 2", async (
   ).toContainText("https://s3.wispace.app/ielts-task1/ca95bd4ab522946d");
   await expect(task1.getByText(/URL giữ chỗ/)).toHaveCount(0);
   await expect(task1.getByText(/biểu đồ mẫu AIHUB công bố/)).toBeVisible();
-  await expect(
-    task1.getByText(/không trả lỗi khi không tải được ảnh/)
-  ).toBeVisible();
-  await expect(task1.getByText(/kết quả sẽ sai/)).toBeVisible();
+  await expect(task1.getByText(/trả kết quả không chính xác/)).toBeVisible();
   await expect(
     task1
       .getByRole("table", { name: "Writing Task 1 request headers" })

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { parseMintedOrganizationApiKey } from "@/lib/api-keys";
-import { demoEnvironmentHintFromApiKey } from "@/lib/demo-environments";
+import {
+  demoEnvironmentHintFromApiKey,
+  demoEnvironmentRequiresSelection,
+} from "@/lib/demo-environments";
 import { isRawKeyFor, type SampleRequestKind } from "@/lib/sample-request";
 import { buildSampleRequests } from "@/lib/sample-request";
 
@@ -45,6 +48,11 @@ describe("A minted key", () => {
       "production"
     );
     expect(demoEnvironmentHintFromApiKey(`aihub_sk_${SECRET}`)).toBeNull();
+    expect(demoEnvironmentRequiresSelection(`aihub_sk_${SECRET}`)).toBe(true);
+    expect(demoEnvironmentRequiresSelection(`aihub_prod_${SECRET}`)).toBe(
+      false
+    );
+    expect(demoEnvironmentRequiresSelection("")).toBe(false);
   });
 });
 
