@@ -24,9 +24,6 @@ env:
   NODE_VERSION: "20"
   IMAGE_NAME: aihub-frontend
   PUBLIC_API_URL: https://api.aihubproduction.com
-  VPS_HOST: 76.13.218.96
-  VPS_USER: ngoc_anh
-  VPS_COMPOSE_FILE: /home/VietHXQ/aihub/docker-compose.yml
 
 jobs:
   fast-checks:
@@ -385,6 +382,12 @@ jobs:
     environment:
       name: production
       url: https://aihubproduction.com
+    # The host, its account and the compose path live in the production
+    # environment, not in this public file.
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_COMPOSE_FILE: ${{ secrets.VPS_COMPOSE_FILE }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -440,6 +443,9 @@ jobs:
           set -euo pipefail
           test -n "${SSH_PRIVATE_KEY:-}" || { echo "::error::Missing VPS_SSH_PRIVATE_KEY"; exit 1; }
           test -n "${SSH_KNOWN_HOSTS:-}" || { echo "::error::Missing VPS_KNOWN_HOSTS"; exit 1; }
+          for name in VPS_HOST VPS_USER VPS_COMPOSE_FILE; do
+            test -n "${!name:-}" || { echo "::error::Missing $name"; exit 1; }
+          done
           install -m 700 -d "$HOME/.ssh"
           printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/aihub_deploy_key"
           chmod 600 "$HOME/.ssh/aihub_deploy_key"
