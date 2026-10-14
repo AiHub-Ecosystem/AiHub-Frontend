@@ -34,9 +34,9 @@ export async function POST(request: Request) {
           topic: req.topic,
           criterion: req.criterion,
           error_code: req.errorCode,
-          num_questions:
-            (req as GenerateRequest & { numQuestions?: number }).numQuestions ||
-            3,
+          // Fixed server-side: this route is anonymous, so the caller must not
+          // choose how much generation one request buys.
+          num_questions: 3,
         }),
       }
     );
