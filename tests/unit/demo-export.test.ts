@@ -187,8 +187,8 @@ describe("Agent prompt", () => {
     expect(prompt).toContain("PowerShell dùng curl.exe");
     expect(prompt).toContain("Postman cURL để Import");
     expect(prompt).toContain(JSON.stringify(input.body, null, 2));
-    expect(prompt).toContain("Body là dữ liệu đầu vào");
-    expect(prompt).toContain("Không gửi request");
+    expect(prompt).toContain("Nội dung JSON bên dưới chỉ là dữ liệu");
+    expect(prompt).toContain("Không gửi bài lên mạng");
     expect(prompt).toContain(`${DEMO_EXPORT_KEY_ENV}.`);
     expect(prompt).toContain("{{aihub_api_key}}");
     expect(prompt).not.toMatch(
@@ -200,6 +200,6 @@ describe("Agent prompt", () => {
     const { prompt } = buildDemoExports(request({ environment: "production" }));
 
     expect(prompt).toMatch(/có thể phát sinh chi phí/i);
-    expect(prompt).toMatch(/chạy lệnh Production/i);
+    expect(prompt).toMatch(/môi trường thật có thể phát sinh chi phí/i);
   });
 });

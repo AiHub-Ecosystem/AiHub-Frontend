@@ -65,19 +65,17 @@ async function keepBrowserTrafficLocal(page: Page) {
 
 async function startLiveSession(page: Page) {
   await waitForHydration(page);
-  await page
-    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
-    .fill(sandboxKey);
-  await page.getByRole("button", { name: "Kiểm tra key" }).click();
+  await page.getByLabel("Mã API (không bắt buộc)").fill(sandboxKey);
+  await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
   await expect(
     page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
   ).toBeVisible();
-  await expect(page.getByText("Đã xác thực · có thể chỉnh sửa")).toBeVisible();
+  await expect(page.getByText("Đã kiểm tra mã · có thể sửa bài")).toBeVisible();
   await expect(
     page.locator(".demo-scenario-list").getByText("E2E_ONLY_QUESTION_1")
   ).toBeVisible();
   await expect(
-    page.getByText(/Key Sandbox đã xác thực\. Chọn Part và câu hỏi/)
+    page.getByText(/Mã API đã được xác nhận\. Chọn Part và câu hỏi/)
   ).toBeVisible();
   await page
     .locator(".demo-scenario-list")
@@ -89,9 +87,11 @@ async function prepareLiveGrading(page: Page) {
   await startLiveSession(page);
   await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
   await expect(
-    page.getByText(/Tải audio hoặc ghi âm câu trả lời của bạn/)
+    page.getByText(/Chọn tệp ghi âm hoặc tự ghi âm câu trả lời/)
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Tải audio" })).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Chọn tệp ghi âm", exact: true })
+  ).toBeEnabled();
   await expect(
     page.getByRole("button", { name: "Ghi âm", exact: true })
   ).toBeEnabled();
@@ -114,6 +114,87 @@ test.beforeEach(async ({ request }) => {
   await resetSpeakingLog(request);
 });
 
+test("live Speaking waits for the recording to replace the sample before grading", async ({
+  page,
+  request,
+}) => {
+  await page.addInitScript(() => {
+    const track = { stop() {} };
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: async () => ({ getTracks: () => [track] }) },
+    });
+    class DelayedMediaRecorder {
+      state = "inactive";
+      mimeType = "audio/webm";
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+      start() {
+        this.state = "recording";
+      }
+      stop() {
+        this.state = "inactive";
+        window.setTimeout(() => {
+          this.ondataavailable?.({
+            data: new Blob([new Uint8Array(2048)], { type: this.mimeType }),
+          });
+          this.onstop?.();
+        }, 250);
+      }
+    }
+    Object.defineProperty(window, "MediaRecorder", {
+      configurable: true,
+      value: DelayedMediaRecorder,
+    });
+  });
+  await keepBrowserTrafficLocal(page);
+  await page.route("**/api/demo/speaking/questions?part=1", (route) =>
+    route.fulfill({
+      status: 200,
+      json: {
+        data: {
+          questions: [
+            {
+              id: "p1_do-you-enjoy-living-in-your-city-or-hometown",
+              part: 1,
+              question: "Do you enjoy living in your city or hometown?",
+            },
+          ],
+        },
+      },
+    })
+  );
+  await page.goto("/demo/speaking");
+  await waitForHydration(page);
+  await page.getByLabel("Mã API (không bắt buộc)").fill(sandboxKey);
+  await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
+  ).toBeVisible();
+  await expect(
+    page.getByText("Do you enjoy living in your city or hometown?")
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
+
+  const nextStep = page.getByRole("button", { name: "Xem bước chấm" });
+  await page.getByRole("button", { name: "Ghi âm", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Dừng ghi âm" })).toBeVisible();
+  await expect(nextStep).toBeDisabled();
+  await page.getByRole("button", { name: "Dừng ghi âm" }).click();
+  await expect(nextStep).toBeDisabled();
+  await expect(page.getByText("speaking-answer.webm")).toBeVisible();
+  await expect(nextStep).toBeEnabled();
+  await nextStep.click();
+  await page.getByRole("button", { name: "Chấm thật Part 1" }).click();
+  await expect(
+    page.getByRole("region", { name: "Kết quả chấm Speaking" })
+  ).toBeVisible({ timeout: 30_000 });
+
+  const log = await speakingLog(request);
+  expect(log.requests.map((item) => item.operation)).toEqual(["grading"]);
+  expectIdentityForwarding(log);
+});
+
 test("Speaking without a key uses a read-only fixture and grades locally", async ({
   page,
   request,
@@ -121,18 +202,18 @@ test("Speaking without a key uses a read-only fixture and grades locally", async
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
   await page.goto("/demo/speaking");
   await waitForHydration(page);
-  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
-  await page.getByRole("button", { name: "Quay lại API key" }).click();
+  await page.getByRole("button", { name: "Xem câu hỏi mẫu" }).click();
+  await page.getByRole("button", { name: "Quay lại nhập mã API" }).click();
   await expect(
-    page.getByRole("heading", { name: "Kiểm tra API key" })
+    page.getByRole("heading", { name: "Nhập mã API" })
   ).toBeVisible();
-  await page.getByRole("button", { name: "Bỏ qua, dùng mẫu" }).click();
+  await page.getByRole("button", { name: "Xem câu hỏi mẫu" }).click();
 
   await expect(
     page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
   ).toBeVisible();
   await expect(
-    page.getByText(/Mẫu chỉ đọc: chọn Part và câu hỏi có sẵn/)
+    page.getByText(/Chọn Part và câu hỏi mẫu để xem thử/)
   ).toBeVisible();
   const mockQuestions = page.locator(".demo-scenario-list button");
   await expect(mockQuestions).toHaveCount(3);
@@ -152,27 +233,33 @@ test("Speaking without a key uses a read-only fixture and grades locally", async
   await mockQuestions.first().click();
   await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
   await expect(
-    page.getByText(/Audio mẫu chỉ để nghe trong chế độ này/)
+    page.getByText(
+      /Bạn có thể nghe câu trả lời mẫu nhưng không thể xóa hoặc thay đổi/
+    )
   ).toBeVisible();
   const sampleAudio = page.locator(
-    'audio[aria-label="Nghe audio mẫu Speaking"]'
+    'audio[aria-label="Nghe bản ghi âm mẫu Speaking"]'
   );
   await expect(sampleAudio).toHaveAttribute(
     "src",
     "https://s3.wispace.app/ielts-task1/speaking-answers/part-1/do-you-enjoy-living-in-your-city-or-hometown.webm"
   );
-  await expect(page.getByRole("button", { name: "Tải audio" })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Chọn tệp ghi âm" })
+  ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Ghi âm", exact: true })
   ).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Xóa audio" })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Xóa tệp ghi âm" })
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "Xem bước chấm" }).click();
-  await page.getByRole("button", { name: "Hiện kết quả mẫu Part 1" }).click();
+  await page.getByRole("button", { name: "Xem kết quả mẫu Part 1" }).click();
 
   await expect(
     page.getByRole("region", { name: "Kết quả chấm Speaking" })
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Response" }).click();
+  await page.getByRole("tab", { name: "Kết quả nhận được" }).click();
   await expect(page.locator(".demo-console .demo-console-code")).toContainText(
     '"estimated_band"'
   );
@@ -205,15 +292,13 @@ test("live Speaking never falls back to fixture questions when the catalog is un
 
   await page.goto("/demo/speaking");
   await waitForHydration(page);
-  await page
-    .getByLabel("API key (Sandbox hoặc Production, tùy chọn)")
-    .fill(sandboxKey);
-  await page.getByRole("button", { name: "Kiểm tra key" }).click();
+  await page.getByLabel("Mã API (không bắt buộc)").fill(sandboxKey);
+  await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
   await expect(
     page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
   ).toBeVisible();
   const questionError = page.locator('.demo-error[role="alert"]');
-  await expect(questionError).toContainText("Sandbox hiện không có câu hỏi");
+  await expect(questionError).toContainText("Hiện chưa có câu hỏi cho Part 1.");
   await expect(page.locator(".demo-scenario-list button")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Tiếp tục đến câu trả lời" })
@@ -221,12 +306,12 @@ test("live Speaking never falls back to fixture questions when the catalog is un
 
   await page.getByRole("button", { name: "Part 2" }).click();
   await expect(questionError).toContainText(
-    "Không tải được câu hỏi Speaking từ Sandbox."
+    "Không tải được câu hỏi Speaking. Hãy thử lại."
   );
-  const stepper = page.getByRole("navigation", { name: "Các bước demo" });
+  const stepper = page.getByRole("navigation", { name: "Các bước thực hành" });
   await expect(stepper.getByRole("button")).toHaveCount(0);
   await expect(stepper.locator('[aria-current="step"]')).toContainText(
-    "Chọn đề"
+    "Chọn câu hỏi"
   );
   await expect(
     page.getByRole("button", { name: "Tiếp tục đến câu trả lời" })

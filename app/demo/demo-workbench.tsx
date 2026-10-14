@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import {
   DEMO_ENVIRONMENTS,
-  demoEnvironmentLabel,
-  demoEnvironmentName,
+  demoInterfaceEnvironmentLabel,
   type DemoEnvironment,
 } from "@/lib/demo-environments";
 import {
@@ -13,13 +12,12 @@ import {
   DEMO_EXPORT_KEY_ENV,
   type DemoExports,
 } from "@/lib/demo-export";
-import type { DemoScope } from "./demo-session";
 import type { SandboxAllowanceSnapshot } from "./demo-session-state";
 
 export const DEMO_STEPS = [
-  "Kiểm tra API key",
-  "Chọn đề",
-  "Câu trả lời",
+  "Kiểm tra mã API",
+  "Chọn đề bài",
+  "Chuẩn bị câu trả lời",
   "Chấm và xem kết quả",
 ] as const;
 
@@ -29,7 +27,6 @@ export type DemoExportFormat = keyof DemoExports;
 
 type DemoWorkbenchProps = {
   skill: "scoring" | "speaking";
-  scope: DemoScope;
   title: string;
   description: string;
   step: DemoStep;
@@ -59,18 +56,22 @@ type DemoWorkbenchProps = {
 };
 
 const STEP_SUMMARY = [
-  "Nhập key để kiểm tra môi trường và scope, hoặc bỏ qua để xem bản mẫu.",
-  "Chọn một fixture có sẵn cho kỹ năng này.",
-  "Xem payload sẽ gửi trước khi chấm.",
-  "Gửi request thật hoặc nhận kết quả mẫu cố định.",
+  "Nhập mã API để sửa bài và chấm thật, hoặc bỏ qua để xem bài mẫu.",
+  "Chọn đề bài để làm thử.",
+  "Nhập bài viết hoặc chuẩn bị câu trả lời bằng giọng nói.",
+  "Xem điểm và nhận xét.",
 ];
 
 function consoleStatusTone(status: string) {
-  if (/^HTTP 2\d\d/.test(status)) return "live";
-  if (/HTTP [45]\d\d|FAILED|INVALID|ERROR|NO HTTP RESPONSE/.test(status))
+  if (/^HTTP 2\d\d|đã chấm thật|đã nhận kết quả/i.test(status)) return "live";
+  if (
+    /HTTP [45]\d\d|FAILED|INVALID|ERROR|NO HTTP RESPONSE|chưa hợp lệ|chưa thành công|có lỗi/i.test(
+      status
+    )
+  )
     return "error";
   if (
-    /MOCK|LOCAL|SIMULATED|FIXTURE|PREVIEW|NOT SENT|OPTIONAL|SKIPPED|READ-ONLY/.test(
+    /MOCK|LOCAL|SIMULATED|FIXTURE|PREVIEW|NOT SENT|OPTIONAL|SKIPPED|READ-ONLY|bài mẫu|kết quả mẫu|chưa gửi/i.test(
       status
     )
   )
@@ -78,9 +79,29 @@ function consoleStatusTone(status: string) {
   return "";
 }
 
+function displayStatus(status: string) {
+  if (/^HTTP 2\d\d/.test(status)) return "Đã nhận kết quả";
+  if (/^HTTP [45]\d\d/.test(status)) return "Gửi chưa thành công";
+  if (/NO HTTP RESPONSE/.test(status)) return "Chưa nhận được kết quả";
+  if (/CHECKING KEY/.test(status)) return "Đang kiểm tra mã API";
+  if (/CHECK FAILED|KEY INVALID/.test(status)) return "Mã API chưa hợp lệ";
+  if (/LOADING QUESTIONS/.test(status)) return "Đang tải câu hỏi";
+  if (/LIVE CATALOG/.test(status)) return "Đã tải câu hỏi";
+  if (/GRADING/.test(status)) return "Đang chấm bài";
+  if (/^Đang chấm/.test(status)) return status;
+  if (
+    /KẾT QUẢ MẪU|MOCK|LOCAL|SIMULATED|FIXTURE|PREVIEW|NOT SENT|OPTIONAL|SKIPPED|READ-ONLY/.test(
+      status
+    )
+  )
+    return "Đang xem kết quả mẫu";
+  if (/READY/.test(status)) return "Sẵn sàng";
+  if (/^[A-Z][A-Z_]+$/.test(status)) return "Có lỗi khi xử lý";
+  return status;
+}
+
 export function DemoWorkbench({
   skill,
-  scope,
   title,
   description,
   step,
@@ -137,7 +158,7 @@ export function DemoWorkbench({
     >
       {!overview && (
         <div className="demo-flow-breadcrumb">
-          <Link href="/demo">Danh mục demo</Link>
+          <Link href="/demo">Danh sách bài thử</Link>
           <span aria-hidden="true">/</span>
           <span>{title}</span>
         </div>
@@ -146,7 +167,10 @@ export function DemoWorkbench({
       <header className="demo-flow-hero">
         <div>
           <p className="demo-flow-eyebrow">
-            AIHUB API DEMO · {demoEnvironmentName(environment).toUpperCase()}
+            AIHUB ·{" "}
+            {environment === "sandbox"
+              ? "DÙNG THỬ MIỄN PHÍ"
+              : "MÔI TRƯỜNG THẬT · CÓ THỂ TÍNH PHÍ"}
           </p>
           <h1>{title}</h1>
           <p className="demo-flow-lede">{description}</p>
@@ -155,12 +179,13 @@ export function DemoWorkbench({
           <span className={`demo-mode-badge ${mode}`}>
             <i aria-hidden="true" />{" "}
             {mode === "live"
-              ? `Live ${demoEnvironmentName(environment)}`
-              : `${demoEnvironmentName(environment)} · Mẫu local`}
+              ? environment === "sandbox"
+                ? "Chấm thật · Dùng thử"
+                : "Chấm thật · Có thể tính phí"
+              : "Kết quả mẫu có sẵn"}
           </span>
-          <span className="demo-scope-badge">{scope}</span>
         </div>
-        <nav className="demo-skill-switch" aria-label="Chọn kỹ năng demo">
+        <nav className="demo-skill-switch" aria-label="Chọn kỹ năng">
           <Link
             aria-current={skill === "scoring" ? "page" : undefined}
             href="/demo/scoring"
@@ -183,10 +208,10 @@ export function DemoWorkbench({
         >
           <div className="demo-section-title">
             <div>
-              <p className="demo-flow-eyebrow">OVERVIEW</p>
-              <h2 id="demo-overview-title">Từ cấu hình đến response</h2>
+              <p className="demo-flow-eyebrow">GIỚI THIỆU</p>
+              <h2 id="demo-overview-title">Các bước gửi bài và nhận kết quả</h2>
             </div>
-            <a href="#demo-steps">Mở demo ↗</a>
+            <a href="#demo-steps">Đến phần thực hành ↗</a>
           </div>
           <ol
             className={
@@ -221,11 +246,11 @@ export function DemoWorkbench({
             <span className={`demo-mode-badge ${mode}`}>
               <i aria-hidden="true" />{" "}
               {mode === "live"
-                ? "Đã xác thực · có thể chỉnh sửa"
-                : "Mẫu chỉ đọc"}
+                ? "Đã kiểm tra mã · có thể sửa bài"
+                : "Đang xem bài mẫu"}
             </span>
           </div>
-          <nav aria-label="Các bước demo">
+          <nav aria-label="Các bước thực hành">
             <ol
               className={`demo-stepper${steps.length === 4 ? " demo-stepper--four" : ""}`}
             >
@@ -251,7 +276,7 @@ export function DemoWorkbench({
             <div className="demo-visit-controls">
               {showEnvironmentPicker && (
                 <fieldset className="demo-env-picker">
-                  <legend>Môi trường demo</legend>
+                  <legend>Nơi chấm bài</legend>
                   {DEMO_ENVIRONMENTS.map((value) => (
                     <label
                       className={`demo-btn-secondary ${environment === value ? "active" : ""}`}
@@ -266,34 +291,33 @@ export function DemoWorkbench({
                         type="radio"
                         value={value}
                       />
-                      {demoEnvironmentLabel(value)}
+                      {demoInterfaceEnvironmentLabel(value)}
                     </label>
                   ))}
                   <p className="demo-help">
-                    Chọn môi trường được cấp cho key này. Backend sẽ kiểm tra
-                    lại môi trường và scope.
+                    Dùng thử miễn phí trong số lượt cho phép. Môi trường thật có
+                    thể tính phí; hệ thống tự chọn nơi phù hợp với mã API.
                   </p>
                 </fieldset>
               )}
               {stepperDisabled && (
                 <p className="demo-notice" role="status">
-                  Đang có request chấm trong phiên demo. Chờ request kết thúc
-                  rồi mới đổi API key hoặc môi trường.
+                  Đang chấm bài. Đợi xong rồi mới đổi mã API hoặc nơi chấm.
                 </p>
               )}
               {environment === "sandbox" && sandboxAllowance !== undefined && (
                 <div className="demo-notice" data-testid="sandbox-allowance">
                   {sandboxAllowance ? (
                     <>
-                      Tổ chức hiện tại đã dùng {sandboxAllowance.reserved}/
-                      {sandboxAllowance.monthlyLimit} lượt Sandbox trong tháng.{" "}
-                      Đây là số liệu tại lúc kiểm tra key; mỗi lần chấm backend
-                      sẽ kiểm tra hạn mức lại.
+                      Tổ chức của bạn đã dùng {sandboxAllowance.reserved}/
+                      {sandboxAllowance.monthlyLimit} lượt chấm miễn phí trong
+                      tháng. Đây là số liệu lúc kiểm tra mã; số lượt còn lại sẽ
+                      được cập nhật khi kiểm tra lại.
                     </>
                   ) : (
                     <>
-                      Không đọc được hạn mức Sandbox của tổ chức hiện tại. Hạn
-                      mức sẽ được kiểm tra lại khi chấm.
+                      Chưa đọc được số lượt chấm miễn phí của tổ chức bạn. Số
+                      lượt sẽ được kiểm tra lại khi chấm.
                     </>
                   )}
                 </div>
@@ -302,8 +326,8 @@ export function DemoWorkbench({
                 <div className="demo-notice demo-billable">
                   {productionKeyValidated && (
                     <p data-testid="production-key-warning" role="status">
-                      API key Production đã được xác thực. Mỗi lần chấm thật có
-                      thể phát sinh chi phí cho Organization.
+                      Mã API dùng cho môi trường tính phí đã được xác nhận. Mỗi
+                      lần chấm có thể phát sinh chi phí cho tổ chức của bạn.
                     </p>
                   )}
                   <label className="demo-billable-ack">
@@ -314,14 +338,13 @@ export function DemoWorkbench({
                       onChange={onAcknowledgeProduction}
                       type="checkbox"
                     />
-                    Tôi hiểu chấm bài trên Production có thể phát sinh chi phí
-                    thật cho Organization.
+                    Tôi hiểu mỗi lần chấm trên môi trường tính phí có thể phát
+                    sinh chi phí thật cho tổ chức của mình.
                   </label>
                   <p className="demo-help">
-                    Xác nhận này áp dụng cho lần chấm Production đầu tiên của
-                    phiên demo và bị xoá khi bạn đổi key hoặc đổi môi trường. Nó
-                    không phải hạn mức chi — backend vẫn kiểm tra key, quota và
-                    rate của Organization.
+                    Xác nhận này áp dụng cho lần chấm đầu tiên trong phiên và sẽ
+                    được yêu cầu lại khi bạn đổi mã API hoặc nơi chấm. AIHUB sẽ
+                    kiểm tra lại số lượt và chi phí khi bạn gửi bài.
                   </p>
                 </div>
               )}
@@ -333,23 +356,23 @@ export function DemoWorkbench({
         {showTrace && (
           <aside
             className="demo-console"
-            aria-label="Request và response của bước hiện tại"
+            aria-label="Thông tin gửi đi và kết quả của bước hiện tại"
           >
             <div className="demo-console-heading">
               <div>
-                <p className="demo-flow-eyebrow">API TRACE</p>
-                <h2>Request / Response</h2>
+                <p className="demo-flow-eyebrow">CHI TIẾT TÙY CHỌN</p>
+                <h2>Thông tin gửi đi / Kết quả</h2>
               </div>
               <span
                 className={`demo-console-state ${consoleStatusTone(status)}`}
               >
-                {status}
+                {displayStatus(status)}
               </span>
             </div>
             <div
               className="demo-console-tabs"
               role="tablist"
-              aria-label="Nội dung console"
+              aria-label="Chọn thông tin cần xem"
             >
               {(["request", "response"] as const).map((value) => (
                 <button
@@ -360,7 +383,9 @@ export function DemoWorkbench({
                   role="tab"
                   type="button"
                 >
-                  {value === "request" ? "Request" : "Response"}
+                  {value === "request"
+                    ? "Thông tin gửi đi"
+                    : "Kết quả nhận được"}
                 </button>
               ))}
               <button
@@ -368,7 +393,7 @@ export function DemoWorkbench({
                 onClick={copy}
                 type="button"
               >
-                {copied ? "Đã copy" : "Copy"}
+                {copied ? "Đã sao chép" : "Sao chép"}
               </button>
             </div>
             <pre className="demo-console-code" role="tabpanel" tabIndex={0}>
@@ -377,8 +402,8 @@ export function DemoWorkbench({
             <p className="demo-console-note">
               {traceNote ??
                 (mode === "mock"
-                  ? `Bản mẫu chạy trong trình duyệt, không gửi request tới ${demoEnvironmentName(environment)} hay API chấm. API key luôn được ẩn trong trace.`
-                  : `Live gửi qua AIHUB BFF tới ${demoEnvironmentName(environment)} đã ghim host; API key được ẩn trong trace.`)}
+                  ? "Đây là thông tin minh họa; bài không được gửi đi chấm. Mã API luôn được ẩn."
+                  : "Mã API luôn được ẩn trong phần thông tin này.")}
             </p>
           </aside>
         )}
@@ -387,18 +412,18 @@ export function DemoWorkbench({
       {exports && (
         <section
           className="demo-exports"
-          aria-label="Copy request của bước hiện tại"
+          aria-label="Sao chép lệnh dùng ở công cụ khác"
         >
           <div className="demo-section-title">
             <div>
-              <p className="demo-flow-eyebrow">COPY</p>
-              <h2>Copy request sang công cụ khác</h2>
+              <p className="demo-flow-eyebrow">SAO CHÉP</p>
+              <h2>Sao chép lệnh để dùng ở công cụ khác</h2>
             </div>
           </div>
           <div
             className="demo-console-tabs"
             role="tablist"
-            aria-label="Định dạng copy"
+            aria-label="Chọn loại lệnh cần sao chép"
           >
             {DEMO_EXPORT_FORMATS.map((format) => (
               <button
@@ -418,7 +443,7 @@ export function DemoWorkbench({
               onClick={copyExport}
               type="button"
             >
-              {exportCopied ? "Đã copy" : "Copy"}
+              {exportCopied ? "Đã sao chép" : "Sao chép"}
             </button>
           </div>
           <pre
@@ -431,14 +456,14 @@ export function DemoWorkbench({
           </pre>
           <p className="demo-console-note">
             {skill === "speaking" &&
-              "Lệnh mẫu dùng audio_url qua /v1/ielts/speaking/grading-json; file audio trong demo được gửi qua /v1/ielts/speaking/grading."}{" "}
+              "Lệnh mẫu dùng bản ghi âm có sẵn. Nếu muốn gửi bản ghi của mình, hãy chọn Bash hoặc PowerShell."}{" "}
             {exportFormat === "postman"
-              ? "Dán lệnh cURL vào Postman qua Import, rồi đặt biến aihub_api_key trong Environment. Bản copy không chứa API key."
+              ? "Trong Postman, chọn Import (Nhập) và dán lệnh đã sao chép. Điền mã API vào ô aihub_api_key trước khi gửi. Lệnh này không chứa mã API của bạn."
               : exportFormat === "powershell"
-                ? `Bản copy không chứa API key. Đặt $env:${DEMO_EXPORT_KEY_ENV} trong PowerShell trước khi chạy.`
+                ? `Lệnh không chứa mã API. Trước khi chạy, hãy điền mã vào biến $env:${DEMO_EXPORT_KEY_ENV} trong PowerShell.`
                 : exportFormat === "curl"
-                  ? `Bản copy không chứa API key. Đặt biến ${DEMO_EXPORT_KEY_ENV} trong shell trước khi chạy.`
-                  : "Dán prompt vào ChatGPT hoặc coding agent để tạo lệnh Bash, PowerShell và Postman cURL. Prompt chỉ tạo lệnh, không gửi request và không chứa API key thật của bạn."}
+                  ? `Lệnh không chứa mã API. Hãy điền mã vào biến ${DEMO_EXPORT_KEY_ENV} trong cửa sổ lệnh trước khi chạy.`
+                  : "Dán hướng dẫn vào ChatGPT hoặc công cụ lập trình AI để soạn lệnh Bash, PowerShell hoặc Postman. Hướng dẫn chỉ tạo lệnh, không tự gửi bài và không chứa mã API của bạn."}
           </p>
         </section>
       )}
