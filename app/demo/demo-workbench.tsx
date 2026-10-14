@@ -508,7 +508,7 @@ export function DemoWorkbench({
               : exportsContainApiKey
                 ? "Lệnh này có chứa mã API của bạn. Hãy giữ kín nội dung đã sao chép."
                 : exportFormat === "postman"
-                  ? "Trong Postman, chọn Import (Nhập) và dán lệnh đã sao chép. Điền mã API vào ô aihub_api_key trước khi gửi. Lệnh chưa chứa mã API của bạn."
+                  ? "Trong Postman, chọn Import (Nhập) và dán lệnh đã sao chép. Điền mã API vào ô aihub_api_key trước khi gửi. Lệnh này không chứa mã API của bạn."
                   : exportFormat === "powershell"
                     ? `Lệnh chưa chứa mã API. Trước khi chạy, hãy điền mã vào biến $env:${DEMO_EXPORT_KEY_ENV} trong PowerShell.`
                     : `Lệnh chưa chứa mã API. Hãy điền mã vào biến ${DEMO_EXPORT_KEY_ENV} trong cửa sổ lệnh trước khi chạy.`}
