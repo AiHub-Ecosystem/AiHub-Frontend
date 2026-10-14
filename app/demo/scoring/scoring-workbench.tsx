@@ -31,11 +31,23 @@ import {
   SAMPLE_DRAFT,
 } from "./scoring-client";
 import type { Draft, PublicError } from "./scoring-client";
-import { GradeReport } from "./scoring-report";
+import { criterionLabel, GradeReport } from "./scoring-report";
 
 const SCOPE: DemoScope = "writing.grade";
 const TASKS = [1, 2] as const;
-const SCORING_STEPS = ["Kiểm tra API key", ...DEMO_STEPS.slice(1, 4)];
+const CHART_TYPE_LABELS: Record<
+  (typeof WRITING_TASK1_CHART_TYPES)[number],
+  string
+> = {
+  "Bar Chart": "Biểu đồ cột",
+  "Line Graph": "Biểu đồ đường",
+  "Pie Chart": "Biểu đồ tròn",
+  Table: "Bảng số liệu",
+  Map: "Bản đồ",
+  "Process Diagram": "Sơ đồ quy trình",
+  "Multiple Graphs": "Nhiều biểu đồ",
+};
+const SCORING_STEPS = ["Kiểm tra mã API", ...DEMO_STEPS.slice(1, 4)];
 
 type GradeResult = {
   task: 1 | 2;
@@ -64,38 +76,38 @@ function httpTrace(response: Response): HttpTrace {
 function httpSummary(trace: HttpTrace | null) {
   return trace
     ? `HTTP ${trace.status}\nContent-Type: ${trace.contentType ?? "(not returned)"}\nCache-Control: ${trace.cacheControl ?? "(not returned)"}`
-    : "No HTTP response headers received.";
+    : "Chưa nhận được thông tin phản hồi.";
 }
 
 const SCORING_FLOW_STAGES = [
   {
-    title: "Học viên bấm Nộp bài, app gửi đề + bài làm",
+    title: "Học viên bấm Nộp bài; ứng dụng gửi đề và bài làm",
     detail:
-      "App gửi đề và bài làm về server của bạn: Task 1 có chart_type, image_url; Task 2 có topic. App không giữ API key.",
+      "Ứng dụng gửi đề và bài làm đến hệ thống của bạn. Task 1 có loại biểu đồ và ảnh; Task 2 có chủ đề. Mã API được giữ an toàn tại đó.",
     direction: "right",
   },
   {
-    title: "POST …/writing/taskN/grade",
+    title: "Hệ thống của bạn gửi bài lên AIHUB để chấm",
     detail:
-      "N là 1 hoặc 2. Server gắn X-API-Key, X-User-Identity và Idempotency-Key cho mỗi bài làm rồi gọi AIHub. Timeout phía client tối thiểu 90 giây.",
+      "Hệ thống của bạn bổ sung thông tin cần thiết rồi chuyển bài đến AIHUB. Mỗi bài được xử lý riêng để tránh gửi trùng.",
     direction: "right",
   },
   {
-    title: "Chấm 4 tiêu chí",
+    title: "Chấm theo 4 tiêu chí",
     detail:
-      "AIHub chấm Task Achievement (Task 1) hoặc Task Response (Task 2), cùng Coherence & Cohesion, Lexical Resource và Grammatical Range & Accuracy.",
+      "Task 1 được chấm mức độ hoàn thành đề; Task 2 được chấm mức độ trả lời đúng yêu cầu. Cả hai cùng được chấm về mạch lạc, từ vựng và ngữ pháp.",
     direction: "none",
   },
   {
-    title: "Trả band, criteria, annotations",
+    title: "Gửi điểm và nhận xét",
     detail:
-      "Response gồm overall_band, 4 criteria theo task và annotations trích nguyên văn câu cần góp ý.",
+      "Kết quả gồm điểm tổng thể, điểm từng tiêu chí và những câu cần góp ý trong bài.",
     direction: "left",
   },
   {
-    title: "Lưu kết quả, trả feedback cho app",
+    title: "Hệ thống của bạn gửi kết quả lại ứng dụng",
     detail:
-      "Server lưu kết quả theo Idempotency-Key; app hiển thị band và ghim nhận xét lên đúng câu trong bài.",
+      "Ứng dụng hiển thị điểm và gắn nhận xét vào đúng câu trong bài viết.",
     direction: "left",
   },
 ] as const;
@@ -125,11 +137,11 @@ function ScoringFlowOverview() {
     : flowStep > SCORING_FLOW_STAGES.length
       ? {
           tag: "Xong",
-          text: "Đó là toàn bộ luồng. Kéo xuống phần demo Writing để thử Task 1 hoặc Task 2 và xem request/response.",
+          text: "Đó là toàn bộ các bước. Kéo xuống phần thực hành Writing để thử Task 1 hoặc Task 2 và xem kết quả.",
         }
       : {
           tag: "Gợi ý",
-          text: "Mô phỏng này không gửi request. Bấm “Nộp bài” để chạy luồng, hoặc rê chuột/chọn từng chặng để xem giải thích.",
+          text: "Phần minh họa này không gửi bài đi chấm. Bấm “Nộp bài” để xem các bước, hoặc chọn từng chặng để đọc giải thích.",
         };
   const running = flowStep > 0 && flowStep <= SCORING_FLOW_STAGES.length;
 
@@ -139,9 +151,9 @@ function ScoringFlowOverview() {
         <div className="scoring-overview-heading">
           <span className="scoring-overview-badge">TRƯỚC TIÊN</span>
           <h2 id="scoring-overview-title">
-            Luồng hoạt động chấm IELTS Writing (Task 1 &amp; Task 2)
+            Các bước chấm IELTS Writing (Task 1 &amp; Task 2)
           </h2>
-          <span>Tổng quan trước khi thử demo</span>
+          <span>Tổng quan trước khi thực hành</span>
         </div>
 
         <div className="scoring-overview-card">
@@ -190,7 +202,7 @@ function ScoringFlowOverview() {
                   role="img"
                 >
                   <span className="scoring-chart-label scoring-overview-mono">
-                    [Ảnh biểu đồ · image_url]
+                    [Ảnh biểu đồ mẫu]
                   </span>
                   {[0, 1, 2].map((group) => (
                     <span
@@ -207,7 +219,7 @@ function ScoringFlowOverview() {
               ) : (
                 <div className="scoring-topic-preview">
                   <span className="scoring-topic-label scoring-overview-mono">
-                    [Chủ đề · topic]
+                    [Chủ đề]
                   </span>
                   <span className="scoring-topic-value">
                     {previewDraft.topic}
@@ -218,7 +230,7 @@ function ScoringFlowOverview() {
                 {previewDraft.essay.slice(0, 170).trimEnd()}…
               </div>
               <div className="scoring-submit-row">
-                <span>Bấm để chạy toàn bộ luồng</span>
+                <span>Chọn để xem các bước</span>
                 <button
                   className="scoring-overview-submit"
                   disabled={running}
@@ -246,12 +258,12 @@ function ScoringFlowOverview() {
           <div className="scoring-sequence" aria-label="Luồng xử lý bài chấm">
             <div className="scoring-lanes" aria-hidden="true">
               <div>
-                <strong>App của bạn</strong>
+                <strong>Ứng dụng của bạn</strong>
                 <span>học viên nộp bài</span>
               </div>
               <div>
-                <strong>Server của bạn</strong>
-                <span>giữ API key</span>
+                <strong>Hệ thống của bạn</strong>
+                <span>giữ mã API</span>
               </div>
               <div>
                 <strong>AIHub</strong>
@@ -286,9 +298,7 @@ function ScoringFlowOverview() {
                       {item.title}
                       {number === 3 && <small>4 tiêu chí · Task 1 / 2</small>}
                       {number === 2 && (
-                        <small className="scoring-overview-mono">
-                          X-API-Key · X-User-Identity · Idempotency-Key
-                        </small>
+                        <small>Mã truy cập và thông tin cần thiết</small>
                       )}
                     </button>
                     {item.direction !== "none" && (
@@ -303,7 +313,7 @@ function ScoringFlowOverview() {
               <div
                 className={`scoring-flow-result${flowStep >= 5 && hoveredStep === null ? " is-active" : flowStep > 0 && flowStep < 5 && hoveredStep === null ? " is-pending" : ""}`}
               >
-                Hiển thị band + highlight lỗi
+                Hiển thị điểm và nhận xét trong bài
               </div>
             </div>
             <p
@@ -450,7 +460,7 @@ export default function ScoringWorkbench() {
     : undefined;
   const chartProblem =
     task === 1 && !isFetchableImageUrl(activeDraft.imageUrl ?? "")
-      ? "Task 1 cần image_url HTTPS có thể tải được."
+      ? "Đường dẫn ảnh cần bắt đầu bằng https:// và mở được trên internet."
       : null;
 
   const selectMockPrompt = (index: number) => {
@@ -482,7 +492,7 @@ export default function ScoringWorkbench() {
     if (!submittedKey) {
       setKeyError({
         code: "UNAUTHORIZED",
-        message: `Nhập API key ${demoEnvironmentName(environment)} hoặc bỏ qua để dùng mẫu.`,
+        message: "Dán mã API hoặc chọn xem bài mẫu.",
       });
       return;
     }
@@ -538,7 +548,8 @@ export default function ScoringWorkbench() {
       ) {
         throw {
           code: "AI_SERVICE_CONTRACT_VIOLATION",
-          message: "Response kiểm tra key không đúng định dạng.",
+          message:
+            "Không đọc được kết quả kiểm tra mã API. Thử lại hoặc xem bài mẫu.",
         } satisfies PublicError;
       }
       markScopeValidated(SCOPE);
@@ -562,7 +573,7 @@ export default function ScoringWorkbench() {
           ? (caught as PublicError)
           : {
               code: "AI_SERVICE_UNAVAILABLE",
-              message: "Không kiểm tra được key. Thử lại hoặc dùng mẫu.",
+              message: "Không kiểm tra được mã API. Thử lại hoặc xem bài mẫu.",
             };
       setKeyError(publicError);
       if (!receivedTrace) {
@@ -589,7 +600,7 @@ export default function ScoringWorkbench() {
     setKeyCheckResponse({
       mode: "mock",
       request: null,
-      message: "Live validation cleared; fixed fixture selected without HTTP.",
+      message: "Đã bỏ qua kiểm tra mã API; đang dùng bài mẫu có sẵn.",
     });
     setIdempotencyKey(globalThis.crypto.randomUUID());
     setStep(2);
@@ -616,7 +627,7 @@ export default function ScoringWorkbench() {
       setGradeError({
         code: "PRODUCTION_ACKNOWLEDGEMENT_REQUIRED",
         message:
-          "Xác nhận ở khung “Môi trường demo” rằng request Production có thể tính phí trước khi chấm.",
+          "Hãy xác nhận trong phần “Nơi chấm bài” rằng môi trường thật có thể phát sinh chi phí.",
       });
       return;
     }
@@ -703,7 +714,7 @@ export default function ScoringWorkbench() {
     method: "POST",
     url: `${demoEnvironmentHost(environment)}/v1/ielts/writing/task${task}/grade`,
     headers: {
-      "X-API-Key": "${AIHUB_API_KEY:?Set AIHUB_API_KEY to your API key first}",
+      "X-API-Key": apiKey.trim() ? "[đã nhập, giá trị được ẩn]" : "[chưa nhập]",
       "X-User-Identity": "<your end-user id>",
       "Content-Type": "application/json",
       "Idempotency-Key": idempotencyKey ?? "<generate UUID before submit>",
@@ -716,16 +727,16 @@ export default function ScoringWorkbench() {
       return pretty(
         skipMock
           ? {
-              source: "local choice",
+              source: "đã chọn xem bài mẫu",
               http_request: null,
-              message: "Đã bỏ qua kiểm tra key.",
+              message: "Đã bỏ qua bước kiểm tra mã API.",
             }
           : {
               source: keyCheckResponse
-                ? "request sent"
+                ? "đã gửi yêu cầu kiểm tra mã"
                 : apiKey.trim()
-                  ? "preview · not sent"
-                  : "key optional · not sent",
+                  ? "chưa gửi yêu cầu kiểm tra mã"
+                  : "chưa nhập mã API",
               browser_to_aihub_bff: {
                 method: "POST",
                 path: "/api/demo/key/validate",
@@ -749,7 +760,7 @@ export default function ScoringWorkbench() {
       );
     if (step === 2)
       return pretty({
-        source: "local fixture",
+        source: "bài mẫu có sẵn",
         http_request: null,
         selection: {
           task,
@@ -764,9 +775,7 @@ export default function ScoringWorkbench() {
       });
     if (step === 3)
       return pretty({
-        source: liveReady
-          ? "local draft preview · not sent"
-          : "read-only fixture · not sent",
+        source: liveReady ? "bản xem trước · chưa gửi" : "bài mẫu · chưa gửi",
         planned_request: liveReady
           ? {
               method: "POST",
@@ -794,7 +803,7 @@ export default function ScoringWorkbench() {
     if (step === 1)
       return skipMock
         ? pretty({
-            source: "local choice",
+            source: "đã chọn xem bài mẫu",
             http_response: null,
             message: "Đã bỏ qua kiểm tra key.",
           })
@@ -810,11 +819,11 @@ export default function ScoringWorkbench() {
             })
           : pretty({
               http_response: null,
-              message: "Chưa kiểm tra key; chưa có response.",
+              message: "Chưa kiểm tra mã API.",
             });
     if (step === 2)
       return pretty({
-        source: "local fixture",
+        source: "bài mẫu có sẵn",
         http_response: null,
         task,
         question: activeDraft.question,
@@ -827,23 +836,23 @@ export default function ScoringWorkbench() {
       });
     if (step === 3)
       return pretty({
-        source: "local draft preview",
+        source: "bản xem trước bài làm",
         http_response: null,
-        message: "Chưa gửi request. Payload preview nằm ở tab Request.",
+        message: "Chưa gửi bài. Nội dung xem trước nằm ở mục Thông tin gửi đi.",
       });
     if (!liveReady)
       return gradeResponse
         ? pretty(gradeResponse)
         : pretty({
-            message: "Chưa submit fixture mẫu.",
+            message: "Chưa xem kết quả mẫu.",
           });
     return gradeResponse
       ? pretty(gradeResponse)
       : pretty({
           message:
             gradeStatus === "submitting"
-              ? "Request đang chạy; chưa nhận response."
-              : "Chưa gửi request.",
+              ? "Đang chấm bài; chưa có kết quả."
+              : "Chưa gửi bài đi chấm.",
         });
   };
 
@@ -853,9 +862,8 @@ export default function ScoringWorkbench() {
   return (
     <DemoWorkbench
       skill="scoring"
-      scope={SCOPE}
       title="Chấm điểm IELTS Writing"
-      description={`Thử Writing Task 1 và Task 2 theo đúng API contract. Bỏ qua key để xem fixture read-only; key ${demoEnvironmentName(environment)} hợp lệ mở chỉnh sửa và chấm thật.`}
+      description="Thử chấm IELTS Writing Task 1 hoặc Task 2. Bạn có thể xem bài mẫu trước; nhập mã API để sửa nội dung và gửi bài chấm thật."
       step={step}
       steps={SCORING_STEPS}
       showTrace={step === 4}
@@ -867,10 +875,10 @@ export default function ScoringWorkbench() {
           ? `Đang chấm · ${elapsed}s`
           : activeResult
             ? activeResult.mode === "mock"
-              ? "KẾT QUẢ MẪU"
+              ? "Kết quả mẫu có sẵn"
               : gradeTrace
                 ? `HTTP ${gradeTrace.status}`
-                : "LIVE RESPONSE"
+                : "Đã chấm thật"
             : (gradeError?.code ?? (keyError ? "KEY INVALID" : "READY"))
       }
       request={consoleRequest}
@@ -889,8 +897,8 @@ export default function ScoringWorkbench() {
       exports={copyableExports}
       traceNote={
         liveReady
-          ? `Every live grading request reauthenticates the ${demoEnvironmentName(environment)} key before quota and AI dispatch; trace redacts the key.`
-          : "Request is shown as a preview. The button returns a fixed frontend fixture; no grading API request is sent."
+          ? "Mỗi lần gửi bài đều kiểm tra lại mã API. Mã API được ẩn trong phần chi tiết."
+          : "Nút này chỉ hiển thị điểm và nhận xét mẫu có sẵn; bài của bạn không được gửi đi chấm."
       }
     >
       <p className="demo-flow-eyebrow">
@@ -899,11 +907,9 @@ export default function ScoringWorkbench() {
 
       {step === 1 && (
         <>
-          <h3>Kiểm tra API key</h3>
+          <h3>Nhập mã API</h3>
           <div className="demo-field">
-            <label htmlFor="writing-demo-key">
-              API key (Sandbox hoặc Production, tùy chọn)
-            </label>
+            <label htmlFor="writing-demo-key">Mã API (không bắt buộc)</label>
             <input
               autoComplete="off"
               disabled={grading}
@@ -921,24 +927,26 @@ export default function ScoringWorkbench() {
                 setGradeAttempted(false);
                 setResult(null);
               }}
-              placeholder="aihub_sandbox_… hoặc aihub_prod_…"
+              placeholder="Dán mã API của bạn tại đây"
               spellCheck={false}
               type="password"
               value={apiKey}
             />
             <p className="demo-help">
-              Backend kiểm tra môi trường và quyền chấm Writing trước khi mở
-              tính năng chấm thật.
+              Nhập mã API để sửa bài và gửi chấm thật. Bạn có thể bỏ qua bước
+              này để xem bài mẫu; mã dùng thử miễn phí, môi trường thật có thể
+              tính phí.
             </p>
           </div>
           {keyError && (
             <div className="demo-error" role="alert">
-              <strong>{keyError.code}</strong> · {keyError.message}
+              {keyError.message}
             </div>
           )}
           {isScopeValidated(SCOPE) && apiKey && (
             <div className="demo-success">
-              Key đã qua kiểm tra bước 1. Mỗi lần chấm vẫn được BE xác thực lại.
+              Mã API đã được xác nhận. Mã sẽ được kiểm tra lại mỗi lần bạn gửi
+              bài.
             </div>
           )}
           <div className="demo-step-actions">
@@ -948,7 +956,7 @@ export default function ScoringWorkbench() {
               onClick={validateKey}
               type="button"
             >
-              {checkingKey ? "Đang kiểm tra · " : null}Kiểm tra key
+              {checkingKey ? "Đang kiểm tra · " : null}Kiểm tra mã API
             </button>
             <button
               className="demo-btn-secondary"
@@ -956,7 +964,7 @@ export default function ScoringWorkbench() {
               onClick={useMock}
               type="button"
             >
-              Bỏ qua, dùng mẫu
+              Xem bài mẫu
             </button>
           </div>
         </>
@@ -967,8 +975,8 @@ export default function ScoringWorkbench() {
           <h3>Chọn bài Writing</h3>
           <p>
             {liveReady
-              ? `Key ${demoEnvironmentName(environment)} đã xác thực. Bạn có thể sửa đề và các trường request ở bước này; dữ liệu đã nhập sẽ được dùng khi chấm.`
-              : "Mẫu chỉ đọc: chọn Task và đề mẫu để xem fixture. Các trường request và bài làm bị khóa; nhập key hợp lệ ở bước 1 để mở chỉnh sửa và chấm live."}
+              ? "Mã API đã được xác nhận. Bạn có thể sửa đề và thông tin bài; nội dung mới sẽ được dùng khi chấm."
+              : "Bạn đang xem bài mẫu. Chọn Task và đề để xem trước; nhập mã API ở bước 1 nếu muốn tự sửa và gửi chấm thật."}
           </p>
           <div
             className="demo-inline-actions"
@@ -1000,7 +1008,7 @@ export default function ScoringWorkbench() {
           {task === 1 && (
             <>
               <div className="demo-field">
-                <label htmlFor="writing-chart-type">chart_type</label>
+                <label htmlFor="writing-chart-type">Loại biểu đồ</label>
                 <select
                   data-testid="select-chart-type"
                   disabled={!liveReady}
@@ -1011,17 +1019,19 @@ export default function ScoringWorkbench() {
                   value={activeDraft.chartType}
                 >
                   {WRITING_TASK1_CHART_TYPES.map((value) => (
-                    <option key={value}>{value}</option>
+                    <option key={value} value={value}>
+                      {CHART_TYPE_LABELS[value]}
+                    </option>
                   ))}
                 </select>
                 <p className="demo-help">
                   {liveReady
-                    ? "Chọn đúng một trong bảy giá trị enum, phân biệt hoa thường; giá trị này sẽ được gửi trong request."
-                    : "Mẫu chỉ đọc. Nhập key hợp lệ để chỉnh trường này."}
+                    ? "Chọn loại biểu đồ phù hợp với đề bài."
+                    : "Đây là thông tin trong bài mẫu. Nhập mã API ở bước 1 để sửa."}
                 </p>
               </div>
               <div className="demo-field">
-                <label htmlFor="writing-image-url">image_url</label>
+                <label htmlFor="writing-image-url">Đường dẫn ảnh</label>
                 <input
                   data-testid="input-image-url"
                   disabled={!liveReady}
@@ -1042,15 +1052,15 @@ export default function ScoringWorkbench() {
                 )}
                 <p className="demo-help">
                   {liveReady
-                    ? "AIHUB cần truy cập ảnh qua HTTPS. Dùng URL ảnh thật khi chấm live."
-                    : "Mẫu chỉ đọc. Nhập key hợp lệ để sửa image_url trước khi chấm live."}
+                    ? "Dán liên kết ảnh có thể mở được trên internet."
+                    : "Bài mẫu đang dùng ảnh có sẵn. Nhập mã API ở bước 1 để thay ảnh."}
                 </p>
               </div>
             </>
           )}
           {task === 2 && (
             <div className="demo-field">
-              <label htmlFor="writing-topic">topic</label>
+              <label htmlFor="writing-topic">Chủ đề</label>
               <input
                 data-testid="input-topic"
                 disabled={!liveReady}
@@ -1060,14 +1070,14 @@ export default function ScoringWorkbench() {
               />
               <p className="demo-help">
                 {liveReady
-                  ? "Topic là text tự do theo contract, tối đa 200 ký tự; giá trị này sẽ được gửi trong request."
-                  : "Mẫu chỉ đọc. Nhập key hợp lệ để chỉnh topic (tối đa 200 ký tự)."}
+                  ? "Nhập chủ đề ngắn, tối đa 200 ký tự."
+                  : "Đây là chủ đề trong bài mẫu. Nhập mã API ở bước 1 để sửa."}
               </p>
             </div>
           )}
           <div className="demo-field">
             <label htmlFor={liveReady ? "writing-question" : undefined}>
-              {liveReady ? "question" : "Chọn một đề mẫu"}
+              {liveReady ? "Đề bài" : "Chọn một đề mẫu"}
             </label>
             {liveReady ? (
               <textarea
@@ -1102,8 +1112,8 @@ export default function ScoringWorkbench() {
             )}
             <p className="demo-help">
               {liveReady
-                ? "Question là text tự do theo API contract; nội dung sẽ được gửi theo đúng phần bạn nhập."
-                : "Chọn đề mẫu để xem nội dung. Bài làm và kết quả mẫu không đổi theo lựa chọn; request và bài làm chỉ mở khi key hợp lệ."}
+                ? "Bạn có thể sửa đề bài. Nội dung này sẽ được dùng khi chấm."
+                : "Chọn đề để xem nội dung. Bài làm và điểm mẫu vẫn giữ nguyên; nhập mã API ở bước 1 để tự sửa bài."}
             </p>
           </div>
           <div className="demo-step-actions">
@@ -1112,7 +1122,7 @@ export default function ScoringWorkbench() {
               onClick={() => setStep(1)}
               type="button"
             >
-              Quay lại API key
+              Quay lại nhập mã API
             </button>
             <button
               className="demo-btn-primary"
@@ -1133,12 +1143,12 @@ export default function ScoringWorkbench() {
           <h3>Nhập bài làm</h3>
           <p>
             {liveReady
-              ? `Key đã xác thực: bạn có thể sửa bài bên dưới. Nội dung chỉ được gửi lên ${demoEnvironmentName(environment)} khi bấm chấm ở bước 4.`
-              : "Mẫu chỉ đọc: bài viết tham khảo và kết quả mẫu luôn cố định. Nhập key hợp lệ ở bước 1 để mở trình soạn thảo và chấm live."}
+              ? "Mã API đã được xác nhận: bạn có thể sửa bài bên dưới. Nội dung chỉ được gửi đi chấm khi bấm nút ở bước 4."
+              : "Đây là bài viết tham khảo và điểm mẫu có sẵn. Nhập mã API ở bước 1 để sửa bài và gửi chấm thật."}
           </p>
           <div className="demo-field">
             <label htmlFor="writing-essay">
-              essay ·{" "}
+              Bài làm ·{" "}
               {activeDraft.essay.trim().split(/\s+/).filter(Boolean).length} từ
             </label>
             <textarea
@@ -1172,15 +1182,15 @@ export default function ScoringWorkbench() {
 
       {step === 4 && (
         <>
-          <h3>{liveReady ? "Gửi chấm live" : "Xem kết quả mẫu"}</h3>
+          <h3>{liveReady ? "Gửi bài chấm thật" : "Xem kết quả mẫu"}</h3>
           <p>
             {liveReady
-              ? `Request sẽ dùng key ${demoEnvironmentName(environment)} đã kiểm tra và UUID tạm của phiên demo. Backend xác thực lại key trước khi dispatch.`
-              : "Nút này chỉ hiển thị kết quả mẫu có sẵn. Không gửi yêu cầu chấm bài."}
+              ? "Bài làm sẽ được gửi bằng mã API đã xác nhận. Mỗi lần gửi, mã được kiểm tra lại."
+              : "Nút này chỉ hiển thị điểm và nhận xét mẫu có sẵn. Bài của bạn không được gửi đi chấm."}
           </p>
           {gradeError && (
             <div className="demo-error" role="alert">
-              <strong>{gradeError.code}</strong> · {gradeError.message}
+              {gradeError.message}
               {gradeError.retry_after_ms
                 ? ` Thử lại sau ${Math.ceil(gradeError.retry_after_ms / 1000)} giây.`
                 : ""}
@@ -1220,17 +1230,20 @@ export default function ScoringWorkbench() {
             >
               <p className="demo-flow-eyebrow">
                 {activeResult.mode === "mock"
-                  ? "KẾT QUẢ MẪU CỐ ĐỊNH"
-                  : "LIVE RESPONSE"}
+                  ? "KẾT QUẢ MẪU"
+                  : "KẾT QUẢ CHẤM THẬT"}
               </p>
               <div className="demo-result-band">
-                Band {activeResult.envelope.data.overall_band.toFixed(1)}
+                Điểm tổng thể{" "}
+                {activeResult.envelope.data.overall_band.toFixed(1)}
               </div>
               <p>{activeResult.envelope.data.summary}</p>
               <div className="demo-result-criteria">
                 {activeResult.envelope.data.criteria.map((criterion) => (
                   <div key={criterion.id}>
-                    <strong>{criterion.name}</strong>
+                    <strong>
+                      {criterionLabel(criterion.id, "Tiêu chí chấm")}
+                    </strong>
                     <span>{criterion.band.toFixed(1)}</span>
                   </div>
                 ))}
@@ -1247,6 +1260,7 @@ export default function ScoringWorkbench() {
               result={activeResult.envelope}
               essay={activeResult.essay}
               task={activeResult.task}
+              mode={activeResult.mode}
             />
           )}
         </>

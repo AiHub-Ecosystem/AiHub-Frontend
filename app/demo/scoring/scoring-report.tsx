@@ -5,30 +5,28 @@ import type { WritingGradingEnvelope } from "@/data/scoring-response";
 
 import { toneFor } from "./scoring-client";
 
-const CRITERION_ABBR: Record<string, string> = {
-  task_achievement: "TA",
-  task_response: "TR",
-  coherence_cohesion: "CC",
-  lexical_resource: "LR",
-  grammatical_range_accuracy: "GRA",
+const CRITERION_LABELS: Record<string, string> = {
+  task_achievement: "Hoàn thành yêu cầu đề bài",
+  task_response: "Trả lời đúng yêu cầu",
+  coherence_cohesion: "Mạch lạc và liên kết",
+  lexical_resource: "Từ vựng",
+  grammatical_range_accuracy: "Ngữ pháp",
 };
 
-export function CriterionBadge({ criterionId }: { criterionId: string }) {
-  return (
-    <span className={`criterion-badge tone-${toneFor(criterionId)}`}>
-      {CRITERION_ABBR[criterionId] ?? "—"}
-    </span>
-  );
+export function criterionLabel(criterionId: string, fallback: string) {
+  return CRITERION_LABELS[criterionId] ?? fallback;
 }
 
 export function GradeReport({
   result,
   essay,
   task,
+  mode,
 }: {
   result: WritingGradingEnvelope;
   essay: string;
   task: 1 | 2;
+  mode: "mock" | "live";
 }) {
   const { data } = result;
   const [selected, setSelected] = useState<number | null>(null);
@@ -81,11 +79,12 @@ export function GradeReport({
         <div>
           <h3>Báo cáo chấm bài Task {task}</h3>
           <p>
-            AIHUB Writing rubric · ngôn ngữ {data.language} · request{" "}
-            {result.meta.request_id}
+            {mode === "mock"
+              ? "Điểm và nhận xét mẫu có sẵn."
+              : `Mã kết quả: ${result.meta.request_id}`}
           </p>
         </div>
-        <span className="score-badge">Overall Band: {data.overall_band}</span>
+        <span className="score-badge">Điểm tổng thể: {data.overall_band}</span>
       </div>
 
       <div className="feedback-grid">
@@ -95,8 +94,7 @@ export function GradeReport({
             key={criterion.id}
           >
             <div className="score-label">
-              <span>{criterion.name}</span>
-              <CriterionBadge criterionId={criterion.id} />
+              <span>{criterionLabel(criterion.id, "Tiêu chí chấm")}</span>
             </div>
             <div className="score-value">
               {criterion.band} <em>/ 9.0</em>
@@ -147,12 +145,12 @@ export function GradeReport({
             data-testid="scoring-annotation-detail"
           >
             <div className="scoring-annotation-head">
-              <CriterionBadge
-                criterionId={data.annotations[selected].criterion}
-              />
-              <code className="scoring-annotation-issue">
-                {data.annotations[selected].issue}
-              </code>
+              <strong>
+                {criterionLabel(
+                  data.annotations[selected].criterion,
+                  "Nhận xét"
+                )}
+              </strong>
             </div>
             <blockquote>{data.annotations[selected].quote}</blockquote>
             <p>{data.annotations[selected].explanation}</p>
@@ -167,8 +165,8 @@ export function GradeReport({
             key={criterion.id}
           >
             <div className="section-kicker">
-              <CriterionBadge criterionId={criterion.id} />
-              {criterion.name} · Band {criterion.band}
+              {criterionLabel(criterion.id, "Tiêu chí chấm")} · Điểm{" "}
+              {criterion.band}
             </div>
             <p>{criterion.band_reason}</p>
             <div className="scoring-criterion-lists">

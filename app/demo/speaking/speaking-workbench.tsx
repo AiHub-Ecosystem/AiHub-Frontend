@@ -24,11 +24,7 @@ import {
 import { buildDemoExports } from "@/lib/demo-export";
 import { useDemoSession, type DemoScope } from "@/app/demo/demo-session";
 import { sandboxAllowanceFrom } from "@/app/demo/demo-session-state";
-import {
-  DEMO_STEPS,
-  DemoWorkbench,
-  type DemoStep,
-} from "@/app/demo/demo-workbench";
+import { DemoWorkbench, type DemoStep } from "@/app/demo/demo-workbench";
 import { errorFromPayload, type PublicError } from "../scoring/scoring-client";
 
 const SCOPE: DemoScope = "speaking.grade";
@@ -37,46 +33,50 @@ const SCOPE: DemoScope = "speaking.grade";
 function SpeakingRetryNote({ environment }: { environment: DemoEnvironment }) {
   return (
     <div className="demo-notice" data-testid="speaking-retry-note">
-      Speaking không có Idempotency-Key và demo không tự gửi lại. Bấm “Chấm
-      thật” lần nữa là một lượt mới
+      Nếu lần chấm bị lỗi, hệ thống không tự thử lại. Bấm “Chấm thật” lần nữa sẽ
+      tạo một lượt chấm mới
       {environment === "production"
-        ? " và có thể phát sinh chi phí thật."
-        : ", dùng thêm một lượt trong hạn mức Sandbox."}
+        ? " và có thể phát sinh chi phí."
+        : " và dùng thêm một lượt miễn phí."}
     </div>
   );
 }
 
 const PARTS = [1, 2, 3] as const;
+const SPEAKING_STEPS = [
+  "Kiểm tra mã API",
+  "Chọn câu hỏi",
+  "Chuẩn bị câu trả lời",
+  "Chấm và xem kết quả",
+] as const;
 const SPEAKING_CLIENT_TIMEOUT_MS = 75_000;
 const SPEAKING_FLOW_STAGES = [
   {
-    title: "Học viên ghi âm, app gửi audio + câu hỏi",
+    title: "Học viên ghi âm; ứng dụng gửi câu trả lời và câu hỏi",
     detail:
-      "App gửi file audio cùng part, question_id, prompt_text và test_type tới server của bạn. API key chỉ được giữ ở server.",
+      "Ứng dụng gửi tệp ghi âm cùng câu hỏi đến hệ thống của bạn. Mã API được giữ an toàn ở đó.",
     direction: "right",
   },
   {
-    title: "POST …/speaking/grading",
-    detail:
-      "Server gắn X-API-Key và X-User-Identity, rồi gửi multipart/form-data tới AIHub. Speaking không dùng Idempotency-Key.",
+    title: "Hệ thống của bạn gửi bài nói lên AIHUB để chấm",
+    detail: "Hệ thống của bạn gửi bản ghi âm và câu hỏi đến AIHUB để chấm.",
     direction: "right",
   },
   {
-    title: "Phân tích câu trả lời nói",
+    title: "Nghe và đánh giá câu trả lời",
     detail:
-      "AIHub xử lý audio, tạo transcript và đánh giá fluency, vocabulary, grammar, pronunciation.",
+      "AIHUB ghi lại nội dung câu trả lời, sau đó chấm độ trôi chảy, từ vựng, ngữ pháp và phát âm.",
     direction: "none",
   },
   {
-    title: "Trả transcript, estimated_band, feedback",
+    title: "Gửi điểm và nhận xét",
     detail:
-      "Response gồm transcript, overall band, điểm 4 tiêu chí Speaking, nhận xét và kế hoạch cải thiện.",
+      "Kết quả gồm điểm tổng thể, bản ghi lời nói, điểm từng tiêu chí và gợi ý luyện tập.",
     direction: "left",
   },
   {
-    title: "Lưu kết quả, phản hồi học viên",
-    detail:
-      "Server lưu kết quả và trả transcript, band cùng feedback về app để học viên xem lại.",
+    title: "Hệ thống của bạn gửi kết quả lại ứng dụng",
+    detail: "Ứng dụng hiển thị điểm và nhận xét để học viên xem lại.",
     direction: "left",
   },
 ] as const;
@@ -104,11 +104,11 @@ function SpeakingFlowOverview() {
     : flowStep > SPEAKING_FLOW_STAGES.length
       ? {
           tag: "Xong",
-          text: "Đó là toàn bộ luồng. Kéo xuống “Thử chấm Speaking” để chạy demo và xem request/response ở bước 4.",
+          text: "Đó là toàn bộ các bước. Kéo xuống phần thực hành Speaking để thử và xem kết quả.",
         }
       : {
           tag: "Gợi ý",
-          text: "Mô phỏng này không gửi request. Bấm “Gửi câu trả lời” để chạy luồng, hoặc rê chuột/chọn từng chặng để xem giải thích.",
+          text: "Phần minh họa này không gửi bài đi chấm. Bấm “Gửi câu trả lời” để xem các bước, hoặc chọn từng chặng để đọc giải thích.",
         };
   const running = flowStep > 0 && flowStep <= SPEAKING_FLOW_STAGES.length;
 
@@ -118,9 +118,9 @@ function SpeakingFlowOverview() {
         <div className="scoring-overview-heading">
           <span className="scoring-overview-badge">TRƯỚC TIÊN</span>
           <h2 id="speaking-overview-title">
-            Luồng hoạt động của Chấm điểm Speaking
+            Các bước chấm IELTS Speaking (Part 1–3)
           </h2>
-          <span>Tổng quan trước khi thử demo</span>
+          <span>Tổng quan trước khi thực hành</span>
         </div>
 
         <div className="scoring-overview-card">
@@ -142,12 +142,12 @@ function SpeakingFlowOverview() {
                 Trả lời câu hỏi theo từng phần của bài thi Speaking.
               </p>
               <div
-                aria-label="Audio mẫu dài 24 giây"
+                aria-label="Bản ghi âm mẫu dài 24 giây"
                 className="speaking-audio-preview"
                 role="img"
               >
                 <span className="speaking-audio-label scoring-overview-mono">
-                  AUDIO MẪU
+                  BẢN GHI ÂM MẪU
                 </span>
                 <span className="speaking-audio-player" aria-hidden="true">
                   <span className="speaking-audio-play">
@@ -167,11 +167,10 @@ function SpeakingFlowOverview() {
                 </span>
               </div>
               <div className="scoring-essay-preview">
-                Audio của Part 1, 2 hoặc 3 được gửi cùng question_id,
-                prompt_text và test_type.
+                Bản ghi âm và câu hỏi của Part 1, 2 hoặc 3 được gửi cùng nhau.
               </div>
               <div className="scoring-submit-row">
-                <span>Bấm để chạy toàn bộ luồng</span>
+                <span>Chọn để xem các bước</span>
                 <button
                   className="scoring-overview-submit"
                   disabled={running}
@@ -199,12 +198,12 @@ function SpeakingFlowOverview() {
           <div className="scoring-sequence" aria-label="Luồng chấm Speaking">
             <div className="scoring-lanes" aria-hidden="true">
               <div>
-                <strong>App của bạn</strong>
+                <strong>Ứng dụng của bạn</strong>
                 <span>học viên ghi âm</span>
               </div>
               <div>
-                <strong>Server của bạn</strong>
-                <span>giữ API key</span>
+                <strong>Hệ thống của bạn</strong>
+                <span>giữ mã API</span>
               </div>
               <div>
                 <strong>AIHub</strong>
@@ -237,11 +236,6 @@ function SpeakingFlowOverview() {
                     >
                       <strong>{number}</strong>
                       {item.title}
-                      {number === 2 && (
-                        <small className="scoring-overview-mono">
-                          X-API-Key · X-User-Identity
-                        </small>
-                      )}
                     </button>
                     {item.direction !== "none" && (
                       <span
@@ -255,7 +249,7 @@ function SpeakingFlowOverview() {
               <div
                 className={`scoring-flow-result${flowStep >= 5 && hoveredStep === null ? " is-active" : flowStep > 0 && flowStep < 5 && hoveredStep === null ? " is-pending" : ""}`}
               >
-                Hiển thị band + transcript + feedback
+                Hiển thị điểm, bản chép lời và nhận xét
               </div>
             </div>
             <p
@@ -337,11 +331,11 @@ function promptsFromPayload(
 }
 
 function fileProblem(file: File | null) {
-  if (!file) return "Chọn hoặc ghi một audio để chấm live.";
-  if (file.size < 100) return "Audio quá ngắn hoặc rỗng.";
-  if (file.size > MAX_SPEAKING_BYTES) return "Audio vượt giới hạn 25 MB.";
+  if (!file) return "Chọn hoặc ghi âm câu trả lời để chấm thật.";
+  if (file.size < 100) return "Tệp ghi âm quá ngắn hoặc không có tiếng.";
+  if (file.size > MAX_SPEAKING_BYTES) return "Tệp ghi âm cần nhỏ hơn 25 MB.";
   if (!/\.(wav|mp3|m4a|webm|ogg)$/i.test(file.name))
-    return "Định dạng hỗ trợ: WAV, MP3, M4A, WebM hoặc OGG.";
+    return "Tệp ghi âm cần có định dạng WAV, MP3, M4A, WebM hoặc OGG.";
   return null;
 }
 
@@ -370,10 +364,14 @@ function SpeakingResultReport({
   const canDisplayBand =
     data.scorability.is_scorable && data.scorability.display_band;
   const criteria = [
-    ["Fluency & Coherence", data.estimated_band.fluency_coherence, "coherence"],
-    ["Lexical Resource", data.estimated_band.lexical_resource, "lexical"],
-    ["Grammar", data.estimated_band.grammatical_range_accuracy, "grammar"],
-    ["Pronunciation", data.estimated_band.pronunciation, "achieve"],
+    [
+      "Độ trôi chảy và mạch lạc",
+      data.estimated_band.fluency_coherence,
+      "coherence",
+    ],
+    ["Từ vựng", data.estimated_band.lexical_resource, "lexical"],
+    ["Ngữ pháp", data.estimated_band.grammatical_range_accuracy, "grammar"],
+    ["Phát âm", data.estimated_band.pronunciation, "achieve"],
   ] as const;
 
   return (
@@ -387,14 +385,14 @@ function SpeakingResultReport({
           <h3>Báo cáo chấm Speaking Part {part}</h3>
           <p>
             {mode === "mock"
-              ? "Kết quả mẫu cố định."
-              : `Mã yêu cầu ${envelope.meta.request_id}`}
+              ? "Đây là điểm và nhận xét mẫu có sẵn."
+              : `Mã kết quả: ${envelope.meta.request_id}`}
           </p>
         </div>
         <span className="score-badge">
           {canDisplayBand
-            ? `Overall Band: ${data.estimated_band.overall.toFixed(1)}`
-            : "Chưa đủ dữ liệu chấm band"}
+            ? `Điểm tổng thể: ${data.estimated_band.overall.toFixed(1)}`
+            : "Chưa đủ dữ liệu để chấm điểm tổng thể"}
         </span>
       </div>
 
@@ -417,7 +415,7 @@ function SpeakingResultReport({
 
       <div className="speaking-result-transcript">
         <div className="section-kicker">
-          BẢN GHI CÂU TRẢ LỜI
+          NỘI DUNG ĐÃ NHẬN DIỆN
           <span>
             {data.transcript.word_count} từ ·{" "}
             {data.transcript.duration_seconds.toFixed(1)} giây
@@ -428,7 +426,9 @@ function SpeakingResultReport({
 
       <div className="rubric-grid">
         <div className="rubric-card">
-          <div className="section-kicker">MỨC ĐỘ LIÊN QUAN</div>
+          <div className="section-kicker">
+            CÂU TRẢ LỜI CÓ ĐÚNG TRỌNG TÂM KHÔNG?
+          </div>
           <p>
             {data.relevance.on_topic ? "Đúng trọng tâm" : "Chưa sát câu hỏi"} ·{" "}
             {(data.relevance.score * 100).toFixed(0)}%
@@ -466,7 +466,7 @@ function SpeakingResultReport({
 
       <div className="rubric-grid">
         <div className="rubric-card">
-          <div className="section-kicker">PHÁT ÂM THEO TỪ</div>
+          <div className="section-kicker">CÁCH PHÁT ÂM TỪNG TỪ</div>
           <div className="speaking-pronunciation-stats">
             <span>
               <strong>{data.pronunciation_detail.summary.good_count}</strong>Tốt
@@ -483,7 +483,7 @@ function SpeakingResultReport({
           {data.pronunciation_detail.words.length > 0 && (
             <details className="speaking-word-details">
               <summary>
-                Chi tiết {data.pronunciation_detail.words.length} từ
+                Xem nhận xét về {data.pronunciation_detail.words.length} từ
               </summary>
               <ul className="scoring-plain-list">
                 {data.pronunciation_detail.words.map((item, index) => (
@@ -498,7 +498,7 @@ function SpeakingResultReport({
           )}
         </div>
         <div className="rubric-card">
-          <div className="section-kicker">NGÔN NGỮ</div>
+          <div className="section-kicker">GỢI Ý VỀ NGỮ PHÁP VÀ TỪ VỰNG</div>
           {data.language_analysis.grammar_errors.length === 0 ? (
             <p>Không có lỗi ngữ pháp được ghi nhận.</p>
           ) : (
@@ -518,7 +518,7 @@ function SpeakingResultReport({
                   <strong>
                     {item.original_word} → {item.suggested_word}
                   </strong>{" "}
-                  ({item.cefr_level}) · {item.reason_vi}
+                  · {item.reason_vi}
                 </li>
               ))}
             </ul>
@@ -640,12 +640,10 @@ export default function SpeakingWorkbench() {
         const loaded = promptsFromPayload(payload, part);
         if (!loaded)
           throw new Error(
-            `Câu hỏi từ ${demoEnvironmentName(environment)} không đúng định dạng.`
+            "Danh sách câu hỏi nhận được chưa đúng. Hãy thử tải lại."
           );
         if (loaded.length === 0)
-          throw new Error(
-            `${demoEnvironmentName(environment)} hiện không có câu hỏi cho Part này.`
-          );
+          throw new Error(`Hiện chưa có câu hỏi cho Part ${part}.`);
         if (cancelled) return;
         setLivePrompts(loaded);
         setSelectedId((current) =>
@@ -658,7 +656,7 @@ export default function SpeakingWorkbench() {
         setQuestionError(
           caught instanceof Error
             ? caught.message
-            : `Không tải được câu hỏi Speaking từ ${demoEnvironmentName(environment)}.`
+            : "Không tải được câu hỏi Speaking. Hãy thử lại."
         );
         if (!receivedHttpResponse)
           setQuestionResponse({
@@ -748,7 +746,7 @@ export default function SpeakingWorkbench() {
     if (!submittedKey) {
       setKeyError({
         code: "UNAUTHORIZED",
-        message: `Nhập API key ${demoEnvironmentName(environment)} hoặc bỏ qua để dùng mẫu.`,
+        message: "Dán mã API hoặc chọn xem câu hỏi mẫu.",
       });
       return;
     }
@@ -812,7 +810,8 @@ export default function SpeakingWorkbench() {
       ) {
         throw {
           code: "AI_SERVICE_CONTRACT_VIOLATION",
-          message: "Response kiểm tra key không đúng định dạng.",
+          message:
+            "Không đọc được kết quả kiểm tra mã API. Thử lại hoặc xem câu hỏi mẫu.",
         } satisfies PublicError;
       }
       markScopeValidated(SCOPE);
@@ -842,7 +841,8 @@ export default function SpeakingWorkbench() {
           ? (caught as PublicError)
           : {
               code: "AI_SERVICE_UNAVAILABLE",
-              message: "Không kiểm tra được key. Thử lại hoặc dùng mẫu.",
+              message:
+                "Không kiểm tra được mã API. Thử lại hoặc xem câu hỏi mẫu.",
             };
       setKeyError(publicError);
       if (!receivedHttpResponse)
@@ -875,7 +875,7 @@ export default function SpeakingWorkbench() {
     setKeyCheckResponse({
       mode: "mock",
       request: null,
-      message: "Key check skipped; fixed fixture selected.",
+      message: "Đã bỏ qua bước kiểm tra mã API; đang dùng bài mẫu có sẵn.",
     });
     setKeyCheckTrace(null);
     setStep(2);
@@ -909,7 +909,7 @@ export default function SpeakingWorkbench() {
   const saveFile = (next: File | null) => {
     if (!next) return;
     const problem = fileProblem(next);
-    if (problem && problem !== "Chọn hoặc ghi một audio để chấm live.") {
+    if (problem && problem !== "Chọn hoặc ghi âm câu trả lời để chấm thật.") {
       setError({ code: "INVALID_REQUEST", message: problem });
       return;
     }
@@ -930,7 +930,7 @@ export default function SpeakingWorkbench() {
         typeof MediaRecorder === "undefined"
       )
         throw new Error(
-          "Trình duyệt không hỗ trợ ghi âm. Tải file audio lên để tiếp tục."
+          "Trình duyệt không hỗ trợ ghi âm. Hãy chọn tệp ghi âm để tiếp tục."
         );
       const nextStream = await navigator.mediaDevices.getUserMedia({
         audio: true,
@@ -984,7 +984,8 @@ export default function SpeakingWorkbench() {
     if (!livePrompts?.length || !prompt) {
       setError({
         code: "AI_SERVICE_UNAVAILABLE",
-        message: `Chưa có câu hỏi live từ ${demoEnvironmentName(environment)}. Không thể gửi fixture local để chấm.`,
+        message:
+          "Chưa tải được câu hỏi. Hãy thử lại; câu hỏi mẫu chỉ dùng để xem trước.",
       });
       return;
     }
@@ -994,7 +995,7 @@ export default function SpeakingWorkbench() {
       setError({
         code: "PRODUCTION_ACKNOWLEDGEMENT_REQUIRED",
         message:
-          "Xác nhận ở khung “Môi trường demo” rằng request Production có thể tính phí trước khi chấm.",
+          "Hãy xác nhận trong phần “Nơi chấm bài” rằng lượt chấm trên môi trường thật có thể phát sinh chi phí.",
       });
       return;
     }
@@ -1102,30 +1103,30 @@ export default function SpeakingWorkbench() {
     keyCheckResponse.mode === "mock";
   const responseHeaderSummary = (trace: HttpTrace | null) =>
     trace
-      ? `AIHUB BFF HTTP ${trace.status}\nContent-Type: ${trace.contentType ?? "(not returned)"}\nCache-Control: ${trace.cacheControl ?? "(not returned)"}`
-      : "No HTTP response headers received.";
+      ? `AIHUB · HTTP ${trace.status}\nContent-Type: ${trace.contentType ?? "(không có)"}\nCache-Control: ${trace.cacheControl ?? "(không có)"}`
+      : "Chưa nhận được thông tin phản hồi.";
 
   const requestForStep = () => {
     if (step === 1) {
       if (validationSkipped)
         return pretty({
-          source: "local choice",
+          source: "đã chọn xem bài mẫu",
           http_request: null,
-          message: "Bỏ qua kiểm tra key; dùng fixture.",
+          message: "Đã bỏ qua bước kiểm tra mã API; đang xem bài mẫu.",
         });
       if (!apiKey.trim() && !keyCheckResponse)
         return pretty({
           http_request: null,
-          message: "API key là tùy chọn. Chưa gửi request; có thể bỏ qua.",
+          message: "Bạn có thể bỏ qua mã API để xem bài mẫu.",
         });
       return pretty({
         source: checkingKey
-          ? "request in progress"
+          ? "đang kiểm tra mã API"
           : keyCheckTrace
-            ? "HTTP response received from AIHUB BFF"
+            ? "đã nhận kết quả kiểm tra mã"
             : keyCheckResponse
-              ? "request attempted; no HTTP response"
-              : "request preview · chưa gửi",
+              ? "chưa nhận được kết quả kiểm tra mã"
+              : "chưa gửi yêu cầu kiểm tra mã",
         browser_to_aihub_bff: {
           method: "POST",
           path: "/api/demo/key/validate",
@@ -1150,7 +1151,7 @@ export default function SpeakingWorkbench() {
     if (step === 2)
       return liveReady
         ? pretty({
-            source: "GET question catalog via AIHUB BFF",
+            source: "đang tải danh sách câu hỏi",
             browser_to_aihub_bff: {
               method: "GET",
               path: `/api/demo/speaking/questions?part=${part}`,
@@ -1160,19 +1161,17 @@ export default function SpeakingWorkbench() {
               method: "GET",
               path: `/v1/ielts/speaking/questions?part=${part}`,
             },
-            note: "Public catalog; no grading quota.",
+            note: "Chỉ tải câu hỏi; chưa gửi bài chấm.",
           })
         : pretty({
-            source: "local fixture",
+            source: "bài mẫu có sẵn",
             http_request: null,
             part,
             questions: localPrompts,
           });
     if (step === 3)
       return pretty({
-        source: liveReady
-          ? "local draft preview · chưa gửi HTTP"
-          : "bản mẫu local · không gửi HTTP",
+        source: liveReady ? "bản xem trước · chưa gửi" : "bài mẫu · chưa gửi",
         planned_request: liveReady
           ? {
               method: "POST",
@@ -1215,8 +1214,9 @@ export default function SpeakingWorkbench() {
       method: "POST",
       url: `${demoEnvironmentHost(environment)}/v1/ielts/speaking/${gradingPath}`,
       headers: {
-        "X-API-Key":
-          "${AIHUB_API_KEY:?Set AIHUB_API_KEY to your API key first}",
+        "X-API-Key": apiKey.trim()
+          ? "[đã nhập, giá trị được ẩn]"
+          : "[chưa nhập]",
         "X-User-Identity": "<your end-user id>",
         "Content-Type": sampleAudioSelected
           ? "application/json"
@@ -1230,7 +1230,7 @@ export default function SpeakingWorkbench() {
     if (step === 1)
       return validationSkipped
         ? pretty({
-            source: "local choice",
+            source: "đã chọn xem bài mẫu",
             http_response: null,
             message: "Đã bỏ qua bước kiểm tra key.",
           })
@@ -1246,7 +1246,7 @@ export default function SpeakingWorkbench() {
             })
           : pretty({
               http_response: null,
-              message: "Chưa kiểm tra key; chưa có response.",
+              message: "Chưa kiểm tra mã API.",
             });
     if (step === 2)
       return liveReady
@@ -1260,84 +1260,84 @@ export default function SpeakingWorkbench() {
             body:
               questionResponse ??
               (questionLoading
-                ? { state: "request in progress" }
-                : { state: "no response received" }),
+                ? { state: "đang tải câu hỏi" }
+                : { state: "chưa nhận được kết quả" }),
           })
         : pretty({
-            source: "local fixture",
+            source: "bài mẫu có sẵn",
             http_response: null,
             part,
             questions: localPrompts,
           });
     if (step === 3)
       return pretty({
-        source: "local preview",
+        source: "bản xem trước",
         http_response: null,
         message: liveReady
-          ? "Chưa gửi. Audio chỉ được gửi ở bước 4 sau khi bấm chấm."
-          : "Bản mẫu chỉ đọc; chưa gửi audio.",
+          ? "Chưa gửi bài. Bản ghi âm chỉ được gửi ở bước 4 sau khi bấm chấm."
+          : "Đây là bài mẫu; chưa gửi bản ghi âm.",
       });
     return gradeResponse
       ? pretty(gradeResponse)
       : pretty({
           message: liveReady
             ? gradeAttempted
-              ? "Request đã gửi nhưng chưa nhận response HTTP."
-              : "Chưa gửi request."
-            : "Chưa chọn hiển thị kết quả mẫu.",
+              ? "Đã gửi bài nhưng chưa nhận được kết quả."
+              : "Chưa gửi bài đi chấm."
+            : "Chưa xem kết quả mẫu.",
         });
   };
 
   const traceNote = liveReady
-    ? `Every live grading request reauthenticates the ${demoEnvironmentName(environment)} key before quota and dispatch; trace redacts the key.`
-    : "Request is shown as a preview. The button returns a fixed frontend fixture; no grading API request is sent.";
+    ? "Mỗi lần gửi bài đều kiểm tra lại mã API. Mã API được ẩn trong phần chi tiết."
+    : "Nút này chỉ hiển thị kết quả mẫu có sẵn; bài của bạn không được gửi đi chấm.";
 
   const traceStatus =
     step === 1
       ? validationSkipped
-        ? "SKIPPED · LOCAL"
+        ? "Đã bỏ qua, đang xem bài mẫu"
         : checkingKey
-          ? "CHECKING KEY"
+          ? "Đang kiểm tra mã API"
           : keyCheckTrace
             ? `HTTP ${keyCheckTrace.status}`
             : keyError
-              ? "CHECK FAILED"
+              ? "Mã API chưa hợp lệ"
               : apiKey.trim()
-                ? "PREVIEW · NOT SENT"
-                : "KEY OPTIONAL"
+                ? "Chưa gửi mã đi kiểm tra"
+                : "Có thể bỏ qua mã API"
       : step === 2
         ? questionLoading
-          ? "LOADING QUESTIONS"
+          ? "Đang tải câu hỏi"
           : liveReady
             ? questionTrace
               ? `HTTP ${questionTrace.status}`
               : questionError
-                ? "NO HTTP RESPONSE"
-                : "LIVE CATALOG"
-            : "LOCAL FIXTURE"
+                ? "Chưa tải được câu hỏi"
+                : "Đã tải câu hỏi"
+            : "Danh sách câu hỏi mẫu"
         : step === 3
           ? liveReady
-            ? "DRAFT PREVIEW · NOT SENT"
-            : "READ-ONLY FIXTURE"
+            ? "Bài đã sẵn sàng · chưa gửi"
+            : "Đang xem bài mẫu"
           : submitting
-            ? "GRADING"
+            ? "Đang chấm bài"
             : !liveReady
               ? activeResult
-                ? "KẾT QUẢ MẪU"
-                : "READY"
+                ? "Kết quả mẫu có sẵn"
+                : "Sẵn sàng"
               : gradeTrace
                 ? `HTTP ${gradeTrace.status}`
                 : gradeAttempted
-                  ? "NO HTTP RESPONSE"
-                  : "PREVIEW · NOT SENT";
+                  ? "Chưa nhận được kết quả"
+                  : "Chưa gửi bài";
 
   return (
     <DemoWorkbench
       skill="speaking"
-      scope={SCOPE}
       title="Chấm IELTS Speaking"
-      description={`Chọn Speaking Part, ghi âm hoặc tải câu trả lời lên khi dùng key ${demoEnvironmentName(environment)}. Bỏ qua key để xem fixture read-only và kết quả mẫu cố định.`}
+      description="Chọn câu hỏi Speaking, ghi âm hoặc tải câu trả lời lên để chấm thật. Bạn cũng có thể xem bài mẫu có sẵn mà không cần mã API."
       step={step}
+      steps={SPEAKING_STEPS}
       showTrace={step === 4}
       showEnvironmentPicker={demoEnvironmentRequiresSelection(apiKey.trim())}
       stepperDisabled={grading || submitting}
@@ -1363,16 +1363,14 @@ export default function SpeakingWorkbench() {
       traceNote={traceNote}
     >
       <p className="demo-flow-eyebrow">
-        BƯỚC {step} / {DEMO_STEPS.length} · {DEMO_STEPS[step - 1]}
+        BƯỚC {step} / {SPEAKING_STEPS.length} · {SPEAKING_STEPS[step - 1]}
       </p>
 
       {step === 1 && (
         <>
-          <h3>Kiểm tra API key</h3>
+          <h3>Nhập mã API</h3>
           <div className="demo-field">
-            <label htmlFor="speaking-demo-key">
-              API key (Sandbox hoặc Production, tùy chọn)
-            </label>
+            <label htmlFor="speaking-demo-key">Mã API (không bắt buộc)</label>
             <input
               autoComplete="off"
               disabled={grading}
@@ -1394,25 +1392,26 @@ export default function SpeakingWorkbench() {
                 setGradeAttempted(false);
                 setError(null);
               }}
-              placeholder="aihub_sandbox_… hoặc aihub_prod_…"
+              placeholder="Dán mã API của bạn tại đây"
               spellCheck={false}
               type="password"
               value={apiKey}
             />
             <p className="demo-help">
-              Backend kiểm tra môi trường và quyền chấm Speaking trước khi mở
-              tính năng chấm thật.
+              Nhập mã API để tải câu hỏi và gửi bài chấm thật. Bạn có thể bỏ qua
+              bước này để xem bài mẫu; môi trường dùng thử miễn phí, môi trường
+              thật có thể tính phí.
             </p>
           </div>
           {keyError && (
             <div className="demo-error" role="alert">
-              <strong>{keyError.code}</strong> · {keyError.message}
+              {keyError.message}
             </div>
           )}
           {isScopeValidated(SCOPE) && apiKey && (
             <div className="demo-success">
-              Key đã qua kiểm tra bước 1. Backend sẽ kiểm tra lại trước mỗi lần
-              chấm.
+              Mã API đã được xác nhận. Mã sẽ được kiểm tra lại mỗi lần bạn gửi
+              bài.
             </div>
           )}
           <div className="demo-step-actions">
@@ -1422,7 +1421,7 @@ export default function SpeakingWorkbench() {
               onClick={validateKey}
               type="button"
             >
-              {checkingKey ? "Đang kiểm tra… " : ""}Kiểm tra key
+              {checkingKey ? "Đang kiểm tra… " : ""}Kiểm tra mã API
             </button>
             <button
               className="demo-btn-secondary"
@@ -1430,7 +1429,7 @@ export default function SpeakingWorkbench() {
               onClick={useMock}
               type="button"
             >
-              Bỏ qua, dùng mẫu
+              Xem câu hỏi mẫu
             </button>
           </div>
         </>
@@ -1441,8 +1440,8 @@ export default function SpeakingWorkbench() {
           <h3>Chọn câu hỏi Speaking</h3>
           <p>
             {liveReady
-              ? `Key ${demoEnvironmentName(environment)} đã xác thực. Chọn Part và câu hỏi từ danh sách; bước này chỉ tải câu hỏi, chưa gửi request chấm hoặc dùng quota.`
-              : "Mẫu chỉ đọc: chọn Part và câu hỏi có sẵn để xem fixture. Nhập key hợp lệ ở bước 1 để tải câu hỏi và mở ghi âm/tải audio chấm live."}
+              ? "Mã API đã được xác nhận. Chọn Part và câu hỏi; bước này chỉ tải danh sách, chưa gửi bài chấm hoặc dùng lượt chấm."
+              : "Chọn Part và câu hỏi mẫu để xem thử. Nhập mã API ở bước 1 nếu muốn tải câu hỏi mới và gửi ghi âm đi chấm thật."}
           </p>
           <div className="demo-inline-actions" aria-label="Speaking part">
             {PARTS.map((value) => (
@@ -1460,13 +1459,13 @@ export default function SpeakingWorkbench() {
           </div>
           {questionLoading && (
             <p className="demo-notice" role="status">
-              Đang tải câu hỏi từ {demoEnvironmentName(environment)}…
+              Đang tải danh sách câu hỏi…
             </p>
           )}
           {questionError && liveReady && (
             <div className="demo-error" role="alert">
-              {questionError} Không dùng câu hỏi fixture để chấm live. Quay lại
-              bước 1 và bỏ qua key để xem mẫu.
+              {questionError} Không thể dùng câu hỏi mẫu để chấm thật. Quay lại
+              bước 1 và chọn “Xem câu hỏi mẫu” để xem bài mẫu.
             </div>
           )}
           <div className="demo-scenario-list">
@@ -1489,8 +1488,6 @@ export default function SpeakingWorkbench() {
                 type="button"
               >
                 <strong>{item.question}</strong>
-                <br />
-                <small>{item.id}</small>
               </button>
             ))}
           </div>
@@ -1505,7 +1502,7 @@ export default function SpeakingWorkbench() {
               onClick={() => changeStep(1)}
               type="button"
             >
-              Quay lại API key
+              Quay lại nhập mã API
             </button>
             <button
               className="demo-btn-primary"
@@ -1521,7 +1518,7 @@ export default function SpeakingWorkbench() {
 
       {step === 3 && (
         <>
-          <h3>Câu trả lời bằng audio</h3>
+          <h3>Câu trả lời bằng ghi âm</h3>
           {prompt && (
             <div className="demo-notice">
               <strong>Part {part} · Câu hỏi đã chọn</strong>
@@ -1538,18 +1535,20 @@ export default function SpeakingWorkbench() {
           <p>
             {liveReady
               ? sampleAudioSelected
-                ? "Audio mẫu đã có sẵn cho câu hỏi này. Bạn có thể nghe thử, xóa để tải audio khác hoặc ghi âm câu trả lời của mình."
-                : "Tải audio hoặc ghi âm câu trả lời của bạn, rồi nghe lại, xóa hoặc thay tệp trước khi gửi ở bước 4. Tệp chỉ giữ trong bộ nhớ trang."
+                ? "Câu trả lời ghi âm mẫu đã có sẵn. Bạn có thể nghe thử, xóa để chọn tệp khác hoặc ghi âm câu trả lời của mình."
+                : "Chọn tệp ghi âm hoặc tự ghi âm câu trả lời. Bạn có thể nghe lại, xóa hoặc thay tệp trước khi gửi ở bước 4. Tệp chỉ dùng trong lần mở trang này."
               : sampleAudioSelected
-                ? "Audio mẫu chỉ để nghe trong chế độ này; không thể xóa hoặc thay đổi. Kết quả mẫu luôn cố định."
-                : `Chưa có audio mẫu cho câu hỏi Part ${part}; hiện chỉ có bản ghi mẫu cho một câu Part 1. Kết quả mẫu luôn cố định.`}
+                ? "Bạn có thể nghe câu trả lời mẫu nhưng không thể xóa hoặc thay đổi. Kết quả hiển thị là nhận xét mẫu có sẵn."
+                : `Hiện chỉ có câu trả lời ghi âm mẫu cho câu hỏi Part 1. Bạn vẫn có thể xem câu hỏi Part ${part} và kết quả mẫu.`}
           </p>
           {!liveReady ? (
             sampleAudioSelected ? (
               <div className="demo-field">
-                <span className="demo-field-label">Audio mẫu · Part 1</span>
+                <span className="demo-field-label">
+                  Câu trả lời ghi âm mẫu · Part 1
+                </span>
                 <audio
-                  aria-label="Nghe audio mẫu Speaking"
+                  aria-label="Nghe bản ghi âm mẫu Speaking"
                   className="demo-audio-player"
                   controls
                   preload="metadata"
@@ -1558,7 +1557,7 @@ export default function SpeakingWorkbench() {
               </div>
             ) : (
               <div className="demo-notice" role="status">
-                Audio mẫu cố định hiện có cho câu hỏi Part 1: “
+                Câu trả lời ghi âm mẫu hiện có cho câu hỏi Part 1: “
                 {SPEAKING_SAMPLE_ANSWER_REQUEST.prompt_text}”
               </div>
             )
@@ -1566,7 +1565,7 @@ export default function SpeakingWorkbench() {
             <>
               <input
                 accept=".wav,.mp3,.m4a,.webm,.ogg,audio/*"
-                aria-label="Chọn file audio Speaking"
+                aria-label="Chọn tệp ghi âm Speaking"
                 className="demo-sr-only"
                 data-testid="input-audio-file"
                 onChange={(event) => {
@@ -1585,7 +1584,7 @@ export default function SpeakingWorkbench() {
                   onClick={() => filePicker.current?.click()}
                   type="button"
                 >
-                  Tải audio
+                  Chọn tệp ghi âm
                 </button>
                 <button
                   className="demo-btn-secondary"
@@ -1602,19 +1601,19 @@ export default function SpeakingWorkbench() {
                   : file
                     ? `${file.name} · ${Math.ceil(file.size / 1024)} KB`
                     : sampleAudioSelected
-                      ? "Audio mẫu · câu trả lời có sẵn"
-                      : "Chưa chọn audio."}
+                      ? "Câu trả lời ghi âm mẫu có sẵn"
+                      : "Chưa chọn tệp ghi âm."}
               </div>
               {file ? (
                 <audio
-                  aria-label="Nghe lại audio đã chọn"
+                  aria-label="Nghe lại bản ghi âm đã chọn"
                   className="demo-audio-player"
                   controls
                   ref={audioPlayer}
                 />
               ) : sampleAudioSelected ? (
                 <audio
-                  aria-label="Nghe audio mẫu Speaking"
+                  aria-label="Nghe bản ghi âm mẫu Speaking"
                   className="demo-audio-player"
                   controls
                   preload="metadata"
@@ -1635,12 +1634,12 @@ export default function SpeakingWorkbench() {
                   }}
                   type="button"
                 >
-                  Xóa audio
+                  Xóa tệp ghi âm
                 </button>
               )}
               {file && (
                 <p className="demo-help">
-                  Tối đa 25 MB. Định dạng hỗ trợ: WAV, MP3, M4A, WebM hoặc OGG.
+                  Tệp ghi âm tối đa 25 MB. Hỗ trợ WAV, MP3, M4A, WebM hoặc OGG.
                 </p>
               )}
             </>
@@ -1678,15 +1677,15 @@ export default function SpeakingWorkbench() {
 
       {step === 4 && (
         <>
-          <h3>{liveReady ? "Gửi audio chấm thật" : "Xem kết quả mẫu"}</h3>
+          <h3>{liveReady ? "Gửi bài nói để chấm" : "Xem kết quả mẫu"}</h3>
           <p>
             {liveReady
-              ? `Audio ${sampleAudioSelected ? "mẫu qua JSON" : "của bạn qua multipart"} sẽ được gửi tới ${demoEnvironmentName(environment)}. API key được xác thực lại trước khi xử lý.`
-              : "Nút này chỉ hiển thị kết quả mẫu theo Part. Không gửi yêu cầu chấm bài."}
+              ? `Bản ghi âm ${sampleAudioSelected ? "mẫu có sẵn" : "của bạn"} sẽ được gửi đi chấm. Mã API được kiểm tra lại trước khi gửi.`
+              : "Nút này chỉ hiển thị điểm và nhận xét mẫu theo Part. Bản ghi của bạn không được gửi đi chấm."}
           </p>
           {error && (
             <div className="demo-error" role="alert">
-              <strong>{error.code}</strong> · {error.message}
+              {error.message}
               {error.retry_after_ms
                 ? ` Thử lại sau ${Math.ceil(error.retry_after_ms / 1000)} giây.`
                 : ""}
@@ -1714,7 +1713,7 @@ export default function SpeakingWorkbench() {
                 ? "Đang chấm…"
                 : liveReady
                   ? `Chấm thật Part ${part}`
-                  : `Hiện kết quả mẫu Part ${part}`}
+                  : `Xem kết quả mẫu Part ${part}`}
             </button>
             <button
               className="demo-btn-secondary"

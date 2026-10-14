@@ -18,6 +18,11 @@ const DEMO_ENVIRONMENT_LABELS: Record<DemoEnvironment, string> = {
   production: "Production (tính phí)",
 };
 
+const DEMO_INTERFACE_ENVIRONMENT_LABELS: Record<DemoEnvironment, string> = {
+  sandbox: "Dùng thử miễn phí",
+  production: "Môi trường thật · Có thể tính phí",
+};
+
 /** The bare name, for a field label that reads "API key Sandbox". */
 const DEMO_ENVIRONMENT_NAMES: Record<DemoEnvironment, string> = {
   sandbox: "Sandbox",
@@ -34,6 +39,10 @@ export function demoEnvironmentName(environment: DemoEnvironment) {
 
 export function demoEnvironmentLabel(environment: DemoEnvironment) {
   return DEMO_ENVIRONMENT_LABELS[environment];
+}
+
+export function demoInterfaceEnvironmentLabel(environment: DemoEnvironment) {
+  return DEMO_INTERFACE_ENVIRONMENT_LABELS[environment];
 }
 
 /** Routes newly issued key prefixes to validation; only the backend authorizes them. */
