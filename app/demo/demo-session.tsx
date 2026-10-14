@@ -51,6 +51,7 @@ type DemoSession = {
   acknowledgeProduction: () => void;
   userIdentity: string;
   setUserIdentity: (value: string) => void;
+  ensureUserIdentity: () => void;
 };
 
 const DemoSessionContext = createContext<DemoSession | null>(null);
@@ -101,6 +102,9 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     (value: string) => update(setApiKeyIn(stateRef.current, value)),
     [update]
   );
+  const ensureUserIdentity = useCallback(() => {
+    if (!userIdentity.trim()) setUserIdentity(globalThis.crypto.randomUUID());
+  }, [userIdentity]);
   const setEnvironment = useCallback(
     (value: DemoEnvironment) =>
       update(setEnvironmentIn(stateRef.current, value)),
@@ -162,6 +166,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       acknowledgeProduction,
       userIdentity,
       setUserIdentity,
+      ensureUserIdentity,
     }),
     [
       state,
@@ -179,6 +184,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       acknowledgeProduction,
       userIdentity,
       setUserIdentity,
+      ensureUserIdentity,
     ]
   );
 

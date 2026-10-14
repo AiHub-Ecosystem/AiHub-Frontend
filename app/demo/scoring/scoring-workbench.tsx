@@ -49,7 +49,10 @@ const CHART_TYPE_LABELS: Record<
   "Process Diagram": "Sơ đồ quy trình",
   "Multiple Graphs": "Nhiều biểu đồ",
 };
-const SCORING_STEPS = ["Kiểm tra mã API", ...DEMO_STEPS.slice(1, 4)];
+const SCORING_STEPS = [
+  "Chuẩn bị mã API và mã người dùng",
+  ...DEMO_STEPS.slice(1, 4),
+];
 
 type GradeResult = {
   task: 1 | 2;
@@ -357,6 +360,7 @@ export default function ScoringWorkbench() {
     acknowledgeProduction,
     userIdentity,
     setUserIdentity,
+    ensureUserIdentity,
   } = useDemoSession();
   const apiKey = state.apiKey;
   const environment = state.environment;
@@ -572,6 +576,7 @@ export default function ScoringWorkbench() {
       }
       markScopeValidated(SCOPE);
       setIdempotencyKey(globalThis.crypto.randomUUID());
+      ensureUserIdentity();
       setStep(2);
     } catch (caught) {
       if (
@@ -621,6 +626,7 @@ export default function ScoringWorkbench() {
       message: "Đã bỏ qua kiểm tra mã API; đang dùng bài mẫu có sẵn.",
     });
     setIdempotencyKey(globalThis.crypto.randomUUID());
+    ensureUserIdentity();
     setStep(2);
   };
 

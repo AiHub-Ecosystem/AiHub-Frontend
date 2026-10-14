@@ -49,7 +49,7 @@ function SpeakingRetryNote({ environment }: { environment: DemoEnvironment }) {
 
 const PARTS = [1, 2, 3] as const;
 const SPEAKING_STEPS = [
-  "Kiểm tra mã API",
+  "Chuẩn bị mã API và mã người dùng",
   "Chọn câu hỏi",
   "Chuẩn bị câu trả lời",
   "Chấm và xem kết quả",
@@ -567,6 +567,7 @@ export default function SpeakingWorkbench() {
     acknowledgeProduction,
     userIdentity,
     setUserIdentity,
+    ensureUserIdentity,
   } = useDemoSession();
   const apiKey = state.apiKey;
   const environment = state.environment;
@@ -839,6 +840,7 @@ export default function SpeakingWorkbench() {
         state: "pending",
         request: `/v1/ielts/speaking/questions?part=${part}`,
       });
+      ensureUserIdentity();
       setStep(2);
     } catch (caught) {
       if (
@@ -895,6 +897,7 @@ export default function SpeakingWorkbench() {
       message: "Đã bỏ qua bước kiểm tra mã API; đang dùng bài mẫu có sẵn.",
     });
     setKeyCheckTrace(null);
+    ensureUserIdentity();
     setStep(2);
   };
 

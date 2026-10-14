@@ -16,7 +16,7 @@ import { isEndUserId } from "@/lib/end-user-id";
 import type { SandboxAllowanceSnapshot } from "./demo-session-state";
 
 export const DEMO_STEPS = [
-  "Kiểm tra mã API",
+  "Chuẩn bị mã API và mã người dùng",
   "Chọn đề bài",
   "Chuẩn bị câu trả lời",
   "Chấm và xem kết quả",
@@ -58,7 +58,7 @@ type DemoWorkbenchProps = {
 };
 
 const STEP_SUMMARY = [
-  "Nhập mã API để sửa bài và chấm thật, hoặc bỏ qua để xem bài mẫu.",
+  "Nhập mã API và mã người dùng, hoặc bỏ qua để xem bài mẫu.",
   "Chọn đề bài để làm thử.",
   "Nhập bài viết hoặc chuẩn bị câu trả lời bằng giọng nói.",
   "Xem điểm và nhận xét.",
@@ -77,6 +77,7 @@ export function DemoUserIdentityField({
 }) {
   return (
     <div className="demo-field">
+      <h3>Nhập mã người dùng</h3>
       <label htmlFor={id}>Mã người dùng của ứng dụng (X-User-Identity)</label>
       <input
         autoComplete="off"
