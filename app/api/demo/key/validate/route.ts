@@ -71,12 +71,9 @@ function errorMessage(code: string, environment?: DemoEnvironment) {
     case "ENVIRONMENT_NOT_ALLOWED":
       return `Key này không được phép dùng cho môi trường ${environment ?? "đã chọn"}.`;
     case "FORBIDDEN":
-      // The backend denies an environment mismatch, a missing scope and an
-      // identity-configured Organization the same way, so the message names all
-      // three rather than guessing which one it was.
-      return `Key không được phép cho môi trường ${
-        environment ?? "đã chọn"
-      }: hoặc thiếu scope cần thiết, hoặc key thuộc môi trường khác, hoặc Organization đang bật Identity Configuration.`;
+      // The backend intentionally uses one denial for these cases; don't claim
+      // to know which one happened.
+      return `Không thể dùng mã API này cho bản thử. Hãy kiểm tra đúng môi trường và quyền chấm của key. Nếu tổ chức yêu cầu mã người dùng có chữ ký từ máy chủ, bản thử chưa hỗ trợ; đăng nhập hoặc nhập ID thường không thay thế được chữ ký đó. Hãy gửi yêu cầu từ máy chủ của bạn.`;
     case "RATE_LIMITED":
       return "Bạn kiểm tra key quá nhanh. Chờ một chút rồi thử lại.";
     case "PAYLOAD_TOO_LARGE":

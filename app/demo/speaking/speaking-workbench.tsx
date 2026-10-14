@@ -22,9 +22,14 @@ import {
   type DemoEnvironment,
 } from "@/lib/demo-environments";
 import { buildDemoExports } from "@/lib/demo-export";
+import { isEndUserId } from "@/lib/end-user-id";
 import { useDemoSession, type DemoScope } from "@/app/demo/demo-session";
 import { sandboxAllowanceFrom } from "@/app/demo/demo-session-state";
-import { DemoWorkbench, type DemoStep } from "@/app/demo/demo-workbench";
+import {
+  DemoUserIdentityField,
+  DemoWorkbench,
+  type DemoStep,
+} from "@/app/demo/demo-workbench";
 import { errorFromPayload, type PublicError } from "../scoring/scoring-client";
 
 const SCOPE: DemoScope = "speaking.grade";
@@ -560,7 +565,8 @@ export default function SpeakingWorkbench() {
     clearScopeValidation,
     requiresProductionAcknowledgement,
     acknowledgeProduction,
-    getUserIdentity,
+    userIdentity,
+    setUserIdentity,
   } = useDemoSession();
   const apiKey = state.apiKey;
   const environment = state.environment;
@@ -596,6 +602,7 @@ export default function SpeakingWorkbench() {
 
   const liveReady =
     apiKey.trim().length > 0 && isScopeValidated(SCOPE) && !skipMock;
+  const userIdentityValid = isEndUserId(userIdentity);
   const mode = liveReady ? "live" : "mock";
   const localPrompts = MOCK_SPEAKING_PROMPTS.filter(
     (item) => item.part === part
@@ -711,9 +718,13 @@ export default function SpeakingWorkbench() {
           environment,
           skill: "speaking",
           title: `Speaking Part ${SPEAKING_SAMPLE_ANSWER_REQUEST.part}`,
+          apiKey: liveReady ? apiKey.trim() : undefined,
           path: "/v1/ielts/speaking/grading-json",
           headers: [
-            { name: "X-User-Identity", value: "<your end-user id>" },
+            {
+              name: "X-User-Identity",
+              value: userIdentityValid ? userIdentity : "<your end-user id>",
+            },
             { name: "Content-Type", value: "application/json" },
           ],
           body: SPEAKING_SAMPLE_ANSWER_REQUEST,
@@ -995,6 +1006,13 @@ export default function SpeakingWorkbench() {
       });
       return;
     }
+    if (!userIdentityValid) {
+      setError({
+        code: "INVALID_USER_IDENTITY",
+        message: "Nhập mã người dùng gồm 1–256 ký tự, không chứa khoảng trắng.",
+      });
+      return;
+    }
     // The first Production grade of a visit needs the billable acknowledgement;
     // it is not a spend cap, only a gate the backend still enforces afterwards.
     if (requiresProductionAcknowledgement()) {
@@ -1046,7 +1064,7 @@ export default function SpeakingWorkbench() {
         headers: {
           "X-Demo-API-Key": apiKey.trim(),
           "X-Demo-Environment": environment,
-          "X-Demo-User-Identity": getUserIdentity(),
+          "X-Demo-User-Identity": userIdentity,
           ...(sampleAudioSelected
             ? { "Content-Type": "application/json" }
             : {}),
@@ -1189,7 +1207,9 @@ export default function SpeakingWorkbench() {
                 : "/v1/ielts/speaking/grading",
               headers: {
                 "X-Demo-API-Key": "[REDACTED]",
-                "X-Demo-User-Identity": "<generated at submit>",
+                "X-Demo-User-Identity": userIdentityValid
+                  ? userIdentity
+                  : "<your end-user id>",
                 "Content-Type": sampleAudioSelected
                   ? "application/json"
                   : "multipart/form-data; browser generated boundary",
@@ -1220,10 +1240,10 @@ export default function SpeakingWorkbench() {
       method: "POST",
       url: `${demoEnvironmentHost(environment)}/v1/ielts/speaking/${gradingPath}`,
       headers: {
-        "X-API-Key": apiKey.trim()
-          ? "[đã nhập, giá trị được ẩn]"
-          : "[chưa nhập]",
-        "X-User-Identity": "<your end-user id>",
+        "X-API-Key": liveReady ? apiKey.trim() : "[chưa có mã API hợp lệ]",
+        "X-User-Identity": userIdentityValid
+          ? userIdentity
+          : "<your end-user id>",
         "Content-Type": sampleAudioSelected
           ? "application/json"
           : "multipart/form-data; boundary=<generated automatically>",
@@ -1295,7 +1315,7 @@ export default function SpeakingWorkbench() {
   };
 
   const traceNote = liveReady
-    ? "Mỗi lần gửi bài đều kiểm tra lại mã API. Mã API được ẩn trong phần chi tiết."
+    ? "Mã API xuất hiện trong thông tin gửi đi và lệnh được sao chép. Hãy giữ kín ảnh chụp và nội dung đã sao chép."
     : "Nút này chỉ hiển thị kết quả mẫu có sẵn; bài của bạn không được gửi đi chấm.";
 
   const traceStatus =
@@ -1365,6 +1385,7 @@ export default function SpeakingWorkbench() {
       sandboxAllowance={allowance}
       productionKeyValidated={isScopeValidated(SCOPE) && Boolean(apiKey)}
       exports={copyableExports}
+      exportsContainApiKey={liveReady}
       overview={<SpeakingFlowOverview />}
       traceNote={traceNote}
     >
@@ -1409,6 +1430,23 @@ export default function SpeakingWorkbench() {
               thật có thể tính phí.
             </p>
           </div>
+          <DemoUserIdentityField
+            disabled={grading}
+            id="speaking-demo-user-identity"
+            onChange={(value) => {
+              setUserIdentity(value);
+              setQuestionError(null);
+              setQuestionResponse(null);
+              setQuestionTrace(null);
+              setLivePrompts(null);
+              setResult(null);
+              setGradeResponse(null);
+              setGradeTrace(null);
+              setGradeAttempted(false);
+              setError(null);
+            }}
+            value={userIdentity}
+          />
           {keyError && (
             <div className="demo-error" role="alert">
               {keyError.message}

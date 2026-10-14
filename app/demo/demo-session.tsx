@@ -49,7 +49,8 @@ type DemoSession = {
   clearScopeValidation: () => void;
   requiresProductionAcknowledgement: () => boolean;
   acknowledgeProduction: () => void;
-  getUserIdentity: () => string;
+  userIdentity: string;
+  setUserIdentity: (value: string) => void;
 };
 
 const DemoSessionContext = createContext<DemoSession | null>(null);
@@ -63,8 +64,8 @@ const DemoSessionContext = createContext<DemoSession | null>(null);
 export function DemoSessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState(createDemoVisitState);
   const [grading, setGrading] = useState(false);
+  const [userIdentity, setUserIdentity] = useState("");
   const stateRef = useRef(state);
-  const identity = useRef<string | null>(null);
   const gradingRef = useRef(false);
 
   const update = useCallback((next: DemoVisitState) => {
@@ -74,7 +75,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const forget = () => {
-      identity.current = null;
+      setUserIdentity(globalThis.crypto.randomUUID());
       update(clearDemoVisit(stateRef.current));
     };
     const onPageShow = (event: PageTransitionEvent) => {
@@ -83,9 +84,14 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     const onStorage = (event: StorageEvent) => {
       if (isLogoutSignal(event)) forget();
     };
+    const identityTimer = window.setTimeout(
+      () => setUserIdentity(globalThis.crypto.randomUUID()),
+      0
+    );
     window.addEventListener("pageshow", onPageShow);
     window.addEventListener("storage", onStorage);
     return () => {
+      window.clearTimeout(identityTimer);
       window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("storage", onStorage);
     };
@@ -139,11 +145,6 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     () => update(acknowledgeProductionIn(stateRef.current)),
     [update]
   );
-  const getUserIdentity = useCallback(() => {
-    identity.current ??= globalThis.crypto.randomUUID();
-    return identity.current;
-  }, []);
-
   const value = useMemo(
     () => ({
       state,
@@ -159,7 +160,8 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       clearScopeValidation,
       requiresProductionAcknowledgement,
       acknowledgeProduction,
-      getUserIdentity,
+      userIdentity,
+      setUserIdentity,
     }),
     [
       state,
@@ -175,7 +177,8 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       clearScopeValidation,
       requiresProductionAcknowledgement,
       acknowledgeProduction,
-      getUserIdentity,
+      userIdentity,
+      setUserIdentity,
     ]
   );
 

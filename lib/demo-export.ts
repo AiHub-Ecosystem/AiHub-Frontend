@@ -4,7 +4,7 @@ import {
   type DemoEnvironment,
 } from "@/lib/demo-environments";
 
-/** The holder sets the key once; no artifact ever carries its value. */
+/** Used when no validated API key is available to the demo. */
 export const DEMO_EXPORT_KEY_ENV = "AIHUB_API_KEY";
 
 /** Postman resolves this variable when the imported cURL request is sent. */
@@ -14,6 +14,8 @@ export type DemoExportRequest = {
   environment: DemoEnvironment;
   skill: "writing" | "speaking";
   title: string;
+  /** Included in request examples only when the demo validated this key. */
+  apiKey?: string;
   /** The public API path, without a host. */
   path: string;
   /** Everything except X-API-Key, which this module owns. */
@@ -58,7 +60,7 @@ function curlCommand(
   const lines = [
     "curl --request POST",
     `  --url ${posixQuoted(url)}`,
-    `  --header ${apiKeyHeader}`,
+    `  --header ${request.apiKey ? posixQuoted(`X-API-Key: ${request.apiKey}`) : apiKeyHeader}`,
     ...request.headers
       .filter((header) => header.name !== "X-API-Key")
       .map(
@@ -97,7 +99,7 @@ function powershellCurl(url: string, request: DemoExportRequest): string {
   const flags = [
     "  curl.exe --request POST",
     `    --url ${powershellQuoted(url)}`,
-    `    --header "X-API-Key: $apiKey"`,
+    `    --header ${request.apiKey ? powershellQuoted(`X-API-Key: ${request.apiKey}`) : '"X-API-Key: $apiKey"'}`,
     ...request.headers
       .filter((header) => header.name !== "X-API-Key")
       .map(
@@ -117,8 +119,12 @@ function powershellCurl(url: string, request: DemoExportRequest): string {
     "  $utf8 = New-Object System.Text.UTF8Encoding $false",
     "  $bodyFile = [IO.Path]::GetTempFileName()",
     "  [IO.File]::WriteAllText($bodyFile, $body, $utf8)",
-    `  $apiKey = $env:${DEMO_EXPORT_KEY_ENV}`,
-    `  if (-not $apiKey) { throw 'Set $env:${DEMO_EXPORT_KEY_ENV} to your API key first' }`,
+    ...(!request.apiKey
+      ? [
+          `  $apiKey = $env:${DEMO_EXPORT_KEY_ENV}`,
+          `  if (-not $apiKey) { throw 'Set $env:${DEMO_EXPORT_KEY_ENV} to your API key first' }`,
+        ]
+      : []),
     ...(request.idempotencyKey
       ? [`  $idempotencyKey = ${powershellQuoted(request.idempotencyKey)}`]
       : []),
@@ -168,9 +174,8 @@ function agentPrompt(url: string, request: DemoExportRequest): string {
 }
 
 /**
- * Every copyable artifact for one request. The holder's key never enters this
- * module, so no artifact can carry it; user-authored text is serialised per
- * format rather than concatenated into command syntax (ADR-0018).
+ * Builds request details and commands for one validated selection. The agent
+ * prompt omits the key; shell commands quote it when explicitly passed.
  */
 export function buildDemoExports(request: DemoExportRequest): DemoExports {
   const url = `${demoEnvironmentHost(request.environment)}${request.path}`;

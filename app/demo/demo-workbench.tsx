@@ -12,6 +12,7 @@ import {
   DEMO_EXPORT_KEY_ENV,
   type DemoExports,
 } from "@/lib/demo-export";
+import { isEndUserId } from "@/lib/end-user-id";
 import type { SandboxAllowanceSnapshot } from "./demo-session-state";
 
 export const DEMO_STEPS = [
@@ -51,6 +52,7 @@ type DemoWorkbenchProps = {
   requiresProductionAcknowledgement: boolean;
   onAcknowledgeProduction: () => void;
   exports: DemoExports | null;
+  exportsContainApiKey?: boolean;
   overview?: ReactNode;
   children: ReactNode;
 };
@@ -61,6 +63,49 @@ const STEP_SUMMARY = [
   "Nhập bài viết hoặc chuẩn bị câu trả lời bằng giọng nói.",
   "Xem điểm và nhận xét.",
 ];
+
+export function DemoUserIdentityField({
+  id,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="demo-field">
+      <label htmlFor={id}>Mã người dùng của ứng dụng (X-User-Identity)</label>
+      <input
+        autoComplete="off"
+        disabled={disabled}
+        id={id}
+        maxLength={256}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Tự tạo mã ngẫu nhiên"
+        spellCheck={false}
+        type="text"
+        value={value}
+      />
+      <p className="demo-help">
+        Mã ngẫu nhiên được tạo sẵn. Bạn có thể thay bằng ID người dùng trong ứng
+        dụng của mình; không dùng email, tên hoặc số điện thoại.
+      </p>
+      <p className="demo-help">
+        Nếu tổ chức yêu cầu mã người dùng có chữ ký từ máy chủ, bản thử này
+        không thể thay máy chủ tạo chữ ký đó. Đăng nhập AIHUB hoặc nhập ID thông
+        thường cũng không thay thế được; hãy gửi yêu cầu từ máy chủ của bạn.
+      </p>
+      {value.length > 0 && !isEndUserId(value) && (
+        <p className="demo-error" role="alert">
+          Mã cần có 1–256 ký tự, không chứa khoảng trắng.
+        </p>
+      )}
+    </div>
+  );
+}
 
 function consoleStatusTone(status: string) {
   if (/^HTTP 2\d\d|đã chấm thật|đã nhận kết quả/i.test(status)) return "live";
@@ -122,6 +167,7 @@ export function DemoWorkbench({
   requiresProductionAcknowledgement,
   onAcknowledgeProduction,
   exports,
+  exportsContainApiKey = false,
   overview,
   children,
 }: DemoWorkbenchProps) {
@@ -402,8 +448,8 @@ export function DemoWorkbench({
             <p className="demo-console-note">
               {traceNote ??
                 (mode === "mock"
-                  ? "Đây là thông tin minh họa; bài không được gửi đi chấm. Mã API luôn được ẩn."
-                  : "Mã API luôn được ẩn trong phần thông tin này.")}
+                  ? "Đây là thông tin minh họa; bài không được gửi đi chấm."
+                  : "Thông tin gửi đi mô tả yêu cầu chấm hiện tại.")}
             </p>
           </aside>
         )}
@@ -457,13 +503,15 @@ export function DemoWorkbench({
           <p className="demo-console-note">
             {skill === "speaking" &&
               "Lệnh mẫu dùng bản ghi âm có sẵn. Nếu muốn gửi bản ghi của mình, hãy chọn Bash hoặc PowerShell."}{" "}
-            {exportFormat === "postman"
-              ? "Trong Postman, chọn Import (Nhập) và dán lệnh đã sao chép. Điền mã API vào ô aihub_api_key trước khi gửi. Lệnh này không chứa mã API của bạn."
-              : exportFormat === "powershell"
-                ? `Lệnh không chứa mã API. Trước khi chạy, hãy điền mã vào biến $env:${DEMO_EXPORT_KEY_ENV} trong PowerShell.`
-                : exportFormat === "curl"
-                  ? `Lệnh không chứa mã API. Hãy điền mã vào biến ${DEMO_EXPORT_KEY_ENV} trong cửa sổ lệnh trước khi chạy.`
-                  : "Dán hướng dẫn vào ChatGPT hoặc công cụ lập trình AI để soạn lệnh Bash, PowerShell hoặc Postman. Hướng dẫn chỉ tạo lệnh, không tự gửi bài và không chứa mã API của bạn."}
+            {exportFormat === "prompt"
+              ? "Dán hướng dẫn vào ChatGPT hoặc công cụ lập trình AI để soạn lệnh Bash, PowerShell hoặc Postman. Hướng dẫn chỉ tạo lệnh, không tự gửi bài và không chứa mã API của bạn."
+              : exportsContainApiKey
+                ? "Lệnh này có chứa mã API của bạn. Hãy giữ kín nội dung đã sao chép."
+                : exportFormat === "postman"
+                  ? "Trong Postman, chọn Import (Nhập) và dán lệnh đã sao chép. Điền mã API vào ô aihub_api_key trước khi gửi. Lệnh này không chứa mã API của bạn."
+                  : exportFormat === "powershell"
+                    ? `Lệnh chưa chứa mã API. Trước khi chạy, hãy điền mã vào biến $env:${DEMO_EXPORT_KEY_ENV} trong PowerShell.`
+                    : `Lệnh chưa chứa mã API. Hãy điền mã vào biến ${DEMO_EXPORT_KEY_ENV} trong cửa sổ lệnh trước khi chạy.`}
           </p>
         </section>
       )}
