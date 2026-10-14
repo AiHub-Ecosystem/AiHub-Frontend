@@ -356,10 +356,13 @@ export function DemoWorkbench({
                 <div className="demo-notice" data-testid="sandbox-allowance">
                   {sandboxAllowance ? (
                     <>
-                      Tổ chức của bạn đã dùng {sandboxAllowance.reserved}/
-                      {sandboxAllowance.monthlyLimit} lượt chấm miễn phí trong
-                      tháng. Đây là số liệu lúc kiểm tra mã; số lượt còn lại sẽ
-                      được cập nhật khi kiểm tra lại.
+                      Tổ chức của bạn đã dùng{" "}
+                      <strong className="demo-allowance-count">
+                        {sandboxAllowance.reserved}/
+                        {sandboxAllowance.monthlyLimit} lượt
+                      </strong>{" "}
+                      chấm miễn phí trong tháng. Đây là số liệu lúc kiểm tra mã;
+                      số lượt còn lại sẽ được cập nhật khi kiểm tra lại.
                     </>
                   ) : (
                     <>

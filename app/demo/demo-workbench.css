@@ -513,6 +513,16 @@
   color: #475467;
 }
 
+.demo-allowance-count {
+  background: #e8edff;
+  border-radius: 6px;
+  color: #3046b8;
+  display: inline-block;
+  font-weight: 700;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
 .demo-error {
   background: #fff1f0;
   border: 1px solid #ffd1cc;
