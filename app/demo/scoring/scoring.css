@@ -1,5 +1,17 @@
 @import "../demo-workbench.css";
 
+.aihub-demo-flow .scoring-chart-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+  padding: 12px;
+  border: 1px solid var(--demo-line);
+  border-radius: 9px;
+  background: #fff;
+}
+
 .aihub-demo-flow {
   --demo-criterion-achieve-bg: #dcebff;
   --demo-criterion-achieve-ink: #1f4f9e;

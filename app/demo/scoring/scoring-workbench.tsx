@@ -483,7 +483,7 @@ export default function ScoringWorkbench() {
     : undefined;
   const chartProblem =
     task === 1 && !isFetchableImageUrl(activeDraft.imageUrl ?? "")
-      ? "Đường dẫn ảnh cần bắt đầu bằng https:// và mở được trên internet."
+      ? "Ảnh biểu đồ chưa hợp lệ. Hãy tải lại ảnh."
       : null;
 
   const selectMockPrompt = (index: number) => {
@@ -1084,15 +1084,14 @@ export default function ScoringWorkbench() {
                 </p>
               </div>
               <div className="demo-field">
-                <label htmlFor="writing-image-url">Đường dẫn ảnh</label>
-                <input
-                  data-testid="input-image-url"
-                  disabled={!liveReady}
-                  id="writing-image-url"
-                  onChange={(event) =>
-                    setDraft({ imageUrl: event.target.value })
-                  }
-                  value={activeDraft.imageUrl}
+                <span className="demo-field-label">Ảnh biểu đồ</span>
+                {/* eslint-disable-next-line @next/next/no-img-element -- Load the published chart directly without a server image proxy. */}
+                <img
+                  alt="Biểu đồ dùng để chấm Writing Task 1"
+                  className="scoring-chart-image"
+                  data-testid="scoring-chart-preview"
+                  referrerPolicy="no-referrer"
+                  src={activeDraft.imageUrl}
                 />
                 {chartProblem && liveReady && (
                   <div
@@ -1105,7 +1104,7 @@ export default function ScoringWorkbench() {
                 )}
                 <p className="demo-help">
                   {liveReady
-                    ? "Dán liên kết ảnh có thể mở được trên internet."
+                    ? "Chọn tệp mới bên dưới để thay ảnh biểu đồ này."
                     : "Bài mẫu đang dùng ảnh có sẵn. Nhập mã API ở bước 1 để thay ảnh."}
                 </p>
               </div>

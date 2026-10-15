@@ -6,8 +6,13 @@ import {
 } from "@playwright/test";
 import { waitForHydration } from "./hydration";
 import { expectReadable } from "./text-contrast";
+import { WRITING_TASK1_SAMPLE_IMAGE_URL } from "../../data/writing-task1-request";
 
 const mockUrl = "http://127.0.0.1:3101";
+const chartImageBytes = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "base64"
+);
 
 type ScoringRequest = {
   task: string;
@@ -88,7 +93,7 @@ async function keepBrowserTrafficLocal(page: Page) {
       await route.continue();
       return;
     }
-    // The chart preview points at the sample image; it never needs to load.
+    // Serve previews locally so browser checks do not depend on storage.
     if (url.hostname === "s3.wispace.app") {
       // A path under /missing stands for the failure this page has to survive:
       // a URL that is well formed and points at nothing. It has to be answered
@@ -106,10 +111,7 @@ async function keepBrowserTrafficLocal(page: Page) {
       await route.fulfill({
         status: 200,
         contentType: "image/png",
-        body: Buffer.from(
-          "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63fccfc0500f0004850181",
-          "hex"
-        ),
+        body: chartImageBytes,
       });
       return;
     }
@@ -299,7 +301,20 @@ test("grades the prefilled Task 1 sample without a login", async ({
 
   // The page must be runnable with no typing.
   await expect(page.getByTestId("select-chart-type")).toHaveValue("Bar Chart");
-  await expect(page.getByTestId("input-image-url")).toHaveValue(/^https:\/\//);
+  await expect(page.getByTestId("input-image-url")).toHaveCount(0);
+  const chartPreview = page.getByRole("img", {
+    name: "Biểu đồ dùng để chấm Writing Task 1",
+  });
+  await expect(chartPreview).toHaveAttribute(
+    "src",
+    WRITING_TASK1_SAMPLE_IMAGE_URL
+  );
+  await expect(chartPreview).toBeVisible();
+  await expect
+    .poll(() =>
+      chartPreview.evaluate((image: HTMLImageElement) => image.naturalWidth)
+    )
+    .toBeGreaterThan(0);
   await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
   await expect(page.locator(".demo-console")).toHaveCount(0);
   await expect(page.getByTestId("export-artifact")).toHaveCount(0);
@@ -341,7 +356,7 @@ test("uploads a Task 1 chart and grades with its published URL", async ({
 }) => {
   const assertNoExternalTraffic = await keepBrowserTrafficLocal(page);
   await resetScoringLog(request);
-  const bytes = Buffer.from("chart-bytes");
+  const bytes = chartImageBytes;
   const assetId = "chart_01J00000000000000000000001";
   const imageUrl = "https://charts-upload.test/writing-charts/chart.png";
   let uploadedBytes: Buffer | undefined;
@@ -402,12 +417,19 @@ test("uploads a Task 1 chart and grades with its published URL", async ({
     await route.fulfill({
       status: 200,
       contentType: "image/png",
-      body: Buffer.from("png"),
+      body: chartImageBytes,
     });
   });
 
   await page.goto("/demo/scoring");
   await openWriting(page, { mode: "live", step: 2 });
+  const chartPreview = page.getByTestId("scoring-chart-preview");
+  await expect(chartPreview).toHaveAttribute(
+    "src",
+    WRITING_TASK1_SAMPLE_IMAGE_URL
+  );
+  await expect(page.getByLabel("Đường dẫn ảnh")).toHaveCount(0);
+  await expect(page.locator('input[type="file"]')).toHaveCount(1);
   await expect(page.getByLabel("Chọn ảnh biểu đồ")).toBeEnabled();
   await expect(page.getByRole("note")).toContainText("bất kỳ ai có đường dẫn");
   await page.getByLabel("Chọn ảnh biểu đồ").setInputFiles({
@@ -415,10 +437,21 @@ test("uploads a Task 1 chart and grades with its published URL", async ({
     mimeType: "image/png",
     buffer: bytes,
   });
-  await expect(page.getByTestId("input-image-url")).toHaveValue(imageUrl);
+  await expect(chartPreview).toHaveAttribute("src", imageUrl);
+  await expect
+    .poll(() =>
+      chartPreview.evaluate((image: HTMLImageElement) => image.naturalWidth)
+    )
+    .toBeGreaterThan(0);
   expect(uploadedBytes?.includes(Buffer.from('name="Policy"'))).toBe(true);
   expect(uploadedBytes?.includes(Buffer.from('name="key"'))).toBe(true);
   expect(uploadedBytes?.includes(bytes)).toBe(true);
+
+  await page.getByTestId("tab-task-2").click();
+  await expect(chartPreview).toHaveCount(0);
+  await expect(page.getByLabel("Chọn ảnh biểu đồ")).toHaveCount(0);
+  await page.getByTestId("tab-task-1").click();
+  await expect(chartPreview).toHaveAttribute("src", imageUrl);
 
   await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
   await page.getByRole("button", { name: "Xem bước chấm" }).click();
@@ -1094,44 +1127,46 @@ test("the report is never clipped, at any width", async ({ page }) => {
   }
 });
 
-/** Invalid chart URLs are blocked before a live grading request can be sent. */
-test("a chart URL the endpoint would reject cannot be submitted", async ({
+test("a rejected chart upload keeps the current preview and grading URL", async ({
   page,
   request,
 }) => {
-  await keepBrowserTrafficLocal(page);
+  const assertNoExternalTraffic = await keepBrowserTrafficLocal(page);
   await resetScoringLog(request);
+  await page.route("**/api/demo/scoring/chart-uploads", async (route) => {
+    await route.fulfill({
+      status: 429,
+      json: {
+        error: {
+          code: "RATE_LIMITED",
+          message: "Đã hết lượt tải ảnh. Vui lòng thử lại sau.",
+        },
+      },
+    });
+  });
   await page.goto("/demo/scoring");
   await openWriting(page, { mode: "live", step: 2 });
 
-  // The prefilled sample is valid.
-  await expect(page.getByTestId("chart-url-problem")).toBeHidden();
-
-  for (const bad of [
-    "http://s3.wispace.app/chart.png",
-    "https://user:pass@s3.wispace.app/c.png",
-    "not a url",
-    "",
-  ]) {
-    await page.getByTestId("input-image-url").fill(bad);
-    await expect(page.getByTestId("chart-url-problem")).toBeVisible();
-  }
-
-  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
-  await page.getByRole("button", { name: "Xem bước chấm" }).click();
-  await expect(page.getByTestId("button-grade")).toBeDisabled();
-
-  // Correcting the value clears the warning and restores the grading action.
-  await page.getByRole("button", { name: "Sửa bài" }).click();
-  await page.getByRole("button", { name: "Quay lại đề" }).click();
-  await page
-    .getByTestId("input-image-url")
-    .fill("https://s3.wispace.app/ielts-task1/ca95bd4ab522946e");
+  await page.getByLabel("Chọn ảnh biểu đồ").setInputFiles({
+    name: "chart.png",
+    mimeType: "image/png",
+    buffer: chartImageBytes,
+  });
+  await expect(page.locator(".demo-error[role=alert]")).toContainText(
+    "Đã hết lượt tải ảnh"
+  );
+  await expect(page.getByTestId("scoring-chart-preview")).toHaveAttribute(
+    "src",
+    WRITING_TASK1_SAMPLE_IMAGE_URL
+  );
   await expect(page.getByTestId("chart-url-problem")).toBeHidden();
   await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
   await page.getByRole("button", { name: "Xem bước chấm" }).click();
   await expect(page.getByTestId("button-grade")).toBeEnabled();
-
-  // Nothing was sent while the field was refusing to be.
-  expect((await scoringLog(request)).requests).toHaveLength(0);
+  await page.getByTestId("button-grade").click();
+  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  const log = await scoringLog(request);
+  expect(log.requests).toHaveLength(1);
+  expect(log.requests[0]?.body.image_url).toBe(WRITING_TASK1_SAMPLE_IMAGE_URL);
+  assertNoExternalTraffic();
 });
