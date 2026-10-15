@@ -45,10 +45,12 @@ test("Writing and Speaking default to Sandbox without an environment picker", as
   const userIdentity = page.getByLabel(
     "Mã người dùng của ứng dụng (X-User-Identity)"
   );
+  await expect(userIdentity).toHaveCount(0);
+  await page.getByLabel("Mã API (không bắt buộc)").fill(demoKey);
+  await page.getByRole("button", { name: "Xem bài mẫu" }).click();
   await expect(userIdentity).toHaveValue(/^[0-9a-f-]{36}$/);
   await expect(userIdentity).toBeDisabled();
   const initialIdentity = await userIdentity.inputValue();
-  await page.getByLabel("Mã API (không bắt buộc)").fill(demoKey);
   await expect(page.locator(".demo-env-picker")).toHaveCount(0);
 
   await page.getByRole("link", { name: "Speaking", exact: true }).click();
@@ -58,12 +60,16 @@ test("Writing and Speaking default to Sandbox without an environment picker", as
     "Kết quả mẫu có sẵn"
   );
   await expect(page.getByLabel("Mã API (không bắt buộc)")).toBeVisible();
+  const speakingIdentity = page.getByLabel(
+    "Mã người dùng của ứng dụng (X-User-Identity)"
+  );
+  await expect(speakingIdentity).toHaveCount(0);
+  await page.getByRole("button", { name: "Xem câu hỏi mẫu" }).click();
   await expect(
-    page.getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
-  ).toHaveValue(initialIdentity);
-  await expect(
-    page.getByRole("heading", { name: "Nhập mã API" })
+    page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
   ).toBeVisible();
+  await expect(speakingIdentity).toHaveValue(initialIdentity);
+  await expect(speakingIdentity).toBeDisabled();
 });
 
 test("Speaking detects a Production key and clears its acknowledgement on Sandbox change", async ({
@@ -374,6 +380,7 @@ test("a key entered in one demo skill is still there in the other", async ({
   await page.getByRole("link", { name: "Speaking" }).click();
   await waitForHydration(page);
   await expect(page.getByLabel("Mã API (không bắt buộc)")).toHaveValue(demoKey);
+  await page.getByRole("button", { name: "Xem câu hỏi mẫu" }).click();
   await expect(
     page.getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
   ).toHaveValue("learner_7");

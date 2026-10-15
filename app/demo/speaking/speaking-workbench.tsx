@@ -1511,14 +1511,12 @@ export default function SpeakingWorkbench() {
 
       {step === 2 && (
         <>
-          {liveReady && (
-            <DemoUserIdentityField
-              disabled={checkingKey || grading}
-              id="speaking-demo-user-identity"
-              onChange={handleUserIdentityChange}
-              value={userIdentity}
-            />
-          )}
+          <DemoUserIdentityField
+            disabled={!liveReady || checkingKey || grading}
+            id="speaking-demo-user-identity"
+            onChange={handleUserIdentityChange}
+            value={userIdentity}
+          />
           <h3>Chọn câu hỏi Speaking</h3>
           <p>
             {liveReady

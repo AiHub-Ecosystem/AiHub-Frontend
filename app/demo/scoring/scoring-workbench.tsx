@@ -1015,14 +1015,12 @@ export default function ScoringWorkbench() {
 
       {step === 2 && (
         <>
-          {liveReady && (
-            <DemoUserIdentityField
-              disabled={checkingKey || grading}
-              id="writing-demo-user-identity"
-              onChange={handleUserIdentityChange}
-              value={userIdentity}
-            />
-          )}
+          <DemoUserIdentityField
+            disabled={!liveReady || checkingKey || grading}
+            id="writing-demo-user-identity"
+            onChange={handleUserIdentityChange}
+            value={userIdentity}
+          />
           <h3>Chọn bài Writing</h3>
           <p>
             {liveReady
