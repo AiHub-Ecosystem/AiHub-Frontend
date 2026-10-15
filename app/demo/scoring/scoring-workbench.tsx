@@ -65,6 +65,48 @@ type HttpTrace = {
   contentType: string | null;
   cacheControl: string | null;
 };
+type ChartUploadStatus = "idle" | "preparing" | "uploading" | "verifying";
+
+const MAX_CHART_BYTES = 10 * 1024 * 1024;
+const CHART_CONTENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function chartUploadGrant(payload: unknown) {
+  if (!isRecord(payload) || !isRecord(payload.data)) return null;
+  const { data } = payload;
+  if (
+    typeof data.asset_id !== "string" ||
+    !/^chart_[0-9A-HJKMNP-TV-Z]{26}$/.test(data.asset_id) ||
+    typeof data.upload_url !== "string" ||
+    !data.upload_url.startsWith("https://") ||
+    data.method !== "PUT" ||
+    !isRecord(data.headers) ||
+    typeof data.headers["Content-Type"] !== "string" ||
+    !CHART_CONTENT_TYPES.has(data.headers["Content-Type"]) ||
+    typeof data.expires_at !== "string" ||
+    typeof data.intent_expires_at !== "string"
+  ) {
+    return null;
+  }
+  return {
+    assetId: data.asset_id,
+    uploadUrl: data.upload_url,
+    headers: {
+      "Content-Type": data.headers["Content-Type"],
+    },
+  };
+}
+
+function chartImageUrl(payload: unknown) {
+  if (!isRecord(payload) || !isRecord(payload.data)) return null;
+  const imageUrl = payload.data.image_url;
+  return typeof imageUrl === "string" && isFetchableImageUrl(imageUrl)
+    ? imageUrl
+    : null;
+}
 
 function pretty(value: unknown) {
   return JSON.stringify(value, null, 2);
@@ -382,7 +424,12 @@ export default function ScoringWorkbench() {
   const [gradeError, setGradeError] = useState<PublicError | null>(null);
   const [gradeResponse, setGradeResponse] = useState<unknown>(null);
   const [gradeTrace, setGradeTrace] = useState<HttpTrace | null>(null);
-  const [gradeAttempted, setGradeAttempted] = useState(false);
+  const [, setGradeAttempted] = useState(false);
+  const [chartUploadStatus, setChartUploadStatus] =
+    useState<ChartUploadStatus>("idle");
+  const [chartUploadError, setChartUploadError] = useState<PublicError | null>(
+    null
+  );
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const [result, setResult] = useState<GradeResult | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -493,6 +540,129 @@ export default function ScoringWorkbench() {
     setGradeTrace(null);
     setGradeAttempted(false);
     setResult(null);
+  };
+
+  const uploadChart = async (file: File) => {
+    setChartUploadError(null);
+    if (!liveReady) {
+      setChartUploadError({
+        code: "FORBIDDEN",
+        message:
+          "Tải ảnh chỉ dùng được ở chế độ Live sau khi kiểm tra API key.",
+      });
+      return;
+    }
+    if (!userIdentityValid) {
+      setChartUploadError({
+        code: "INVALID_USER_IDENTITY",
+        message: "Nhập mã người dùng hợp lệ trước khi tải ảnh lên.",
+      });
+      return;
+    }
+    if (!CHART_CONTENT_TYPES.has(file.type)) {
+      setChartUploadError({
+        code: "INVALID_REQUEST",
+        message: "Chỉ nhận ảnh JPEG, PNG hoặc WebP.",
+      });
+      return;
+    }
+    if (file.size < 1 || file.size > MAX_CHART_BYTES) {
+      setChartUploadError({
+        code: "PAYLOAD_TOO_LARGE",
+        message: "Ảnh phải có kích thước tối đa 10 MiB.",
+      });
+      return;
+    }
+
+    setChartUploadStatus("preparing");
+    const authHeaders = {
+      "Content-Type": "application/json",
+      "X-Demo-API-Key": apiKey.trim(),
+      "X-Demo-Environment": environment,
+      "X-Demo-User-Identity": userIdentity,
+    };
+    try {
+      const created = await fetch("/api/demo/scoring/chart-uploads", {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ content_type: file.type, byte_size: file.size }),
+        cache: "no-store",
+      });
+      let payload: unknown = await created.json().catch(() => null);
+      if (!created.ok) throw errorFromPayload(payload);
+      let grant = chartUploadGrant(payload);
+      if (!grant) {
+        throw {
+          code: "AI_SERVICE_CONTRACT_VIOLATION",
+          message: "Không đọc được thông tin tải ảnh từ AIHUB.",
+        } satisfies PublicError;
+      }
+
+      const putChart = (uploadUrl: string, headers: Record<string, string>) =>
+        fetch(uploadUrl, {
+          method: "PUT",
+          headers,
+          body: file,
+          cache: "no-store",
+          credentials: "omit",
+          redirect: "error",
+        });
+      setChartUploadStatus("uploading");
+      let put = await putChart(grant.uploadUrl, grant.headers);
+      if (put.status === 401 || put.status === 403) {
+        const refreshed = await fetch(
+          `/api/demo/scoring/chart-uploads/${grant.assetId}/refresh`,
+          { method: "POST", headers: authHeaders, cache: "no-store" }
+        );
+        payload = await refreshed.json().catch(() => null);
+        if (!refreshed.ok) throw errorFromPayload(payload);
+        const refreshedGrant = chartUploadGrant(payload);
+        if (!refreshedGrant || refreshedGrant.assetId !== grant.assetId) {
+          throw {
+            code: "AI_SERVICE_CONTRACT_VIOLATION",
+            message: "Không làm mới được đường dẫn tải ảnh.",
+          } satisfies PublicError;
+        }
+        grant = refreshedGrant;
+        put = await putChart(grant.uploadUrl, grant.headers);
+      }
+      if (!put.ok) {
+        throw {
+          code: "AI_SERVICE_UNAVAILABLE",
+          message: "Không tải được ảnh lên kho. Kiểm tra kết nối rồi thử lại.",
+        } satisfies PublicError;
+      }
+
+      setChartUploadStatus("verifying");
+      const completed = await fetch(
+        `/api/demo/scoring/chart-uploads/${grant.assetId}/complete`,
+        { method: "POST", headers: authHeaders, cache: "no-store" }
+      );
+      payload = await completed.json().catch(() => null);
+      if (!completed.ok) throw errorFromPayload(payload);
+      const imageUrl = chartImageUrl(payload);
+      if (!imageUrl) {
+        throw {
+          code: "AI_SERVICE_CONTRACT_VIOLATION",
+          message: "AIHUB chưa trả về đường dẫn ảnh hợp lệ.",
+        } satisfies PublicError;
+      }
+      setDraft({ imageUrl });
+    } catch (caught) {
+      const publicError =
+        typeof caught === "object" &&
+        caught !== null &&
+        "code" in caught &&
+        "message" in caught
+          ? (caught as PublicError)
+          : {
+              code: "AI_SERVICE_UNAVAILABLE",
+              message: "Không tải được ảnh. Kiểm tra kết nối rồi thử lại.",
+            };
+      setChartUploadError(publicError);
+    } finally {
+      setChartUploadStatus("idle");
+    }
   };
 
   useEffect(() => {
@@ -903,7 +1073,9 @@ export default function ScoringWorkbench() {
       steps={SCORING_STEPS}
       showTrace={step === 4}
       showEnvironmentPicker={demoEnvironmentRequiresSelection(apiKey.trim())}
-      stepperDisabled={grading || gradeStatus === "submitting"}
+      stepperDisabled={
+        grading || gradeStatus === "submitting" || chartUploadStatus !== "idle"
+      }
       mode={mode}
       status={
         gradeStatus === "submitting"
@@ -1106,6 +1278,48 @@ export default function ScoringWorkbench() {
                     : "Bài mẫu đang dùng ảnh có sẵn. Nhập mã API ở bước 1 để thay ảnh."}
                 </p>
               </div>
+              {liveReady && (
+                <div className="demo-field">
+                  <label htmlFor="writing-chart-file">Chọn ảnh biểu đồ</label>
+                  <input
+                    accept="image/jpeg,image/png,image/webp"
+                    disabled={
+                      !userIdentityValid ||
+                      grading ||
+                      chartUploadStatus !== "idle"
+                    }
+                    id="writing-chart-file"
+                    onChange={(event) => {
+                      const file = event.currentTarget.files?.[0];
+                      event.currentTarget.value = "";
+                      if (file) void uploadChart(file);
+                    }}
+                    type="file"
+                  />
+                  <p className="demo-help">
+                    Chọn JPEG, PNG hoặc WebP, tối đa 10 MiB. Ảnh sẽ được xác
+                    minh trước khi dùng để chấm.
+                  </p>
+                  <div className="demo-notice" role="note">
+                    Ảnh đã tải lên có thể được bất kỳ ai có đường dẫn xem và
+                    chia sẻ trong 24 giờ.
+                  </div>
+                  {chartUploadStatus !== "idle" && (
+                    <p aria-live="polite" role="status">
+                      {chartUploadStatus === "preparing"
+                        ? "Đang chuẩn bị tải ảnh…"
+                        : chartUploadStatus === "uploading"
+                          ? "Đang tải ảnh lên…"
+                          : "Đang xác minh và hoàn tất…"}
+                    </p>
+                  )}
+                  {chartUploadError && (
+                    <div className="demo-error" role="alert">
+                      {chartUploadError.message}
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
           {task === 2 && (
@@ -1253,6 +1467,7 @@ export default function ScoringWorkbench() {
               disabled={
                 grading ||
                 gradeStatus === "submitting" ||
+                chartUploadStatus !== "idle" ||
                 (liveReady && (!!chartProblem || !activeDraft.essay.trim()))
               }
               onClick={grade}

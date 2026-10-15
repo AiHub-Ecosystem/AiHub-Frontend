@@ -335,6 +335,90 @@ test("grades the prefilled Task 1 sample without a login", async ({
   assertNoExternalTraffic();
 });
 
+test("uploads a Task 1 chart and grades with its published URL", async ({
+  page,
+  request,
+}) => {
+  const assertNoExternalTraffic = await keepBrowserTrafficLocal(page);
+  await resetScoringLog(request);
+  const bytes = Buffer.from("chart-bytes");
+  const assetId = "chart_01J00000000000000000000001";
+  const imageUrl = "https://charts-upload.test/writing-charts/chart.png";
+  let uploadedBytes: Buffer | undefined;
+
+  await page.route("**/api/demo/scoring/chart-uploads", async (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      content_type: "image/png",
+      byte_size: bytes.length,
+    });
+    await route.fulfill({
+      status: 201,
+      json: {
+        data: {
+          asset_id: assetId,
+          upload_url: "https://charts-upload.test/private/signed-put",
+          method: "PUT",
+          headers: { "Content-Type": "image/png" },
+          expires_at: "2026-10-15T00:05:00.000Z",
+          intent_expires_at: "2026-10-15T01:00:00.000Z",
+        },
+        meta: { request_id: "req_01J00000000000000000000001" },
+      },
+    });
+  });
+  await page.route("**/api/demo/scoring/chart-uploads/**", async (route) => {
+    expect(route.request().url()).toContain(`/${assetId}/complete`);
+    await route.fulfill({
+      status: 200,
+      json: {
+        data: {
+          asset_id: assetId,
+          image_url: imageUrl,
+          content_type: "image/png",
+          byte_size: bytes.length,
+          published_at: "2026-10-15T00:00:00.000Z",
+          expires_at: "2026-10-16T00:00:00.000Z",
+        },
+        meta: { request_id: "req_01J00000000000000000000002" },
+      },
+    });
+  });
+  await page.route("https://charts-upload.test/**", async (route) => {
+    const uploadRequest = route.request();
+    if (uploadRequest.method() === "PUT") {
+      uploadedBytes = uploadRequest.postDataBuffer() ?? undefined;
+      await route.fulfill({ status: 200 });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "image/png",
+      body: Buffer.from("png"),
+    });
+  });
+
+  await page.goto("/demo/scoring");
+  await openWriting(page, { mode: "live", step: 2 });
+  await expect(page.getByLabel("Chọn ảnh biểu đồ")).toBeEnabled();
+  await expect(page.getByRole("note")).toContainText("bất kỳ ai có đường dẫn");
+  await page.getByLabel("Chọn ảnh biểu đồ").setInputFiles({
+    name: "chart.png",
+    mimeType: "image/png",
+    buffer: bytes,
+  });
+  await expect(page.getByTestId("input-image-url")).toHaveValue(imageUrl);
+  expect(uploadedBytes).toEqual(bytes);
+
+  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await page.getByTestId("button-grade").click();
+  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  const log = await scoringLog(request);
+  expect(log.requests).toHaveLength(1);
+  expect(log.requests[0]?.body.image_url).toBe(imageUrl);
+  assertNoExternalTraffic();
+});
+
 test("the report keeps the criteria order the response carried", async ({
   page,
 }) => {
