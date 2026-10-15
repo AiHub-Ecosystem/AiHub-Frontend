@@ -613,6 +613,14 @@ export default function SpeakingWorkbench() {
   const liveReady =
     apiKey.trim().length > 0 && isScopeValidated(SCOPE) && !skipMock;
   const userIdentityValid = isEndUserId(userIdentity);
+  const handleUserIdentityChange = (value: string) => {
+    setUserIdentity(value);
+    setResult(null);
+    setGradeResponse(null);
+    setGradeTrace(null);
+    setGradeAttempted(false);
+    setError(null);
+  };
   const mode = liveReady ? "live" : "mock";
   const localPrompts = MOCK_SPEAKING_PROMPTS.filter(
     (item) => item.part === part
@@ -1472,18 +1480,7 @@ export default function SpeakingWorkbench() {
           <DemoUserIdentityField
             disabled={!liveReady || checkingKey || grading}
             id="speaking-demo-user-identity"
-            onChange={(value) => {
-              setUserIdentity(value);
-              setQuestionError(null);
-              setQuestionResponse(null);
-              setQuestionTrace(null);
-              setLivePrompts(null);
-              setResult(null);
-              setGradeResponse(null);
-              setGradeTrace(null);
-              setGradeAttempted(false);
-              setError(null);
-            }}
+            onChange={handleUserIdentityChange}
             value={userIdentity}
           />
           {keyError && (
@@ -1523,9 +1520,17 @@ export default function SpeakingWorkbench() {
           <h3>Chọn câu hỏi Speaking</h3>
           <p>
             {liveReady
-              ? "Mã API đã được xác nhận. Chọn Part và câu hỏi; bước này chỉ tải danh sách, chưa gửi bài chấm hoặc dùng lượt chấm."
+              ? "Mã API đã được xác nhận. Bạn có thể đổi mã người dùng bên dưới, rồi chọn Part và câu hỏi; bước này chỉ tải danh sách, chưa gửi bài chấm hoặc dùng lượt chấm."
               : "Chọn Part và câu hỏi mẫu để xem thử. Nhập mã API ở bước 1 nếu muốn tải câu hỏi mới và gửi ghi âm đi chấm thật."}
           </p>
+          {liveReady && (
+            <DemoUserIdentityField
+              disabled={!liveReady || checkingKey || grading}
+              id="speaking-demo-user-identity"
+              onChange={handleUserIdentityChange}
+              value={userIdentity}
+            />
+          )}
           <div className="demo-inline-actions" aria-label="Speaking part">
             {PARTS.map((value) => (
               <button

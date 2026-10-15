@@ -44,6 +44,9 @@ async function openWriting(
     await expect(
       page.getByRole("heading", { name: "Chọn bài Writing" })
     ).toBeVisible();
+    await expect(
+      page.getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
+    ).toBeEnabled();
   } else {
     await page.getByRole("button", { name: "Xem bài mẫu" }).click();
   }
@@ -663,6 +666,9 @@ test("the Task 2 tab opens without a page load and survives a return visit", asy
   await expect(
     page.getByRole("heading", { name: "Chọn bài Writing" })
   ).toBeVisible();
+  await expect(
+    page.getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
+  ).toBeEnabled();
   await expect(page.getByText("Đã kiểm tra mã · có thể sửa bài")).toBeVisible();
   // Nothing navigates: the task selector is a client transition in one document.
   await page.evaluate(() => {

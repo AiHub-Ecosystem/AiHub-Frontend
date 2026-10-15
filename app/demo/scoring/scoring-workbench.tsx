@@ -405,6 +405,15 @@ export default function ScoringWorkbench() {
   const liveReady =
     apiKey.trim().length > 0 && isScopeValidated(SCOPE) && !skipMock;
   const userIdentityValid = isEndUserId(userIdentity);
+  const handleUserIdentityChange = (value: string) => {
+    setUserIdentity(value);
+    setIdempotencyKey(globalThis.crypto.randomUUID());
+    setGradeError(null);
+    setGradeResponse(null);
+    setGradeTrace(null);
+    setGradeAttempted(false);
+    setResult(null);
+  };
   const mode = liveReady ? "live" : "mock";
   const activeDraft = useMemo(
     () =>
@@ -980,15 +989,7 @@ export default function ScoringWorkbench() {
           <DemoUserIdentityField
             disabled={!liveReady || checkingKey || grading}
             id="writing-demo-user-identity"
-            onChange={(value) => {
-              setUserIdentity(value);
-              setIdempotencyKey(globalThis.crypto.randomUUID());
-              setGradeError(null);
-              setGradeResponse(null);
-              setGradeTrace(null);
-              setGradeAttempted(false);
-              setResult(null);
-            }}
+            onChange={handleUserIdentityChange}
             value={userIdentity}
           />
           {keyError && (
@@ -1028,9 +1029,17 @@ export default function ScoringWorkbench() {
           <h3>Chọn bài Writing</h3>
           <p>
             {liveReady
-              ? "Mã API đã được xác nhận. Bạn có thể sửa đề và thông tin bài; nội dung mới sẽ được dùng khi chấm."
+              ? "Mã API đã được xác nhận. Bạn có thể đổi mã người dùng bên dưới, sửa đề và thông tin bài; nội dung mới sẽ được dùng khi chấm."
               : "Bạn đang xem bài mẫu. Chọn Task và đề để xem trước; nhập mã API ở bước 1 nếu muốn tự sửa và gửi chấm thật."}
           </p>
+          {liveReady && (
+            <DemoUserIdentityField
+              disabled={!liveReady || checkingKey || grading}
+              id="writing-demo-user-identity"
+              onChange={handleUserIdentityChange}
+              value={userIdentity}
+            />
+          )}
           <div
             className="demo-inline-actions"
             role="tablist"

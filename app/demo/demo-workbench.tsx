@@ -95,9 +95,8 @@ export function DemoUserIdentityField({
         ID người dùng trong ứng dụng, không dùng email, tên hoặc số điện thoại.
       </p>
       <p className="demo-help">
-        Tổ chức của bạn cần máy chủ xác nhận người dùng. Bản thử này không làm
-        được việc đó; hãy nhờ người phụ trách kỹ thuật gửi yêu cầu từ máy chủ
-        của ứng dụng.
+        Nếu tổ chức bật xác thực danh tính bằng chữ ký, máy chủ ứng dụng phải
+        gửi kèm chữ ký xác nhận người dùng. Bản thử này không hỗ trợ bước đó.
       </p>
       {value.length > 0 && !isEndUserId(value) && (
         <p className="demo-error" role="alert">

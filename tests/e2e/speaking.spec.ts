@@ -70,12 +70,17 @@ async function startLiveSession(page: Page) {
   await expect(
     page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
   ).toBeVisible();
+  await expect(
+    page.getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
+  ).toBeEnabled();
   await expect(page.getByText("Đã kiểm tra mã · có thể sửa bài")).toBeVisible();
   await expect(
     page.locator(".demo-scenario-list").getByText("E2E_ONLY_QUESTION_1")
   ).toBeVisible();
   await expect(
-    page.getByText(/Mã API đã được xác nhận\. Chọn Part và câu hỏi/)
+    page.getByText(
+      /Mã API đã được xác nhận\. Bạn có thể đổi mã người dùng bên dưới/
+    )
   ).toBeVisible();
   await page
     .locator(".demo-scenario-list")

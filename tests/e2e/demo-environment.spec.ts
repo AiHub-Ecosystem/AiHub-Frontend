@@ -167,11 +167,9 @@ test("a Production key opens live grading on the Production tier", async ({
   await page.getByLabel("Mã API (không bắt buộc)").fill(productionKey);
   await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
   await expect(page.getByTestId("production-key-warning")).toBeVisible();
-  await page.getByRole("button", { name: "Quay lại nhập mã API" }).click();
   await page
     .getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
     .fill(userIdentity);
-  await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
 
   await expect(
     page.getByRole("heading", { name: "Chọn bài Writing" })
@@ -333,12 +331,9 @@ test("request details and commands use the validated key without putting it in t
   await page.getByLabel("Mã API (không bắt buộc)").fill(productionKey);
   await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
   await expect(page.getByTestId("production-key-warning")).toBeVisible();
-  await page.getByRole("button", { name: "Quay lại nhập mã API" }).click();
   await page
     .getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
     .fill(userIdentity);
-  await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
-  await expect(page.getByTestId("production-key-warning")).toBeVisible();
   await openGradingStep(page);
 
   const artifact = page.getByTestId("export-artifact");
@@ -372,7 +367,6 @@ test("a key entered in one demo skill is still there in the other", async ({
   await page.getByLabel("Mã API (không bắt buộc)").fill(demoKey);
   await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
   await expect(page.getByTestId("sandbox-allowance")).toBeVisible();
-  await page.getByRole("button", { name: "Quay lại nhập mã API" }).click();
   await page
     .getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
     .fill("learner_7");
