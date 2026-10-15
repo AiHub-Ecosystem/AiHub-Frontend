@@ -690,7 +690,7 @@ test("the Task 2 tab opens without a page load and survives a return visit", asy
   );
   await expect(
     page.getByText(
-      /Mã API đã được xác nhận\. Bạn có thể đổi mã người dùng bên dưới, sửa đề và thông tin bài/
+      /Mã API đã được xác nhận\. Bạn có thể đổi mã người dùng ở trên, sửa đề và thông tin bài/
     )
   ).toBeVisible();
   const topic = page.getByTestId("input-topic");

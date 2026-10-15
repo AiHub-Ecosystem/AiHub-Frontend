@@ -981,12 +981,6 @@ export default function ScoringWorkbench() {
               tính phí.
             </p>
           </div>
-          <DemoUserIdentityField
-            disabled={!liveReady || checkingKey || grading}
-            id="writing-demo-user-identity"
-            onChange={handleUserIdentityChange}
-            value={userIdentity}
-          />
           {keyError && (
             <div className="demo-error" role="alert">
               {keyError.message}
@@ -1021,20 +1015,20 @@ export default function ScoringWorkbench() {
 
       {step === 2 && (
         <>
-          <h3>Chọn bài Writing</h3>
-          <p>
-            {liveReady
-              ? "Mã API đã được xác nhận. Bạn có thể đổi mã người dùng bên dưới, sửa đề và thông tin bài; nội dung mới sẽ được dùng khi chấm."
-              : "Bạn đang xem bài mẫu. Chọn Task và đề để xem trước; nhập mã API ở bước 1 nếu muốn tự sửa và gửi chấm thật."}
-          </p>
           {liveReady && (
             <DemoUserIdentityField
-              disabled={!liveReady || checkingKey || grading}
+              disabled={checkingKey || grading}
               id="writing-demo-user-identity"
               onChange={handleUserIdentityChange}
               value={userIdentity}
             />
           )}
+          <h3>Chọn bài Writing</h3>
+          <p>
+            {liveReady
+              ? "Mã API đã được xác nhận. Bạn có thể đổi mã người dùng ở trên, sửa đề và thông tin bài; nội dung mới sẽ được dùng khi chấm."
+              : "Bạn đang xem bài mẫu. Chọn Task và đề để xem trước; nhập mã API ở bước 1 nếu muốn tự sửa và gửi chấm thật."}
+          </p>
           <div
             className="demo-inline-actions"
             role="tablist"

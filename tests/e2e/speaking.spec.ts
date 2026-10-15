@@ -79,7 +79,7 @@ async function startLiveSession(page: Page) {
   ).toBeVisible();
   await expect(
     page.getByText(
-      /Mã API đã được xác nhận\. Bạn có thể đổi mã người dùng bên dưới/
+      /Mã API đã được xác nhận\. Bạn có thể đổi mã người dùng ở trên/
     )
   ).toBeVisible();
   await page

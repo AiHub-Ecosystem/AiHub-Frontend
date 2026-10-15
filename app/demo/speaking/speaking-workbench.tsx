@@ -1477,12 +1477,6 @@ export default function SpeakingWorkbench() {
               thật có thể tính phí.
             </p>
           </div>
-          <DemoUserIdentityField
-            disabled={!liveReady || checkingKey || grading}
-            id="speaking-demo-user-identity"
-            onChange={handleUserIdentityChange}
-            value={userIdentity}
-          />
           {keyError && (
             <div className="demo-error" role="alert">
               {keyError.message}
@@ -1517,20 +1511,20 @@ export default function SpeakingWorkbench() {
 
       {step === 2 && (
         <>
-          <h3>Chọn câu hỏi Speaking</h3>
-          <p>
-            {liveReady
-              ? "Mã API đã được xác nhận. Bạn có thể đổi mã người dùng bên dưới, rồi chọn Part và câu hỏi; bước này chỉ tải danh sách, chưa gửi bài chấm hoặc dùng lượt chấm."
-              : "Chọn Part và câu hỏi mẫu để xem thử. Nhập mã API ở bước 1 nếu muốn tải câu hỏi mới và gửi ghi âm đi chấm thật."}
-          </p>
           {liveReady && (
             <DemoUserIdentityField
-              disabled={!liveReady || checkingKey || grading}
+              disabled={checkingKey || grading}
               id="speaking-demo-user-identity"
               onChange={handleUserIdentityChange}
               value={userIdentity}
             />
           )}
+          <h3>Chọn câu hỏi Speaking</h3>
+          <p>
+            {liveReady
+              ? "Mã API đã được xác nhận. Bạn có thể đổi mã người dùng ở trên, rồi chọn Part và câu hỏi; bước này chỉ tải danh sách, chưa gửi bài chấm hoặc dùng lượt chấm."
+              : "Chọn Part và câu hỏi mẫu để xem thử. Nhập mã API ở bước 1 nếu muốn tải câu hỏi mới và gửi ghi âm đi chấm thật."}
+          </p>
           <div className="demo-inline-actions" aria-label="Speaking part">
             {PARTS.map((value) => (
               <button
