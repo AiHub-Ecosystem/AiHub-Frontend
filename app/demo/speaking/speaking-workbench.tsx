@@ -771,6 +771,7 @@ export default function SpeakingWorkbench() {
     if (step === 3 && next !== 3 && recorder.current?.state === "recording") {
       recorder.current.stop();
     }
+    if (step === 2 && next === 3 && !file) setSampleAudioRemoved(false);
     if (next === 2 && step !== 2) {
       setQuestionLoading(true);
       setQuestionError(null);
