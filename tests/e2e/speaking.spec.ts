@@ -200,6 +200,27 @@ test("Speaking without a key uses a read-only fixture and grades locally", async
   request,
 }) => {
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
+  await page.route("**/api/demo/speaking/questions?part=*", (route) => {
+    const part = Number(
+      new URL(route.request().url()).searchParams.get("part")
+    );
+    const questions = Array.from({ length: 3 }, (_, index) => ({
+      id:
+        part === 1 && index === 0
+          ? "p1_do-you-enjoy-living-in-your-city-or-hometown"
+          : `p${part}_sample-${index + 1}`,
+      part,
+      question:
+        part === 1 && index === 0
+          ? "Do you enjoy living in your city or hometown?"
+          : `Sample Part ${part} question ${index + 1}`,
+      sampleAudioUrl: `https://s3.wispace.app/aihub-speaking-samples/speaking-samples/part-${part}/sample-${index + 1}.webm?X-Amz-Expires=900`,
+    }));
+    return route.fulfill({
+      status: 200,
+      json: { data: { part, questions } },
+    });
+  });
   await page.goto("/demo/speaking");
   await waitForHydration(page);
   await page.getByRole("button", { name: "Xem câu hỏi mẫu" }).click();
@@ -217,13 +238,35 @@ test("Speaking without a key uses a read-only fixture and grades locally", async
   ).toBeVisible();
   const mockQuestions = page.locator(".demo-scenario-list button");
   await expect(mockQuestions).toHaveCount(3);
+  await expect(mockQuestions.nth(2)).toContainText("Sample Part 1 question 3");
   await mockQuestions.nth(2).click();
   await expect(mockQuestions.nth(2)).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Part 2" }).click();
   await expect(mockQuestions).toHaveCount(3);
+  await expect(mockQuestions.first()).toContainText("Sample Part 2 question 1");
+  await mockQuestions.first().click();
+  await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
+  const sampleAudio = page.locator(
+    'audio[aria-label="Nghe bản ghi âm mẫu Speaking"]'
+  );
+  await expect(sampleAudio).toHaveAttribute(
+    "src",
+    /part-2\/sample-1\.webm\?X-Amz-Expires=900/
+  );
+  await page.getByRole("button", { name: "Quay lại câu hỏi" }).click();
   await page.getByRole("button", { name: "Part 3" }).click();
   await expect(mockQuestions).toHaveCount(3);
+  await expect(mockQuestions.first()).toContainText("Sample Part 3 question 1");
+  await mockQuestions.first().click();
+  await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
+  await expect(sampleAudio).toHaveAttribute(
+    "src",
+    /part-3\/sample-1\.webm\?X-Amz-Expires=900/
+  );
+  await page.getByRole("button", { name: "Quay lại câu hỏi" }).click();
   await page.getByRole("button", { name: "Part 1" }).click();
+  await expect(mockQuestions).toHaveCount(3);
+  await expect(mockQuestions.nth(2)).toContainText("Sample Part 1 question 3");
   await expect(
     page.locator(".demo-scenario-list button[aria-pressed='true']")
   ).toHaveCount(0);
@@ -237,9 +280,6 @@ test("Speaking without a key uses a read-only fixture and grades locally", async
       /Bạn có thể nghe câu trả lời mẫu nhưng không thể xóa hoặc thay đổi/
     )
   ).toBeVisible();
-  const sampleAudio = page.locator(
-    'audio[aria-label="Nghe bản ghi âm mẫu Speaking"]'
-  );
   await expect(sampleAudio).toHaveAttribute(
     "src",
     "https://s3.wispace.app/ielts-task1/speaking-answers/part-1/do-you-enjoy-living-in-your-city-or-hometown.webm"

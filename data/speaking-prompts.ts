@@ -8,7 +8,7 @@ export type SpeakingPrompt = {
   sampleAudioUrl?: string;
 };
 
-/** Static examples used by mock mode; this list is never fetched from the API. */
+/** Static fallback examples for mock mode when the public catalog is unavailable. */
 export const MOCK_SPEAKING_PROMPTS: readonly SpeakingPrompt[] = [
   {
     id: "p1_do-you-enjoy-living-in-your-city-or-hometown",
