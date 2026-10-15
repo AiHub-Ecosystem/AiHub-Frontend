@@ -1470,7 +1470,7 @@ export default function SpeakingWorkbench() {
             </p>
           </div>
           <DemoUserIdentityField
-            disabled={grading}
+            disabled={!liveReady || checkingKey || grading}
             id="speaking-demo-user-identity"
             onChange={(value) => {
               setUserIdentity(value);

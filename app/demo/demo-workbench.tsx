@@ -91,8 +91,8 @@ export function DemoUserIdentityField({
         value={value}
       />
       <p className="demo-help">
-        Mã ngẫu nhiên được tạo sẵn. Bạn có thể thay bằng ID người dùng trong ứng
-        dụng của mình; không dùng email, tên hoặc số điện thoại.
+        Mã ngẫu nhiên được tạo sẵn. Chỉ sửa được sau khi xác nhận mã API; dùng
+        ID người dùng trong ứng dụng, không dùng email, tên hoặc số điện thoại.
       </p>
       <p className="demo-help">
         Tổ chức của bạn cần máy chủ xác nhận người dùng. Bản thử này không làm

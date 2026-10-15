@@ -978,7 +978,7 @@ export default function ScoringWorkbench() {
             </p>
           </div>
           <DemoUserIdentityField
-            disabled={grading}
+            disabled={!liveReady || checkingKey || grading}
             id="writing-demo-user-identity"
             onChange={(value) => {
               setUserIdentity(value);
