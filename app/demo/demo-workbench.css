@@ -356,6 +356,10 @@
   margin-bottom: 8px;
 }
 
+.demo-step-content > * + h3 {
+  margin-top: 16px;
+}
+
 .demo-step-content p {
   color: var(--demo-body);
   line-height: 1.55;
