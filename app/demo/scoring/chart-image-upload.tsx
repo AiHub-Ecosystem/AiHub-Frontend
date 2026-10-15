@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { isFetchableImageUrl } from "@/data/writing-task1-request";
 import type { DemoEnvironment } from "@/lib/demo-environments";
-import { errorFromPayload } from "./scoring-client";
-import type { PublicError } from "./scoring-client";
+import { errorFromPayload } from "./scoring-client.js";
+import type { PublicError } from "./scoring-client.js";
 
 const MAX_CHART_BYTES = 10 * 1024 * 1024;
 const CONTENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
