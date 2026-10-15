@@ -31,10 +31,10 @@ import {
   CLIENT_BUDGET_SECONDS,
   errorFromPayload,
   SAMPLE_DRAFT,
-} from "./scoring-client.js";
-import type { Draft, PublicError } from "./scoring-client.js";
-import { ChartImageUpload } from "./chart-image-upload.js";
-import { criterionLabel, GradeReport } from "./scoring-report.js";
+} from "./scoring-client";
+import type { Draft, PublicError } from "./scoring-client";
+import { ChartImageUpload } from "./chart-image-upload";
+import { criterionLabel, GradeReport } from "./scoring-report";
 
 const SCOPE: DemoScope = "writing.grade";
 const TASKS = [1, 2] as const;
