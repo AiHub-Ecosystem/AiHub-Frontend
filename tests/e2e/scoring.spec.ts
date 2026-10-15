@@ -1075,7 +1075,7 @@ test("the Request and Response console appears only on the grading step", async 
   await expect(stepper.getByRole("listitem")).toHaveCount(4);
   await expect(stepper.getByRole("button")).toHaveCount(0);
   await expect(stepper.locator('[aria-current="step"]')).toContainText(
-    "Chuẩn bị mã API và mã người dùng"
+    "Nhập mã API"
   );
   await expect(page.locator(".demo-overview-steps")).toHaveCount(0);
   await expect(page.locator(".scoring-flow-step-button")).toHaveCount(5);

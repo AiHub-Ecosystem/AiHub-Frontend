@@ -50,11 +50,6 @@ const CHART_TYPE_LABELS: Record<
   "Process Diagram": "Sơ đồ quy trình",
   "Multiple Graphs": "Nhiều biểu đồ",
 };
-const SCORING_STEPS = [
-  "Chuẩn bị mã API và mã người dùng",
-  ...DEMO_STEPS.slice(1, 4),
-];
-
 type GradeResult = {
   task: 1 | 2;
   essay: string;
@@ -910,7 +905,7 @@ export default function ScoringWorkbench() {
       title="Chấm điểm IELTS Writing"
       description="Thử chấm IELTS Writing Task 1 hoặc Task 2. Bạn có thể xem bài mẫu trước; nhập mã API để sửa nội dung và gửi bài chấm thật."
       step={step}
-      steps={SCORING_STEPS}
+      steps={DEMO_STEPS}
       showTrace={step === 4}
       showEnvironmentPicker={demoEnvironmentRequiresSelection(apiKey.trim())}
       stepperDisabled={

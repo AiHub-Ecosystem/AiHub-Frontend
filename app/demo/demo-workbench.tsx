@@ -16,8 +16,8 @@ import { isEndUserId } from "@/lib/end-user-id";
 import type { SandboxAllowanceSnapshot } from "./demo-session-state";
 
 export const DEMO_STEPS = [
-  "Chuẩn bị mã API và mã người dùng",
-  "Chọn đề bài",
+  "Nhập mã API",
+  "Mã người dùng và đề bài",
   "Chuẩn bị câu trả lời",
   "Chấm và xem kết quả",
 ] as const;
@@ -58,8 +58,8 @@ type DemoWorkbenchProps = {
 };
 
 const STEP_SUMMARY = [
-  "Nhập mã API và mã người dùng, hoặc bỏ qua để xem bài mẫu.",
-  "Chọn đề bài để làm thử.",
+  "Nhập mã API để chấm thật, hoặc bỏ qua để xem bài mẫu.",
+  "Nhập mã người dùng rồi chọn đề bài hoặc câu hỏi.",
   "Nhập bài viết hoặc chuẩn bị câu trả lời bằng giọng nói.",
   "Xem điểm và nhận xét.",
 ];

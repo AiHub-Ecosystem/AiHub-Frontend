@@ -358,7 +358,7 @@ test("live Speaking never falls back to fixture questions when the catalog is un
   const stepper = page.getByRole("navigation", { name: "Các bước thực hành" });
   await expect(stepper.getByRole("button")).toHaveCount(0);
   await expect(stepper.locator('[aria-current="step"]')).toContainText(
-    "Chọn câu hỏi"
+    "Mã người dùng và câu hỏi"
   );
   await expect(
     page.getByRole("button", { name: "Tiếp tục đến câu trả lời" })

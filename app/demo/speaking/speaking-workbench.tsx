@@ -49,8 +49,8 @@ function SpeakingRetryNote({ environment }: { environment: DemoEnvironment }) {
 
 const PARTS = [1, 2, 3] as const;
 const SPEAKING_STEPS = [
-  "Chuẩn bị mã API và mã người dùng",
-  "Chọn câu hỏi",
+  "Nhập mã API",
+  "Mã người dùng và câu hỏi",
   "Chuẩn bị câu trả lời",
   "Chấm và xem kết quả",
 ] as const;
