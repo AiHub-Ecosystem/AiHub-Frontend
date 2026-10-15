@@ -945,7 +945,7 @@ export default function ScoringWorkbench() {
       exportsContainApiKey={liveReady}
     >
       <p className="demo-flow-eyebrow">
-        BƯỚC {step} / {SCORING_STEPS.length} · {SCORING_STEPS[step - 1]}
+        BƯỚC {step} / {DEMO_STEPS.length} · {DEMO_STEPS[step - 1]}
       </p>
 
       {step === 1 && (
