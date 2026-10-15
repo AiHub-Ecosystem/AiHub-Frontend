@@ -171,6 +171,7 @@ test("a Production key opens live grading on the Production tier", async ({
   await page
     .getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
     .fill(userIdentity);
+  await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
 
   await expect(
     page.getByRole("heading", { name: "Chọn bài Writing" })
@@ -336,6 +337,8 @@ test("request details and commands use the validated key without putting it in t
   await page
     .getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
     .fill(userIdentity);
+  await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
+  await expect(page.getByTestId("production-key-warning")).toBeVisible();
   await openGradingStep(page);
 
   const artifact = page.getByTestId("export-artifact");
