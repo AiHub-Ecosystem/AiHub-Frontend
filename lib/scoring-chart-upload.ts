@@ -92,15 +92,18 @@ async function parseCreateBody(request: Request) {
 function validGrant(payload: unknown): boolean {
   if (!isRecord(payload) || !isRecord(payload.data)) return false;
   const { data } = payload;
+  const fields = isRecord(data.fields) ? data.fields : null;
+  const contentType = fields?.["Content-Type"];
   return (
     typeof data.asset_id === "string" &&
     ASSET_ID.test(data.asset_id) &&
     typeof data.upload_url === "string" &&
     data.upload_url.startsWith("https://") &&
-    data.method === "PUT" &&
-    isRecord(data.headers) &&
-    typeof data.headers["Content-Type"] === "string" &&
-    CONTENT_TYPES.has(data.headers["Content-Type"] as string) &&
+    data.method === "POST" &&
+    fields !== null &&
+    Object.values(fields).every((field) => typeof field === "string") &&
+    typeof contentType === "string" &&
+    CONTENT_TYPES.has(contentType) &&
     typeof data.expires_at === "string" &&
     typeof data.intent_expires_at === "string"
   );

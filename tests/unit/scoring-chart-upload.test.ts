@@ -25,9 +25,15 @@ function request(
 const grant = {
   data: {
     asset_id: ASSET_ID,
-    upload_url: "https://s3.wispace.app/private/signed-put",
-    method: "PUT",
-    headers: { "Content-Type": "image/png" },
+    upload_url: "https://s3.wispace.app/aihub-sandbox-writing-chart-staging",
+    method: "POST",
+    fields: {
+      bucket: "aihub-sandbox-writing-chart-staging",
+      key: "writing-charts/chart_01J00000000000000000000001/staging",
+      "Content-Type": "image/png",
+      Policy: "signed-policy",
+      "X-Amz-Signature": "signature",
+    },
     expires_at: "2026-10-14T00:05:00.000Z",
     intent_expires_at: "2026-10-14T01:00:00.000Z",
   },
@@ -161,5 +167,25 @@ describe("Writing chart upload BFF", () => {
       "create"
     );
     expect(invalid.status).toBe(502);
+
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            ...grant.data,
+            fields: { ...grant.data.fields, Policy: 42 },
+          },
+        }),
+        { status: 201 }
+      )
+    );
+    const invalidField = await handleWritingChartUpload(
+      request("/api/demo/scoring/chart-uploads", {
+        content_type: "image/png",
+        byte_size: 36,
+      }),
+      "create"
+    );
+    expect(invalidField.status).toBe(502);
   });
 });

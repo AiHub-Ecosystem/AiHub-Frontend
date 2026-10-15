@@ -356,9 +356,15 @@ test("uploads a Task 1 chart and grades with its published URL", async ({
       json: {
         data: {
           asset_id: assetId,
-          upload_url: "https://charts-upload.test/private/signed-put",
-          method: "PUT",
-          headers: { "Content-Type": "image/png" },
+          upload_url: "https://charts-upload.test/private/form-post",
+          method: "POST",
+          fields: {
+            bucket: "chart-staging",
+            key: "writing-charts/chart.png",
+            "Content-Type": "image/png",
+            Policy: "signed-policy",
+            "X-Amz-Signature": "signature",
+          },
           expires_at: "2026-10-15T00:05:00.000Z",
           intent_expires_at: "2026-10-15T01:00:00.000Z",
         },
@@ -385,8 +391,11 @@ test("uploads a Task 1 chart and grades with its published URL", async ({
   });
   await page.route("https://charts-upload.test/**", async (route) => {
     const uploadRequest = route.request();
-    if (uploadRequest.method() === "PUT") {
+    if (uploadRequest.method() === "POST") {
       uploadedBytes = uploadRequest.postDataBuffer() ?? undefined;
+      expect(uploadRequest.headers()["content-type"]).toContain(
+        "multipart/form-data"
+      );
       await route.fulfill({ status: 200 });
       return;
     }
@@ -407,7 +416,9 @@ test("uploads a Task 1 chart and grades with its published URL", async ({
     buffer: bytes,
   });
   await expect(page.getByTestId("input-image-url")).toHaveValue(imageUrl);
-  expect(uploadedBytes).toEqual(bytes);
+  expect(uploadedBytes?.includes(Buffer.from('name="Policy"'))).toBe(true);
+  expect(uploadedBytes?.includes(Buffer.from('name="key"'))).toBe(true);
+  expect(uploadedBytes?.includes(bytes)).toBe(true);
 
   await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
   await page.getByRole("button", { name: "Xem bước chấm" }).click();
