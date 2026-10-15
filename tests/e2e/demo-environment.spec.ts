@@ -492,10 +492,25 @@ test("the sequential flow creates an Idempotency-Key after key setup is skipped"
 test("a Speaking export keeps the sample recording's own question", async ({
   page,
 }) => {
+  await page.route("**/api/demo/speaking/questions?part=*", (route) => {
+    const part = Number(
+      new URL(route.request().url()).searchParams.get("part")
+    );
+    const questions = Array.from({ length: 2 }, (_, index) => ({
+      id: `p${part}_catalog_${index + 1}`,
+      part,
+      question: `Catalog question Part ${part} ${index + 1}`,
+      sampleAudioUrl: `https://s3.wispace.app/aihub-speaking-samples/speaking-samples/part-${part}/sample-${index + 1}.webm?X-Amz-Expires=900`,
+    }));
+    return route.fulfill({ status: 200, json: { data: { part, questions } } });
+  });
   await openDemo(page, "speaking");
   await page.getByRole("button", { name: "Xem câu hỏi mẫu" }).click();
   await page.getByRole("button", { name: "Part 3" }).click();
-  await page.locator(".demo-scenario-list button").nth(1).click();
+  await page
+    .locator(".demo-scenario-list")
+    .getByText("Catalog question Part 3 2")
+    .click();
   await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
   await page.getByRole("button", { name: "Xem bước chấm" }).click();
 

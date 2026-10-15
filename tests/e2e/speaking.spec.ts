@@ -87,7 +87,9 @@ async function prepareLiveGrading(page: Page) {
   await startLiveSession(page);
   await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
   await expect(
-    page.getByText(/Chọn tệp ghi âm hoặc tự ghi âm câu trả lời/)
+    page.getByText(
+      /Câu trả lời ghi âm mẫu đã có sẵn|Chọn tệp ghi âm hoặc tự ghi âm câu trả lời/
+    )
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Chọn tệp ghi âm", exact: true })
