@@ -1799,16 +1799,6 @@ export default function SpeakingWorkbench() {
 
       {step === 4 && (
         <>
-          {liveReady && state.userIdentityMode && (
-            <DemoUserIdentityField
-              key={state.userIdentityMode}
-              disabled={checkingKey || grading}
-              id="speaking-demo-user-identity"
-              mode={state.userIdentityMode}
-              onChange={handleUserIdentityChange}
-              value={userIdentity}
-            />
-          )}
           <h3>{liveReady ? "Gửi bài nói để chấm" : "Xem kết quả mẫu"}</h3>
           <p>
             {liveReady

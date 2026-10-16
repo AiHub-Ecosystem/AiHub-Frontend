@@ -76,8 +76,14 @@ async function openWriting(
   }
   if (step >= 4)
     await page.getByRole("button", { name: "Xem bước chấm" }).click();
-  if (step >= 4 && apiKey === signedSandboxKey)
-    await page.getByText("Nhập assertion thủ công").click();
+  if (step >= 4) {
+    await expect(
+      page.getByLabel("Declared User ID (X-User-Identity)")
+    ).toHaveCount(0);
+    await expect(
+      page.getByLabel("Signed User Assertion (JWT) (X-User-Identity)")
+    ).toHaveCount(0);
+  }
 }
 
 async function gradeWriting(
@@ -113,7 +119,11 @@ test("Writing supports signed assertions and redacts them from traces and export
   const assertion = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJ1c2VyLTQyIn0.signature";
   await resetScoringLog(request);
   await page.goto("/demo/scoring");
-  await openWriting(page, { mode: "live", apiKey: signedSandboxKey });
+  await openWriting(page, {
+    mode: "live",
+    apiKey: signedSandboxKey,
+    step: 2,
+  });
 
   const identity = page.getByLabel(
     "Signed User Assertion (JWT) (X-User-Identity)"
@@ -133,6 +143,10 @@ test("Writing supports signed assertions and redacts them from traces and export
   await expect(identity).toHaveAttribute("type", "text");
   await page.getByRole("button", { name: "Che Signed User Assertion" }).click();
   await expect(identity).toHaveAttribute("type", "password");
+
+  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await expect(identity).toHaveCount(0);
 
   const trace = page.locator(".demo-console .demo-console-code");
   await expect(trace).toContainText("<redacted signed user assertion>");
@@ -168,20 +182,31 @@ test("Writing keeps an invalid signed assertion as a live failure", async ({
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
   await resetScoringLog(request);
   await page.goto("/demo/scoring");
-  await openWriting(page, { mode: "live", apiKey: signedSandboxKey });
+  await openWriting(page, {
+    mode: "live",
+    apiKey: signedSandboxKey,
+    step: 2,
+  });
   const identity = page.getByLabel(
     "Signed User Assertion (JWT) (X-User-Identity)"
   );
   await identity.fill("expired.e2e.assertion");
+  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await expect(identity).toHaveCount(0);
   await page.getByTestId("button-grade").click();
 
   await expect(page.getByText(/User Identity không hợp lệ/)).toBeVisible();
   await expect(page.getByTestId("scoring-report")).toHaveCount(0);
-  await expect(identity).toHaveValue("expired.e2e.assertion");
-  await expect(identity).toHaveAttribute("type", "password");
+  await expect(identity).toHaveCount(0);
   expect((await scoringLog(request)).requests[0].userIdentity).toBe(
     "expired.e2e.assertion"
   );
+  await page.getByRole("button", { name: "Sửa bài" }).click();
+  await page.getByRole("button", { name: "Quay lại đề" }).click();
+  await page.getByText("Nhập assertion thủ công").click();
+  await expect(identity).toHaveValue("expired.e2e.assertion");
+  await expect(identity).toHaveAttribute("type", "password");
   expectNoExternalRequests();
 });
 
@@ -838,6 +863,14 @@ test("live Task 2 grading sends topic and no Task 1 field", async ({
   await page.goto("/demo/scoring");
   await openWriting(page, { mode: "live", task: 2, step: 2 });
 
+  const identity = page.getByLabel("Declared User ID (X-User-Identity)");
+  await identity.fill("");
+  await identity.blur();
+  await expect(identity).toHaveValue(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  );
+  const generatedIdentity = await identity.inputValue();
+
   const topic = page.getByTestId("input-topic");
   const question = page.getByTestId("input-question");
   await expect(topic).toBeEnabled();
@@ -858,6 +891,7 @@ test("live Task 2 grading sends topic and no Task 1 field", async ({
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await expect(identity).toHaveCount(0);
   await page.getByTestId("button-grade").click();
   await expect(page.getByTestId("scoring-report")).toBeVisible();
 
@@ -866,6 +900,7 @@ test("live Task 2 grading sends topic and no Task 1 field", async ({
   expect(log.requests).toHaveLength(1);
   expect(log.requests[0].task).toBe("2");
   expect(log.requests[0].idempotencyKey).toBeTruthy();
+  expect(log.requests[0].userIdentity).toBe(generatedIdentity);
   expect(log.requests[0].body).toMatchObject({
     topic: "custom live topic",
     question: "A custom live question.",

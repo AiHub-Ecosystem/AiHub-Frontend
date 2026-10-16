@@ -1283,16 +1283,6 @@ export default function ScoringWorkbench() {
 
       {step === 4 && (
         <>
-          {liveReady && state.userIdentityMode && (
-            <DemoUserIdentityField
-              key={state.userIdentityMode}
-              disabled={checkingKey || grading}
-              id="writing-demo-user-identity"
-              mode={state.userIdentityMode}
-              onChange={handleUserIdentityChange}
-              value={userIdentity}
-            />
-          )}
           <h3>{liveReady ? "Gửi bài chấm thật" : "Xem kết quả mẫu"}</h3>
           <p>
             {liveReady

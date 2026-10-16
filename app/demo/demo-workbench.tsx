@@ -298,6 +298,9 @@ function DeclaredUserIdField({
         disabled={disabled}
         id={id}
         maxLength={256}
+        onBlur={() => {
+          if (value === "") onChange(globalThis.crypto.randomUUID());
+        }}
         onChange={(event) => onChange(event.target.value)}
         placeholder="Tự tạo mã ngẫu nhiên"
         spellCheck={false}
@@ -305,8 +308,9 @@ function DeclaredUserIdField({
         value={value}
       />
       <p className="demo-help">
-        Mã ngẫu nhiên được tạo sẵn. Dùng ID ổn định của người dùng trong ứng
-        dụng, không dùng email, tên hoặc số điện thoại.
+        Mã mặc định được tạo ngẫu nhiên; nếu xóa hết nội dung, demo tạo mã mới
+        khi bạn rời khỏi ô. Dùng ID ổn định của người dùng trong ứng dụng, không
+        dùng email, tên hoặc số điện thoại.
       </p>
       {value.length > 0 && !valid && (
         <p className="demo-error" role="alert">

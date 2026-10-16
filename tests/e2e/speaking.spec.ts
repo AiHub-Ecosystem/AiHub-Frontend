@@ -112,6 +112,10 @@ async function prepareLiveGrading(
       .getByLabel("Signed User Assertion (JWT) (X-User-Identity)")
       .fill(identity);
   }
+  await prepareLiveResponse(page);
+}
+
+async function prepareLiveResponse(page: Page) {
   await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
   await expect(
     page.getByText(
@@ -130,6 +134,12 @@ async function prepareLiveGrading(
     buffer: Buffer.alloc(2048, 1),
   });
   await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await expect(
+    page.getByLabel("Declared User ID (X-User-Identity)")
+  ).toHaveCount(0);
+  await expect(
+    page.getByLabel("Signed User Assertion (JWT) (X-User-Identity)")
+  ).toHaveCount(0);
 }
 
 async function submitLiveGrading(page: Page) {
@@ -155,8 +165,7 @@ test("live Speaking forwards a signed assertion and redacts both trace tabs", as
   const identity = page.getByLabel(
     "Signed User Assertion (JWT) (X-User-Identity)"
   );
-  await expect(identity).toHaveValue(assertion);
-  await expect(identity).toHaveAttribute("type", "password");
+  await expect(identity).toHaveCount(0);
   const trace = page.locator(".demo-console .demo-console-code");
   await expect(trace).toContainText("<redacted signed user assertion>");
   await expect(trace).not.toContainText(assertion);
@@ -172,7 +181,7 @@ test("live Speaking forwards a signed assertion and redacts both trace tabs", as
   expectNoExternalRequests();
 });
 
-test("an invalid Speaking assertion stays in the field and does not show a sample result", async ({
+test("an invalid Speaking assertion remains available on step 2 without a sample result", async ({
   page,
   request,
 }) => {
@@ -185,13 +194,19 @@ test("an invalid Speaking assertion stays in the field and does not show a sampl
   await expect(
     page.getByRole("region", { name: "Kết quả chấm Speaking" })
   ).toHaveCount(0);
+  await expect(
+    page.getByLabel("Signed User Assertion (JWT) (X-User-Identity)")
+  ).toHaveCount(0);
+  expect((await speakingLog(request)).requests[0].userIdentity).toBe(
+    "expired.e2e.assertion"
+  );
+  await page.getByRole("button", { name: "Sửa câu trả lời" }).click();
+  await page.getByRole("button", { name: "Quay lại câu hỏi" }).click();
+  await page.getByText("Nhập assertion thủ công").click();
   const identity = page.getByLabel(
     "Signed User Assertion (JWT) (X-User-Identity)"
   );
   await expect(identity).toHaveValue("expired.e2e.assertion");
-  expect((await speakingLog(request)).requests[0].userIdentity).toBe(
-    "expired.e2e.assertion"
-  );
 });
 
 test("live Speaking waits for the recording to replace the sample before grading", async ({
@@ -454,12 +469,21 @@ test("live Speaking grading forwards the temporary demo UUID", async ({
   test.setTimeout(90_000);
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
   await page.goto("/demo/speaking");
-  await prepareLiveGrading(page);
+  await startLiveSession(page);
+  const identity = page.getByLabel("Declared User ID (X-User-Identity)");
+  await identity.fill("");
+  await identity.blur();
+  await expect(identity).toHaveValue(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  );
+  const generatedIdentity = await identity.inputValue();
+  await prepareLiveResponse(page);
   await submitLiveGrading(page);
 
   const log = await speakingLog(request);
   expect(log.requests).toHaveLength(1);
   expect(log.requests[0].operation).toBe("grading");
+  expect(log.requests[0].userIdentity).toBe(generatedIdentity);
   expectIdentityForwarding(log);
   expectNoExternalRequests();
 });
