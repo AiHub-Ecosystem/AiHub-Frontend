@@ -1056,7 +1056,7 @@ export default function ScoringWorkbench() {
           <p>
             {liveReady
               ? state.userIdentityMode === "signed_assertion"
-                ? "Mã API đã được xác nhận. Dán hoặc thay Signed User Assertion ở trên, rồi sửa đề và bài viết để chấm thật."
+                ? "Mã API đã được xác nhận. Lấy assertion từ endpoint của tổ chức hoặc nhập thủ công, rồi sửa đề và bài viết để chấm thật."
                 : "Mã API đã được xác nhận. Bạn có thể đổi Declared User ID ở trên, sửa đề và bài viết để chấm thật."
               : "Bạn đang xem bài mẫu. Chọn Task và đề để xem trước; nhập mã API ở bước 1 nếu muốn tự sửa và gửi chấm thật."}
           </p>

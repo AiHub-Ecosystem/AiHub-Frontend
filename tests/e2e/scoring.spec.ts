@@ -49,13 +49,19 @@ async function openWriting(
     await expect(
       page.getByRole("heading", { name: "Chọn bài Writing" })
     ).toBeVisible();
-    await expect(
-      page.getByLabel(
-        apiKey === signedSandboxKey
-          ? "Signed User Assertion (JWT) (X-User-Identity)"
-          : "Declared User ID (X-User-Identity)"
-      )
-    ).toBeEnabled();
+    if (apiKey === signedSandboxKey) {
+      await expect(
+        page.getByLabel("URL endpoint cấp assertion (HTTPS)")
+      ).toBeEnabled();
+      await page.getByText("Nhập assertion thủ công").click();
+      await expect(
+        page.getByLabel("Signed User Assertion (JWT) (X-User-Identity)")
+      ).toBeEnabled();
+    } else {
+      await expect(
+        page.getByLabel("Declared User ID (X-User-Identity)")
+      ).toBeEnabled();
+    }
   } else {
     await page.getByRole("button", { name: "Xem bài mẫu" }).click();
   }
@@ -65,6 +71,8 @@ async function openWriting(
   }
   if (step >= 4)
     await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  if (step >= 4 && apiKey === signedSandboxKey)
+    await page.getByText("Nhập assertion thủ công").click();
 }
 
 async function gradeWriting(

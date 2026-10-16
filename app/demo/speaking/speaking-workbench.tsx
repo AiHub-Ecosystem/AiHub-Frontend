@@ -1554,7 +1554,7 @@ export default function SpeakingWorkbench() {
           <p>
             {liveReady
               ? state.userIdentityMode === "signed_assertion"
-                ? "Mã API đã được xác nhận. Dán hoặc thay Signed User Assertion ở trên, rồi chọn câu hỏi để chấm thật."
+                ? "Mã API đã được xác nhận. Lấy assertion từ endpoint của tổ chức hoặc nhập thủ công, rồi chọn câu hỏi để chấm thật."
                 : "Mã API đã được xác nhận. Bạn có thể đổi Declared User ID ở trên, rồi chọn câu hỏi để chấm thật."
               : "Chọn Part và câu hỏi mẫu để xem thử. Nhập mã API ở bước 1 nếu muốn tải câu hỏi mới và gửi ghi âm đi chấm thật."}
           </p>

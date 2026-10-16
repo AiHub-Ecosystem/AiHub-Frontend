@@ -6,6 +6,8 @@ import { DocsToc } from "./docs-toc";
 import { PRODUCT_DOCS } from "@/data/api-reference";
 import {
   FIRST_CALL,
+  DEMO_ASSERTION_ERROR,
+  DEMO_ASSERTION_SUCCESS,
   NODE_SAMPLE,
   PRODUCTION_HOST,
   SANDBOX_HOST,
@@ -284,6 +286,7 @@ const CHECKLIST = [
 const SECTIONS = [
   { id: "bat-dau", label: "Gọi thử lần đầu" },
   { id: "dinh-danh", label: "Nhận diện người học" },
+  { id: "demo-assertion-endpoint", label: "Endpoint assertion cho demo" },
   { id: "thiet-lap", label: "Tạo tài khoản và khóa" },
   { id: "thao-tac", label: "Chọn tính năng chấm" },
   { id: "sandbox", label: "Thử miễn phí" },
@@ -565,7 +568,9 @@ export default function Page() {
               <p className="aihub-prose">
                 Dạng ký chỉ đổi giá trị của header; phần còn lại của request giữ
                 nguyên. Ký assertion ngay trước mỗi lần gọi ở backend, không lưu
-                lâu và không đưa xuống trình duyệt hay mobile app.
+                lâu và không đưa xuống trình duyệt hay mobile app trong ứng dụng
+                thật. Bản demo công khai chỉ dùng assertion tạm thời cho test
+                user theo contract v1 bên dưới.
               </p>
               <CodeBlock
                 code={SIGNED_HEADER}
@@ -587,6 +592,73 @@ export default function Page() {
               <CodeBlock
                 code={SIGN_JAVA}
                 label="Java: ký Signed User Assertion"
+              />
+
+              <h3 className="aihub-sub" id="demo-assertion-endpoint">
+                Endpoint assertion cho demo (contract v1)
+              </h3>
+              <p className="aihub-prose">
+                Nếu API key của Organization bật xác minh chữ ký, khách hàng có
+                thể cấu hình endpoint trên backend của mình để cấp assertion
+                ngắn hạn cho một test user cố định, không dùng trong production.
+                Endpoint do Organization chọn; AIHUB không ký thay và không nhận
+                private key.
+              </p>
+              <ul className="aihub-list">
+                <li>
+                  <strong>Request từ trình duyệt:</strong> demo gửi{" "}
+                  <code>POST</code> không body tới URL HTTPS tuyệt đối. URL
+                  không được có username/password, query hoặc fragment; redirect
+                  bị từ chối. Request không mang cookie, Authorization, API key,
+                  user ID hay header xác thực tuỳ chỉnh.
+                </li>
+                <li>
+                  <strong>CORS và bảo vệ endpoint:</strong> chỉ cho phép chính
+                  xác origin <code>https://aihubproduction.com</code>, không
+                  wildcard và không mở preview/local origin. Endpoint tự chọn
+                  test user cố định, dùng quyền tối thiểu và giới hạn tần suất;
+                  request không có secret của AIHUB để xác thực người gọi.
+                </li>
+                <li>
+                  <strong>Response thành công:</strong> trả JSON với{" "}
+                  <code>assertion</code> và <code>expires_at</code> theo RFC
+                  3339 UTC. <code>expires_at</code> phải khớp claim số nguyên{" "}
+                  <code>exp</code>; assertion tối đa 6 KiB, response body tối đa
+                  8 KiB và token còn hạn. Header{" "}
+                  <code>Cache-Control: no-store</code> là bắt buộc.
+                </li>
+                <li>
+                  <strong>Claims:</strong> ký bằng private key lưu ở backend;
+                  dùng <code>aud: &quot;aihub&quot;</code>, issuer đã đăng ký,{" "}
+                  <code>sub</code> là test user cố định, <code>jti</code> duy
+                  nhất, <code>iat</code>/<code>exp</code> tính bằng giây và hạn
+                  dùng không vượt cấu hình Organization (1–3600 giây). Demo chỉ
+                  kiểm tra cấu trúc và thời hạn; AIHUB vẫn xác minh chữ ký và
+                  claims trên mọi thao tác live.
+                </li>
+                <li>
+                  <strong>Lỗi ổn định:</strong> trả <code>error.code</code> và
+                  ghép đúng HTTP status: <code>429 RATE_LIMITED</code>,{" "}
+                  <code>503 TEST_USER_UNAVAILABLE</code> hoặc{" "}
+                  <code>502 ISSUER_ERROR</code>. Demo hiện hướng dẫn an toàn chỉ
+                  khi cả mã lẫn status khớp; trường hợp khác dùng thông báo
+                  chung và không hiện body/message từ server.
+                </li>
+                <li>
+                  Assertion dùng chung cho Writing và Speaking trong phiên demo,
+                  chỉ gửi trong <code>X-User-Identity</code>, không lưu vào
+                  browser storage, URL, log hay analytics. Đổi API key/môi
+                  trường hoặc rời phiên sẽ xóa URL và assertion. Có thể mở mục
+                  nhập thủ công nếu endpoint chưa dùng được.
+                </li>
+              </ul>
+              <CodeBlock
+                code={DEMO_ASSERTION_SUCCESS}
+                label="Contract v1: response thành công"
+              />
+              <CodeBlock
+                code={DEMO_ASSERTION_ERROR}
+                label="Contract v1: response lỗi"
               />
             </section>
 
