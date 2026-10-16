@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { MAX_SPEAKING_BYTES } from "@/data/speaking-contract";
+import {
+  MAX_SPEAKING_BYTES,
+  MAX_SPEAKING_REQUEST_BYTES,
+} from "@/data/speaking-contract";
 import {
   parseSpeakingGradingEnvelope,
   type SpeakingGradingEnvelope,
@@ -15,6 +18,10 @@ import {
   readDemoUserIdentity,
   resolveDemoBaseUrl,
 } from "@/lib/demo-gateway";
+import {
+  readBoundedRequestBody,
+  RequestBodyTooLargeError,
+} from "@/lib/bounded-request-body";
 
 const MAX_TEXT_BYTES = 64 * 1024;
 const MAX_JSON_BYTES = 256 * 1024;
@@ -181,15 +188,21 @@ export async function parseSpeakingRequest(
   request: Request
 ): Promise<SpeakingRequest> {
   assertSameOrigin(request);
-  const contentLength = Number(request.headers.get("content-length"));
-  if (Number.isFinite(contentLength) && contentLength > MAX_SPEAKING_BYTES) {
-    throw new SpeakingBoundaryError("PAYLOAD_TOO_LARGE");
-  }
 
   let form: FormData;
   try {
-    form = await request.formData();
-  } catch {
+    const bytes = await readBoundedRequestBody(
+      request,
+      MAX_SPEAKING_REQUEST_BYTES
+    );
+    const headers = new Headers();
+    const contentType = request.headers.get("content-type");
+    if (contentType) headers.set("content-type", contentType);
+    form = await new Response(bytes, { headers }).formData();
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      throw new SpeakingBoundaryError("PAYLOAD_TOO_LARGE");
+    }
     throw invalidRequest();
   }
 
@@ -248,15 +261,15 @@ export async function parseSpeakingJsonRequest(
   request: Request
 ): Promise<SpeakingJsonRequest> {
   assertSameOrigin(request);
-  const contentLength = Number(request.headers.get("content-length"));
-  if (Number.isFinite(contentLength) && contentLength > MAX_JSON_BYTES) {
-    throw new SpeakingBoundaryError("PAYLOAD_TOO_LARGE");
-  }
 
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
+    const bytes = await readBoundedRequestBody(request, MAX_JSON_BYTES);
+    body = JSON.parse(new TextDecoder().decode(bytes));
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      throw new SpeakingBoundaryError("PAYLOAD_TOO_LARGE");
+    }
     throw invalidRequest();
   }
   if (

@@ -5,6 +5,7 @@ import {
   parseWritingRequest,
   ScoringBoundaryError,
 } from "@/lib/scoring-gateway";
+import { POST as postWritingGrade } from "@/app/api/demo/scoring/grade/route";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -25,6 +26,50 @@ function jsonRequest(body: unknown, headers: Record<string, string> = {}) {
     },
     body: JSON.stringify(body),
   });
+}
+
+function streamingJsonRequest(
+  body: ReadableStream<Uint8Array>,
+  headers: Record<string, string> = {}
+) {
+  return new Request("http://127.0.0.1/api/demo/scoring/grade", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Origin: "http://127.0.0.1",
+      "X-Demo-Api-Key": "sandbox-test-key",
+      "X-Demo-Environment": "sandbox",
+      "X-Demo-User-Identity": "00000000-0000-4000-8000-000000000001",
+      "Idempotency-Key": "11111111-2222-4333-8444-555555555555",
+      ...headers,
+    },
+    body,
+    duplex: "half",
+  } as RequestInit);
+}
+
+function oversizedStream(limit: number) {
+  const chunkSize = 64 * 1024;
+  let remaining = limit + chunkSize;
+  let canceled = false;
+  const body = new ReadableStream<Uint8Array>(
+    {
+      pull(controller) {
+        if (remaining === 0) {
+          controller.close();
+          return;
+        }
+        const size = Math.min(chunkSize, remaining);
+        remaining -= size;
+        controller.enqueue(new Uint8Array(size));
+      },
+      cancel() {
+        canceled = true;
+      },
+    },
+    { highWaterMark: 0 }
+  );
+  return { body, wasCanceled: () => canceled };
 }
 
 const TASK1_BODY = {
@@ -241,6 +286,43 @@ describe("parseWritingRequest rejections", () => {
     await expect(parseWritingRequest(oversized)).rejects.toMatchObject({
       code: "PAYLOAD_TOO_LARGE",
     });
+  });
+
+  it("reads a body at the 256 KB limit before validating its schema", async () => {
+    const padding =
+      256 * 1024 -
+      new TextEncoder().encode(JSON.stringify({ ...TASK1_BODY, padding: "" }))
+        .byteLength;
+    const body = JSON.stringify({
+      ...TASK1_BODY,
+      padding: "x".repeat(padding),
+    });
+    const request = new Request("http://127.0.0.1/api/demo/scoring/grade", {
+      method: "POST",
+      headers: { Origin: "http://127.0.0.1" },
+      body,
+    });
+
+    expect(new TextEncoder().encode(body).byteLength).toBe(256 * 1024);
+    await expect(parseWritingRequest(request)).rejects.toMatchObject({
+      code: "INVALID_REQUEST",
+    });
+  });
+
+  it("bounds a streamed body even when Content-Length understates it", async () => {
+    const calls = stubUpstream();
+    const stream = oversizedStream(256 * 1024);
+
+    const response = await postWritingGrade(
+      streamingJsonRequest(stream.body, { "Content-Length": "1" })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(413);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(payload.error.code).toBe("PAYLOAD_TOO_LARGE");
+    expect(stream.wasCanceled()).toBe(true);
+    expect(calls).toHaveLength(0);
   });
 
   it("rejects a cross-origin request", async () => {

@@ -17,6 +17,10 @@ import {
   readDemoUserIdentity,
   resolveDemoBaseUrl,
 } from "@/lib/demo-gateway";
+import {
+  readBoundedRequestBody,
+  RequestBodyTooLargeError,
+} from "@/lib/bounded-request-body";
 
 /**
  * Gateway for the public Writing grading demo.
@@ -134,16 +138,15 @@ export async function parseWritingRequest(
 ): Promise<WritingRequest> {
   if (!isSameOrigin(request)) throw invalidRequest();
 
-  // Measured on the raw text before parsing, so an oversized body is rejected
-  // without ever being parsed.
   let raw: string;
   try {
-    raw = await request.text();
-  } catch {
+    const bytes = await readBoundedRequestBody(request, MAX_JSON_BYTES);
+    raw = new TextDecoder().decode(bytes);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      throw new ScoringBoundaryError("PAYLOAD_TOO_LARGE");
+    }
     throw invalidRequest();
-  }
-  if (new TextEncoder().encode(raw).byteLength > MAX_JSON_BYTES) {
-    throw new ScoringBoundaryError("PAYLOAD_TOO_LARGE");
   }
 
   let body: unknown;
