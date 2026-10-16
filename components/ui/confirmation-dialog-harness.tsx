@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,13 @@ export function ConfirmationDialogHarness() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [attempts, setAttempts] = useState(0);
+  const nestedConfirmationOpen = useRef(false);
+
+  function handleParentOpenChange(nextOpen: boolean) {
+    // The confirmation owns Escape until it is down. See ConfirmationDialog.
+    if (!nextOpen && nestedConfirmationOpen.current) return;
+    setParentOpen(nextOpen);
+  }
 
   async function confirm() {
     setAttempts((count) => count + 1);
@@ -43,7 +50,7 @@ export function ConfirmationDialogHarness() {
 
   return (
     <main className="confirmation-dialog-test-harness">
-      <Dialog onOpenChange={setParentOpen} open={parentOpen}>
+      <Dialog onOpenChange={handleParentOpenChange} open={parentOpen}>
         <DialogTrigger asChild>
           <button type="button">Open parent dialog</button>
         </DialogTrigger>
@@ -84,6 +91,7 @@ export function ConfirmationDialogHarness() {
             destructive
             onConfirm={confirm}
             onOpenChange={(open) => {
+              nestedConfirmationOpen.current = open;
               setConfirmationOpen(open);
               if (open) setError("");
             }}

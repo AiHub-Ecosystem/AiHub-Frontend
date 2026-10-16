@@ -3,6 +3,12 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useRef, type ReactElement, type ReactNode } from "react";
 
+/**
+ * Radix keeps a parent dialog's document Escape listener attached until the
+ * render after this one mounts, so an Escape inside that window reaches both
+ * layers and closes the parent too. A parent that renders one must ignore its
+ * own close while this is open.
+ */
 export function ConfirmationDialog({
   open,
   onOpenChange,

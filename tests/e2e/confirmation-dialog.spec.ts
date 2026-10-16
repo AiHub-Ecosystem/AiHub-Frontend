@@ -65,6 +65,51 @@ test("Escape closes only the idle nested confirmation", async ({ page }) => {
   await expect(trigger).toBeFocused();
 });
 
+test("an Escape that lands while the confirmation mounts leaves the parent open", async ({
+  page,
+}) => {
+  await page.goto(harnessPath);
+  await waitForHydration(page);
+  await page.getByRole("button", { name: "Open parent dialog" }).click();
+
+  // Radix keeps the parent's document Escape listener attached until the render
+  // after the nested dialog's mount, so an Escape inside that window reaches
+  // the parent too. A mutation observer callback runs before React's passive
+  // effects, which is exactly that window.
+  await page.evaluate(async () => {
+    const nested = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === "Open nested confirmation");
+    const escaped = new Promise<void>((resolve) => {
+      const observer = new MutationObserver(() => {
+        if (!document.querySelector('[role="alertdialog"]')) return;
+        observer.disconnect();
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })
+        );
+        resolve();
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
+    nested?.click();
+    await escaped;
+  });
+
+  // The confirmation never saw that Escape, so it is still up and it hides
+  // the parent from the accessibility tree.
+  const confirmation = page.getByRole("alertdialog", {
+    name: "Remove record?",
+  });
+  await expect(confirmation).toBeVisible();
+  await expect(page.locator('[role="dialog"]')).toHaveCount(1);
+
+  await page.keyboard.press("Escape");
+  await expect(confirmation).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog", { name: "Parent dialog" })
+  ).toBeVisible();
+});
+
 test("backdrop closes only the idle nested confirmation", async ({ page }) => {
   const { trigger, confirmation } = await openNestedConfirmation(page);
 

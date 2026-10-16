@@ -18,10 +18,14 @@ const disabledIdentityCopy =
 export function OrganizationIdentityForm({
   organizationId,
   initialConfig,
+  nestedConfirmationOpenRef,
   onboarding = false,
 }: {
   organizationId: string;
   initialConfig: OrganizationIdentityConfig;
+  // Set while the confirmation is up, so the dialog that owns this form does
+  // not close on the Escape both layers can see. See ConfirmationDialog.
+  nestedConfirmationOpenRef?: React.RefObject<boolean>;
   onboarding?: boolean;
 }) {
   const router = useRouter();
@@ -121,6 +125,7 @@ export function OrganizationIdentityForm({
 
     if (disabled) {
       setPendingInput(body);
+      if (nestedConfirmationOpenRef) nestedConfirmationOpenRef.current = true;
       setConfirmationOpen(true);
       return;
     }
@@ -239,6 +244,8 @@ export function OrganizationIdentityForm({
           confirmLabel="Xác nhận"
           onConfirm={confirmSave}
           onOpenChange={(open) => {
+            if (nestedConfirmationOpenRef)
+              nestedConfirmationOpenRef.current = open;
             setConfirmationOpen(open);
             if (!open && !busy) setPendingInput(null);
           }}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,7 @@ export function OrganizationIdentityDialog({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(defaultOpen);
+  const nestedConfirmationOpenRef = useRef(false);
   const [config, setConfig] = useState<OrganizationIdentityConfig | null>(null);
   const [loading, setLoading] = useState(defaultOpen);
   const [forbidden, setForbidden] = useState(false);
@@ -71,6 +72,7 @@ export function OrganizationIdentityDialog({
   }, [open, organizationId, router]);
 
   function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen && nestedConfirmationOpenRef.current) return;
     if (!nextOpen && onboarding) {
       router.push(
         `/console/orgs/${encodeURIComponent(organizationId)}/api-keys`
@@ -122,6 +124,7 @@ export function OrganizationIdentityDialog({
         {config && (
           <OrganizationIdentityForm
             initialConfig={config}
+            nestedConfirmationOpenRef={nestedConfirmationOpenRef}
             onboarding={onboarding}
             organizationId={organizationId}
           />
