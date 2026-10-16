@@ -134,8 +134,18 @@ test("Writing supports signed assertions and redacts them from traces and export
   await expect(page.getByText(/Assertion phải có tối đa 6 KiB/)).toHaveCount(0);
   await identity.fill("x".repeat(6 * 1024 + 1));
   await expect(page.getByText(/Assertion phải có tối đa 6 KiB/)).toBeVisible();
+  await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+  await page.getByRole("button", { name: "Xem bước chấm" }).click();
+  await expect(identity).toHaveCount(0);
   await page.getByTestId("button-grade").click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: /Dán Signed User Assertion/ })
+  ).toBeVisible();
   expect((await scoringLog(request)).requests).toHaveLength(0);
+  await page.getByRole("button", { name: "Sửa bài" }).click();
+  await page.getByRole("button", { name: "Quay lại đề" }).click();
+  await page.getByText("Nhập assertion thủ công").click();
+  await expect(identity).toHaveValue("x".repeat(6 * 1024 + 1));
   await identity.fill(assertion);
   await page
     .getByRole("button", { name: "Hiện Signed User Assertion" })
