@@ -58,6 +58,13 @@ A stable identifier from a customer application sent as `X-User-Identity` when t
 **Signed User Assertion**:
 A short-lived JWT issued by an Organization's own backend for an end user and sent as `X-User-Identity` when the Organization uses signed assertion mode.
 
+**Demo Assertion Endpoint**:
+An endpoint operated by an Organization that issues short-lived Signed User Assertions for its fixed demo test user.
+_Avoid_: token mint endpoint
+
+**Demo test user**:
+An Organization's dedicated non-production end user selected by its Demo Assertion Endpoint.
+
 **Production confirmation**:
 The visitor's explicit acknowledgement before the first Production grade in a demo visit that it may incur real charges. It is cleared when the key or selected environment changes.
 
