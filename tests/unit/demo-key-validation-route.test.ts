@@ -9,6 +9,13 @@ const validBody = JSON.stringify({
   scope: "writing.grade",
 });
 
+function validationResponse(data: Record<string, unknown>) {
+  return new Response(
+    JSON.stringify({ data, meta: { request_id: "req_test" } }),
+    { status: 200, headers: { "content-type": "application/json" } }
+  );
+}
+
 function request(body: BodyInit, headers: Record<string, string> = {}) {
   return new Request(url, {
     method: "POST",
@@ -45,6 +52,7 @@ beforeEach(() => {
           valid: true,
           environment: "sandbox",
           scope: "writing.grade",
+          user_identity_mode: "declared_id",
           allowance: {
             monthly_limit: 5,
             reserved: 0,
@@ -83,6 +91,29 @@ describe("demo key validation BFF route", () => {
     expect(headers.get("x-aihub-client-secret")).toBe("server-only-secret");
     expect(headers.get("x-aihub-visitor-ip")).toBe("198.51.100.25");
   });
+
+  it.each([undefined, "unknown_mode"])(
+    "rejects a successful validation without a recognized identity mode (%s)",
+    async (user_identity_mode) => {
+      const data = {
+        valid: true,
+        environment: "sandbox",
+        scope: "writing.grade",
+        ...(user_identity_mode === undefined ? {} : { user_identity_mode }),
+      };
+      upstream.mockResolvedValueOnce(validationResponse(data));
+
+      const response = await POST(
+        request(validBody, { "x-forwarded-for": "198.51.100.25" })
+      );
+      const payload = await response.json();
+
+      expect(response.status).toBe(502);
+      expect(payload.error.code).toBe("AI_SERVICE_CONTRACT_VIOLATION");
+      expect(payload.error.message).toMatch(/thử lại|hỗ trợ/i);
+      expect(payload.data).toBeUndefined();
+    }
+  );
 
   it("rejects a declared oversized request before reading the stream", async () => {
     let pulled = false;

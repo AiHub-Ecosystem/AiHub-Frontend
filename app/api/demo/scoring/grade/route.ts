@@ -55,14 +55,13 @@ const UPSTREAM_MESSAGES: Record<string, string> = {
   CONCURRENCY_LIMIT: "AIHUB đang xử lý một bài khác. Chờ xong rồi thử lại.",
   QUOTA_EXCEEDED:
     "Demo đã hết hạn mức chấm trong tháng. Hạn mức hồi lại lúc 00:00 UTC ngày 1 tháng sau.",
-  FORBIDDEN:
-    "API key thiếu scope writing.grade hoặc Organization đang bật Identity Configuration.",
+  FORBIDDEN: "API key chưa được cấp quyền chấm Writing trong môi trường này.",
   UNAUTHORIZED: "API key không hợp lệ hoặc đã hết hạn.",
   ENVIRONMENT_NOT_ALLOWED: "Key không được phép cho môi trường demo đã chọn.",
   USER_IDENTITY_REQUIRED:
     "Thiếu User Identity. Demo luôn gửi kèm, nên lỗi này chỉ xảy ra khi cấu hình phía AIHUB có vấn đề.",
   INVALID_USER_IDENTITY:
-    "Organization đang bật Identity Configuration hoặc User Identity của phiên demo không hợp lệ.",
+    "User Identity không hợp lệ. Nếu dùng Signed User Assertion, hãy lấy token mới từ máy chủ của tổ chức.",
   IDEMPOTENCY_CONFLICT:
     "Idempotency-Key này đã được dùng cho nội dung khác. Hãy sửa bài để tạo lượt gửi mới.",
   AI_SERVICE_THROTTLED: "Yêu cầu chấm bài đang quá tải. Vui lòng thử lại sau.",

@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import type { DemoEnvironment } from "@/lib/demo-environments";
+import type { DemoIdentityMode } from "@/lib/demo-identity";
 import { isLogoutSignal } from "@/lib/logout-signal";
 import {
   acknowledgeProduction as acknowledgeProductionIn,
@@ -24,6 +25,7 @@ import {
   requiresProductionAcknowledgement as requiresAcknowledgementIn,
   setApiKey as setApiKeyIn,
   setEnvironment as setEnvironmentIn,
+  setUserIdentityMode as setUserIdentityModeIn,
   type DemoScope,
   type DemoVisitState,
 } from "./demo-session-state";
@@ -51,7 +53,7 @@ type DemoSession = {
   acknowledgeProduction: () => void;
   userIdentity: string;
   setUserIdentity: (value: string) => void;
-  ensureUserIdentity: () => void;
+  setUserIdentityMode: (mode: DemoIdentityMode | null) => void;
 };
 
 const DemoSessionContext = createContext<DemoSession | null>(null);
@@ -76,7 +78,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const forget = () => {
-      setUserIdentity(globalThis.crypto.randomUUID());
+      setUserIdentity("");
       update(clearDemoVisit(stateRef.current));
     };
     const onPageShow = (event: PageTransitionEvent) => {
@@ -85,29 +87,41 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     const onStorage = (event: StorageEvent) => {
       if (isLogoutSignal(event)) forget();
     };
-    const identityTimer = window.setTimeout(
-      () => setUserIdentity(globalThis.crypto.randomUUID()),
-      0
-    );
     window.addEventListener("pageshow", onPageShow);
     window.addEventListener("storage", onStorage);
     return () => {
-      window.clearTimeout(identityTimer);
       window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("storage", onStorage);
     };
   }, [update]);
 
   const setApiKey = useCallback(
-    (value: string) => update(setApiKeyIn(stateRef.current, value)),
+    (value: string) => {
+      const next = setApiKeyIn(stateRef.current, value);
+      if (next === stateRef.current) return;
+      setUserIdentity("");
+      update(next);
+    },
     [update]
   );
-  const ensureUserIdentity = useCallback(() => {
-    if (!userIdentity.trim()) setUserIdentity(globalThis.crypto.randomUUID());
-  }, [userIdentity]);
   const setEnvironment = useCallback(
-    (value: DemoEnvironment) =>
-      update(setEnvironmentIn(stateRef.current, value)),
+    (value: DemoEnvironment) => {
+      const next = setEnvironmentIn(stateRef.current, value);
+      if (next === stateRef.current) return;
+      setUserIdentity("");
+      update(next);
+    },
+    [update]
+  );
+  const setUserIdentityMode = useCallback(
+    (mode: DemoIdentityMode | null) => {
+      const current = stateRef.current;
+      if (current.userIdentityMode === mode) return;
+      setUserIdentity(
+        mode === "declared_id" ? globalThis.crypto.randomUUID() : ""
+      );
+      update(setUserIdentityModeIn(current, mode));
+    },
     [update]
   );
   const beginGrading = useCallback(() => {
@@ -166,7 +180,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       acknowledgeProduction,
       userIdentity,
       setUserIdentity,
-      ensureUserIdentity,
+      setUserIdentityMode,
     }),
     [
       state,
@@ -184,7 +198,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       acknowledgeProduction,
       userIdentity,
       setUserIdentity,
-      ensureUserIdentity,
+      setUserIdentityMode,
     ]
   );
 

@@ -24,6 +24,21 @@ const DEMO_KEYS = {
     environments: ["sandbox"],
     scopes: ["writing.grade", "speaking.grade"],
   },
+  aihub_sk_e2e_signed_sandbox_key: {
+    environments: ["sandbox"],
+    scopes: ["writing.grade", "speaking.grade"],
+    userIdentityMode: "signed_assertion",
+  },
+  aihub_sk_e2e_missing_identity_mode_key: {
+    environments: ["sandbox"],
+    scopes: ["writing.grade", "speaking.grade"],
+    omitIdentityMode: true,
+  },
+  aihub_sk_e2e_unknown_identity_mode_key: {
+    environments: ["sandbox"],
+    scopes: ["writing.grade", "speaking.grade"],
+    userIdentityMode: "unknown_mode",
+  },
   aihub_prod_e2e_production_key: {
     environments: ["production"],
     scopes: ["writing.grade", "speaking.grade"],
@@ -1093,6 +1108,11 @@ const server = createServer(async (request, response) => {
         valid: true,
         environment,
         scope,
+        ...(demoKey.omitIdentityMode
+          ? {}
+          : {
+              user_identity_mode: demoKey.userIdentityMode ?? "declared_id",
+            }),
         allowance:
           environment === "sandbox"
             ? {
@@ -1178,6 +1198,16 @@ const server = createServer(async (request, response) => {
     if (typeof userIdentity !== "string" || !userIdentity.trim()) {
       sendJson(response, 401, {
         error: { code: "USER_IDENTITY_REQUIRED" },
+      });
+      return;
+    }
+    if (
+      DEMO_KEYS[request.headers["x-api-key"]].userIdentityMode ===
+        "signed_assertion" &&
+      userIdentity === "expired.e2e.assertion"
+    ) {
+      sendJson(response, 401, {
+        error: { code: "INVALID_USER_IDENTITY" },
       });
       return;
     }
@@ -1292,6 +1322,16 @@ const server = createServer(async (request, response) => {
     if (!userIdentity) {
       sendJson(response, 401, {
         error: { code: "USER_IDENTITY_REQUIRED" },
+      });
+      return;
+    }
+    if (
+      DEMO_KEYS[request.headers["x-api-key"]].userIdentityMode ===
+        "signed_assertion" &&
+      userIdentity === "expired.e2e.assertion"
+    ) {
+      sendJson(response, 401, {
+        error: { code: "INVALID_USER_IDENTITY" },
       });
       return;
     }

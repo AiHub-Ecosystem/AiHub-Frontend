@@ -73,7 +73,7 @@ function errorMessage(code: string, environment?: DemoEnvironment) {
     case "FORBIDDEN":
       // The backend intentionally uses one denial for these cases; don't claim
       // to know which one happened.
-      return `Không thể dùng mã API này cho bản thử. Hãy kiểm tra đúng môi trường và quyền chấm của key. Nếu tổ chức yêu cầu mã người dùng có chữ ký từ máy chủ, bản thử chưa hỗ trợ; đăng nhập hoặc nhập ID thường không thay thế được chữ ký đó. Hãy gửi yêu cầu từ máy chủ của bạn.`;
+      return "Không thể dùng mã API này cho bản thử. Hãy kiểm tra môi trường và quyền chấm của key, hoặc thử lại sau.";
     case "RATE_LIMITED":
       return "Bạn kiểm tra key quá nhanh. Chờ một chút rồi thử lại.";
     case "PAYLOAD_TOO_LARGE":
@@ -199,7 +199,10 @@ export async function POST(request: Request) {
       "environment" in payload.data &&
       payload.data.environment === environment &&
       "scope" in payload.data &&
-      payload.data.scope === scope
+      payload.data.scope === scope &&
+      "user_identity_mode" in payload.data &&
+      (payload.data.user_identity_mode === "declared_id" ||
+        payload.data.user_identity_mode === "signed_assertion")
     ) {
       // The allowance snapshot rides inside `data` exactly as the backend sends
       // it: advisory, and re-checked by every grade.
@@ -209,7 +212,8 @@ export async function POST(request: Request) {
       {
         error: {
           code: "AI_SERVICE_CONTRACT_VIOLATION",
-          message: "AIHUB trả về response không đúng định dạng.",
+          message:
+            "AIHUB chưa trả đủ thông tin để xác thực. Hãy thử lại; nếu lỗi tiếp tục, liên hệ bộ phận hỗ trợ.",
         },
         meta: { request_id: requestId },
       },

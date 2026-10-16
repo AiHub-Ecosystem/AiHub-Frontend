@@ -440,6 +440,28 @@ describe("gradeWriting upstream call", () => {
     );
   });
 
+  it("forwards a 6 KiB assertion unchanged and rejects one byte over before dispatch", async () => {
+    const assertion = "x".repeat(6 * 1024);
+    const calls = stubUpstream();
+
+    await gradeWriting(
+      jsonRequest(TASK1_BODY, { "X-Demo-User-Identity": assertion }),
+      "req_test"
+    );
+
+    expect(calls[0].headers.get("x-user-identity")).toBe(assertion);
+
+    await expect(
+      gradeWriting(
+        jsonRequest(TASK1_BODY, {
+          "X-Demo-User-Identity": "x".repeat(6 * 1024 + 1),
+        }),
+        "req_test"
+      )
+    ).rejects.toMatchObject({ code: "INVALID_USER_IDENTITY" });
+    expect(calls).toHaveLength(1);
+  });
+
   it("forwards the browser's idempotency key to the grading API", async () => {
     const calls = stubUpstream();
 

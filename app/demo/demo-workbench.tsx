@@ -13,6 +13,11 @@ import {
   type DemoExports,
 } from "@/lib/demo-export";
 import { isEndUserId } from "@/lib/end-user-id";
+import {
+  MAX_SIGNED_USER_ASSERTION_BYTES,
+  type DemoIdentityMode,
+  isDemoUserIdentity,
+} from "@/lib/demo-identity";
 import type { SandboxAllowanceSnapshot } from "./demo-session-state";
 
 export const DEMO_STEPS = [
@@ -39,6 +44,7 @@ type DemoWorkbenchProps = {
   status: string;
   request: string;
   response: string;
+  sensitiveValue?: string;
   traceNote?: string;
   environment: DemoEnvironment;
   onEnvironmentChange: (environment: DemoEnvironment) => void;
@@ -69,38 +75,63 @@ export function DemoUserIdentityField({
   value,
   onChange,
   disabled,
+  mode,
 }: {
   id: string;
   value: string;
   onChange: (value: string) => void;
   disabled: boolean;
+  mode: DemoIdentityMode;
 }) {
+  const [revealed, setRevealed] = useState(false);
+  const signed = mode === "signed_assertion";
+  const valid = signed ? isDemoUserIdentity(value) : isEndUserId(value);
   return (
     <div className="demo-field">
-      <h3>Nhập mã người dùng</h3>
-      <label htmlFor={id}>Mã người dùng của ứng dụng (X-User-Identity)</label>
+      <h3>{signed ? "Signed User Assertion" : "Declared User ID"}</h3>
+      <label htmlFor={id}>
+        {signed
+          ? "Signed User Assertion (JWT) (X-User-Identity)"
+          : "Declared User ID (X-User-Identity)"}
+      </label>
       <input
         autoComplete="off"
         disabled={disabled}
         id={id}
-        maxLength={256}
+        maxLength={signed ? MAX_SIGNED_USER_ASSERTION_BYTES + 1 : 256}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="Tự tạo mã ngẫu nhiên"
+        placeholder={
+          signed ? "Dán JWT do máy chủ tổ chức cấp" : "Tự tạo mã ngẫu nhiên"
+        }
         spellCheck={false}
-        type="text"
+        type={signed && !revealed ? "password" : "text"}
         value={value}
       />
+      {signed && (
+        <button
+          aria-label={
+            revealed
+              ? "Che Signed User Assertion"
+              : "Hiện Signed User Assertion"
+          }
+          aria-pressed={revealed}
+          className="demo-btn-secondary"
+          onClick={() => setRevealed((visible) => !visible)}
+          type="button"
+        >
+          {revealed ? "Che assertion" : "Hiện assertion"}
+        </button>
+      )}
       <p className="demo-help">
-        Mã ngẫu nhiên được tạo sẵn. Chỉ sửa được sau khi xác nhận mã API; dùng
-        ID người dùng trong ứng dụng, không dùng email, tên hoặc số điện thoại.
+        {signed
+          ? `Dán JWT ngắn hạn do máy chủ của tổ chức phát hành cho người dùng cuối. Bản thử không yêu cầu khóa ký. Giới hạn ${MAX_SIGNED_USER_ASSERTION_BYTES / 1024} KiB.`
+          : "Mã ngẫu nhiên được tạo sẵn. Dùng ID ổn định của người dùng trong ứng dụng, không dùng email, tên hoặc số điện thoại."}
       </p>
-      <p className="demo-help">
-        Nếu tổ chức bật xác thực danh tính bằng chữ ký, máy chủ ứng dụng phải
-        gửi kèm chữ ký xác nhận người dùng. Bản thử này không hỗ trợ bước đó.
-      </p>
-      {value.length > 0 && !isEndUserId(value) && (
+      {value.length > 0 && !valid && (
         <p className="demo-error" role="alert">
-          Mã cần có 1–256 ký tự, không chứa khoảng trắng.
+          {signed
+            ? "Assertion phải có tối đa 6 KiB ký tự ASCII, không chứa khoảng trắng."
+            : "Mã cần có 1–256 ký tự, không chứa khoảng trắng."}
         </p>
       )}
     </div>
@@ -158,6 +189,7 @@ export function DemoWorkbench({
   status,
   request,
   response,
+  sensitiveValue,
   traceNote,
   environment,
   onEnvironmentChange,
@@ -176,10 +208,13 @@ export function DemoWorkbench({
   const [exportFormat, setExportFormat] = useState<DemoExportFormat>("curl");
   const [exportCopied, setExportCopied] = useState(false);
   const output = tab === "request" ? request : response;
+  const safeOutput = sensitiveValue
+    ? output.split(sensitiveValue).join("<redacted signed user assertion>")
+    : output;
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(output);
+      await navigator.clipboard.writeText(safeOutput);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1400);
     } catch {
@@ -446,7 +481,7 @@ export function DemoWorkbench({
               </button>
             </div>
             <pre className="demo-console-code" role="tabpanel" tabIndex={0}>
-              <code>{output}</code>
+              <code>{safeOutput}</code>
             </pre>
             <p className="demo-console-note">
               {traceNote ??

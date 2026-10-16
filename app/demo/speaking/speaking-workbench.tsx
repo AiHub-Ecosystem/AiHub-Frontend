@@ -23,6 +23,7 @@ import {
 } from "@/lib/demo-environments";
 import { buildDemoExports } from "@/lib/demo-export";
 import { isEndUserId } from "@/lib/end-user-id";
+import { isDemoIdentityMode, isDemoUserIdentity } from "@/lib/demo-identity";
 import { useDemoSession, type DemoScope } from "@/app/demo/demo-session";
 import { sandboxAllowanceFrom } from "@/app/demo/demo-session-state";
 import {
@@ -576,7 +577,7 @@ export default function SpeakingWorkbench() {
     acknowledgeProduction,
     userIdentity,
     setUserIdentity,
-    ensureUserIdentity,
+    setUserIdentityMode,
   } = useDemoSession();
   const apiKey = state.apiKey;
   const environment = state.environment;
@@ -611,8 +612,20 @@ export default function SpeakingWorkbench() {
   const audioPlayer = useRef<HTMLAudioElement>(null);
 
   const liveReady =
-    apiKey.trim().length > 0 && isScopeValidated(SCOPE) && !skipMock;
-  const userIdentityValid = isEndUserId(userIdentity);
+    apiKey.trim().length > 0 &&
+    isScopeValidated(SCOPE) &&
+    state.userIdentityMode !== null &&
+    !skipMock;
+  const userIdentityValid =
+    state.userIdentityMode === "signed_assertion"
+      ? isDemoUserIdentity(userIdentity)
+      : state.userIdentityMode === "declared_id" && isEndUserId(userIdentity);
+  const identityTraceValue =
+    state.userIdentityMode === "signed_assertion"
+      ? "<redacted signed user assertion>"
+      : userIdentityValid
+        ? userIdentity
+        : "<your end-user id>";
   const handleUserIdentityChange = (value: string) => {
     setUserIdentity(value);
     setResult(null);
@@ -753,7 +766,7 @@ export default function SpeakingWorkbench() {
           headers: [
             {
               name: "X-User-Identity",
-              value: userIdentityValid ? userIdentity : "<your end-user id>",
+              value: identityTraceValue,
             },
             { name: "Content-Type", value: "application/json" },
           ],
@@ -863,6 +876,17 @@ export default function SpeakingWorkbench() {
             "Không đọc được kết quả kiểm tra mã API. Thử lại hoặc xem câu hỏi mẫu.",
         } satisfies PublicError;
       }
+      if (
+        !("user_identity_mode" in payload.data) ||
+        !isDemoIdentityMode(payload.data.user_identity_mode)
+      ) {
+        throw {
+          code: "AI_SERVICE_CONTRACT_VIOLATION",
+          message:
+            "AIHUB chưa xác nhận cách nhận diện người dùng. Hãy thử lại; nếu lỗi tiếp tục, liên hệ bộ phận hỗ trợ.",
+        } satisfies PublicError;
+      }
+      setUserIdentityMode(payload.data.user_identity_mode);
       markScopeValidated(SCOPE);
       setQuestionLoading(true);
       setQuestionError(null);
@@ -871,7 +895,6 @@ export default function SpeakingWorkbench() {
         state: "pending",
         request: `/v1/ielts/speaking/questions?part=${part}`,
       });
-      ensureUserIdentity();
       setStep(2);
     } catch (caught) {
       if (
@@ -894,6 +917,8 @@ export default function SpeakingWorkbench() {
               message:
                 "Không kiểm tra được mã API. Thử lại hoặc xem câu hỏi mẫu.",
             };
+      if (publicError.code === "AI_SERVICE_CONTRACT_VIOLATION")
+        setUserIdentityMode(null);
       setKeyError(publicError);
       if (!receivedHttpResponse)
         setKeyCheckResponse({
@@ -929,7 +954,6 @@ export default function SpeakingWorkbench() {
       message: "Đã bỏ qua bước kiểm tra mã API; đang dùng bài mẫu có sẵn.",
     });
     setKeyCheckTrace(null);
-    ensureUserIdentity();
     setStep(2);
   };
 
@@ -1044,7 +1068,10 @@ export default function SpeakingWorkbench() {
     if (!userIdentityValid) {
       setError({
         code: "INVALID_USER_IDENTITY",
-        message: "Nhập mã người dùng gồm 1–256 ký tự, không chứa khoảng trắng.",
+        message:
+          state.userIdentityMode === "signed_assertion"
+            ? "Dán Signed User Assertion do máy chủ tổ chức cấp (tối đa 6 KiB)."
+            : "Nhập Declared User ID gồm 1–256 ký tự, không chứa khoảng trắng.",
       });
       return;
     }
@@ -1247,9 +1274,7 @@ export default function SpeakingWorkbench() {
                 : "/v1/ielts/speaking/grading",
               headers: {
                 "X-Demo-API-Key": "[REDACTED]",
-                "X-Demo-User-Identity": userIdentityValid
-                  ? userIdentity
-                  : "<your end-user id>",
+                "X-Demo-User-Identity": identityTraceValue,
                 "Content-Type": sampleAudioSelected
                   ? "application/json"
                   : "multipart/form-data; browser generated boundary",
@@ -1281,9 +1306,7 @@ export default function SpeakingWorkbench() {
       url: `${demoEnvironmentHost(environment)}/v1/ielts/speaking/${gradingPath}`,
       headers: {
         "X-API-Key": liveReady ? apiKey.trim() : "[chưa có mã API hợp lệ]",
-        "X-User-Identity": userIdentityValid
-          ? userIdentity
-          : "<your end-user id>",
+        "X-User-Identity": identityTraceValue,
         "Content-Type": sampleAudioSelected
           ? "application/json"
           : "multipart/form-data; boundary=<generated automatically>",
@@ -1363,7 +1386,9 @@ export default function SpeakingWorkbench() {
   };
 
   const traceNote = liveReady
-    ? "Mã API xuất hiện trong thông tin gửi đi và lệnh được sao chép. Hãy giữ kín ảnh chụp và nội dung đã sao chép."
+    ? state.userIdentityMode === "signed_assertion"
+      ? "Mã API xuất hiện trong thông tin gửi đi; Signed User Assertion được che trong trace và lệnh sao chép."
+      : "Mã API xuất hiện trong thông tin gửi đi và lệnh được sao chép. Hãy giữ kín ảnh chụp và nội dung đã sao chép."
     : "Nút này chỉ hiển thị kết quả mẫu có sẵn; bài của bạn không được gửi đi chấm.";
 
   const traceStatus =
@@ -1419,6 +1444,9 @@ export default function SpeakingWorkbench() {
       status={traceStatus}
       request={requestForStep()}
       response={responseForStep()}
+      sensitiveValue={
+        state.userIdentityMode === "signed_assertion" ? userIdentity : undefined
+      }
       environment={environment}
       onEnvironmentChange={(value) => {
         setEnvironment(value);
@@ -1512,16 +1540,22 @@ export default function SpeakingWorkbench() {
 
       {step === 2 && (
         <>
-          <DemoUserIdentityField
-            disabled={!liveReady || checkingKey || grading}
-            id="speaking-demo-user-identity"
-            onChange={handleUserIdentityChange}
-            value={userIdentity}
-          />
+          {liveReady && state.userIdentityMode && (
+            <DemoUserIdentityField
+              key={state.userIdentityMode}
+              disabled={checkingKey || grading}
+              id="speaking-demo-user-identity"
+              mode={state.userIdentityMode}
+              onChange={handleUserIdentityChange}
+              value={userIdentity}
+            />
+          )}
           <h3>Chọn câu hỏi Speaking</h3>
           <p>
             {liveReady
-              ? "Mã API đã được xác nhận. Bạn có thể đổi mã người dùng ở trên, rồi chọn Part và câu hỏi; bước này chỉ tải danh sách, chưa gửi bài chấm hoặc dùng lượt chấm."
+              ? state.userIdentityMode === "signed_assertion"
+                ? "Mã API đã được xác nhận. Dán hoặc thay Signed User Assertion ở trên, rồi chọn câu hỏi để chấm thật."
+                : "Mã API đã được xác nhận. Bạn có thể đổi Declared User ID ở trên, rồi chọn câu hỏi để chấm thật."
               : "Chọn Part và câu hỏi mẫu để xem thử. Nhập mã API ở bước 1 nếu muốn tải câu hỏi mới và gửi ghi âm đi chấm thật."}
           </p>
           <div className="demo-inline-actions" aria-label="Speaking part">
@@ -1758,6 +1792,16 @@ export default function SpeakingWorkbench() {
 
       {step === 4 && (
         <>
+          {liveReady && state.userIdentityMode && (
+            <DemoUserIdentityField
+              key={state.userIdentityMode}
+              disabled={checkingKey || grading}
+              id="speaking-demo-user-identity"
+              mode={state.userIdentityMode}
+              onChange={handleUserIdentityChange}
+              value={userIdentity}
+            />
+          )}
           <h3>{liveReady ? "Gửi bài nói để chấm" : "Xem kết quả mẫu"}</h3>
           <p>
             {liveReady

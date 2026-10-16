@@ -19,6 +19,7 @@ import {
 } from "@/lib/demo-environments";
 import { buildDemoExports } from "@/lib/demo-export";
 import { isEndUserId } from "@/lib/end-user-id";
+import { isDemoIdentityMode, isDemoUserIdentity } from "@/lib/demo-identity";
 import { useDemoSession, type DemoScope } from "@/app/demo/demo-session";
 import { sandboxAllowanceFrom } from "@/app/demo/demo-session-state";
 import {
@@ -355,7 +356,7 @@ export default function ScoringWorkbench() {
     acknowledgeProduction,
     userIdentity,
     setUserIdentity,
-    ensureUserIdentity,
+    setUserIdentityMode,
   } = useDemoSession();
   const apiKey = state.apiKey;
   const environment = state.environment;
@@ -398,8 +399,20 @@ export default function ScoringWorkbench() {
     setResult(null);
   };
   const liveReady =
-    apiKey.trim().length > 0 && isScopeValidated(SCOPE) && !skipMock;
-  const userIdentityValid = isEndUserId(userIdentity);
+    apiKey.trim().length > 0 &&
+    isScopeValidated(SCOPE) &&
+    state.userIdentityMode !== null &&
+    !skipMock;
+  const userIdentityValid =
+    state.userIdentityMode === "signed_assertion"
+      ? isDemoUserIdentity(userIdentity)
+      : state.userIdentityMode === "declared_id" && isEndUserId(userIdentity);
+  const identityTraceValue =
+    state.userIdentityMode === "signed_assertion"
+      ? "<redacted signed user assertion>"
+      : userIdentityValid
+        ? userIdentity
+        : "<your end-user id>";
   const handleUserIdentityChange = (value: string) => {
     setUserIdentity(value);
     setIdempotencyKey(globalThis.crypto.randomUUID());
@@ -461,7 +474,7 @@ export default function ScoringWorkbench() {
             headers: [
               {
                 name: "X-User-Identity",
-                value: userIdentityValid ? userIdentity : "<your end-user id>",
+                value: identityTraceValue,
               },
               { name: "Content-Type", value: "application/json" },
             ],
@@ -475,9 +488,8 @@ export default function ScoringWorkbench() {
       liveReady,
       step,
       task,
+      identityTraceValue,
       upstreamRequestBody,
-      userIdentity,
-      userIdentityValid,
     ]
   );
   const activeResult = result?.task === task ? result : null;
@@ -579,9 +591,19 @@ export default function ScoringWorkbench() {
             "Không đọc được kết quả kiểm tra mã API. Thử lại hoặc xem bài mẫu.",
         } satisfies PublicError;
       }
+      if (
+        !("user_identity_mode" in payload.data) ||
+        !isDemoIdentityMode(payload.data.user_identity_mode)
+      ) {
+        throw {
+          code: "AI_SERVICE_CONTRACT_VIOLATION",
+          message:
+            "AIHUB chưa xác nhận cách nhận diện người dùng. Hãy thử lại; nếu lỗi tiếp tục, liên hệ bộ phận hỗ trợ.",
+        } satisfies PublicError;
+      }
+      setUserIdentityMode(payload.data.user_identity_mode);
       markScopeValidated(SCOPE);
       setIdempotencyKey(globalThis.crypto.randomUUID());
-      ensureUserIdentity();
       setStep(2);
     } catch (caught) {
       if (
@@ -603,6 +625,8 @@ export default function ScoringWorkbench() {
               code: "AI_SERVICE_UNAVAILABLE",
               message: "Không kiểm tra được mã API. Thử lại hoặc xem bài mẫu.",
             };
+      if (publicError.code === "AI_SERVICE_CONTRACT_VIOLATION")
+        setUserIdentityMode(null);
       setKeyError(publicError);
       if (!receivedTrace) {
         setKeyCheckResponse({
@@ -631,7 +655,6 @@ export default function ScoringWorkbench() {
       message: "Đã bỏ qua kiểm tra mã API; đang dùng bài mẫu có sẵn.",
     });
     setIdempotencyKey(globalThis.crypto.randomUUID());
-    ensureUserIdentity();
     setStep(2);
   };
 
@@ -653,7 +676,10 @@ export default function ScoringWorkbench() {
     if (!userIdentityValid) {
       setGradeError({
         code: "INVALID_USER_IDENTITY",
-        message: "Nhập mã người dùng gồm 1–256 ký tự, không chứa khoảng trắng.",
+        message:
+          state.userIdentityMode === "signed_assertion"
+            ? "Dán Signed User Assertion do máy chủ tổ chức cấp (tối đa 6 KiB)."
+            : "Nhập Declared User ID gồm 1–256 ký tự, không chứa khoảng trắng.",
       });
       return;
     }
@@ -751,9 +777,7 @@ export default function ScoringWorkbench() {
     url: `${demoEnvironmentHost(environment)}/v1/ielts/writing/task${task}/grade`,
     headers: {
       "X-API-Key": liveReady ? apiKey.trim() : "[chưa có mã API hợp lệ]",
-      "X-User-Identity": userIdentityValid
-        ? userIdentity
-        : "<your end-user id>",
+      "X-User-Identity": identityTraceValue,
       "Content-Type": "application/json",
       "Idempotency-Key": idempotencyKey ?? "<generate UUID before submit>",
     },
@@ -824,9 +848,7 @@ export default function ScoringWorkbench() {
               },
               headers: {
                 "X-Demo-API-Key": "[REDACTED]",
-                "X-Demo-User-Identity": userIdentityValid
-                  ? userIdentity
-                  : "<your end-user id>",
+                "X-Demo-User-Identity": identityTraceValue,
                 "Content-Type": "application/json",
                 "Idempotency-Key":
                   idempotencyKey ?? "<generated before submit>",
@@ -925,6 +947,9 @@ export default function ScoringWorkbench() {
       }
       request={consoleRequest}
       response={consoleResponse}
+      sensitiveValue={
+        state.userIdentityMode === "signed_assertion" ? userIdentity : undefined
+      }
       overview={<ScoringFlowOverview />}
       environment={environment}
       onEnvironmentChange={(value) => {
@@ -939,7 +964,9 @@ export default function ScoringWorkbench() {
       exports={copyableExports}
       traceNote={
         liveReady
-          ? "Mã API xuất hiện trong thông tin gửi đi và lệnh được sao chép. Hãy giữ kín ảnh chụp và nội dung đã sao chép."
+          ? state.userIdentityMode === "signed_assertion"
+            ? "Mã API xuất hiện trong thông tin gửi đi; Signed User Assertion được che trong trace và lệnh sao chép."
+            : "Mã API xuất hiện trong thông tin gửi đi và lệnh được sao chép. Hãy giữ kín ảnh chụp và nội dung đã sao chép."
           : "Nút này chỉ hiển thị điểm và nhận xét mẫu có sẵn; bài của bạn không được gửi đi chấm."
       }
       exportsContainApiKey={liveReady}
@@ -1015,16 +1042,22 @@ export default function ScoringWorkbench() {
 
       {step === 2 && (
         <>
-          <DemoUserIdentityField
-            disabled={!liveReady || checkingKey || grading}
-            id="writing-demo-user-identity"
-            onChange={handleUserIdentityChange}
-            value={userIdentity}
-          />
+          {liveReady && state.userIdentityMode && (
+            <DemoUserIdentityField
+              key={state.userIdentityMode}
+              disabled={checkingKey || grading}
+              id="writing-demo-user-identity"
+              mode={state.userIdentityMode}
+              onChange={handleUserIdentityChange}
+              value={userIdentity}
+            />
+          )}
           <h3>Chọn bài Writing</h3>
           <p>
             {liveReady
-              ? "Mã API đã được xác nhận. Bạn có thể đổi mã người dùng ở trên, sửa đề và thông tin bài; nội dung mới sẽ được dùng khi chấm."
+              ? state.userIdentityMode === "signed_assertion"
+                ? "Mã API đã được xác nhận. Dán hoặc thay Signed User Assertion ở trên, rồi sửa đề và bài viết để chấm thật."
+                : "Mã API đã được xác nhận. Bạn có thể đổi Declared User ID ở trên, sửa đề và bài viết để chấm thật."
               : "Bạn đang xem bài mẫu. Chọn Task và đề để xem trước; nhập mã API ở bước 1 nếu muốn tự sửa và gửi chấm thật."}
           </p>
           <div
@@ -1241,6 +1274,16 @@ export default function ScoringWorkbench() {
 
       {step === 4 && (
         <>
+          {liveReady && state.userIdentityMode && (
+            <DemoUserIdentityField
+              key={state.userIdentityMode}
+              disabled={checkingKey || grading}
+              id="writing-demo-user-identity"
+              mode={state.userIdentityMode}
+              onChange={handleUserIdentityChange}
+              value={userIdentity}
+            />
+          )}
           <h3>{liveReady ? "Gửi bài chấm thật" : "Xem kết quả mẫu"}</h3>
           <p>
             {liveReady

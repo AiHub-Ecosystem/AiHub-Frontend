@@ -9,6 +9,7 @@ import { expectReadable } from "./text-contrast";
 import { WRITING_TASK1_SAMPLE_IMAGE_URL } from "../../data/writing-task1-request";
 
 const mockUrl = "http://127.0.0.1:3101";
+const signedSandboxKey = "aihub_sk_e2e_signed_sandbox_key";
 const chartImageBytes = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
   "base64"
@@ -33,19 +34,27 @@ async function openWriting(
     mode = "mock",
     task = 1,
     step = 4,
-  }: { mode?: "mock" | "live"; task?: 1 | 2; step?: 2 | 3 | 4 } = {}
+    apiKey = "aihub_sk_e2e_sandbox_key",
+  }: {
+    mode?: "mock" | "live";
+    task?: 1 | 2;
+    step?: 2 | 3 | 4;
+    apiKey?: string;
+  } = {}
 ) {
   await waitForHydration(page);
   if (mode === "live") {
-    await page
-      .getByLabel("Mã API (không bắt buộc)")
-      .fill("aihub_sk_e2e_sandbox_key");
+    await page.getByLabel("Mã API (không bắt buộc)").fill(apiKey);
     await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
     await expect(
       page.getByRole("heading", { name: "Chọn bài Writing" })
     ).toBeVisible();
     await expect(
-      page.getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
+      page.getByLabel(
+        apiKey === signedSandboxKey
+          ? "Signed User Assertion (JWT) (X-User-Identity)"
+          : "Declared User ID (X-User-Identity)"
+      )
     ).toBeEnabled();
   } else {
     await page.getByRole("button", { name: "Xem bài mẫu" }).click();
@@ -81,6 +90,111 @@ async function setScoringConfig(
   });
   expect(response.ok()).toBe(true);
 }
+
+test("Writing supports signed assertions and redacts them from traces and exports", async ({
+  page,
+  request,
+  context,
+}) => {
+  const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
+  const assertion = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJ1c2VyLTQyIn0.signature";
+  await resetScoringLog(request);
+  await page.goto("/demo/scoring");
+  await openWriting(page, { mode: "live", apiKey: signedSandboxKey });
+
+  const identity = page.getByLabel(
+    "Signed User Assertion (JWT) (X-User-Identity)"
+  );
+  await expect(identity).toHaveAttribute("type", "password");
+  await expect(page.getByText(/máy chủ của tổ chức phát hành/)).toBeVisible();
+  await identity.fill("x".repeat(6 * 1024));
+  await expect(page.getByText(/Assertion phải có tối đa 6 KiB/)).toHaveCount(0);
+  await identity.fill("x".repeat(6 * 1024 + 1));
+  await expect(page.getByText(/Assertion phải có tối đa 6 KiB/)).toBeVisible();
+  await page.getByTestId("button-grade").click();
+  expect((await scoringLog(request)).requests).toHaveLength(0);
+  await identity.fill(assertion);
+  await page
+    .getByRole("button", { name: "Hiện Signed User Assertion" })
+    .click();
+  await expect(identity).toHaveAttribute("type", "text");
+  await page.getByRole("button", { name: "Che Signed User Assertion" }).click();
+  await expect(identity).toHaveAttribute("type", "password");
+
+  const trace = page.locator(".demo-console .demo-console-code");
+  await expect(trace).toContainText("<redacted signed user assertion>");
+  await expect(trace).not.toContainText(assertion);
+
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page
+    .locator(".demo-console")
+    .getByRole("button", { name: "Sao chép" })
+    .click();
+  let copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toContain("<redacted signed user assertion>");
+  expect(copied).not.toContain(assertion);
+  await page.getByTestId("button-copy-export").click();
+  copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toContain("<redacted signed user assertion>");
+  expect(copied).not.toContain(assertion);
+
+  await page.getByTestId("button-grade").click();
+  await expect(page.getByTestId("scoring-report")).toBeVisible();
+  const log = await scoringLog(request);
+  expect(log.requests).toHaveLength(1);
+  expect(log.requests[0].userIdentity).toBe(assertion);
+  await page.getByRole("tab", { name: "Kết quả nhận được" }).click();
+  await expect(trace).not.toContainText(assertion);
+  expectNoExternalRequests();
+});
+
+test("Writing keeps an invalid signed assertion as a live failure", async ({
+  page,
+  request,
+}) => {
+  const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
+  await resetScoringLog(request);
+  await page.goto("/demo/scoring");
+  await openWriting(page, { mode: "live", apiKey: signedSandboxKey });
+  const identity = page.getByLabel(
+    "Signed User Assertion (JWT) (X-User-Identity)"
+  );
+  await identity.fill("expired.e2e.assertion");
+  await page.getByTestId("button-grade").click();
+
+  await expect(page.getByText(/User Identity không hợp lệ/)).toBeVisible();
+  await expect(page.getByTestId("scoring-report")).toHaveCount(0);
+  await expect(identity).toHaveValue("expired.e2e.assertion");
+  await expect(identity).toHaveAttribute("type", "password");
+  expect((await scoringLog(request)).requests[0].userIdentity).toBe(
+    "expired.e2e.assertion"
+  );
+  expectNoExternalRequests();
+});
+
+test("Writing fails closed when key validation omits or does not recognize identity mode", async ({
+  page,
+}) => {
+  for (const apiKey of [
+    "aihub_sk_e2e_missing_identity_mode_key",
+    "aihub_sk_e2e_unknown_identity_mode_key",
+  ]) {
+    await page.goto("/demo/scoring");
+    await waitForHydration(page);
+    await page.getByLabel("Mã API (không bắt buộc)").fill(apiKey);
+    await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
+
+    await expect(
+      page.getByText(/AIHUB chưa trả đủ thông tin để xác thực/)
+    ).toBeVisible();
+    await expect(
+      page.getByLabel("Signed User Assertion (JWT) (X-User-Identity)")
+    ).toHaveCount(0);
+    await expect(
+      page.getByLabel("Declared User ID (X-User-Identity)")
+    ).toHaveCount(0);
+  }
+});
 
 /**
  * The unit parser covers field validation. What only a browser can see is the
@@ -667,7 +781,7 @@ test("the Task 2 tab opens without a page load and survives a return visit", asy
     page.getByRole("heading", { name: "Chọn bài Writing" })
   ).toBeVisible();
   await expect(
-    page.getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
+    page.getByLabel("Declared User ID (X-User-Identity)")
   ).toBeEnabled();
   await expect(page.getByText("Đã kiểm tra mã · có thể sửa bài")).toBeVisible();
   // Nothing navigates: the task selector is a client transition in one document.
@@ -690,7 +804,7 @@ test("the Task 2 tab opens without a page load and survives a return visit", asy
   );
   await expect(
     page.getByText(
-      /Mã API đã được xác nhận\. Bạn có thể đổi mã người dùng ở trên, sửa đề và thông tin bài/
+      /Mã API đã được xác nhận\. Bạn có thể đổi Declared User ID ở trên/
     )
   ).toBeVisible();
   const topic = page.getByTestId("input-topic");

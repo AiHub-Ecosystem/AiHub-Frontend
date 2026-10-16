@@ -88,6 +88,26 @@ describe("Writing chart upload BFF", () => {
     expect(JSON.stringify(grant)).not.toContain("server-side-test-key");
   });
 
+  it("forwards a 6 KiB signed assertion unchanged", async () => {
+    const assertion = "x".repeat(6 * 1024);
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify(grant), { status: 201 })
+    );
+
+    const response = await handleWritingChartUpload(
+      request(
+        "/api/demo/scoring/chart-uploads",
+        { content_type: "image/png", byte_size: 36 },
+        { "x-demo-user-identity": assertion }
+      ),
+      "create"
+    );
+
+    expect(response.status).toBe(201);
+    const init = fetchSpy.mock.calls[0]?.[1];
+    expect(new Headers(init?.headers).get("x-user-identity")).toBe(assertion);
+  });
+
   it("keeps the existing tier pinned for refresh and completion", async () => {
     fetchSpy.mockResolvedValue(
       new Response(JSON.stringify(grant), { status: 200 })

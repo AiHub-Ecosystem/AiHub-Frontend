@@ -5,6 +5,7 @@ const mockUrl = "http://127.0.0.1:3101";
 const password = "correct horse battery staple";
 const demoKey = "aihub_sandbox_" + "A".repeat(43);
 const productionKey = "aihub_prod_e2e_production_key";
+const signedSandboxKey = "aihub_sk_e2e_signed_sandbox_key";
 
 /** Every browser request to a demo BFF route, which Mock mode must never make. */
 function countDemoApiCalls(page: Page) {
@@ -42,15 +43,11 @@ test("Writing and Speaking default to Sandbox without an environment picker", as
   await expect(
     page.getByRole("heading", { name: "Nhập mã API" })
   ).toBeVisible();
-  const userIdentity = page.getByLabel(
-    "Mã người dùng của ứng dụng (X-User-Identity)"
-  );
+  const userIdentity = page.getByLabel("Declared User ID (X-User-Identity)");
   await expect(userIdentity).toHaveCount(0);
   await page.getByLabel("Mã API (không bắt buộc)").fill(demoKey);
   await page.getByRole("button", { name: "Xem bài mẫu" }).click();
-  await expect(userIdentity).toHaveValue(/^[0-9a-f-]{36}$/);
-  await expect(userIdentity).toBeDisabled();
-  const initialIdentity = await userIdentity.inputValue();
+  await expect(userIdentity).toHaveCount(0);
   await expect(page.locator(".demo-env-picker")).toHaveCount(0);
 
   await page.getByRole("link", { name: "Speaking", exact: true }).click();
@@ -61,15 +58,14 @@ test("Writing and Speaking default to Sandbox without an environment picker", as
   );
   await expect(page.getByLabel("Mã API (không bắt buộc)")).toBeVisible();
   const speakingIdentity = page.getByLabel(
-    "Mã người dùng của ứng dụng (X-User-Identity)"
+    "Declared User ID (X-User-Identity)"
   );
   await expect(speakingIdentity).toHaveCount(0);
   await page.getByRole("button", { name: "Xem câu hỏi mẫu" }).click();
   await expect(
     page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
   ).toBeVisible();
-  await expect(speakingIdentity).toHaveValue(initialIdentity);
-  await expect(speakingIdentity).toBeDisabled();
+  await expect(speakingIdentity).toHaveCount(0);
 });
 
 test("Speaking detects a Production key and clears its acknowledgement on Sandbox change", async ({
@@ -174,7 +170,7 @@ test("a Production key opens live grading on the Production tier", async ({
   await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
   await expect(page.getByTestId("production-key-warning")).toBeVisible();
   await page
-    .getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
+    .getByLabel("Declared User ID (X-User-Identity)")
     .fill(userIdentity);
 
   await expect(
@@ -338,7 +334,7 @@ test("request details and commands use the validated key without putting it in t
   await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
   await expect(page.getByTestId("production-key-warning")).toBeVisible();
   await page
-    .getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
+    .getByLabel("Declared User ID (X-User-Identity)")
     .fill(userIdentity);
   await openGradingStep(page);
 
@@ -366,25 +362,71 @@ test("request details and commands use the validated key without putting it in t
   await expect(artifact).not.toContainText(productionKey);
 });
 
-test("a key entered in one demo skill is still there in the other", async ({
+test("declared identity is shared across skills after each scope validates", async ({
   page,
 }) => {
   await openDemo(page, "scoring");
   await page.getByLabel("Mã API (không bắt buộc)").fill(demoKey);
   await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
   await expect(page.getByTestId("sandbox-allowance")).toBeVisible();
-  await page
-    .getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
-    .fill("learner_7");
+  await page.getByLabel("Declared User ID (X-User-Identity)").fill("learner_7");
 
   await page.getByRole("link", { name: "Speaking" }).click();
   await waitForHydration(page);
   await expect(page.getByLabel("Mã API (không bắt buộc)")).toHaveValue(demoKey);
-  await page.getByRole("button", { name: "Xem câu hỏi mẫu" }).click();
+  const speakingIdentity = page.getByLabel(
+    "Declared User ID (X-User-Identity)"
+  );
+  await expect(speakingIdentity).toHaveCount(0);
+  await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
   await expect(
-    page.getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
-  ).toHaveValue("learner_7");
+    page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
+  ).toBeVisible();
+  await expect(speakingIdentity).toHaveValue("learner_7");
   await expect(page.locator(".demo-env-picker")).toHaveCount(0);
+});
+
+test("signed assertion is shared across skills and cleared when key or environment changes", async ({
+  page,
+}) => {
+  const assertion = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJ1c2VyLTQyIn0.signature";
+  await openDemo(page, "scoring");
+  await page.getByLabel("Mã API (không bắt buộc)").fill(signedSandboxKey);
+  await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
+  const writingIdentity = page.getByLabel(
+    "Signed User Assertion (JWT) (X-User-Identity)"
+  );
+  await writingIdentity.fill(assertion);
+
+  await page.getByRole("link", { name: "Speaking", exact: true }).click();
+  await waitForHydration(page);
+  const speakingIdentity = page.getByLabel(
+    "Signed User Assertion (JWT) (X-User-Identity)"
+  );
+  await expect(speakingIdentity).toHaveCount(0);
+  await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
+  await expect(speakingIdentity).toHaveValue(assertion);
+
+  await page.getByRole("button", { name: "Quay lại nhập mã API" }).click();
+  await page.getByLabel("Mã API (không bắt buộc)").fill(demoKey);
+  await expect(speakingIdentity).toHaveCount(0);
+  await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
+  const declaredIdentity = page.getByLabel(
+    "Declared User ID (X-User-Identity)"
+  );
+  await expect(declaredIdentity).toHaveValue(/^[0-9a-f-]{36}$/);
+  await expect(declaredIdentity).not.toHaveValue(assertion);
+
+  await page.getByRole("button", { name: "Quay lại nhập mã API" }).click();
+  await page.getByLabel("Mã API (không bắt buộc)").fill(signedSandboxKey);
+  await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
+  const renewedSignedIdentity = page.getByLabel(
+    "Signed User Assertion (JWT) (X-User-Identity)"
+  );
+  await expect(renewedSignedIdentity).toHaveValue("");
+  await renewedSignedIdentity.fill(assertion);
+  await page.getByTestId("demo-environment-production").check();
+  await expect(renewedSignedIdentity).toHaveCount(0);
 });
 
 test("restoring the page from the back/forward cache clears the key", async ({

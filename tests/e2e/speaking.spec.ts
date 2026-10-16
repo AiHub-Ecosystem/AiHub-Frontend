@@ -8,6 +8,7 @@ import { waitForHydration } from "./hydration";
 
 const mockUrl = "http://127.0.0.1:3101";
 const sandboxKey = "aihub_sk_e2e_sandbox_key";
+const signedSandboxKey = "aihub_sk_e2e_signed_sandbox_key";
 
 type SpeakingRequest = {
   operation: string;
@@ -63,15 +64,19 @@ async function keepBrowserTrafficLocal(page: Page) {
   return () => expect(unexpectedExternalRequest).toBe(false);
 }
 
-async function startLiveSession(page: Page) {
+async function startLiveSession(page: Page, apiKey = sandboxKey) {
   await waitForHydration(page);
-  await page.getByLabel("Mã API (không bắt buộc)").fill(sandboxKey);
+  await page.getByLabel("Mã API (không bắt buộc)").fill(apiKey);
   await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
   await expect(
     page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
   ).toBeVisible();
   await expect(
-    page.getByLabel("Mã người dùng của ứng dụng (X-User-Identity)")
+    page.getByLabel(
+      apiKey === "aihub_sk_e2e_signed_sandbox_key"
+        ? "Signed User Assertion (JWT) (X-User-Identity)"
+        : "Declared User ID (X-User-Identity)"
+    )
   ).toBeEnabled();
   await expect(page.getByText("Đã kiểm tra mã · có thể sửa bài")).toBeVisible();
   await expect(
@@ -79,7 +84,9 @@ async function startLiveSession(page: Page) {
   ).toBeVisible();
   await expect(
     page.getByText(
-      /Mã API đã được xác nhận\. Bạn có thể đổi mã người dùng ở trên/
+      apiKey === signedSandboxKey
+        ? /Mã API đã được xác nhận\. Dán hoặc thay Signed User Assertion/
+        : /Mã API đã được xác nhận\. Bạn có thể đổi Declared User ID ở trên/
     )
   ).toBeVisible();
   await page
@@ -88,8 +95,17 @@ async function startLiveSession(page: Page) {
     .click();
 }
 
-async function prepareLiveGrading(page: Page) {
-  await startLiveSession(page);
+async function prepareLiveGrading(
+  page: Page,
+  apiKey = sandboxKey,
+  identity?: string
+) {
+  await startLiveSession(page, apiKey);
+  if (identity) {
+    await page
+      .getByLabel("Signed User Assertion (JWT) (X-User-Identity)")
+      .fill(identity);
+  }
   await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
   await expect(
     page.getByText(
@@ -119,6 +135,57 @@ async function submitLiveGrading(page: Page) {
 
 test.beforeEach(async ({ request }) => {
   await resetSpeakingLog(request);
+});
+
+test("live Speaking forwards a signed assertion and redacts both trace tabs", async ({
+  page,
+  request,
+}) => {
+  const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
+  const assertion = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJ1c2VyLTQyIn0.signature";
+  await page.goto("/demo/speaking");
+  await prepareLiveGrading(page, signedSandboxKey, assertion);
+
+  const identity = page.getByLabel(
+    "Signed User Assertion (JWT) (X-User-Identity)"
+  );
+  await expect(identity).toHaveValue(assertion);
+  await expect(identity).toHaveAttribute("type", "password");
+  const trace = page.locator(".demo-console .demo-console-code");
+  await expect(trace).toContainText("<redacted signed user assertion>");
+  await expect(trace).not.toContainText(assertion);
+
+  await submitLiveGrading(page);
+  const log = await speakingLog(request);
+  expect(log.requests).toHaveLength(1);
+  expect(log.requests[0].userIdentity).toBe(assertion);
+  expect(log.requests[0].identityHeaderNames).toEqual(["x-user-identity"]);
+
+  await page.getByRole("tab", { name: "Kết quả nhận được" }).click();
+  await expect(trace).not.toContainText(assertion);
+  expectNoExternalRequests();
+});
+
+test("an invalid Speaking assertion stays in the field and does not show a sample result", async ({
+  page,
+  request,
+}) => {
+  await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/speaking");
+  await prepareLiveGrading(page, signedSandboxKey, "expired.e2e.assertion");
+  await page.getByRole("button", { name: "Chấm thật Part 1" }).click();
+
+  await expect(page.getByText(/User Identity không hợp lệ/)).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Kết quả chấm Speaking" })
+  ).toHaveCount(0);
+  const identity = page.getByLabel(
+    "Signed User Assertion (JWT) (X-User-Identity)"
+  );
+  await expect(identity).toHaveValue("expired.e2e.assertion");
+  expect((await speakingLog(request)).requests[0].userIdentity).toBe(
+    "expired.e2e.assertion"
+  );
 });
 
 test("live Speaking waits for the recording to replace the sample before grading", async ({

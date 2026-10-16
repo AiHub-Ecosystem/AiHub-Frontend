@@ -1,5 +1,6 @@
 import type { DemoEnvironment, DemoScope } from "@/lib/demo-environments";
 import { DEFAULT_DEMO_ENVIRONMENT } from "@/lib/demo-environments";
+import type { DemoIdentityMode } from "@/lib/demo-identity";
 
 export type { DemoScope };
 
@@ -15,6 +16,7 @@ export type DemoVisitState = {
   /** Scopes this key validated for, in the environment now selected. */
   validatedScopes: readonly DemoScope[];
   productionAcknowledged: boolean;
+  userIdentityMode: DemoIdentityMode | null;
   /** Bumps on every real change of key or environment, so A to B to A is not A. */
   generation: number;
 };
@@ -25,6 +27,7 @@ export function createDemoVisitState(): DemoVisitState {
     environment: DEFAULT_DEMO_ENVIRONMENT,
     validatedScopes: [],
     productionAcknowledged: false,
+    userIdentityMode: null,
     generation: 0,
   };
 }
@@ -37,6 +40,7 @@ export function setApiKey(state: DemoVisitState, apiKey: string) {
     apiKey,
     validatedScopes: [],
     productionAcknowledged: false,
+    userIdentityMode: null,
     generation: state.generation + 1,
   };
 }
@@ -51,6 +55,7 @@ export function setEnvironment(
     environment,
     validatedScopes: [],
     productionAcknowledged: false,
+    userIdentityMode: null,
     generation: state.generation + 1,
   };
 }
@@ -78,6 +83,15 @@ export function markScopeValidated(state: DemoVisitState, scope: DemoScope) {
   return state.validatedScopes.includes(scope)
     ? state
     : { ...state, validatedScopes: [...state.validatedScopes, scope] };
+}
+
+export function setUserIdentityMode(
+  state: DemoVisitState,
+  userIdentityMode: DemoIdentityMode | null
+) {
+  return state.userIdentityMode === userIdentityMode
+    ? state
+    : { ...state, userIdentityMode };
 }
 
 export function isScopeValidated(state: DemoVisitState, scope: DemoScope) {

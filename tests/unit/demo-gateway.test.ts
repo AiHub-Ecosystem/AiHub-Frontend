@@ -116,14 +116,14 @@ describe("demo user identity", () => {
     expect(
       readDemoUserIdentity(
         new Request("https://customer.test/api/demo", {
-          headers: { "X-Demo-User-Identity": "x".repeat(256) },
+          headers: { "X-Demo-User-Identity": "x".repeat(6 * 1024) },
         })
       )
-    ).toHaveLength(256);
+    ).toHaveLength(6 * 1024);
   });
 
   it("rejects values the AIHUB identity contract cannot accept", () => {
-    for (const value of ["", "two words", "é", "x".repeat(257)]) {
+    for (const value of ["", "two words", "é", "x".repeat(6 * 1024 + 1)]) {
       expect(() =>
         readDemoUserIdentity(
           new Request("https://customer.test/api/demo", {

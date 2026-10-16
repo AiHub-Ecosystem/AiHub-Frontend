@@ -13,6 +13,7 @@ import {
   sandboxAllowanceFrom,
   setApiKey,
   setEnvironment,
+  setUserIdentityMode,
   type DemoVisitState,
 } from "@/app/demo/demo-session-state";
 
@@ -37,6 +38,7 @@ describe("Demo visit", () => {
       environment: "sandbox",
       validatedScopes: [],
       productionAcknowledged: false,
+      userIdentityMode: null,
       generation: 0,
     });
     expect(DEMO_ENVIRONMENTS[0]).toBe("sandbox");
@@ -57,6 +59,12 @@ describe("Changing the key", () => {
 
     expect(setApiKey(before, KEY)).toBe(before);
   });
+
+  it("clears the selected identity mode when the key changes", () => {
+    const before = setUserIdentityMode(validated(), "signed_assertion");
+
+    expect(setApiKey(before, "aihub_prod_new-key").userIdentityMode).toBeNull();
+  });
 });
 
 describe("Changing the environment", () => {
@@ -71,6 +79,21 @@ describe("Changing the environment", () => {
     const before = validated();
 
     expect(setEnvironment(before, "production")).toBe(before);
+  });
+
+  it("clears the selected identity mode when the environment changes", () => {
+    const before = setUserIdentityMode(validated(), "signed_assertion");
+
+    expect(setEnvironment(before, "sandbox").userIdentityMode).toBeNull();
+  });
+});
+
+describe("The identity mode", () => {
+  it("is shared visit state and changes only when the backend mode changes", () => {
+    const declared = setUserIdentityMode(createDemoVisitState(), "declared_id");
+    expect(declared.userIdentityMode).toBe("declared_id");
+    expect(setUserIdentityMode(declared, "declared_id")).toBe(declared);
+    expect(setUserIdentityMode(declared, null).userIdentityMode).toBeNull();
   });
 });
 

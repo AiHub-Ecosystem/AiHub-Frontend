@@ -28,7 +28,7 @@ const MESSAGE_BY_CODE: Record<SpeakingErrorCode, string> = {
   PAYLOAD_TOO_LARGE: "Audio cần nhỏ hơn hoặc bằng 25 MB.",
   UNAUTHORIZED: "API key không hợp lệ hoặc đã bị thu hồi.",
   INVALID_USER_IDENTITY:
-    "Organization đang bật Identity Configuration hoặc phiên demo không hợp lệ.",
+    "User Identity không hợp lệ. Nếu dùng Signed User Assertion, hãy lấy token mới từ máy chủ của tổ chức.",
   AI_SERVICE_ERROR: "Không thể hoàn tất yêu cầu chấm Speaking. Thử lại sau.",
   AI_SERVICE_CONTRACT_VIOLATION:
     "Kết quả chấm Speaking không đúng định dạng. Thử lại sau.",
@@ -39,10 +39,11 @@ const MESSAGE_BY_CODE: Record<SpeakingErrorCode, string> = {
 };
 
 const UPSTREAM_MESSAGES: Record<string, string> = {
-  FORBIDDEN:
-    "API key thiếu scope speaking.grade hoặc Organization đang bật Identity Configuration.",
+  FORBIDDEN: "API key chưa được cấp quyền chấm Speaking trong môi trường này.",
   ENVIRONMENT_NOT_ALLOWED: "Key không được phép cho môi trường demo đã chọn.",
   USER_IDENTITY_REQUIRED: "Thiếu User Identity của phiên demo.",
+  INVALID_USER_IDENTITY:
+    "User Identity không hợp lệ. Nếu dùng Signed User Assertion, hãy lấy token mới từ máy chủ của tổ chức.",
   RATE_LIMITED: "Bạn gửi hơi nhanh. Chờ một chút rồi thử lại.",
   CONCURRENCY_LIMIT: "AIHUB đang xử lý một bài khác. Chờ xong rồi thử lại.",
   QUOTA_EXCEEDED: "Môi trường đã hết hạn mức chấm trong tháng.",
