@@ -149,6 +149,102 @@ async function submitLiveGrading(page: Page) {
   ).toBeVisible({ timeout: 30_000 });
 }
 
+async function installFakeMicrophone(page: Page) {
+  await page.addInitScript(() => {
+    const testWindow = window as Window & {
+      __speakingTrackStops?: number;
+      __deferMicrophone?: boolean;
+      __resolveMicrophone?: () => void;
+    };
+    const track = {
+      stop() {
+        testWindow.__speakingTrackStops =
+          (testWindow.__speakingTrackStops ?? 0) + 1;
+      },
+    };
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: () => {
+          const audioStream = { getTracks: () => [track] };
+          if (!testWindow.__deferMicrophone)
+            return Promise.resolve(audioStream);
+          return new Promise((resolve) => {
+            testWindow.__resolveMicrophone = () => resolve(audioStream);
+          });
+        },
+      },
+    });
+  });
+}
+
+async function installFakeMediaRecorder(page: Page) {
+  await page.addInitScript(() => {
+    const testWindow = window as Window & {
+      __speakingTestRecorder?: { emitChunk: (size: number) => void };
+    };
+    class FakeMediaRecorder {
+      state = "inactive";
+      mimeType = "audio/webm";
+      ondataavailable: ((event: BlobEvent) => void) | null = null;
+      onstop: (() => void) | null = null;
+      constructor() {
+        testWindow.__speakingTestRecorder = this;
+      }
+      start() {
+        this.state = "recording";
+      }
+      stop() {
+        if (this.state !== "recording") return;
+        this.state = "inactive";
+        window.setTimeout(() => this.onstop?.(), 0);
+      }
+      emitChunk(size: number) {
+        const data = new Blob([new Uint8Array(100)], {
+          type: this.mimeType,
+        });
+        Object.defineProperty(data, "size", { value: size });
+        this.ondataavailable?.({ data } as BlobEvent);
+      }
+    }
+    Object.defineProperty(window, "MediaRecorder", {
+      configurable: true,
+      value: FakeMediaRecorder,
+    });
+  });
+}
+
+async function startFakeRecording(page: Page) {
+  await page.getByRole("button", { name: "Ghi âm", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Dừng ghi âm" })).toBeVisible();
+}
+
+async function emitFakeRecordingChunk(page: Page, size: number) {
+  await page.evaluate((chunkSize) => {
+    (
+      window as Window & {
+        __speakingTestRecorder?: { emitChunk: (size: number) => void };
+      }
+    ).__speakingTestRecorder?.emitChunk(chunkSize);
+  }, size);
+}
+
+async function openLiveSpeakingAnswer(page: Page) {
+  const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
+  await page.goto("/demo/speaking");
+  await startLiveSession(page);
+  await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
+  return expectNoExternalRequests;
+}
+
+async function speakingTrackStopCount(page: Page) {
+  return page.evaluate(
+    () =>
+      (window as Window & { __speakingTrackStops?: number })
+        .__speakingTrackStops ?? 0
+  );
+}
+
 test.beforeEach(async ({ request }) => {
   await resetSpeakingLog(request);
 });
@@ -214,7 +310,13 @@ test("live Speaking waits for the recording to replace the sample before grading
   request,
 }) => {
   await page.addInitScript(() => {
-    const track = { stop() {} };
+    const testWindow = window as Window & { __speakingTrackStops?: number };
+    const track = {
+      stop() {
+        testWindow.__speakingTrackStops =
+          (testWindow.__speakingTrackStops ?? 0) + 1;
+      },
+    };
     Object.defineProperty(navigator, "mediaDevices", {
       configurable: true,
       value: { getUserMedia: async () => ({ getTracks: () => [track] }) },
@@ -278,6 +380,13 @@ test("live Speaking waits for the recording to replace the sample before grading
   await page.getByRole("button", { name: "Dừng ghi âm" }).click();
   await expect(nextStep).toBeDisabled();
   await expect(page.getByText("speaking-answer.webm")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        (window as Window & { __speakingTrackStops?: number })
+          .__speakingTrackStops ?? 0
+    )
+  ).toBe(1);
   await expect(nextStep).toBeEnabled();
   await nextStep.click();
   await page.getByRole("button", { name: "Chấm thật Part 1" }).click();
@@ -288,6 +397,110 @@ test("live Speaking waits for the recording to replace the sample before grading
   const log = await speakingLog(request);
   expect(log.requests.map((item) => item.operation)).toEqual(["grading"]);
   expectIdentityForwarding(log);
+});
+
+test("live Speaking rejects recordings over 25 MiB", async ({
+  page,
+  request,
+}) => {
+  await installFakeMicrophone(page);
+  await installFakeMediaRecorder(page);
+  const expectNoExternalRequests = await openLiveSpeakingAnswer(page);
+  await startFakeRecording(page);
+  await emitFakeRecordingChunk(page, 25 * 1024 * 1024 + 1);
+
+  await expect(
+    page.getByRole("alert").filter({ hasText: /vượt quá giới hạn 25 MiB/ })
+  ).toBeVisible();
+  await expect.poll(() => speakingTrackStopCount(page)).toBe(1);
+  await expect(
+    page.getByRole("button", { name: "Ghi âm", exact: true })
+  ).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Dừng ghi âm" })).toHaveCount(
+    0
+  );
+  await expect(
+    page.getByRole("button", { name: "Xem bước chấm" })
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Xóa tệp ghi âm" })
+  ).toHaveCount(0);
+  expect((await speakingLog(request)).requests).toHaveLength(0);
+  expectNoExternalRequests();
+});
+
+test("live Speaking accepts a recording exactly 25 MiB", async ({
+  page,
+  request,
+}) => {
+  await installFakeMicrophone(page);
+  await installFakeMediaRecorder(page);
+  const expectNoExternalRequests = await openLiveSpeakingAnswer(page);
+  await startFakeRecording(page);
+  await emitFakeRecordingChunk(page, 25 * 1024 * 1024);
+
+  await expect(page.getByText(/Đã dừng ghi âm khi đạt 25 MiB/)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Xóa tệp ghi âm" })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Xem bước chấm" })
+  ).toBeEnabled();
+  await expect.poll(() => speakingTrackStopCount(page)).toBe(1);
+  expect((await speakingLog(request)).requests).toHaveLength(0);
+  expectNoExternalRequests();
+});
+
+test("live Speaking releases microphone tracks when navigating during recording", async ({
+  page,
+}) => {
+  await installFakeMicrophone(page);
+  await installFakeMediaRecorder(page);
+  const expectNoExternalRequests = await openLiveSpeakingAnswer(page);
+  await startFakeRecording(page);
+  await page.getByRole("link", { name: "Writing", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Chấm điểm IELTS Writing" })
+  ).toBeVisible();
+  await expect
+    .poll(() => speakingTrackStopCount(page))
+    .toBeGreaterThanOrEqual(1);
+  expectNoExternalRequests();
+});
+
+test("live Speaking stops a microphone granted after navigating away", async ({
+  page,
+}) => {
+  await installFakeMicrophone(page);
+  await installFakeMediaRecorder(page);
+  const expectNoExternalRequests = await openLiveSpeakingAnswer(page);
+  await page.evaluate(() => {
+    (window as Window & { __deferMicrophone?: boolean }).__deferMicrophone =
+      true;
+  });
+  await page.getByRole("button", { name: "Ghi âm", exact: true }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          typeof (window as Window & { __resolveMicrophone?: () => void })
+            .__resolveMicrophone === "function"
+      )
+    )
+    .toBe(true);
+  await page.getByRole("link", { name: "Writing", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Chấm điểm IELTS Writing" })
+  ).toBeVisible();
+  await page.evaluate(() => {
+    (
+      window as Window & { __resolveMicrophone?: () => void }
+    ).__resolveMicrophone?.();
+  });
+  await expect
+    .poll(() => speakingTrackStopCount(page))
+    .toBeGreaterThanOrEqual(1);
+  expectNoExternalRequests();
 });
 
 test("Speaking without a key uses a read-only fixture and grades locally", async ({

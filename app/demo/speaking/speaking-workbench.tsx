@@ -646,6 +646,7 @@ export default function SpeakingWorkbench() {
   const [sampleAudioRemoved, setSampleAudioRemoved] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [recording, setRecording] = useState(false);
+  const [recordingLimitReached, setRecordingLimitReached] = useState(false);
   const [error, setError] = useState<PublicError | null>(null);
   const [gradeResponse, setGradeResponse] = useState<unknown>(null);
   const [gradeTrace, setGradeTrace] = useState<HttpTrace | null>(null);
@@ -655,6 +656,10 @@ export default function SpeakingWorkbench() {
   const recorder = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const chunks = useRef<Blob[]>([]);
+  const recordingBytes = useRef(0);
+  const recordingTooLarge = useRef(false);
+  const recordingAtLimit = useRef(false);
+  const recordingGeneration = useRef(0);
   const filePicker = useRef<HTMLInputElement>(null);
   const audioPlayer = useRef<HTMLAudioElement>(null);
 
@@ -774,6 +779,7 @@ export default function SpeakingWorkbench() {
 
   useEffect(
     () => () => {
+      recordingGeneration.current += 1;
       recorder.current?.stop();
       stream.current?.getTracks().forEach((track) => track.stop());
     },
@@ -828,8 +834,9 @@ export default function SpeakingWorkbench() {
       (recording || recorder.current?.state === "recording")
     )
       return;
-    if (step === 3 && next !== 3 && recorder.current?.state === "recording") {
-      recorder.current.stop();
+    if (step === 3 && next !== 3) {
+      recordingGeneration.current += 1;
+      if (recorder.current?.state === "recording") recorder.current.stop();
     }
     if (step === 2 && next === 3 && !file) setSampleAudioRemoved(false);
     if (next === 2 && step !== 2) {
@@ -1020,6 +1027,7 @@ export default function SpeakingWorkbench() {
     setSelectedId("");
     setSampleAudioRemoved(false);
     setFile(null);
+    setRecordingLimitReached(false);
     setResult(null);
     setGradeResponse(null);
     setGradeTrace(null);
@@ -1046,8 +1054,64 @@ export default function SpeakingWorkbench() {
     setGradeAttempted(false);
   };
 
+  const handleRecordingChunk = (
+    event: BlobEvent,
+    nextRecorder: MediaRecorder
+  ) => {
+    if (
+      !event.data.size ||
+      recordingTooLarge.current ||
+      recordingAtLimit.current
+    )
+      return;
+    const nextSize = recordingBytes.current + event.data.size;
+    if (nextSize > MAX_SPEAKING_BYTES) {
+      recordingTooLarge.current = true;
+      if (nextRecorder.state === "recording") nextRecorder.stop();
+      return;
+    }
+    recordingBytes.current = nextSize;
+    chunks.current.push(event.data);
+    if (nextSize === MAX_SPEAKING_BYTES) {
+      recordingAtLimit.current = true;
+      setRecordingLimitReached(true);
+      if (nextRecorder.state === "recording") nextRecorder.stop();
+    }
+  };
+
+  const finishRecording = (
+    nextRecorder: MediaRecorder,
+    nextStream: MediaStream
+  ) => {
+    if (recordingTooLarge.current) {
+      chunks.current = [];
+      setError({
+        code: "PAYLOAD_TOO_LARGE",
+        message:
+          "Bản ghi âm vượt quá giới hạn 25 MiB nên đã bị xóa. Hãy ghi âm lại hoặc chọn tệp khác.",
+      });
+    } else {
+      const blob = new Blob(chunks.current, {
+        type: nextRecorder.mimeType || "audio/webm",
+      });
+      chunks.current = [];
+      const extension = blob.type.includes("mp4") ? "m4a" : "webm";
+      saveFile(
+        new File([blob], `speaking-answer.${extension}`, {
+          type: blob.type,
+        })
+      );
+    }
+    nextStream.getTracks().forEach((track) => track.stop());
+    stream.current = null;
+    recorder.current = null;
+    setRecording(false);
+  };
+
   const startRecording = async () => {
+    const generation = ++recordingGeneration.current;
     setError(null);
+    let nextStream: MediaStream | null = null;
     try {
       if (
         !navigator.mediaDevices?.getUserMedia ||
@@ -1056,32 +1120,39 @@ export default function SpeakingWorkbench() {
         throw new Error(
           "Trình duyệt không hỗ trợ ghi âm. Hãy chọn tệp ghi âm để tiếp tục."
         );
-      const nextStream = await navigator.mediaDevices.getUserMedia({
+      const activeStream = await navigator.mediaDevices.getUserMedia({
         audio: true,
       });
-      stream.current = nextStream;
+      nextStream = activeStream;
+      if (generation !== recordingGeneration.current) {
+        activeStream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      stream.current = activeStream;
       chunks.current = [];
-      const nextRecorder = new MediaRecorder(nextStream);
+      recordingBytes.current = 0;
+      recordingTooLarge.current = false;
+      recordingAtLimit.current = false;
+      const nextRecorder = new MediaRecorder(activeStream);
       recorder.current = nextRecorder;
-      nextRecorder.ondataavailable = (event) => {
-        if (event.data.size) chunks.current.push(event.data);
-      };
-      nextRecorder.onstop = () => {
-        const blob = new Blob(chunks.current, {
-          type: nextRecorder.mimeType || "audio/webm",
-        });
-        const extension = blob.type.includes("mp4") ? "m4a" : "webm";
-        saveFile(
-          new File([blob], `speaking-answer.${extension}`, { type: blob.type })
-        );
-        nextStream.getTracks().forEach((track) => track.stop());
-        stream.current = null;
-        recorder.current = null;
-        setRecording(false);
-      };
-      nextRecorder.start();
+      nextRecorder.ondataavailable = (event) =>
+        handleRecordingChunk(event, nextRecorder);
+      nextRecorder.onstop = () => finishRecording(nextRecorder, activeStream);
+      nextRecorder.start(1000);
+      setFile(null);
+      setSampleAudioRemoved(true);
+      setRecordingLimitReached(false);
+      setResult(null);
+      setGradeResponse(null);
+      setGradeTrace(null);
+      setGradeAttempted(false);
       setRecording(true);
     } catch (caught) {
+      nextStream?.getTracks().forEach((track) => track.stop());
+      if (generation !== recordingGeneration.current) return;
+      stream.current = null;
+      recorder.current = null;
+      setRecording(false);
       setError({
         code: "INVALID_REQUEST",
         message:
@@ -1644,6 +1715,7 @@ export default function SpeakingWorkbench() {
                 onClick={() => {
                   setSelectedId(item.id);
                   setFile(null);
+                  setRecordingLimitReached(false);
                   setSampleAudioRemoved(false);
                   setResult(null);
                   setGradeResponse(null);
@@ -1736,6 +1808,7 @@ export default function SpeakingWorkbench() {
                 onChange={(event) => {
                   const next = event.currentTarget.files?.[0] ?? null;
                   event.currentTarget.value = "";
+                  setRecordingLimitReached(false);
                   saveFile(next);
                 }}
                 ref={filePicker}
@@ -1763,11 +1836,13 @@ export default function SpeakingWorkbench() {
               <div className="demo-notice" aria-live="polite">
                 {recording
                   ? "Đang ghi âm…"
-                  : file
-                    ? `${file.name} · ${Math.ceil(file.size / 1024)} KB`
-                    : sampleAudioSelected
-                      ? "Câu trả lời ghi âm mẫu có sẵn"
-                      : "Chưa chọn tệp ghi âm."}
+                  : recordingLimitReached
+                    ? "Đã dừng ghi âm khi đạt 25 MiB. Bản ghi được giữ lại; bạn có thể ghi âm lại hoặc chọn tệp khác."
+                    : file
+                      ? `${file.name} · ${Math.ceil(file.size / 1024)} KB`
+                      : sampleAudioSelected
+                        ? "Câu trả lời ghi âm mẫu có sẵn"
+                        : "Chưa chọn tệp ghi âm."}
               </div>
               {file ? (
                 <audio
@@ -1790,6 +1865,7 @@ export default function SpeakingWorkbench() {
                   className="demo-btn-secondary"
                   onClick={() => {
                     setFile(null);
+                    setRecordingLimitReached(false);
                     setSampleAudioRemoved(true);
                     setResult(null);
                     setGradeResponse(null);
