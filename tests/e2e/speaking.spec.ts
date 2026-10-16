@@ -316,6 +316,11 @@ test("Speaking without a key uses a read-only fixture and grades locally", async
   await expect(
     page.getByText(/Chọn Part và câu hỏi mẫu để xem thử/)
   ).toBeVisible();
+  const mockIdentity = page.getByLabel("Demo User ID (X-User-Identity)");
+  await expect(mockIdentity).toHaveValue(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  );
+  await expect(mockIdentity).toBeDisabled();
   const mockQuestions = page.locator(".demo-scenario-list button");
   await expect(mockQuestions).toHaveCount(3);
   await expect(mockQuestions.nth(2)).toContainText("Sample Part 1 question 3");

@@ -26,6 +26,7 @@ import {
   DEMO_STEPS,
   DemoWorkbench,
   DemoUserIdentityField,
+  MockDemoUserIdentityField,
   type DemoStep,
 } from "@/app/demo/demo-workbench";
 import {
@@ -354,6 +355,7 @@ export default function ScoringWorkbench() {
     clearScopeValidation,
     requiresProductionAcknowledgement,
     acknowledgeProduction,
+    prepareMockUserIdentity,
     userIdentity,
     userIdentityExpiresAt,
     setUserIdentity,
@@ -642,6 +644,7 @@ export default function ScoringWorkbench() {
   };
 
   const useMock = () => {
+    prepareMockUserIdentity();
     clearScopeValidation();
     setSkipMock(true);
     setKeyError(null);
@@ -1056,6 +1059,7 @@ export default function ScoringWorkbench() {
               value={userIdentity}
             />
           )}
+          {!liveReady && skipMock && <MockDemoUserIdentityField />}
           <h3>Chọn bài Writing</h3>
           <p>
             {liveReady

@@ -55,6 +55,8 @@ type DemoSession = {
   clearScopeValidation: () => void;
   requiresProductionAcknowledgement: () => boolean;
   acknowledgeProduction: () => void;
+  mockUserIdentity: string;
+  prepareMockUserIdentity: () => void;
   userIdentity: string;
   userIdentityExpiresAt: number | null;
   setUserIdentity: (value: string) => void;
@@ -78,6 +80,7 @@ const DemoSessionContext = createContext<DemoSession | null>(null);
 export function DemoSessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState(createDemoVisitState);
   const [grading, setGrading] = useState(false);
+  const [mockUserIdentity, setMockUserIdentity] = useState("");
   const [userIdentity, setUserIdentityState] = useState("");
   const [userIdentityExpiresAt, setUserIdentityExpiresAt] = useState<
     number | null
@@ -89,6 +92,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
   const [assertionRequestMessage, setAssertionRequestMessage] = useState("");
   const stateRef = useRef(state);
   const gradingRef = useRef(false);
+  const mockUserIdentityRef = useRef("");
   const assertionEndpointUrlRef = useRef(assertionEndpointUrl);
   const assertionRequestRef = useRef<AbortController | null>(null);
   const userIdentityExpiresAtRef = useRef<number | null>(null);
@@ -96,6 +100,13 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
   const update = useCallback((next: DemoVisitState) => {
     stateRef.current = next;
     setState(next);
+  }, []);
+
+  const prepareMockUserIdentity = useCallback(() => {
+    if (mockUserIdentityRef.current) return;
+    const identity = globalThis.crypto.randomUUID();
+    mockUserIdentityRef.current = identity;
+    setMockUserIdentity(identity);
   }, []);
 
   const cancelAssertionRequest = useCallback(() => {
@@ -154,6 +165,8 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const forget = () => {
       clearAssertionState();
+      mockUserIdentityRef.current = "";
+      setMockUserIdentity("");
       update(clearDemoVisit(stateRef.current));
     };
     const onPageShow = (event: PageTransitionEvent) => {
@@ -319,6 +332,8 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       clearScopeValidation,
       requiresProductionAcknowledgement,
       acknowledgeProduction,
+      mockUserIdentity,
+      prepareMockUserIdentity,
       userIdentity,
       userIdentityExpiresAt,
       setUserIdentity,
@@ -344,6 +359,8 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       clearScopeValidation,
       requiresProductionAcknowledgement,
       acknowledgeProduction,
+      mockUserIdentity,
+      prepareMockUserIdentity,
       userIdentity,
       userIdentityExpiresAt,
       setUserIdentity,

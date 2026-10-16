@@ -20,7 +20,7 @@ Visitors need to obtain a current assertion from their Organization's backend an
 
 ## Acceptance checks
 
-- Identity input appears only after successful key validation and matches the backend's recognized mode.
+- Live identity input appears only after successful key validation and matches the backend's recognized mode. Mock mode may show a disabled preview UUID, which is never submitted.
 - Invalid or missing mode prevents identity-scoped submissions and gives a retry/support error without exposing configuration.
 - Signed assertions are sent unchanged for Writing chart upload and grading, and Speaking grading.
 - The raw assertion is absent from traces, copied/exported requests, browser storage, URLs, logs, and analytics.

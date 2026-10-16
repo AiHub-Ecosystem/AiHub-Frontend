@@ -90,6 +90,30 @@ export function DemoUserIdentityField(props: DemoUserIdentityFieldProps) {
   );
 }
 
+export function MockDemoUserIdentityField() {
+  const { mockUserIdentity } = useDemoSession();
+  return (
+    <div className="demo-field">
+      <h3>Mã người dùng mẫu</h3>
+      <label htmlFor="mock-demo-user-identity">
+        Demo User ID (X-User-Identity)
+      </label>
+      <input
+        autoComplete="off"
+        disabled
+        id="mock-demo-user-identity"
+        spellCheck={false}
+        type="text"
+        value={mockUserIdentity}
+      />
+      <p className="demo-help">
+        Mã ngẫu nhiên để minh họa. Chế độ xem mẫu bị khóa và không gửi mã này
+        đến AIHUB.
+      </p>
+    </div>
+  );
+}
+
 function SignedUserAssertionField({
   id,
   value,

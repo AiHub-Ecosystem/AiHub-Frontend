@@ -64,6 +64,11 @@ async function openWriting(
     }
   } else {
     await page.getByRole("button", { name: "Xem bài mẫu" }).click();
+    const mockIdentity = page.getByLabel("Demo User ID (X-User-Identity)");
+    await expect(mockIdentity).toHaveValue(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    );
+    await expect(mockIdentity).toBeDisabled();
   }
   if (task === 2) await page.getByTestId("tab-task-2").click();
   if (step >= 3) {

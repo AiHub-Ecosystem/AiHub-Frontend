@@ -29,6 +29,7 @@ import { sandboxAllowanceFrom } from "@/app/demo/demo-session-state";
 import {
   DemoUserIdentityField,
   DemoWorkbench,
+  MockDemoUserIdentityField,
   type DemoStep,
 } from "@/app/demo/demo-workbench";
 import { errorFromPayload, type PublicError } from "../scoring/scoring-client";
@@ -575,6 +576,7 @@ export default function SpeakingWorkbench() {
     clearScopeValidation,
     requiresProductionAcknowledgement,
     acknowledgeProduction,
+    prepareMockUserIdentity,
     userIdentity,
     setUserIdentity,
     isUserIdentityExpired,
@@ -932,6 +934,7 @@ export default function SpeakingWorkbench() {
   };
 
   const useMock = () => {
+    prepareMockUserIdentity();
     clearScopeValidation();
     setSkipMock(true);
     setSampleAudioRemoved(false);
@@ -1553,6 +1556,7 @@ export default function SpeakingWorkbench() {
               value={userIdentity}
             />
           )}
+          {!liveReady && skipMock && <MockDemoUserIdentityField />}
           <h3>Chọn câu hỏi Speaking</h3>
           <p>
             {liveReady
