@@ -163,6 +163,16 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
   }, [userIdentityExpiresAt]);
 
   useEffect(() => {
+    if (!grading) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [grading]);
+
+  useEffect(() => {
     const forget = () => {
       clearAssertionState();
       mockUserIdentityRef.current = "";

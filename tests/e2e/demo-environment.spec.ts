@@ -221,6 +221,19 @@ test("the Production acknowledgement is locked while a grade is in flight", asyn
   try {
     await expect(page.locator(".demo-env-picker")).toHaveCount(0);
     await expect(page.getByTestId("production-acknowledgement")).toBeDisabled();
+    await expect(
+      page.getByText(/Đang chấm bài.*tải lại trang.*kết quả có thể bị mất/)
+    ).toBeVisible();
+
+    const dialogPromise = page.waitForEvent("dialog", { timeout: 5_000 });
+    const closePromise = page.close({ runBeforeUnload: true });
+    const dialog = await dialogPromise;
+    expect(dialog.type()).toBe("beforeunload");
+    await dialog.dismiss();
+    await closePromise;
+    await expect(
+      page.getByText(/Đang chấm bài.*tải lại trang.*kết quả có thể bị mất/)
+    ).toBeVisible();
   } finally {
     releaseGrade();
   }
