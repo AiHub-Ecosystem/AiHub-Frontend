@@ -299,6 +299,35 @@ test("manual assertion edits cancel an in-flight endpoint response", async ({
   await expect(page.getByText("Assertion đã sẵn sàng")).toHaveCount(0);
 });
 
+test("a stalled endpoint request times out and can be retried", async ({
+  page,
+}) => {
+  const customer = await mockCustomerEndpoint(
+    page,
+    {},
+    { controlClock: true, defer: true }
+  );
+  await page.goto("/demo/scoring");
+  await validateSignedKey(page, "scoring");
+  await page.getByLabel("URL endpoint cấp assertion (HTTPS)").fill(endpointUrl);
+
+  const fetchClick = page
+    .getByRole("button", { name: "Lấy assertion" })
+    .click();
+  await expect.poll(() => customer.calls.length).toBe(1);
+  await customer.responseDeferred;
+  await page.clock.fastForward(15_000);
+  customer.release();
+  await fetchClick;
+
+  await expect(page.locator('.demo-error[role="alert"]')).toContainText(
+    "Endpoint không phản hồi trong 15 giây"
+  );
+  await expect(
+    page.getByRole("button", { name: "Lấy assertion" })
+  ).toBeEnabled();
+});
+
 for (const route of ["scoring", "speaking"] as const) {
   test(`${route} blocks live grading after a fetched assertion expires`, async ({
     page,

@@ -610,7 +610,9 @@ export default function Page() {
                   <code>POST</code> không body tới URL HTTPS tuyệt đối. URL
                   không được có username/password, query hoặc fragment; redirect
                   bị từ chối. Request không mang cookie, Authorization, API key,
-                  user ID hay header xác thực tuỳ chỉnh.
+                  user ID hay header xác thực tuỳ chỉnh. Trình duyệt chờ tối đa
+                  15 giây cho cả response headers và body, sau đó cho phép thử
+                  lại.
                 </li>
                 <li>
                   <strong>CORS và bảo vệ endpoint:</strong> chỉ cho phép chính
@@ -622,7 +624,8 @@ export default function Page() {
                 <li>
                   <strong>Response thành công:</strong> trả JSON với{" "}
                   <code>assertion</code> và <code>expires_at</code> theo RFC
-                  3339 UTC. <code>expires_at</code> phải khớp claim số nguyên{" "}
+                  3339 UTC, dùng <code>Z</code> hoặc <code>+00:00</code>.{" "}
+                  <code>expires_at</code> phải khớp claim số nguyên{" "}
                   <code>exp</code>; assertion tối đa 6 KiB, response body tối đa
                   8 KiB và token còn hạn. Header{" "}
                   <code>Cache-Control: no-store</code> là bắt buộc.

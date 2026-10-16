@@ -5,6 +5,9 @@ import {
 
 const GENERIC_FAILURE =
   "Không thể lấy assertion hợp lệ. Hãy kiểm tra endpoint rồi thử lại.";
+const REQUEST_TIMEOUT_MS = 15_000;
+const REQUEST_TIMEOUT_FAILURE =
+  "Endpoint không phản hồi trong 15 giây. Hãy kiểm tra endpoint rồi thử lại.";
 // shortcut: 8 KiB leaves room for a 6 KiB assertion plus JSON; raise if v1 grows.
 const MAX_ENDPOINT_RESPONSE_BYTES = 8 * 1024;
 
@@ -86,9 +89,10 @@ function decodeJwtJson(value: string): unknown {
 }
 
 function expirySeconds(expiresAt: string) {
-  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?Z$/.exec(
-    expiresAt
-  );
+  const match =
+    /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(?:Z|\+00:00)$/.exec(
+      expiresAt
+    );
   if (!match || (match[2] && /[1-9]/.test(match[2]))) return null;
   const milliseconds = Date.parse(expiresAt);
   if (!Number.isFinite(milliseconds)) return null;
@@ -180,47 +184,55 @@ export async function fetchDemoAssertion(
   if (!isDemoAssertionEndpointUrl(endpoint))
     throw new DemoAssertionEndpointError();
 
-  let response: Response;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const abortRequest = () => controller.abort(signal?.reason);
+  if (signal?.aborted) abortRequest();
+  else signal?.addEventListener("abort", abortRequest, { once: true });
+
   try {
-    response = await fetch(endpoint, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: { Accept: "application/json" },
       credentials: "omit",
       mode: "cors",
       redirect: "error",
       cache: "no-store",
-      signal,
+      signal: controller.signal,
     });
+    const payload = await readJson(response);
+
+    if (!response.ok) throw errorFromResponse(response, payload);
+    if (
+      !hasNoStore(response) ||
+      response.headers
+        .get("content-type")
+        ?.split(";")[0]
+        .trim()
+        .toLowerCase() !== "application/json" ||
+      !isRecord(payload) ||
+      typeof payload.assertion !== "string" ||
+      !isDemoUserIdentity(payload.assertion) ||
+      new TextEncoder().encode(payload.assertion).byteLength >
+        MAX_SIGNED_USER_ASSERTION_BYTES ||
+      typeof payload.expires_at !== "string" ||
+      !hasValidExpiry(payload.assertion, payload.expires_at)
+    ) {
+      throw new DemoAssertionEndpointError();
+    }
+
+    return {
+      assertion: payload.assertion,
+      expiresAt: Date.parse(payload.expires_at),
+    };
   } catch (error) {
     if (signal?.aborted) throw error;
+    if (controller.signal.aborted)
+      throw new DemoAssertionEndpointError(REQUEST_TIMEOUT_FAILURE);
+    if (error instanceof DemoAssertionEndpointError) throw error;
     throw new DemoAssertionEndpointError();
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abortRequest);
   }
-
-  let payload: unknown;
-  try {
-    payload = await readJson(response);
-  } catch {
-    throw new DemoAssertionEndpointError();
-  }
-
-  if (!response.ok) throw errorFromResponse(response, payload);
-  if (
-    !hasNoStore(response) ||
-    response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !==
-      "application/json" ||
-    !isRecord(payload) ||
-    typeof payload.assertion !== "string" ||
-    !isDemoUserIdentity(payload.assertion) ||
-    new TextEncoder().encode(payload.assertion).byteLength >
-      MAX_SIGNED_USER_ASSERTION_BYTES ||
-    typeof payload.expires_at !== "string" ||
-    !hasValidExpiry(payload.assertion, payload.expires_at)
-  ) {
-    throw new DemoAssertionEndpointError();
-  }
-
-  return {
-    assertion: payload.assertion,
-    expiresAt: Date.parse(payload.expires_at),
-  };
 }

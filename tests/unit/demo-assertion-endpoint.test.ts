@@ -41,6 +41,7 @@ function response(
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("customer demo assertion endpoint", () => {
@@ -86,6 +87,74 @@ describe("customer demo assertion endpoint", () => {
     expect(new Headers(init?.headers).get("accept")).toBe("application/json");
     expect(new Headers(init?.headers).get("authorization")).toBeNull();
     expect(new Headers(init?.headers).get("x-api-key")).toBeNull();
+  });
+
+  it("accepts a matching RFC 3339 zero-offset expiration", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        response({
+          assertion: assertion(),
+          expires_at: new Date((nowSeconds + 300) * 1000)
+            .toISOString()
+            .replace("Z", "+00:00"),
+        })
+      )
+    );
+
+    await expect(fetchDemoAssertion(endpoint)).resolves.toMatchObject({
+      assertion: assertion(),
+      expiresAt: (nowSeconds + 300) * 1000,
+    });
+  });
+
+  it("times out while waiting for endpoint response headers", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn<typeof fetch>(
+      (_input, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("Aborted", "AbortError")),
+            { once: true }
+          );
+        })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const rejection = expect(fetchDemoAssertion(endpoint)).rejects.toThrow(
+      "Endpoint không phản hồi trong 15 giây"
+    );
+    await vi.advanceTimersByTimeAsync(15_000);
+    await rejection;
+  });
+
+  it("times out while reading an endpoint response body", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn<typeof fetch>(async (_input, init) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          init?.signal?.addEventListener(
+            "abort",
+            () => controller.error(new DOMException("Aborted", "AbortError")),
+            { once: true }
+          );
+        },
+      });
+      return new Response(body, {
+        headers: {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+        },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const rejection = expect(fetchDemoAssertion(endpoint)).rejects.toThrow(
+      "Endpoint không phản hồi trong 15 giây"
+    );
+    await vi.advanceTimersByTimeAsync(15_000);
+    await rejection;
   });
 
   it("does not send a request to an invalid endpoint URL", async () => {
