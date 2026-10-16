@@ -117,3 +117,23 @@ var jwt = new SignedJWT(
     claims);
 jwt.sign(new RSASSASigner(privateKey));
 String assertion = jwt.serialize();`;
+
+export const DEMO_ASSERTION_SUCCESS = `HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+Access-Control-Allow-Origin: https://aihubproduction.com
+
+{
+  "assertion": "<signed-user-assertion-jwt>",
+  "expires_at": "2026-10-16T12:05:00Z"
+}`;
+
+export const DEMO_ASSERTION_ERROR = `HTTP/1.1 429 Too Many Requests
+Content-Type: application/json
+Access-Control-Allow-Origin: https://aihubproduction.com
+
+{
+  "error": {
+    "code": "RATE_LIMITED"
+  }
+}`;

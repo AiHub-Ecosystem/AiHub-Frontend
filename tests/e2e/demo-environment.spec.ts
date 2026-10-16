@@ -393,6 +393,9 @@ test("signed assertion is shared across skills and cleared when key or environme
   await openDemo(page, "scoring");
   await page.getByLabel("Mã API (không bắt buộc)").fill(signedSandboxKey);
   await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
+  const writingEndpoint = page.getByLabel("URL endpoint cấp assertion (HTTPS)");
+  await writingEndpoint.fill("https://customer.example.test/demo/assertion");
+  await page.getByText("Nhập assertion thủ công").click();
   const writingIdentity = page.getByLabel(
     "Signed User Assertion (JWT) (X-User-Identity)"
   );
@@ -405,6 +408,10 @@ test("signed assertion is shared across skills and cleared when key or environme
   );
   await expect(speakingIdentity).toHaveCount(0);
   await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
+  await expect(
+    page.getByLabel("URL endpoint cấp assertion (HTTPS)")
+  ).toHaveValue("https://customer.example.test/demo/assertion");
+  await page.getByText("Nhập assertion thủ công").click();
   await expect(speakingIdentity).toHaveValue(assertion);
 
   await page.getByRole("button", { name: "Quay lại nhập mã API" }).click();
@@ -423,10 +430,25 @@ test("signed assertion is shared across skills and cleared when key or environme
   const renewedSignedIdentity = page.getByLabel(
     "Signed User Assertion (JWT) (X-User-Identity)"
   );
+  await expect(
+    page.getByLabel("URL endpoint cấp assertion (HTTPS)")
+  ).toHaveValue("");
+  await page.getByText("Nhập assertion thủ công").click();
   await expect(renewedSignedIdentity).toHaveValue("");
   await renewedSignedIdentity.fill(assertion);
+  await page
+    .getByLabel("URL endpoint cấp assertion (HTTPS)")
+    .fill("https://customer.example.test/demo/assertion");
   await page.getByTestId("demo-environment-production").check();
   await expect(renewedSignedIdentity).toHaveCount(0);
+  await page.getByTestId("demo-environment-sandbox").check();
+  await page.getByRole("button", { name: "Quay lại nhập mã API" }).click();
+  await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
+  await expect(
+    page.getByLabel("URL endpoint cấp assertion (HTTPS)")
+  ).toHaveValue("");
+  await page.getByText("Nhập assertion thủ công").click();
+  await expect(renewedSignedIdentity).toHaveValue("");
 });
 
 test("restoring the page from the back/forward cache clears the key", async ({

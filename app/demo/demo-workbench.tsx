@@ -18,7 +18,9 @@ import {
   type DemoIdentityMode,
   isDemoUserIdentity,
 } from "@/lib/demo-identity";
+import { isDemoAssertionEndpointUrl } from "@/lib/demo-assertion-endpoint";
 import type { SandboxAllowanceSnapshot } from "./demo-session-state";
+import { useDemoSession } from "./demo-session";
 
 export const DEMO_STEPS = [
   "Nhập mã API",
@@ -70,68 +72,221 @@ const STEP_SUMMARY = [
   "Xem điểm và nhận xét.",
 ];
 
-export function DemoUserIdentityField({
-  id,
-  value,
-  onChange,
-  disabled,
-  mode,
-}: {
+type DemoUserIdentityFieldProps = {
   id: string;
   value: string;
   onChange: (value: string) => void;
   disabled: boolean;
   mode: DemoIdentityMode;
-}) {
-  const [revealed, setRevealed] = useState(false);
-  const signed = mode === "signed_assertion";
-  const valid = signed ? isDemoUserIdentity(value) : isEndUserId(value);
+};
+
+type DemoUserIdentityInputProps = Omit<DemoUserIdentityFieldProps, "mode">;
+
+export function DemoUserIdentityField(props: DemoUserIdentityFieldProps) {
+  return props.mode === "signed_assertion" ? (
+    <SignedUserAssertionField {...props} />
+  ) : (
+    <DeclaredUserIdField {...props} />
+  );
+}
+
+function SignedUserAssertionField({
+  id,
+  value,
+  onChange,
+  disabled,
+}: DemoUserIdentityInputProps) {
   return (
     <div className="demo-field">
-      <h3>{signed ? "Signed User Assertion" : "Declared User ID"}</h3>
-      <label htmlFor={id}>
-        {signed
-          ? "Signed User Assertion (JWT) (X-User-Identity)"
-          : "Declared User ID (X-User-Identity)"}
-      </label>
+      <h3>Signed User Assertion</h3>
+      <CustomerAssertionEndpointField
+        id={`${id}-endpoint`}
+        disabled={disabled}
+      />
+      <ManualAssertionField
+        id={id}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
+function CustomerAssertionEndpointField({
+  id,
+  disabled,
+}: {
+  id: string;
+  disabled: boolean;
+}) {
+  const {
+    assertionEndpointUrl,
+    setAssertionEndpointUrl,
+    assertionRequestStatus,
+    assertionRequestMessage,
+    fetchAssertion,
+  } = useDemoSession();
+  const endpointUrlIsValid = isDemoAssertionEndpointUrl(assertionEndpointUrl);
+  return (
+    <>
+      <label htmlFor={id}>URL endpoint cấp assertion (HTTPS)</label>
       <input
         autoComplete="off"
         disabled={disabled}
         id={id}
-        maxLength={signed ? MAX_SIGNED_USER_ASSERTION_BYTES + 1 : 256}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={
-          signed ? "Dán JWT do máy chủ tổ chức cấp" : "Tự tạo mã ngẫu nhiên"
-        }
+        onChange={(event) => setAssertionEndpointUrl(event.target.value)}
+        placeholder="https://api.example.com/demo/assertion"
         spellCheck={false}
-        type={signed && !revealed ? "password" : "text"}
+        type="url"
+        value={assertionEndpointUrl}
+      />
+      <button
+        className="demo-btn-secondary"
+        disabled={
+          disabled ||
+          assertionRequestStatus === "loading" ||
+          !endpointUrlIsValid
+        }
+        onClick={() => void fetchAssertion()}
+        type="button"
+      >
+        {assertionRequestStatus === "loading"
+          ? "Đang lấy assertion…"
+          : "Lấy assertion"}
+      </button>
+      <AssertionEndpointHelp />
+      <AssertionEndpointFeedback
+        endpointUrl={assertionEndpointUrl}
+        endpointUrlIsValid={endpointUrlIsValid}
+        status={assertionRequestStatus}
+        message={assertionRequestMessage}
+      />
+    </>
+  );
+}
+
+function AssertionEndpointHelp() {
+  return (
+    <p className="demo-help">
+      Dùng URL HTTPS tuyệt đối, không userinfo, query hoặc fragment; redirect bị
+      từ chối. Trình duyệt gọi endpoint trực tiếp bằng POST không body hoặc
+      thông tin xác thực. Endpoint cần CORS đúng origin{" "}
+      <code>https://aihubproduction.com</code>, cấp cho test user cố định và tự
+      giới hạn tần suất. Xem{" "}
+      <Link href="/docs#demo-assertion-endpoint">contract endpoint</Link>.
+    </p>
+  );
+}
+
+function AssertionEndpointFeedback({
+  endpointUrl,
+  endpointUrlIsValid,
+  status,
+  message,
+}: {
+  endpointUrl: string;
+  endpointUrlIsValid: boolean;
+  status: "idle" | "loading" | "ready" | "error";
+  message: string;
+}) {
+  return (
+    <>
+      {endpointUrl && !endpointUrlIsValid && (
+        <p className="demo-error" role="alert">
+          URL endpoint phải là HTTPS tuyệt đối, không có username/password,
+          query hoặc fragment.
+        </p>
+      )}
+      {message && (
+        <p
+          className={status === "error" ? "demo-error" : "demo-help"}
+          role={status === "error" ? "alert" : "status"}
+        >
+          {message}
+        </p>
+      )}
+    </>
+  );
+}
+
+function ManualAssertionField({
+  id,
+  value,
+  onChange,
+  disabled,
+}: DemoUserIdentityInputProps) {
+  const [revealed, setRevealed] = useState(false);
+  const valid = isDemoUserIdentity(value);
+  return (
+    <details>
+      <summary>Nhập assertion thủ công</summary>
+      <label htmlFor={id}>Signed User Assertion (JWT) (X-User-Identity)</label>
+      <input
+        autoComplete="off"
+        disabled={disabled}
+        id={id}
+        maxLength={MAX_SIGNED_USER_ASSERTION_BYTES + 1}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Dán JWT do máy chủ tổ chức cấp"
+        spellCheck={false}
+        type={!revealed ? "password" : "text"}
         value={value}
       />
-      {signed && (
-        <button
-          aria-label={
-            revealed
-              ? "Che Signed User Assertion"
-              : "Hiện Signed User Assertion"
-          }
-          aria-pressed={revealed}
-          className="demo-btn-secondary"
-          onClick={() => setRevealed((visible) => !visible)}
-          type="button"
-        >
-          {revealed ? "Che assertion" : "Hiện assertion"}
-        </button>
-      )}
+      <button
+        aria-label={
+          revealed ? "Che Signed User Assertion" : "Hiện Signed User Assertion"
+        }
+        aria-pressed={revealed}
+        className="demo-btn-secondary"
+        onClick={() => setRevealed((visible) => !visible)}
+        type="button"
+      >
+        {revealed ? "Che assertion" : "Hiện assertion"}
+      </button>
       <p className="demo-help">
-        {signed
-          ? `Dán JWT ngắn hạn do máy chủ của tổ chức phát hành cho người dùng cuối. Bản thử không yêu cầu khóa ký. Giới hạn ${MAX_SIGNED_USER_ASSERTION_BYTES / 1024} KiB.`
-          : "Mã ngẫu nhiên được tạo sẵn. Dùng ID ổn định của người dùng trong ứng dụng, không dùng email, tên hoặc số điện thoại."}
+        Dán JWT ngắn hạn do máy chủ của tổ chức phát hành cho người dùng cuối.
+        Bản thử không yêu cầu khóa ký. Giới hạn{" "}
+        {MAX_SIGNED_USER_ASSERTION_BYTES / 1024} KiB.
       </p>
       {value.length > 0 && !valid && (
         <p className="demo-error" role="alert">
-          {signed
-            ? "Assertion phải có tối đa 6 KiB ký tự ASCII, không chứa khoảng trắng."
-            : "Mã cần có 1–256 ký tự, không chứa khoảng trắng."}
+          Assertion phải có tối đa 6 KiB ký tự ASCII, không chứa khoảng trắng.
+        </p>
+      )}
+    </details>
+  );
+}
+
+function DeclaredUserIdField({
+  id,
+  value,
+  onChange,
+  disabled,
+}: DemoUserIdentityInputProps) {
+  const valid = isEndUserId(value);
+  return (
+    <div className="demo-field">
+      <h3>Declared User ID</h3>
+      <label htmlFor={id}>Declared User ID (X-User-Identity)</label>
+      <input
+        autoComplete="off"
+        disabled={disabled}
+        id={id}
+        maxLength={256}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Tự tạo mã ngẫu nhiên"
+        spellCheck={false}
+        type="text"
+        value={value}
+      />
+      <p className="demo-help">
+        Mã ngẫu nhiên được tạo sẵn. Dùng ID ổn định của người dùng trong ứng
+        dụng, không dùng email, tên hoặc số điện thoại.
+      </p>
+      {value.length > 0 && !valid && (
+        <p className="demo-error" role="alert">
+          Mã cần có 1–256 ký tự, không chứa khoảng trắng.
         </p>
       )}
     </div>

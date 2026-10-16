@@ -71,13 +71,19 @@ async function startLiveSession(page: Page, apiKey = sandboxKey) {
   await expect(
     page.getByRole("heading", { name: "Chọn câu hỏi Speaking" })
   ).toBeVisible();
-  await expect(
-    page.getByLabel(
-      apiKey === "aihub_sk_e2e_signed_sandbox_key"
-        ? "Signed User Assertion (JWT) (X-User-Identity)"
-        : "Declared User ID (X-User-Identity)"
-    )
-  ).toBeEnabled();
+  if (apiKey === signedSandboxKey) {
+    await expect(
+      page.getByLabel("URL endpoint cấp assertion (HTTPS)")
+    ).toBeEnabled();
+    await page.getByText("Nhập assertion thủ công").click();
+    await expect(
+      page.getByLabel("Signed User Assertion (JWT) (X-User-Identity)")
+    ).toBeEnabled();
+  } else {
+    await expect(
+      page.getByLabel("Declared User ID (X-User-Identity)")
+    ).toBeEnabled();
+  }
   await expect(page.getByText("Đã kiểm tra mã · có thể sửa bài")).toBeVisible();
   await expect(
     page.locator(".demo-scenario-list").getByText("E2E_ONLY_QUESTION_1")
@@ -85,7 +91,7 @@ async function startLiveSession(page: Page, apiKey = sandboxKey) {
   await expect(
     page.getByText(
       apiKey === signedSandboxKey
-        ? /Mã API đã được xác nhận\. Dán hoặc thay Signed User Assertion/
+        ? /Mã API đã được xác nhận\. Lấy assertion từ endpoint/
         : /Mã API đã được xác nhận\. Bạn có thể đổi Declared User ID ở trên/
     )
   ).toBeVisible();

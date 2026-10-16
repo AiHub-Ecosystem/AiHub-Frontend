@@ -97,6 +97,16 @@ test("/docs explains Declared trust and optional Signed setup", async ({
     await expect(identity).toContainText(term);
   }
   await expect(identity).toContainText("INVALID_USER_IDENTITY");
+
+  const demoEndpointHeading = page.locator("#demo-assertion-endpoint");
+  await expect(demoEndpointHeading).toContainText("contract v1");
+  const demoEndpoint = page.locator("#dinh-danh");
+  await expect(demoEndpoint).toContainText("https://aihubproduction.com");
+  await expect(demoEndpoint).toContainText("Cache-Control: no-store");
+  await expect(demoEndpoint).toContainText("expires_at");
+  await expect(demoEndpoint).toContainText("RATE_LIMITED");
+  await expect(demoEndpoint).toContainText("TEST_USER_UNAVAILABLE");
+  await expect(demoEndpoint).toContainText("ISSUER_ERROR");
 });
 
 test("/docs links each grading operation to its API reference page", async ({
