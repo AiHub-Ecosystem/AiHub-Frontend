@@ -96,7 +96,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     assertionRequestRef.current?.abort();
     assertionRequestRef.current = null;
   }, []);
-  const clearAssertion = useCallback(() => {
+  const clearAssertionState = useCallback(() => {
     cancelAssertionRequest();
     assertionEndpointUrlRef.current = "";
     setAssertionEndpointUrlState("");
@@ -107,7 +107,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const forget = () => {
-      clearAssertion();
+      clearAssertionState();
       update(clearDemoVisit(stateRef.current));
     };
     const onPageShow = (event: PageTransitionEvent) => {
@@ -122,38 +122,38 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("storage", onStorage);
     };
-  }, [clearAssertion, update]);
+  }, [clearAssertionState, update]);
   useEffect(() => () => cancelAssertionRequest(), [cancelAssertionRequest]);
 
   const setApiKey = useCallback(
     (value: string) => {
       const next = setApiKeyIn(stateRef.current, value);
       if (next === stateRef.current) return;
-      clearAssertion();
+      clearAssertionState();
       update(next);
     },
-    [clearAssertion, update]
+    [clearAssertionState, update]
   );
   const setEnvironment = useCallback(
     (value: DemoEnvironment) => {
       const next = setEnvironmentIn(stateRef.current, value);
       if (next === stateRef.current) return;
-      clearAssertion();
+      clearAssertionState();
       update(next);
     },
-    [clearAssertion, update]
+    [clearAssertionState, update]
   );
   const setUserIdentityMode = useCallback(
     (mode: DemoIdentityMode | null) => {
       const current = stateRef.current;
       if (current.userIdentityMode === mode) return;
-      clearAssertion();
+      clearAssertionState();
       setUserIdentity(
         mode === "declared_id" ? globalThis.crypto.randomUUID() : ""
       );
       update(setUserIdentityModeIn(current, mode));
     },
-    [clearAssertion, update]
+    [clearAssertionState, update]
   );
   const setCustomerAssertionEndpointUrl = useCallback(
     (value: string) => {
