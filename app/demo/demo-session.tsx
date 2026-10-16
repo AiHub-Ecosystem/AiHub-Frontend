@@ -56,7 +56,9 @@ type DemoSession = {
   requiresProductionAcknowledgement: () => boolean;
   acknowledgeProduction: () => void;
   userIdentity: string;
+  userIdentityExpiresAt: number | null;
   setUserIdentity: (value: string) => void;
+  isUserIdentityExpired: () => boolean;
   setUserIdentityMode: (mode: DemoIdentityMode | null) => void;
   assertionEndpointUrl: string;
   setAssertionEndpointUrl: (value: string) => void;
@@ -76,7 +78,10 @@ const DemoSessionContext = createContext<DemoSession | null>(null);
 export function DemoSessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState(createDemoVisitState);
   const [grading, setGrading] = useState(false);
-  const [userIdentity, setUserIdentity] = useState("");
+  const [userIdentity, setUserIdentityState] = useState("");
+  const [userIdentityExpiresAt, setUserIdentityExpiresAt] = useState<
+    number | null
+  >(null);
   const [assertionEndpointUrl, setAssertionEndpointUrlState] = useState("");
   const [assertionRequestStatus, setAssertionRequestStatus] = useState<
     "idle" | "loading" | "ready" | "error"
@@ -86,6 +91,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
   const gradingRef = useRef(false);
   const assertionEndpointUrlRef = useRef(assertionEndpointUrl);
   const assertionRequestRef = useRef<AbortController | null>(null);
+  const userIdentityExpiresAtRef = useRef<number | null>(null);
 
   const update = useCallback((next: DemoVisitState) => {
     stateRef.current = next;
@@ -100,10 +106,50 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     cancelAssertionRequest();
     assertionEndpointUrlRef.current = "";
     setAssertionEndpointUrlState("");
-    setUserIdentity("");
+    setUserIdentityState("");
+    userIdentityExpiresAtRef.current = null;
+    setUserIdentityExpiresAt(null);
     setAssertionRequestStatus("idle");
     setAssertionRequestMessage("");
   }, [cancelAssertionRequest]);
+
+  const setUserIdentity = useCallback(
+    (value: string) => {
+      cancelAssertionRequest();
+      setUserIdentityState(value);
+      userIdentityExpiresAtRef.current = null;
+      setUserIdentityExpiresAt(null);
+      setAssertionRequestStatus("idle");
+      setAssertionRequestMessage("");
+    },
+    [cancelAssertionRequest]
+  );
+  const isUserIdentityExpired = useCallback(() => {
+    const expiresAt = userIdentityExpiresAtRef.current;
+    return expiresAt !== null && Date.now() >= expiresAt;
+  }, []);
+
+  useEffect(() => {
+    if (userIdentityExpiresAt === null) return;
+    let timer: number;
+    const expire = () => {
+      if (userIdentityExpiresAtRef.current !== userIdentityExpiresAt) return;
+      const remaining = userIdentityExpiresAt - Date.now();
+      if (remaining <= 0) {
+        setAssertionRequestStatus("error");
+        setAssertionRequestMessage(
+          "Assertion đã hết hạn. Hãy lấy assertion mới trước khi tiếp tục."
+        );
+      } else {
+        timer = window.setTimeout(expire, Math.min(remaining, 2_147_483_647));
+      }
+    };
+    timer = window.setTimeout(
+      expire,
+      Math.min(Math.max(0, userIdentityExpiresAt - Date.now()), 2_147_483_647)
+    );
+    return () => window.clearTimeout(timer);
+  }, [userIdentityExpiresAt]);
 
   useEffect(() => {
     const forget = () => {
@@ -148,7 +194,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       const current = stateRef.current;
       if (current.userIdentityMode === mode) return;
       clearAssertionState();
-      setUserIdentity(
+      setUserIdentityState(
         mode === "declared_id" ? globalThis.crypto.randomUUID() : ""
       );
       update(setUserIdentityModeIn(current, mode));
@@ -161,7 +207,9 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       cancelAssertionRequest();
       assertionEndpointUrlRef.current = value;
       setAssertionEndpointUrlState(value);
-      setUserIdentity("");
+      setUserIdentityState("");
+      userIdentityExpiresAtRef.current = null;
+      setUserIdentityExpiresAt(null);
       setAssertionRequestStatus("idle");
       setAssertionRequestMessage("");
     },
@@ -175,7 +223,9 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
     assertionRequestRef.current = controller;
     const generation = stateRef.current.generation;
-    setUserIdentity("");
+    setUserIdentityState("");
+    userIdentityExpiresAtRef.current = null;
+    setUserIdentityExpiresAt(null);
     setAssertionRequestStatus("loading");
     setAssertionRequestMessage("");
     try {
@@ -188,7 +238,9 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
         stateRef.current.generation !== generation
       )
         return;
-      setUserIdentity(assertion);
+      setUserIdentityState(assertion.assertion);
+      userIdentityExpiresAtRef.current = assertion.expiresAt;
+      setUserIdentityExpiresAt(assertion.expiresAt);
       setAssertionRequestStatus("ready");
       setAssertionRequestMessage(
         "Assertion đã sẵn sàng cho các thao tác Writing và Speaking trong phiên này."
@@ -199,7 +251,9 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
         assertionRequestRef.current !== controller
       )
         return;
-      setUserIdentity("");
+      setUserIdentityState("");
+      userIdentityExpiresAtRef.current = null;
+      setUserIdentityExpiresAt(null);
       setAssertionRequestStatus("error");
       setAssertionRequestMessage(
         error instanceof DemoAssertionEndpointError
@@ -266,7 +320,9 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       requiresProductionAcknowledgement,
       acknowledgeProduction,
       userIdentity,
+      userIdentityExpiresAt,
       setUserIdentity,
+      isUserIdentityExpired,
       setUserIdentityMode,
       assertionEndpointUrl,
       setAssertionEndpointUrl: setCustomerAssertionEndpointUrl,
@@ -289,7 +345,9 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       requiresProductionAcknowledgement,
       acknowledgeProduction,
       userIdentity,
+      userIdentityExpiresAt,
       setUserIdentity,
+      isUserIdentityExpired,
       setUserIdentityMode,
       assertionEndpointUrl,
       setCustomerAssertionEndpointUrl,

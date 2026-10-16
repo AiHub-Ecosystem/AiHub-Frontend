@@ -70,7 +70,10 @@ describe("customer demo assertion endpoint", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(fetchDemoAssertion(endpoint)).resolves.toBe(assertion());
+    await expect(fetchDemoAssertion(endpoint)).resolves.toEqual({
+      assertion: assertion(),
+      expiresAt: (nowSeconds + 300) * 1000,
+    });
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0]?.[0]).toBe(endpoint);
     const init = fetchMock.mock.calls[0]?.[1];

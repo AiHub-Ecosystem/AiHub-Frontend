@@ -176,7 +176,7 @@ async function readJson(response: Response): Promise<unknown> {
 export async function fetchDemoAssertion(
   endpoint: string,
   signal?: AbortSignal
-): Promise<string> {
+): Promise<{ assertion: string; expiresAt: number }> {
   if (!isDemoAssertionEndpointUrl(endpoint))
     throw new DemoAssertionEndpointError();
 
@@ -219,5 +219,8 @@ export async function fetchDemoAssertion(
     throw new DemoAssertionEndpointError();
   }
 
-  return payload.assertion;
+  return {
+    assertion: payload.assertion,
+    expiresAt: Date.parse(payload.expires_at),
+  };
 }

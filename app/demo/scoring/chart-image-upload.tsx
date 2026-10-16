@@ -60,6 +60,7 @@ export function ChartImageUpload({
   environment,
   identity,
   identityValid,
+  identityExpiresAt,
   grading,
   onBusyChange,
   onUploaded,
@@ -68,15 +69,26 @@ export function ChartImageUpload({
   environment: DemoEnvironment;
   identity: string;
   identityValid: boolean;
+  identityExpiresAt: number | null;
   grading: boolean;
   onBusyChange: (busy: boolean) => void;
   onUploaded: (imageUrl: string) => void;
 }) {
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [error, setError] = useState<PublicError | null>(null);
+  const expiredIdentityError: PublicError = {
+    code: "INVALID_USER_IDENTITY",
+    message: "Assertion đã hết hạn. Hãy lấy assertion mới trước khi tiếp tục.",
+  };
+  const isIdentityExpired = () =>
+    identityExpiresAt !== null && Date.now() >= identityExpiresAt;
 
   const upload = async (file: File) => {
     setError(null);
+    if (isIdentityExpired()) {
+      setError(expiredIdentityError);
+      return;
+    }
     if (!identityValid) {
       setError({
         code: "INVALID_USER_IDENTITY",
@@ -108,6 +120,7 @@ export function ChartImageUpload({
       "X-Demo-User-Identity": identity,
     };
     try {
+      if (isIdentityExpired()) throw expiredIdentityError;
       const created = await fetch("/api/demo/scoring/chart-uploads", {
         method: "POST",
         headers: authHeaders,
@@ -141,6 +154,7 @@ export function ChartImageUpload({
       setStatus("uploading");
       let upload = await postChart(grant.uploadUrl, grant.fields);
       if (upload.status === 401 || upload.status === 403) {
+        if (isIdentityExpired()) throw expiredIdentityError;
         const refreshed = await fetch(
           `/api/demo/scoring/chart-uploads/${grant.assetId}/refresh`,
           { method: "POST", headers: authHeaders, cache: "no-store" }
@@ -165,6 +179,7 @@ export function ChartImageUpload({
       }
 
       setStatus("verifying");
+      if (isIdentityExpired()) throw expiredIdentityError;
       const completed = await fetch(
         `/api/demo/scoring/chart-uploads/${grant.assetId}/complete`,
         { method: "POST", headers: authHeaders, cache: "no-store" }

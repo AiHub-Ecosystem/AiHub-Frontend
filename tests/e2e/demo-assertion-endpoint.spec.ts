@@ -11,8 +11,7 @@ function base64Url(value: string) {
   return Buffer.from(value).toString("base64url");
 }
 
-function validAssertion() {
-  const exp = fixedNowSeconds + 300;
+function validAssertion(exp = fixedNowSeconds + 300) {
   return {
     token: `${base64Url(JSON.stringify({ alg: "RS256", kid: "demo" }))}.${base64Url(JSON.stringify({ exp, sub: "demo-user" }))}.${base64Url("signature")}`,
     expiresAt: new Date(exp * 1000).toISOString(),
@@ -21,10 +20,17 @@ function validAssertion() {
 
 async function mockCustomerEndpoint(
   page: Page,
-  result: { errorCode?: string } = {}
+  result: { errorCode?: string } = {},
+  options: { controlClock?: boolean; defer?: boolean } = {}
 ) {
-  await page.clock.setFixedTime(fixedNow);
+  if (options.controlClock) await page.clock.install({ time: fixedNow });
+  else await page.clock.setFixedTime(fixedNow);
   let errorCode = result.errorCode;
+  let releaseResponse: (() => void) | null = null;
+  let markResponseDeferred: () => void = () => undefined;
+  const responseDeferred = new Promise<void>((resolve) => {
+    markResponseDeferred = resolve;
+  });
   const calls: Array<{
     method: string;
     postData: string | null;
@@ -39,7 +45,12 @@ async function mockCustomerEndpoint(
         postData: route.request().postData(),
         headers: route.request().headers(),
       });
-      await route.fulfill({
+      if (options.defer)
+        await new Promise<void>((resolve) => {
+          releaseResponse = resolve;
+          markResponseDeferred();
+        });
+      const customerResponse = {
         status:
           errorCode === "RATE_LIMITED"
             ? 429
@@ -58,7 +69,10 @@ async function mockCustomerEndpoint(
             ? { error: { code: errorCode, message: "raw customer secret" } }
             : { assertion: assertion.token, expires_at: assertion.expiresAt }
         ),
-      });
+      };
+      if (options.defer)
+        await route.fulfill(customerResponse).catch(() => undefined);
+      else await route.fulfill(customerResponse);
       return;
     }
     if (url.hostname === "127.0.0.1") {
@@ -77,8 +91,10 @@ async function mockCustomerEndpoint(
   });
   return {
     calls,
+    responseDeferred,
     ...assertion,
     failWith: (code: string) => (errorCode = code),
+    release: () => releaseResponse?.(),
   };
 }
 
@@ -256,6 +272,88 @@ test("endpoint failures show safe guidance and clear an old assertion", async ({
   ).json();
   expect(grading.requests).toHaveLength(0);
 });
+
+test("manual assertion edits cancel an in-flight endpoint response", async ({
+  page,
+}) => {
+  const customer = await mockCustomerEndpoint(page, {}, { defer: true });
+  await page.goto("/demo/scoring");
+  await validateSignedKey(page, "scoring");
+  await page.getByLabel("URL endpoint cấp assertion (HTTPS)").fill(endpointUrl);
+
+  const fetchClick = page
+    .getByRole("button", { name: "Lấy assertion" })
+    .click();
+  await expect.poll(() => customer.calls.length).toBe(1);
+  await customer.responseDeferred;
+  await page.getByText("Nhập assertion thủ công").click();
+  const manualAssertion = validAssertion(fixedNowSeconds + 240).token;
+  const identity = page.getByLabel(
+    "Signed User Assertion (JWT) (X-User-Identity)"
+  );
+  await identity.fill(manualAssertion);
+  customer.release();
+  await fetchClick;
+
+  await expect(identity).toHaveValue(manualAssertion);
+  await expect(page.getByText("Assertion đã sẵn sàng")).toHaveCount(0);
+});
+
+for (const route of ["scoring", "speaking"] as const) {
+  test(`${route} blocks live grading after a fetched assertion expires`, async ({
+    page,
+    request,
+  }) => {
+    const customer = await mockCustomerEndpoint(
+      page,
+      {},
+      { controlClock: true }
+    );
+    const resetPath = route === "scoring" ? "scoring/reset" : "speaking/reset";
+    await request.post(`${mockUrl}/__test__/${resetPath}`);
+    await page.goto(route === "scoring" ? "/demo/scoring" : "/demo/speaking");
+    await validateSignedKey(page, route);
+    if (route === "speaking")
+      await page
+        .locator(".demo-scenario-list")
+        .getByText("E2E_ONLY_QUESTION_1")
+        .click();
+    await fetchAssertion(page, customer.token);
+
+    await page.clock.fastForward(301_000);
+    await expect(
+      page.locator('.demo-error[role="alert"]').filter({
+        hasText: "Assertion đã hết hạn",
+      })
+    ).toBeVisible();
+
+    if (route === "scoring") {
+      await page.getByRole("button", { name: "Tiếp tục đến bài làm" }).click();
+      await page.getByRole("button", { name: "Xem bước chấm" }).click();
+      await page.getByTestId("button-grade").click();
+      await expect(page.getByTestId("scoring-report")).toHaveCount(0);
+      const log = await (
+        await request.get(`${mockUrl}/__test__/scoring/requests`)
+      ).json();
+      expect(log.requests).toHaveLength(0);
+    } else {
+      await page
+        .getByRole("button", { name: "Tiếp tục đến câu trả lời" })
+        .click();
+      await page.getByTestId("input-audio-file").setInputFiles({
+        name: "e2e-answer.wav",
+        mimeType: "audio/wav",
+        buffer: Buffer.alloc(2048, 1),
+      });
+      await page.getByRole("button", { name: "Xem bước chấm" }).click();
+      await page.getByRole("button", { name: "Chấm thật Part 1" }).click();
+      const log = await (
+        await request.get(`${mockUrl}/__test__/speaking/requests`)
+      ).json();
+      expect(log.requests).toHaveLength(0);
+    }
+  });
+}
 
 test("endpoint and assertion are shared between demos and cleared when the visit ends", async ({
   page,

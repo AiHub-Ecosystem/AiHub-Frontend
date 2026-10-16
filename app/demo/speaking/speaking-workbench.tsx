@@ -577,6 +577,7 @@ export default function SpeakingWorkbench() {
     acknowledgeProduction,
     userIdentity,
     setUserIdentity,
+    isUserIdentityExpired,
     setUserIdentityMode,
   } = useDemoSession();
   const apiKey = state.apiKey;
@@ -618,7 +619,7 @@ export default function SpeakingWorkbench() {
     !skipMock;
   const userIdentityValid =
     state.userIdentityMode === "signed_assertion"
-      ? isDemoUserIdentity(userIdentity)
+      ? isDemoUserIdentity(userIdentity) && !isUserIdentityExpired()
       : state.userIdentityMode === "declared_id" && isEndUserId(userIdentity);
   const identityTraceValue =
     state.userIdentityMode === "signed_assertion"
@@ -1065,11 +1066,13 @@ export default function SpeakingWorkbench() {
       });
       return;
     }
-    if (!userIdentityValid) {
+    const identityExpired = isUserIdentityExpired();
+    if (identityExpired || !userIdentityValid) {
       setError({
         code: "INVALID_USER_IDENTITY",
-        message:
-          state.userIdentityMode === "signed_assertion"
+        message: identityExpired
+          ? "Assertion đã hết hạn. Hãy lấy assertion mới trước khi tiếp tục."
+          : state.userIdentityMode === "signed_assertion"
             ? "Dán Signed User Assertion do máy chủ tổ chức cấp (tối đa 6 KiB)."
             : "Nhập Declared User ID gồm 1–256 ký tự, không chứa khoảng trắng.",
       });
