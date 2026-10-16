@@ -49,8 +49,14 @@ The explicitly selected Sandbox or Production request tier for a demo visit. The
 One temporary visit shared by the Writing and Speaking demos, with one demo identity and optionally one customer API key authorized for its selected environment.
 
 **Demo identity**:
-A random UUID used as the temporary End-User ID for one demo visit's Live calls; it is shared by Writing and Speaking and separate from the participant's AIHUB User Account identity.
+The end-user identity value used for one demo visit's Live calls: a random UUID in `declared_id` mode or a customer-issued Signed User Assertion in `signed_assertion` mode. Writing and Speaking share the value for the visit; it is separate from the participant's AIHUB User Account identity.
 _Avoid_: AIHUB username
+
+**Declared User ID**:
+A stable identifier from a customer application sent as `X-User-Identity` when the Organization uses declared identity mode; it is not an email address, name, or phone number.
+
+**Signed User Assertion**:
+A short-lived JWT issued by an Organization's own backend for an end user and sent as `X-User-Identity` when the Organization uses signed assertion mode.
 
 **Production confirmation**:
 The visitor's explicit acknowledgement before the first Production grade in a demo visit that it may incur real charges. It is cleared when the key or selected environment changes.
