@@ -270,9 +270,7 @@ test("the shared key and environment stay locked across skills during grading", 
       page.getByRole("button", { name: "Kiểm tra mã API" })
     ).toBeDisabled();
     await expect(
-      page.getByText(
-        "Đang chấm bài. Đợi xong rồi mới đổi mã API hoặc nơi chấm."
-      )
+      page.getByText(/Đang chấm bài.*tải lại trang.*kết quả có thể bị mất/)
     ).toBeVisible();
   } finally {
     releaseGrade();
