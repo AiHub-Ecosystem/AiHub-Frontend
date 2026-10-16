@@ -379,6 +379,32 @@ function SpeakingResultReport({
   const { data } = envelope;
   const canDisplayBand =
     data.scorability.is_scorable && data.scorability.display_band;
+  const transcript = data.transcript.text.trim();
+  const fluency = data.fluency_metrics;
+  const hasFluencyMetrics =
+    fluency !== null && Object.values(fluency).some((value) => value !== null);
+  const pronunciation = data.pronunciation_detail;
+  const pronunciationCount =
+    pronunciation.summary.good_count +
+    pronunciation.summary.fair_count +
+    pronunciation.summary.poor_count;
+  const pronunciationWords = pronunciation.words.filter((item) =>
+    item.word.trim()
+  );
+  const grammarErrors = data.language_analysis.grammar_errors.filter((item) =>
+    [item.error_segment, item.correction, item.explanation_vi].some((text) =>
+      text.trim()
+    )
+  );
+  const vocabularyUpgrades = data.language_analysis.vocabulary_upgrades.filter(
+    (item) =>
+      [item.original_word, item.suggested_word, item.reason_vi].some((text) =>
+        text.trim()
+      )
+  );
+  const summary = data.feedback.summary_vi.trim();
+  const strongPoint = data.feedback.strong_point_vi.trim();
+  const actionPlan = data.feedback.action_plan_vi.trim();
   const criteria = [
     [
       "Độ trôi chảy và mạch lạc",
@@ -412,9 +438,10 @@ function SpeakingResultReport({
         </span>
       </div>
 
-      {!canDisplayBand && data.scorability.message_vi && (
+      {!canDisplayBand && (
         <div className="demo-notice" role="status">
-          {data.scorability.message_vi}
+          {data.scorability.message_vi?.trim() ||
+            "Lượt nói chưa đủ dữ liệu để hiển thị điểm tổng thể."}
         </div>
       )}
 
@@ -437,7 +464,9 @@ function SpeakingResultReport({
             {data.transcript.duration_seconds.toFixed(1)} giây
           </span>
         </div>
-        <div className="scoring-essay">{data.transcript.text}</div>
+        <div className="scoring-essay">
+          {transcript || "Chưa nhận diện được lời nói từ bản ghi này."}
+        </div>
       </div>
 
       <div className="rubric-grid">
@@ -449,29 +478,23 @@ function SpeakingResultReport({
             {data.relevance.on_topic ? "Đúng trọng tâm" : "Chưa sát câu hỏi"} ·{" "}
             {(data.relevance.score * 100).toFixed(0)}%
           </p>
-          {data.relevance.feedback_vi && <p>{data.relevance.feedback_vi}</p>}
+          {data.relevance.feedback_vi?.trim() && (
+            <p>{data.relevance.feedback_vi.trim()}</p>
+          )}
         </div>
         <div className="rubric-card">
           <div className="section-kicker">NHỊP NÓI</div>
-          {data.fluency_metrics ? (
+          {hasFluencyMetrics && fluency ? (
             <ul className="scoring-plain-list speaking-metric-list">
               <li>
-                Tốc độ:{" "}
-                {speakingMetric(
-                  data.fluency_metrics.speech_rate_wpm,
-                  "từ/phút"
-                )}
+                Tốc độ: {speakingMetric(fluency.speech_rate_wpm, "từ/phút")}
               </li>
               <li>
-                Số lần ngừng:{" "}
-                {speakingMetric(data.fluency_metrics.pause_count, "lần", 0)}
+                Số lần ngừng: {speakingMetric(fluency.pause_count, "lần", 0)}
               </li>
               <li>
                 Độ dài trung bình mỗi mạch nói:{" "}
-                {speakingMetric(
-                  data.fluency_metrics.mean_length_run_words,
-                  "từ"
-                )}
+                {speakingMetric(fluency.mean_length_run_words, "từ")}
               </li>
             </ul>
           ) : (
@@ -483,26 +506,24 @@ function SpeakingResultReport({
       <div className="rubric-grid">
         <div className="rubric-card">
           <div className="section-kicker">CÁCH PHÁT ÂM TỪNG TỪ</div>
-          <div className="speaking-pronunciation-stats">
-            <span>
-              <strong>{data.pronunciation_detail.summary.good_count}</strong>Tốt
-            </span>
-            <span>
-              <strong>{data.pronunciation_detail.summary.fair_count}</strong>Cần
-              luyện
-            </span>
-            <span>
-              <strong>{data.pronunciation_detail.summary.poor_count}</strong>Cần
-              chú ý
-            </span>
-          </div>
-          {data.pronunciation_detail.words.length > 0 && (
+          {pronunciationCount > 0 && (
+            <div className="speaking-pronunciation-stats">
+              <span>
+                <strong>{pronunciation.summary.good_count}</strong>Tốt
+              </span>
+              <span>
+                <strong>{pronunciation.summary.fair_count}</strong>Cần luyện
+              </span>
+              <span>
+                <strong>{pronunciation.summary.poor_count}</strong>Cần chú ý
+              </span>
+            </div>
+          )}
+          {pronunciationWords.length > 0 ? (
             <details className="speaking-word-details">
-              <summary>
-                Xem nhận xét về {data.pronunciation_detail.words.length} từ
-              </summary>
+              <summary>Xem nhận xét về {pronunciationWords.length} từ</summary>
               <ul className="scoring-plain-list">
-                {data.pronunciation_detail.words.map((item, index) => (
+                {pronunciationWords.map((item, index) => (
                   <li key={`${item.word}-${index}`}>
                     <strong>{item.word}</strong> ·{" "}
                     {item.quality_score.toFixed(1)}% · {item.syllables.length}{" "}
@@ -511,33 +532,47 @@ function SpeakingResultReport({
                 ))}
               </ul>
             </details>
+          ) : (
+            <p className="speaking-empty-state" role="status">
+              {pronunciationCount > 0
+                ? "Chưa có nhận xét phát âm chi tiết theo từng từ."
+                : "Lượt này chưa có dữ liệu phát âm theo từ."}
+            </p>
           )}
         </div>
         <div className="rubric-card">
           <div className="section-kicker">GỢI Ý VỀ NGỮ PHÁP VÀ TỪ VỰNG</div>
-          {data.language_analysis.grammar_errors.length === 0 ? (
-            <p>Không có lỗi ngữ pháp được ghi nhận.</p>
+          {grammarErrors.length === 0 && vocabularyUpgrades.length === 0 ? (
+            <p className="speaking-empty-state" role="status">
+              Chưa có góp ý ngữ pháp hoặc từ vựng cho lượt này.
+            </p>
           ) : (
-            <ul className="scoring-plain-list">
-              {data.language_analysis.grammar_errors.map((item, index) => (
-                <li key={`${item.error_segment}-${index}`}>
-                  “{item.error_segment}” → “{item.correction}” ·{" "}
-                  {item.explanation_vi}
-                </li>
-              ))}
-            </ul>
-          )}
-          {data.language_analysis.vocabulary_upgrades.length > 0 && (
-            <ul className="scoring-plain-list speaking-vocabulary-list">
-              {data.language_analysis.vocabulary_upgrades.map((item, index) => (
-                <li key={`${item.original_word}-${index}`}>
-                  <strong>
-                    {item.original_word} → {item.suggested_word}
-                  </strong>{" "}
-                  · {item.reason_vi}
-                </li>
-              ))}
-            </ul>
+            <>
+              {grammarErrors.length === 0 ? (
+                <p>Không có lỗi ngữ pháp được ghi nhận.</p>
+              ) : (
+                <ul className="scoring-plain-list">
+                  {grammarErrors.map((item, index) => (
+                    <li key={`${item.error_segment}-${index}`}>
+                      “{item.error_segment}” → “{item.correction}” ·{" "}
+                      {item.explanation_vi}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {vocabularyUpgrades.length > 0 && (
+                <ul className="scoring-plain-list speaking-vocabulary-list">
+                  {vocabularyUpgrades.map((item, index) => (
+                    <li key={`${item.original_word}-${index}`}>
+                      <strong>
+                        {item.original_word} → {item.suggested_word}
+                      </strong>{" "}
+                      · {item.reason_vi}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -545,16 +580,25 @@ function SpeakingResultReport({
       <div className="rubric-grid">
         <div className="rubric-card">
           <div className="section-kicker">NHẬN XÉT</div>
-          <p>{data.feedback.summary_vi}</p>
+          <p>{summary || "Chưa có nhận xét tổng hợp cho lượt này."}</p>
         </div>
         <div className="rubric-card">
           <div className="section-kicker">ĐIỂM TỐT &amp; BƯỚC TIẾP THEO</div>
-          <p>
-            <strong>Điểm tốt:</strong> {data.feedback.strong_point_vi}
-          </p>
-          <p>
-            <strong>Bước tiếp theo:</strong> {data.feedback.action_plan_vi}
-          </p>
+          {strongPoint ? (
+            <p>
+              <strong>Điểm tốt:</strong> {strongPoint}
+            </p>
+          ) : null}
+          {actionPlan ? (
+            <p>
+              <strong>Bước tiếp theo:</strong> {actionPlan}
+            </p>
+          ) : null}
+          {!strongPoint && !actionPlan && (
+            <p className="speaking-empty-state" role="status">
+              Chưa có điểm tốt hoặc bước tiếp theo cho lượt này.
+            </p>
+          )}
         </div>
       </div>
     </section>

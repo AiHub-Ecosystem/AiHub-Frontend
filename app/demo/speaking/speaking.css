@@ -65,9 +65,18 @@
   margin-top: 16px;
 }
 
+.aihub-demo-flow .speaking-result-report .rubric-grid {
+  align-items: start;
+}
+
 .aihub-demo-flow .speaking-result-transcript {
   display: grid;
   gap: 7px;
+}
+
+.aihub-demo-flow .speaking-empty-state {
+  color: var(--demo-muted);
+  font-size: 12px;
 }
 
 .aihub-demo-flow .speaking-pronunciation-stats {
