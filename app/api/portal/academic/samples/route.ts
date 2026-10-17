@@ -16,6 +16,7 @@ export async function GET(request: Request) {
       `${BACKEND_URL}/portal/academic/samples?${searchParams.toString()}`,
       {
         cache: "no-store",
+        signal: AbortSignal.timeout(60_000),
       }
     );
     const data = await backendRes.json();

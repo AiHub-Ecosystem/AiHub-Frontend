@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       `${backendUrl.replace(/\/$/, "")}/external/micro-exercise/sample-references`,
       {
         method: "POST",
+        signal: AbortSignal.timeout(60_000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           writing_task: query.writingTask,

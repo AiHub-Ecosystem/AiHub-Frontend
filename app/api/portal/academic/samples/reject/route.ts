@@ -21,6 +21,7 @@ export async function POST(request: Request) {
       `${BACKEND_URL}/portal/academic/samples/reject`,
       {
         method: "POST",
+        signal: AbortSignal.timeout(60_000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       }

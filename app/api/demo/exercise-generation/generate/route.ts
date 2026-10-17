@@ -25,6 +25,7 @@ export async function POST(request: Request) {
       `${backendUrl.replace(/\/$/, "")}/create-micro-exercise`,
       {
         method: "POST",
+        signal: AbortSignal.timeout(60_000),
         headers: {
           "Content-Type": "application/json",
           "x-client-id": "demo-sandbox",
