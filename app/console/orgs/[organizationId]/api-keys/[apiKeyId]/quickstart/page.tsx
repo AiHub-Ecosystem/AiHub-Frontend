@@ -9,6 +9,7 @@ import {
 } from "@/lib/organization-server";
 import { apiKeyEnvironmentLabel } from "@/lib/api-keys";
 import { hasQuickstart, quickstartPath } from "@/lib/sample-request";
+import { RetryButton } from "@/components/retry-button";
 import { SessionActivity } from "@/components/session-activity";
 import { RosterUnavailable } from "@/components/organizations/roster-unavailable";
 import { SampleRequests } from "@/components/organizations/sample-requests";
@@ -115,7 +116,7 @@ function ApiKeysUnavailable() {
           Chưa tải được danh sách API key của Organization. Key của bạn không bị
           ảnh hưởng.
         </p>
-        <a href="">Thử lại</a>
+        <RetryButton />
       </div>
     </main>
   );

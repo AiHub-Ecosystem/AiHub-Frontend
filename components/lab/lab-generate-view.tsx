@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   answerDetails,
   errorMessage,
@@ -204,6 +204,7 @@ export function LabGenerateView({
 }: {
   onSampleSaved?: () => void;
 }) {
+  const labFieldId = useId();
   // Input State
   const [taskType, setTaskType] = useState<"task_1" | "task_2">("task_2");
   const [imageUrl, setImageUrl] = useState("");
@@ -607,10 +608,14 @@ export function LabGenerateView({
 
                         {/* Question Text */}
                         <div>
-                          <label className="text-xs font-semibold text-gray-600 block mb-1">
+                          <label
+                            htmlFor={`${labFieldId}-${idx}-0`}
+                            className="text-xs font-semibold text-gray-600 block mb-1"
+                          >
                             Đề bài câu hỏi:
                           </label>
                           <textarea
+                            id={`${labFieldId}-${idx}-0`}
                             rows={2}
                             value={item.question_text}
                             onChange={(e) =>
@@ -722,10 +727,14 @@ export function LabGenerateView({
                         {/* Sample Answer */}
                         {answerDetails(item.correct)?.sample_answer && (
                           <div>
-                            <label className="text-xs font-semibold text-emerald-700 block mb-1">
+                            <label
+                              htmlFor={`${labFieldId}-${idx}-1`}
+                              className="text-xs font-semibold text-emerald-700 block mb-1"
+                            >
                               Sample Answer (Đáp án chuẩn):
                             </label>
                             <textarea
+                              id={`${labFieldId}-${idx}-1`}
                               rows={2}
                               value={
                                 answerDetails(item.correct)?.sample_answer ?? ""
@@ -745,12 +754,16 @@ export function LabGenerateView({
                         {/* AI Grading Rubric */}
                         {answerDetails(item.correct)?.ai_grading_rubric && (
                           <div className="bg-amber-50/60 border border-amber-200 p-3.5 rounded-lg">
-                            <label className="text-xs font-bold text-amber-900 block mb-1 flex items-center gap-1.5">
+                            <label
+                              htmlFor={`${labFieldId}-${idx}-2`}
+                              className="text-xs font-bold text-amber-900 block mb-1 flex items-center gap-1.5"
+                            >
                               <span>
                                 📋 AI Grading Rubric (Tiêu chí chấm điểm 1–10):
                               </span>
                             </label>
                             <textarea
+                              id={`${labFieldId}-${idx}-2`}
                               rows={3}
                               value={
                                 answerDetails(item.correct)
@@ -771,10 +784,14 @@ export function LabGenerateView({
                         {/* Explanation */}
                         {answerDetails(item.correct)?.explanation && (
                           <div>
-                            <label className="text-xs font-semibold text-gray-600 block mb-1">
+                            <label
+                              htmlFor={`${labFieldId}-${idx}-3`}
+                              className="text-xs font-semibold text-gray-600 block mb-1"
+                            >
                               Explanation (Giải thích học thuật):
                             </label>
                             <textarea
+                              id={`${labFieldId}-${idx}-3`}
                               rows={2}
                               value={
                                 answerDetails(item.correct)?.explanation ?? ""
@@ -840,10 +857,17 @@ export function LabGenerateView({
 
         {/* Task Selection (FRD US-1) */}
         <div>
-          <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-2">
+          <span
+            id={`${labFieldId}-task`}
+            className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-2"
+          >
             Task
-          </label>
-          <div className="flex items-center gap-6">
+          </span>
+          <div
+            role="radiogroup"
+            aria-labelledby={`${labFieldId}-task`}
+            className="flex items-center gap-6"
+          >
             <label className="flex items-center gap-2 text-sm text-gray-800 cursor-pointer font-medium">
               <input
                 type="radio"
@@ -870,10 +894,14 @@ export function LabGenerateView({
         {/* Task 1 Image URL (FRD US-1) */}
         {taskType === "task_1" && (
           <div>
-            <label className="text-xs font-semibold text-gray-700 block mb-1">
+            <label
+              htmlFor={`${labFieldId}-4`}
+              className="text-xs font-semibold text-gray-700 block mb-1"
+            >
               Image URL (Biểu đồ Task 1):
             </label>
             <input
+              id={`${labFieldId}-4`}
               type="text"
               placeholder="https://example.com/chart.png"
               value={imageUrl}
@@ -886,10 +914,14 @@ export function LabGenerateView({
         {/* Criteria & Topic Grid (FRD US-2 & US-4) */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">
+            <label
+              htmlFor={`${labFieldId}-5`}
+              className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1"
+            >
               Criteria
             </label>
             <select
+              id={`${labFieldId}-5`}
               value={criterion}
               onChange={(e) => handleCriterionChange(e.target.value)}
               className="w-full text-sm p-2.5 border border-gray-300 rounded-lg bg-white font-medium"
@@ -903,10 +935,14 @@ export function LabGenerateView({
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">
+            <label
+              htmlFor={`${labFieldId}-6`}
+              className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1"
+            >
               Topic
             </label>
             <select
+              id={`${labFieldId}-6`}
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               className="w-full text-sm p-2.5 border border-gray-300 rounded-lg bg-white font-medium"
@@ -923,10 +959,14 @@ export function LabGenerateView({
         {/* Error Code & Question Type (FRD US-2 & US-3) */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">
+            <label
+              htmlFor={`${labFieldId}-7`}
+              className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1"
+            >
               Error Code
             </label>
             <select
+              id={`${labFieldId}-7`}
               value={errorCode}
               onChange={(e) => handleErrorCodeChange(e.target.value)}
               className="w-full text-sm p-2.5 border border-gray-300 rounded-lg bg-white font-medium"
@@ -940,10 +980,14 @@ export function LabGenerateView({
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">
+            <label
+              htmlFor={`${labFieldId}-8`}
+              className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1"
+            >
               Question Type
             </label>
             <select
+              id={`${labFieldId}-8`}
               value={questionType}
               onChange={(e) => setQuestionType(e.target.value)}
               className="w-full text-sm p-2.5 border border-gray-300 rounded-lg bg-white font-medium"
@@ -959,10 +1003,14 @@ export function LabGenerateView({
 
         {/* Detailed Instruction (FRD US-6) */}
         <div>
-          <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">
+          <label
+            htmlFor={`${labFieldId}-9`}
+            className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1"
+          >
             Detailed Instruction (Prompt input)
           </label>
           <textarea
+            id={`${labFieldId}-9`}
             rows={3}
             value={detailedInstruction}
             onChange={(e) => setDetailedInstruction(e.target.value)}

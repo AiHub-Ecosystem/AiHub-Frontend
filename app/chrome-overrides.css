@@ -83,7 +83,7 @@ header:not(.shrink-menu):not(.dark-header) nav.main-nav > ul > li > a:hover {
     color 0.15s ease;
 }
 
-.site-auth-actions > a:last-child {
+.site-auth-actions > a:last-of-type {
   border-color: #3a64fa;
   background: #3a64fa;
   color: #fff !important;
@@ -93,7 +93,7 @@ header:not(.shrink-menu):not(.dark-header) nav.main-nav > ul > li > a:hover {
   background: rgb(58 100 250 / 10%);
 }
 
-.site-auth-actions > a:last-child:hover {
+.site-auth-actions > a:last-of-type:hover {
   background: #2e52d7;
 }
 
@@ -298,9 +298,9 @@ body.dark-header header .site-auth-actions > a {
   color: #fff !important;
 }
 
-header.shrink-menu .site-auth-actions > a:last-child,
-header.dark-header .site-auth-actions > a:last-child,
-body.dark-header header .site-auth-actions > a:last-child {
+header.shrink-menu .site-auth-actions > a:last-of-type,
+header.dark-header .site-auth-actions > a:last-of-type,
+body.dark-header header .site-auth-actions > a:last-of-type {
   color: #fff !important;
 }
 

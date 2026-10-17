@@ -265,7 +265,8 @@
 .organization-back-link {
   display: inline-flex;
   margin: 4px 0 0;
-  color: #3a64fa;
+  /* 5.3:1 on the Console surface; the brand #3a64fa reads 4.37:1. */
+  color: #2f56e8;
   font-weight: 600;
   text-decoration: none;
 }

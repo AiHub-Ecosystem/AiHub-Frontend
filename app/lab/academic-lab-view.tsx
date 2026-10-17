@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { broadcastLogout } from "@/lib/logout-signal";
 import {
@@ -55,6 +55,7 @@ function getMonotonicTime() {
 }
 
 export function AcademicLabView() {
+  const labFieldId = useId();
   // Main Tab: "lab" (Generate & Review), "inventory" (Manage Samples) or "logs" (API Request Logs)
   const [mainTab, setMainTab] = useState<"lab" | "inventory" | "logs">("lab");
   const [detailModalTab, setDetailModalTab] = useState<
@@ -692,86 +693,94 @@ export function AcademicLabView() {
               position: "relative",
             }}
           >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mainTab === "lab"}
-              className={`aihub-tab ${mainTab === "lab" ? "aihub-tab--active" : ""}`}
-              style={{
-                borderRadius: "8px",
-                padding: "8px 16px",
-                fontWeight: 700,
-                fontSize: "13px",
-                background: mainTab === "lab" ? "#3a64fa" : "#ffffff",
-                color: mainTab === "lab" ? "#ffffff" : "#475467",
-                border:
-                  mainTab === "lab" ? "1px solid #3a64fa" : "1px solid #e4e7ec",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-              onClick={() => {
-                setMainTab("lab");
-                setSelectedDetail(null);
-                setShowRejectModal(false);
-              }}
+            <div
+              role="tablist"
+              aria-label="Academic Lab"
+              style={{ display: "flex", alignItems: "center", gap: "8px" }}
             >
-              Phòng Lab Tạo &amp; Chấm Điểm
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mainTab === "inventory"}
-              className={`aihub-tab ${mainTab === "inventory" ? "aihub-tab--active" : ""}`}
-              style={{
-                borderRadius: "8px",
-                padding: "8px 16px",
-                fontWeight: 700,
-                fontSize: "13px",
-                background: mainTab === "inventory" ? "#3a64fa" : "#ffffff",
-                color: mainTab === "inventory" ? "#ffffff" : "#475467",
-                border:
-                  mainTab === "inventory"
-                    ? "1px solid #3a64fa"
-                    : "1px solid #e4e7ec",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-              onClick={() => {
-                setMainTab("inventory");
-                setSelectedDetail(null);
-                setShowRejectModal(false);
-                fetchInventory();
-              }}
-            >
-              Kho Mẫu Đã Lưu ({inventoryList.length})
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mainTab === "logs"}
-              className={`aihub-tab ${mainTab === "logs" ? "aihub-tab--active" : ""}`}
-              style={{
-                borderRadius: "8px",
-                padding: "8px 16px",
-                fontWeight: 700,
-                fontSize: "13px",
-                background: mainTab === "logs" ? "#3a64fa" : "#ffffff",
-                color: mainTab === "logs" ? "#ffffff" : "#475467",
-                border:
-                  mainTab === "logs"
-                    ? "1px solid #3a64fa"
-                    : "1px solid #e4e7ec",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-              onClick={() => {
-                setMainTab("logs");
-                setSelectedDetail(null);
-                setShowRejectModal(false);
-              }}
-            >
-              Live API Logs ({apiLogs.length})
-            </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mainTab === "lab"}
+                className={`aihub-tab ${mainTab === "lab" ? "aihub-tab--active" : ""}`}
+                style={{
+                  borderRadius: "8px",
+                  padding: "8px 16px",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  background: mainTab === "lab" ? "#3a64fa" : "#ffffff",
+                  color: mainTab === "lab" ? "#ffffff" : "#475467",
+                  border:
+                    mainTab === "lab"
+                      ? "1px solid #3a64fa"
+                      : "1px solid #e4e7ec",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+                onClick={() => {
+                  setMainTab("lab");
+                  setSelectedDetail(null);
+                  setShowRejectModal(false);
+                }}
+              >
+                Phòng Lab Tạo &amp; Chấm Điểm
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mainTab === "inventory"}
+                className={`aihub-tab ${mainTab === "inventory" ? "aihub-tab--active" : ""}`}
+                style={{
+                  borderRadius: "8px",
+                  padding: "8px 16px",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  background: mainTab === "inventory" ? "#3a64fa" : "#ffffff",
+                  color: mainTab === "inventory" ? "#ffffff" : "#475467",
+                  border:
+                    mainTab === "inventory"
+                      ? "1px solid #3a64fa"
+                      : "1px solid #e4e7ec",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+                onClick={() => {
+                  setMainTab("inventory");
+                  setSelectedDetail(null);
+                  setShowRejectModal(false);
+                  fetchInventory();
+                }}
+              >
+                Kho Mẫu Đã Lưu ({inventoryList.length})
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mainTab === "logs"}
+                className={`aihub-tab ${mainTab === "logs" ? "aihub-tab--active" : ""}`}
+                style={{
+                  borderRadius: "8px",
+                  padding: "8px 16px",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  background: mainTab === "logs" ? "#3a64fa" : "#ffffff",
+                  color: mainTab === "logs" ? "#ffffff" : "#475467",
+                  border:
+                    mainTab === "logs"
+                      ? "1px solid #3a64fa"
+                      : "1px solid #e4e7ec",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+                onClick={() => {
+                  setMainTab("logs");
+                  setSelectedDetail(null);
+                  setShowRejectModal(false);
+                }}
+              >
+                Live API Logs ({apiLogs.length})
+              </button>
+            </div>
 
             <form
               action="/api/auth/logout"
@@ -787,7 +796,7 @@ export function AcademicLabView() {
                   fontWeight: 600,
                   fontSize: "12.5px",
                   background: "#fef2f2",
-                  color: "#dc2626",
+                  color: "#b91c1c",
                   border: "1px solid #fecaca",
                   cursor: "pointer",
                   display: "inline-flex",
@@ -1166,6 +1175,7 @@ export function AcademicLabView() {
                         }}
                       >
                         <label
+                          htmlFor={`${labFieldId}-0`}
                           className="aihub-fieldset-label"
                           style={{ fontWeight: 800, color: "#1d2838" }}
                         >
@@ -1180,6 +1190,7 @@ export function AcademicLabView() {
                           }}
                         >
                           <input
+                            id={`${labFieldId}-0`}
                             type="range"
                             min={1}
                             max={10}
@@ -1293,7 +1304,11 @@ export function AcademicLabView() {
                 giao diện bài tập chuẩn đẹp hoặc bật chế độ sửa nội dung.
               </p>
 
-              <div className="aihub-tabs">
+              <div
+                className="aihub-tabs"
+                role="tablist"
+                aria-label="Các bước gọi backend"
+              >
                 <button
                   type="button"
                   className="aihub-tab"
@@ -1322,7 +1337,11 @@ export function AcademicLabView() {
                     writing_task, topic, criterion, error_code để lấy các bài
                     làm thật chứa đúng lỗi cần luyện.
                   </div>
-                  <div className="aihub-tabs">
+                  <div
+                    className="aihub-tabs"
+                    role="tablist"
+                    aria-label="Request và response bước 1"
+                  >
                     <button
                       type="button"
                       className="aihub-tab aihub-tab--sub"
@@ -1383,7 +1402,12 @@ export function AcademicLabView() {
                   </div>
 
                   {/* 3 TABS CHUẨN: Interface | Response JSON | Request */}
-                  <div className="aihub-tabs" style={{ marginBottom: "16px" }}>
+                  <div
+                    className="aihub-tabs"
+                    role="tablist"
+                    aria-label="Request và response bước 2"
+                    style={{ marginBottom: "16px" }}
+                  >
                     <button
                       type="button"
                       className="aihub-tab aihub-tab--sub"
@@ -1681,6 +1705,7 @@ export function AcademicLabView() {
                                       >
                                         <div>
                                           <label
+                                            htmlFor={`${labFieldId}-${idx}-1`}
                                             style={{
                                               display: "block",
                                               fontSize: "11px",
@@ -1692,6 +1717,7 @@ export function AcademicLabView() {
                                             Đề bài câu hỏi:
                                           </label>
                                           <textarea
+                                            id={`${labFieldId}-${idx}-1`}
                                             rows={2}
                                             value={item.question_text}
                                             onChange={(e) =>
@@ -1715,7 +1741,8 @@ export function AcademicLabView() {
                                         {item.options &&
                                           typeof item.options === "object" && (
                                             <div>
-                                              <label
+                                              <span
+                                                id={`${labFieldId}-${idx}-options`}
                                                 style={{
                                                   display: "block",
                                                   fontSize: "11px",
@@ -1726,8 +1753,10 @@ export function AcademicLabView() {
                                               >
                                                 Các phương án lựa chọn
                                                 (Options):
-                                              </label>
+                                              </span>
                                               <div
+                                                role="group"
+                                                aria-labelledby={`${labFieldId}-${idx}-options`}
                                                 style={{
                                                   display: "flex",
                                                   flexDirection: "column",
@@ -1760,6 +1789,7 @@ export function AcademicLabView() {
                                                     </span>
                                                     <input
                                                       type="text"
+                                                      aria-label={`Phương án ${optKey}`}
                                                       value={optVal}
                                                       onChange={(e) => {
                                                         const updatedOptions = {
@@ -1788,6 +1818,7 @@ export function AcademicLabView() {
 
                                         <div>
                                           <label
+                                            htmlFor={`${labFieldId}-${idx}-2`}
                                             style={{
                                               display: "block",
                                               fontSize: "11px",
@@ -1800,6 +1831,7 @@ export function AcademicLabView() {
                                             có):
                                           </label>
                                           <input
+                                            id={`${labFieldId}-${idx}-2`}
                                             type="text"
                                             value={qImage || ""}
                                             onChange={(e) =>
@@ -1835,6 +1867,7 @@ export function AcademicLabView() {
 
                                         <div>
                                           <label
+                                            htmlFor={`${labFieldId}-${idx}-3`}
                                             style={{
                                               display: "block",
                                               fontSize: "11px",
@@ -1847,6 +1880,7 @@ export function AcademicLabView() {
                                             phẩy):
                                           </label>
                                           <input
+                                            id={`${labFieldId}-${idx}-3`}
                                             type="text"
                                             value={hintText}
                                             onChange={(e) =>
@@ -1868,6 +1902,7 @@ export function AcademicLabView() {
                                         {sampleAns !== undefined && (
                                           <div>
                                             <label
+                                              htmlFor={`${labFieldId}-${idx}-4`}
                                               style={{
                                                 display: "block",
                                                 fontSize: "11px",
@@ -1879,6 +1914,7 @@ export function AcademicLabView() {
                                               Đáp án mẫu (Sample Answer):
                                             </label>
                                             <textarea
+                                              id={`${labFieldId}-${idx}-4`}
                                               rows={2}
                                               value={sampleAns || ""}
                                               onChange={(e) =>
@@ -1906,6 +1942,7 @@ export function AcademicLabView() {
                                           rubric !== undefined && (
                                             <div>
                                               <label
+                                                htmlFor={`${labFieldId}-${idx}-5`}
                                                 style={{
                                                   display: "block",
                                                   fontSize: "11px",
@@ -1918,6 +1955,7 @@ export function AcademicLabView() {
                                                 Rubric):
                                               </label>
                                               <textarea
+                                                id={`${labFieldId}-${idx}-5`}
                                                 rows={3}
                                                 value={rubric || ""}
                                                 onChange={(e) =>
@@ -1942,6 +1980,7 @@ export function AcademicLabView() {
 
                                         <div>
                                           <label
+                                            htmlFor={`${labFieldId}-${idx}-6`}
                                             style={{
                                               display: "block",
                                               fontSize: "11px",
@@ -1953,6 +1992,7 @@ export function AcademicLabView() {
                                             Giải thích học thuật:
                                           </label>
                                           <textarea
+                                            id={`${labFieldId}-${idx}-6`}
                                             rows={2}
                                             value={explain || ""}
                                             onChange={(e) =>

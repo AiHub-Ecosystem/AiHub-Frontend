@@ -14,6 +14,8 @@
 
 .aihub {
   --aihub-brand: #3a64fa;
+  /* Brand blue for text on --aihub-surface: #3a64fa reads 4.37:1 there, this 5.3:1. */
+  --aihub-brand-text: #2f56e8;
   --aihub-brand-dark: #311772;
   --aihub-ink: #1d2838; /* .pricing-v2 h1..h6 */
   --aihub-body: #475467; /* .pv2-plan-desc, .pv2-sp-desc — chữ thân bài */
@@ -501,7 +503,7 @@ a.aihub-card:hover {
 
 .aihub-demo-intro .aihub-crumb-static {
   margin-bottom: 16px;
-  color: var(--aihub-brand);
+  color: var(--aihub-brand-text);
   font-weight: 700;
 }
 
@@ -712,7 +714,7 @@ a.aihub-card:hover {
 }
 
 .aihub-crumbs-static a {
-  color: var(--aihub-brand);
+  color: var(--aihub-brand-text);
   font-weight: 600;
   text-decoration: none;
 }
