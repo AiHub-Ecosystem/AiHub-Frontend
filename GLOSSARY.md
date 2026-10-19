@@ -4,6 +4,11 @@ Terms for the public AIHUB site and signed-in Console, where User Accounts manag
 
 ## Language
 
+### API integration
+
+**AIHUB API contract**:
+The OpenAPI description pinned by Customer Web to a specific AIHUB commit. It defines the response status and body, plus request limits the web application relies on.
+
 ### Sign-in
 
 **Web Session**:
