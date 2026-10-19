@@ -4,6 +4,7 @@ import policy from "@/data/aihub-contract/error-code-policy.json";
 import limits from "@/data/aihub-contract/limits.json";
 import {
   assertCandidateLimits,
+  assertPinnedOpenApiMatchesSource,
   collectErrorCodes,
   contractLimits,
   unhandledErrorCodes,
@@ -35,6 +36,20 @@ function addCandidateErrorCode(document: typeof pinnedContract, code: string) {
 }
 
 describe("AIHUB pinned response contract", () => {
+  it("requires the pinned OpenAPI bytes to match the source artifact", () => {
+    const artifact = Buffer.from('{"openapi":"3.1.0"}\n');
+
+    expect(() =>
+      assertPinnedOpenApiMatchesSource(artifact, artifact)
+    ).not.toThrow();
+    expect(() =>
+      assertPinnedOpenApiMatchesSource(
+        artifact,
+        Buffer.from('{"openapi":"3.1.0"}')
+      )
+    ).toThrow("does not match the source commit");
+  });
+
   it("reads runtime limits from the pinned OpenAPI schema", () => {
     expect(contractLimits(pinnedContract)).toEqual(limits);
   });
@@ -57,6 +72,65 @@ describe("AIHUB pinned response contract", () => {
     ]);
 
     expect(unhandledErrorCodes(pinnedContract, handled)).toEqual([]);
+  });
+
+  it("finds inline response codes and codes behind local refs", () => {
+    const contract = {
+      paths: {
+        "/inline": {
+          post: {
+            responses: {
+              "400": {
+                content: {
+                  "application/json": {
+                    schema: {
+                      properties: {
+                        error: {
+                          properties: { code: { const: "INLINE_ERROR" } },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        "/referenced": {
+          get: {
+            responses: { "400": { $ref: "#/components/responses/BadRequest" } },
+          },
+        },
+      },
+      components: {
+        responses: {
+          BadRequest: {
+            description: "Bad request",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorEnvelope" },
+              },
+            },
+          },
+        },
+        schemas: {
+          ErrorEnvelope: {
+            properties: {
+              error: {
+                properties: {
+                  code: { anyOf: [{ const: "REFERENCED_ERROR" }] },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    expect([...collectErrorCodes(contract)].sort()).toEqual([
+      "INLINE_ERROR",
+      "REFERENCED_ERROR",
+    ]);
   });
 
   it("rejects an invalid status or body response", () => {

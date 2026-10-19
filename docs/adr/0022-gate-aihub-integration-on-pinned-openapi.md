@@ -21,3 +21,8 @@ Document how to trace AIHUB routes to BFF callers and mocks using repository sea
 - AIHUB CI checks candidate contracts against Customer Web `dev` and the linked frontend change when required; both deployment paths are gated on compatibility.
 - The contract explicitly describes the Speaking upload request limit, and Customer Web derives it and the 900-second expiry limit from the pinned OpenAPI.
 - Route discovery guidance uses searchable code entry points; AIHUB PR summaries link frontend work when needed.
+
+## Verification evidence
+
+- The FE contract check compares the pinned OpenAPI bytes with `openapi.json` at the recorded AIHUB commit. Before that commit is published, local checks can use `AIHUB_OPENAPI_SOURCE_PATH` to point at its local checkout.
+- 2026-10-19 local negative E2E run: temporarily changed `GET /v1/ielts/speaking/questions` to return undocumented status `201`, then ran `npm run test:e2e -- tests/e2e/speaking.spec.ts`. The command exited 1 during global teardown with `status 201 is undocumented for GET /v1/ielts/speaking/questions` (12 tests passed; 1 teardown error). The mock response was restored after the run.

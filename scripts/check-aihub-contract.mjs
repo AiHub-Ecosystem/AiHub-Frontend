@@ -16,27 +16,68 @@ const candidatePath = process.env.AIHUB_OPENAPI_CANDIDATE;
 
 export function collectErrorCodes(document) {
   const codes = new Set();
-  const visitSchema = (schema) => {
+  const visitedCodeRefs = new Set();
+  const visitedResponseRefs = new Set();
+  const resolveRef = (reference) => {
+    if (!reference.startsWith("#/"))
+      throw new Error(`Unsupported OpenAPI error schema ref: ${reference}`);
+    const target = reference
+      .slice(2)
+      .split("/")
+      .map((part) => part.replaceAll("~1", "/").replaceAll("~0", "~"))
+      .reduce((value, part) => value?.[part], document);
+    if (!target)
+      throw new Error(`Unresolved OpenAPI error schema ref: ${reference}`);
+    return target;
+  };
+  const visitCodeSchema = (schema) => {
     if (!schema || typeof schema !== "object") return;
+    if (typeof schema.$ref === "string" && !visitedCodeRefs.has(schema.$ref)) {
+      visitedCodeRefs.add(schema.$ref);
+      visitCodeSchema(resolveRef(schema.$ref));
+    }
     if (typeof schema.const === "string") codes.add(schema.const);
     if (Array.isArray(schema.enum))
       for (const code of schema.enum)
         if (typeof code === "string") codes.add(code);
-    for (const value of Object.values(schema)) {
-      if (Array.isArray(value)) value.forEach(visitSchema);
-      else if (value && typeof value === "object") visitSchema(value);
+    for (const [key, child] of Object.entries(schema)) {
+      if (key === "$ref") continue;
+      if (Array.isArray(child)) child.forEach(visitCodeSchema);
+      else if (child && typeof child === "object") visitCodeSchema(child);
     }
   };
-  const visit = (value) => {
+  const visitResponse = (value) => {
     if (!value || typeof value !== "object") return;
+    if (
+      typeof value.$ref === "string" &&
+      !visitedResponseRefs.has(value.$ref)
+    ) {
+      visitedResponseRefs.add(value.$ref);
+      visitResponse(resolveRef(value.$ref));
+    }
     if (value.properties?.error?.properties?.code)
-      visitSchema(value.properties.error.properties.code);
-    for (const child of Object.values(value)) {
-      if (Array.isArray(child)) child.forEach(visit);
-      else if (child && typeof child === "object") visit(child);
+      visitCodeSchema(value.properties.error.properties.code);
+    for (const [key, child] of Object.entries(value)) {
+      if (key === "$ref") continue;
+      if (Array.isArray(child)) child.forEach(visitResponse);
+      else if (child && typeof child === "object") visitResponse(child);
     }
   };
-  visit(document.components?.responses ?? {});
+
+  const methods = [
+    "get",
+    "put",
+    "post",
+    "delete",
+    "options",
+    "head",
+    "patch",
+    "trace",
+  ];
+  for (const pathItem of Object.values(document.paths ?? {}))
+    for (const method of methods)
+      visitResponse(pathItem?.[method]?.responses ?? {});
+  visitResponse(document.components?.responses ?? {});
   return codes;
 }
 
@@ -115,7 +156,41 @@ function assertPinnedLimits(document, limits) {
     );
 }
 
-function main() {
+export function assertPinnedOpenApiMatchesSource(
+  pinnedArtifact,
+  sourceArtifact
+) {
+  if (!pinnedArtifact.equals(sourceArtifact))
+    throw new Error(
+      "Pinned AIHUB OpenAPI does not match the source commit recorded in source.json"
+    );
+}
+
+async function verifyPinnedOpenApiSource(source) {
+  const localSourcePath = process.env.AIHUB_OPENAPI_SOURCE_PATH;
+  if (localSourcePath) {
+    assertPinnedOpenApiMatchesSource(
+      readFileSync(pinnedPath),
+      readFileSync(localSourcePath)
+    );
+    return;
+  }
+
+  const response = await fetch(
+    `https://raw.githubusercontent.com/${source.repository}/${source.commit}/openapi.json`,
+    { signal: AbortSignal.timeout(15_000) }
+  );
+  if (!response.ok)
+    throw new Error(
+      `Unable to fetch AIHUB OpenAPI at pinned commit (${response.status}); publish it or set AIHUB_OPENAPI_SOURCE_PATH to a local checkout`
+    );
+  assertPinnedOpenApiMatchesSource(
+    readFileSync(pinnedPath),
+    Buffer.from(await response.arrayBuffer())
+  );
+}
+
+async function main() {
   const pinned = loadJson(pinnedPath);
   const source = loadJson(sourcePath);
   if (
@@ -125,6 +200,8 @@ function main() {
     throw new Error(
       "AIHUB contract source must name an exact AIHUB commit SHA"
     );
+
+  await verifyPinnedOpenApiSource(source);
 
   if (process.argv.includes("--write-limits")) {
     const limits = contractLimits(pinned);
@@ -160,7 +237,7 @@ if (
   fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
 ) {
   try {
-    main();
+    await main();
     console.log(
       "AIHUB OpenAPI pin and Customer Web error handling are compatible."
     );
