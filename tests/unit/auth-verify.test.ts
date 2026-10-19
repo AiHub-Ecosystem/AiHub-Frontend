@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import aihubLimits from "@/data/aihub-contract/limits.json";
 import { POST } from "@/app/api/auth/verify-email/route";
 
 const origin = "http://localhost:3100";
@@ -95,7 +96,10 @@ describe("Customer Web email verification BFF", () => {
         String(input).endsWith("/verification")
           ? new Response(null, { status: 204 })
           : Response.json({
-              data: { access_token: "server-jwt", expires_in: 900 },
+              data: {
+                access_token: "server-jwt",
+                expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+              },
             })
       );
 

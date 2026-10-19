@@ -56,6 +56,9 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Check the pinned AIHUB contract and consumer error handling
+        run: npm run check:aihub-contract
+
       - name: Generate route types
         # PageProps/LayoutProps are generated into .next/types; tsc below needs them.
         run: npx next typegen

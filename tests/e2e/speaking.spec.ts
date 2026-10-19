@@ -4,6 +4,7 @@ import {
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
+import { MAX_SPEAKING_BYTES, MAX_SPEAKING_MIB } from "@/data/speaking-contract";
 import { waitForHydration } from "./hydration";
 
 const mockUrl = "http://127.0.0.1:3101";
@@ -399,7 +400,7 @@ test("live Speaking waits for the recording to replace the sample before grading
   expectIdentityForwarding(log);
 });
 
-test("live Speaking rejects recordings over 25 MiB", async ({
+test(`live Speaking rejects recordings over ${MAX_SPEAKING_MIB} MiB`, async ({
   page,
   request,
 }) => {
@@ -407,10 +408,14 @@ test("live Speaking rejects recordings over 25 MiB", async ({
   await installFakeMediaRecorder(page);
   const expectNoExternalRequests = await openLiveSpeakingAnswer(page);
   await startFakeRecording(page);
-  await emitFakeRecordingChunk(page, 25 * 1024 * 1024 + 1);
+  await emitFakeRecordingChunk(page, MAX_SPEAKING_BYTES + 1);
 
   await expect(
-    page.getByRole("alert").filter({ hasText: /vượt quá giới hạn 25 MiB/ })
+    page
+      .getByRole("alert")
+      .filter({
+        hasText: new RegExp(`vượt quá giới hạn ${MAX_SPEAKING_MIB} MiB`),
+      })
   ).toBeVisible();
   await expect.poll(() => speakingTrackStopCount(page)).toBe(1);
   await expect(
@@ -429,7 +434,7 @@ test("live Speaking rejects recordings over 25 MiB", async ({
   expectNoExternalRequests();
 });
 
-test("live Speaking accepts a recording exactly 25 MiB", async ({
+test(`live Speaking accepts a recording exactly ${MAX_SPEAKING_MIB} MiB`, async ({
   page,
   request,
 }) => {
@@ -437,9 +442,11 @@ test("live Speaking accepts a recording exactly 25 MiB", async ({
   await installFakeMediaRecorder(page);
   const expectNoExternalRequests = await openLiveSpeakingAnswer(page);
   await startFakeRecording(page);
-  await emitFakeRecordingChunk(page, 25 * 1024 * 1024);
+  await emitFakeRecordingChunk(page, MAX_SPEAKING_BYTES);
 
-  await expect(page.getByText(/Đã dừng ghi âm khi đạt 25 MiB/)).toBeVisible();
+  await expect(
+    page.getByText(new RegExp(`Đã dừng ghi âm khi đạt ${MAX_SPEAKING_MIB} MiB`))
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Xóa tệp ghi âm" })
   ).toBeVisible();

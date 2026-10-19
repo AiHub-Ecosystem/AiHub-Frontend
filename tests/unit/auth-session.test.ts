@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import aihubLimits from "@/data/aihub-contract/limits.json";
 import { POST as createOrganization } from "@/app/api/organizations/route";
 import { POST as activity } from "@/app/api/auth/session/route";
 import {
@@ -46,7 +47,10 @@ describe("AIHUB Web Session BFF", () => {
     process.env.AIHUB_WEB_SESSION_CLIENT_SECRET = "server-only-secret";
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       Response.json({
-        data: { access_token: "jwt-server-only", expires_in: 900 },
+        data: {
+          access_token: "jwt-server-only",
+          expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+        },
       })
     );
 
@@ -105,7 +109,10 @@ describe("AIHUB Web Session BFF", () => {
       .mockImplementation(async (input, init) => {
         if (String(input).endsWith("/web-sessions/exchange"))
           return Response.json({
-            data: { access_token: "jwt-server-only", expires_in: 900 },
+            data: {
+              access_token: "jwt-server-only",
+              expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+            },
           });
         expect(String(input)).toBe("http://127.0.0.1:3101/v1/organizations");
         expect(new Headers(init?.headers).get("authorization")).toBe(
@@ -142,7 +149,10 @@ describe("AIHUB Web Session BFF", () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(
         Response.json({
-          data: { access_token: "jwt-server-only", expires_in: 900 },
+          data: {
+            access_token: "jwt-server-only",
+            expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+          },
         })
       )
       .mockResolvedValueOnce(new Response(null, { status: 401 }))
@@ -194,7 +204,12 @@ describe("AIHUB Web Session BFF", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2099-01-01T00:00:00Z"));
     vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
-      Response.json({ data: { access_token: "jwt", expires_in: 900 } })
+      Response.json({
+        data: {
+          access_token: "jwt",
+          expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+        },
+      })
     );
     try {
       const before = cachedWebSessionCount();

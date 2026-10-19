@@ -285,8 +285,8 @@ test("AIHUB authorization denial is actionable and preserves the current Avatar"
 }) => {
   await prepareMocks(request, {
     avatar: existingAvatar,
-    uploadStatus: 403,
-    uploadErrorCode: "AUTH_ACCOUNT_DISABLED",
+    uploadStatus: 401,
+    uploadErrorCode: "AUTH_USER_ACCESS_TOKEN_INVALID",
   });
   await mockStorage(page);
   await signIn(page);
@@ -297,7 +297,7 @@ test("AIHUB authorization denial is actionable and preserves the current Avatar"
     buffer: Buffer.from("replacement"),
   });
   await expect(page.locator(".account-avatar-error")).toContainText(
-    "Liên hệ quản trị viên"
+    "Phiên đăng nhập không hợp lệ. Hãy đăng nhập lại."
   );
   await expect(page.getByRole("img", { name: "Ảnh đại diện" })).toHaveAttribute(
     "src",

@@ -1,9 +1,33 @@
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { isIP } from "node:net";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+import { createContractValidator } from "./aihub-contract.mjs";
 
 const host = "127.0.0.1";
 const port = 3101;
+const contractPath =
+  process.env.AIHUB_OPENAPI_PATH ??
+  path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../../data/aihub-contract/openapi.json"
+  );
+const validateContract = createContractValidator(
+  JSON.parse(readFileSync(contractPath, "utf8"))
+);
+const aihubLimits = JSON.parse(
+  readFileSync(
+    path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../../data/aihub-contract/limits.json"
+    ),
+    "utf8"
+  )
+);
+const contractErrors = [];
 const requests = [];
 const authRequests = [];
 const avatarRequests = [];
@@ -28,16 +52,6 @@ const DEMO_KEYS = {
     environments: ["sandbox"],
     scopes: ["writing.grade", "speaking.grade"],
     userIdentityMode: "signed_assertion",
-  },
-  aihub_sk_e2e_missing_identity_mode_key: {
-    environments: ["sandbox"],
-    scopes: ["writing.grade", "speaking.grade"],
-    omitIdentityMode: true,
-  },
-  aihub_sk_e2e_unknown_identity_mode_key: {
-    environments: ["sandbox"],
-    scopes: ["writing.grade", "speaking.grade"],
-    userIdentityMode: "unknown_mode",
   },
   aihub_prod_e2e_production_key: {
     environments: ["production"],
@@ -108,6 +122,27 @@ function browserBindingHash(value) {
 }
 
 function sendJson(response, status, body, headers = {}) {
+  if (
+    response.req?.url?.startsWith("/v1/") &&
+    typeof body?.error?.code === "string"
+  ) {
+    const error = body.error;
+    body = {
+      ...body,
+      error: {
+        ...error,
+        message:
+          typeof error.message === "string"
+            ? error.message
+            : `Mock error: ${error.code}`,
+        request_id: error.request_id ?? "req_01M3B7FRTFBA7ZEN6YJP8KCBEY",
+        retryable:
+          typeof error.retryable === "boolean"
+            ? error.retryable
+            : status === 429 || status >= 500,
+      },
+    };
+  }
   response.writeHead(status, {
     "Content-Type": "application/json",
     ...headers,
@@ -139,6 +174,72 @@ function multipartField(body, name) {
 const server = createServer(async (request, response) => {
   const pathname = new URL(request.url ?? "/", `http://${host}:${port}`)
     .pathname;
+
+  const responseChunks = [];
+  let responseContentType = "";
+  const setHeader = response.setHeader;
+  response.setHeader = function (name, value) {
+    if (String(name).toLowerCase() === "content-type")
+      responseContentType = String(value);
+    return setHeader.call(this, name, value);
+  };
+  const writeHead = response.writeHead;
+  response.writeHead = function (status, statusMessageOrHeaders, headers) {
+    const responseHeaders =
+      typeof statusMessageOrHeaders === "string"
+        ? headers
+        : statusMessageOrHeaders;
+    if (responseHeaders && typeof responseHeaders === "object") {
+      const contentTypeEntry = Object.entries(responseHeaders).find(
+        ([name]) => name.toLowerCase() === "content-type"
+      );
+      if (contentTypeEntry) responseContentType = String(contentTypeEntry[1]);
+    }
+    return writeHead.call(this, status, statusMessageOrHeaders, headers);
+  };
+  const write = response.write;
+  response.write = function (chunk, ...args) {
+    if (chunk != null && typeof chunk !== "function")
+      responseChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    return write.call(this, chunk, ...args);
+  };
+  const end = response.end;
+  response.end = function (chunk, ...args) {
+    if (chunk != null && typeof chunk !== "function") {
+      const encoding = typeof args[0] === "string" ? args[0] : "utf8";
+      responseChunks.push(
+        Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding)
+      );
+    }
+    const responseBody = Buffer.concat(responseChunks);
+    const errors = validateContract({
+      method: request.method ?? "GET",
+      pathname,
+      status: response.statusCode,
+      body: responseBody,
+      contentType:
+        responseContentType || String(response.getHeader("content-type") ?? ""),
+    });
+    if (errors.length) {
+      let errorCode;
+      try {
+        errorCode = JSON.parse(responseBody.toString("utf8"))?.error?.code;
+      } catch {}
+      contractErrors.push({
+        method: request.method,
+        pathname,
+        status: response.statusCode,
+        ...(typeof errorCode === "string" ? { errorCode } : {}),
+        errors,
+      });
+    }
+    return end.call(this, chunk, ...args);
+  };
+
+  if (request.method === "GET" && pathname === "/__test__/contract-errors") {
+    sendJson(response, 200, { errors: contractErrors });
+    return;
+  }
 
   if (request.method === "GET" && pathname === "/health") {
     response.writeHead(204).end();
@@ -402,9 +503,7 @@ const server = createServer(async (request, response) => {
       data: {
         organizations: organizationConfig.roster.map((item) => ({
           ...item,
-          ...(item.identity_configured === undefined
-            ? {}
-            : { identity_configured: item.identity_configured }),
+          identity_configured: item.identity_configured ?? false,
         })),
       },
       meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
@@ -441,6 +540,7 @@ const server = createServer(async (request, response) => {
         data: organizationConfig.identityConfigs?.[organizationId] ?? {
           configured: false,
         },
+        meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
       });
       return;
     }
@@ -448,11 +548,13 @@ const server = createServer(async (request, response) => {
     requestRecord.body = input;
     if (organizationConfig.identityErrorCode) {
       const code = organizationConfig.identityErrorCode;
-      sendJson(
-        response,
-        code === "ORGANIZATION_IDENTITY_ISSUER_CONFLICT" ? 409 : 400,
-        { error: { code } }
-      );
+      const status =
+        code === "ORGANIZATION_IDENTITY_ISSUER_CONFLICT"
+          ? 409
+          : code === "IDENTITY_JWKS_SOURCE_UNAVAILABLE"
+            ? 503
+            : 400;
+      sendJson(response, status, { error: { code } });
       return;
     }
     const delayMs = organizationConfig.identitySaveDelayMs;
@@ -472,7 +574,10 @@ const server = createServer(async (request, response) => {
     organizationConfig.identityConfigs ??= {};
     organizationConfig.identityConfigs[organizationId] = config;
     membership.identity_configured = config.status === "active";
-    sendJson(response, 200, { data: config });
+    sendJson(response, 200, {
+      data: config,
+      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+    });
     return;
   }
 
@@ -509,7 +614,7 @@ const server = createServer(async (request, response) => {
       organizationRequests.push({ method: "GET", path: "list-api-keys" });
       if (organizationConfig.apiKeyListUnavailable) {
         sendJson(response, 503, {
-          error: { code: "SERVICE_UNAVAILABLE", message: "private detail" },
+          error: { code: "DATABASE_UNAVAILABLE", message: "private detail" },
         });
         return;
       }
@@ -551,12 +656,12 @@ const server = createServer(async (request, response) => {
       return;
     }
     if (organizationConfig.apiKeyLimitReached) {
-      sendJson(response, 403, { error: { code: "API_KEY_LIMIT_REACHED" } });
+      sendJson(response, 403, { error: { code: "FORBIDDEN" } });
       return;
     }
     if (organizationConfig.apiKeyEntitlementDenied) {
       sendJson(response, 403, {
-        error: { code: "API_KEY_SCOPE_NOT_ENTITLED" },
+        error: { code: "FORBIDDEN" },
       });
       return;
     }
@@ -581,9 +686,7 @@ const server = createServer(async (request, response) => {
       !uncertainApiKeyCreationUsed
     ) {
       uncertainApiKeyCreationUsed = true;
-      sendJson(response, 503, {
-        error: { code: "LOCAL_MOCK_UNCERTAIN_RESULT" },
-      });
+      response.destroy();
       return;
     }
     sendJson(
@@ -642,9 +745,7 @@ const server = createServer(async (request, response) => {
       !uncertainApiKeyRotationUsed
     ) {
       uncertainApiKeyRotationUsed = true;
-      sendJson(response, 503, {
-        error: { code: "LOCAL_MOCK_UNCERTAIN_RESULT" },
-      });
+      response.destroy();
       return;
     }
     sendJson(
@@ -737,9 +838,7 @@ const server = createServer(async (request, response) => {
     }
     if (organizationConfig.createUncertainOnce && !uncertainCreationUsed) {
       uncertainCreationUsed = true;
-      sendJson(response, 503, {
-        error: { code: "LOCAL_MOCK_UNCERTAIN_RESULT" },
-      });
+      response.destroy();
       return;
     }
     sendJson(response, 201, {
@@ -778,7 +877,7 @@ const server = createServer(async (request, response) => {
       membership?.status === "suspended"
     ) {
       sendJson(response, 403, {
-        error: { code: "ORGANIZATION_ACCESS_DENIED" },
+        error: { code: "FORBIDDEN" },
       });
       return;
     }
@@ -874,7 +973,7 @@ const server = createServer(async (request, response) => {
         data: {
           access_token: `access-token-${exchangeNumber}`,
           token_type: "Bearer",
-          expires_in: 900,
+          expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
         },
         meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
       },
@@ -910,6 +1009,7 @@ const server = createServer(async (request, response) => {
         email: body.email,
         username: body.username,
         status: "pending_verification",
+        email_delivery_status: "queued",
       },
       meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
     });
@@ -927,7 +1027,7 @@ const server = createServer(async (request, response) => {
       browserBindingValid: browserBindingHash(body.browser_binding) !== null,
     });
     if (authMode.resendDown) {
-      sendJson(response, 503, { error: { code: "INTERNAL_ERROR" } });
+      sendJson(response, 500, { error: { code: "INTERNAL_ERROR" } });
       return;
     }
     latestBrowserBindingHash = browserBindingHash(body.browser_binding);
@@ -942,7 +1042,7 @@ const server = createServer(async (request, response) => {
       email: body.email,
     });
     if (authMode.forgotDown) {
-      sendJson(response, 503, { error: { code: "INTERNAL_ERROR" } });
+      sendJson(response, 500, { error: { code: "INTERNAL_ERROR" } });
       return;
     }
     if (body.email === "rate-limit@example.test") {
@@ -954,7 +1054,18 @@ const server = createServer(async (request, response) => {
       );
       return;
     }
-    response.writeHead(202, { "Cache-Control": "no-store" }).end();
+    sendJson(
+      response,
+      202,
+      {
+        data: {
+          message:
+            "If the account exists and is eligible, AIHUB has accepted a request to send password reset instructions.",
+        },
+        meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+      },
+      { "Cache-Control": "no-store" }
+    );
     return;
   }
 
@@ -1017,7 +1128,7 @@ const server = createServer(async (request, response) => {
       hasPassword: typeof body.password === "string",
     });
     if (authMode.resetDown) {
-      sendJson(response, 503, { error: { code: "INTERNAL_ERROR" } });
+      sendJson(response, 500, { error: { code: "INTERNAL_ERROR" } });
       return;
     }
     if (typeof body.token !== "string" || body.token.startsWith("invalid")) {
@@ -1108,11 +1219,7 @@ const server = createServer(async (request, response) => {
         valid: true,
         environment,
         scope,
-        ...(demoKey.omitIdentityMode
-          ? {}
-          : {
-              user_identity_mode: demoKey.userIdentityMode ?? "declared_id",
-            }),
+        user_identity_mode: demoKey.userIdentityMode ?? "declared_id",
         allowance:
           environment === "sandbox"
             ? {
@@ -1163,7 +1270,11 @@ const server = createServer(async (request, response) => {
             : []
         ),
       },
-      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+      meta: {
+        request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY",
+        service: "speaking",
+        operation: "speaking.questions",
+      },
     });
     return;
   }
@@ -1286,7 +1397,12 @@ const server = createServer(async (request, response) => {
           action_plan_vi: "E2E_ONLY_FEEDBACK_ACTION",
         },
       },
-      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+      meta: {
+        request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY",
+        service: "speaking",
+        operation: `speaking.${operation}`,
+        timing: { downstream_ms: 0, gateway_overhead_ms: 0, total_ms: 0 },
+      },
     });
     return;
   }
@@ -1421,7 +1537,12 @@ const server = createServer(async (request, response) => {
                 : []),
             ],
       },
-      meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
+      meta: {
+        request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY",
+        service: "writing",
+        operation: `writing.task${task}.grade`,
+        timing: { downstream_ms: 0, gateway_overhead_ms: 0, total_ms: 0 },
+      },
     });
     return;
   }

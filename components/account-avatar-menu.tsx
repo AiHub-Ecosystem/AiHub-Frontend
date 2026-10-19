@@ -61,13 +61,9 @@ function actionableError(
   code: string | undefined,
   action: "upload" | "remove"
 ) {
-  if (code === "AUTH_REQUIRED")
-    return "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.";
-  if (
-    code === "FORBIDDEN" ||
-    code === "AUTH_ACCOUNT_DISABLED" ||
-    code === "ACCOUNT_DISABLED"
-  )
+  if (code === "AUTH_REQUIRED" || code === "AUTH_USER_ACCESS_TOKEN_INVALID")
+    return "Phiên đăng nhập không hợp lệ. Hãy đăng nhập lại.";
+  if (code === "FORBIDDEN" || code === "ACCOUNT_DISABLED")
     return "Tài khoản hiện không được phép quản lý ảnh đại diện. Liên hệ quản trị viên.";
   if (code === "INVALID_REQUEST" || code === "PAYLOAD_TOO_LARGE")
     return "Ảnh không hợp lệ. Chọn JPEG, PNG hoặc WebP có dung lượng tối đa 2 MiB.";

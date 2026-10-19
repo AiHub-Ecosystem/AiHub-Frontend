@@ -92,6 +92,36 @@ describe("demo key validation BFF route", () => {
     expect(headers.get("x-aihub-visitor-ip")).toBe("198.51.100.25");
   });
 
+  it("preserves upstream status and retry metadata without exposing its message", async () => {
+    upstream.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "RATE_LIMITED",
+            message: "private backend detail",
+            retryable: false,
+            retry_after_ms: 1_500,
+          },
+        }),
+        { status: 429, headers: { "content-type": "application/json" } }
+      )
+    );
+
+    const response = await POST(
+      request(validBody, { "x-forwarded-for": "198.51.100.25" })
+    );
+
+    expect(response.status).toBe(429);
+    expect(await response.json()).toMatchObject({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Bạn kiểm tra key quá nhanh. Chờ một chút rồi thử lại.",
+        retryable: false,
+        retry_after_ms: 1_500,
+      },
+    });
+  });
+
   it.each([undefined, "unknown_mode"])(
     "rejects a successful validation without a recognized identity mode (%s)",
     async (user_identity_mode) => {

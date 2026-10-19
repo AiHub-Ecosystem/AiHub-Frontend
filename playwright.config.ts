@@ -17,6 +17,7 @@ export default defineConfig({
   // ponytail: mock state is global; add per-worker mock instances before raising workers.
   workers: 1,
   reporter: "list",
+  globalTeardown: "./tests/e2e/contract-teardown.ts",
   use: {
     baseURL: appUrl,
     browserName: "chromium",

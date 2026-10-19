@@ -10,6 +10,7 @@ import {
   SPEAKING_SAMPLE_QUESTION,
   speakingQuestionAudioUrlExample,
 } from "@/data/speaking-question";
+import { MAX_SPEAKING_MIB } from "@/data/speaking-contract";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 
 export { WRITING_TASK2_REQUEST };
@@ -20,9 +21,8 @@ export { WRITING_TASK2_REQUEST };
  * nhất quán như data/demo-mock.ts đã làm cho phần mock demo.
  *
  * Lý do giữ nguyên: trang Document mô tả hợp đồng API đang được tài liệu hoá
- * — kể cả những chỗ hai tài liệu chưa khớp nhau. Ghi rõ trong `notes` thay vì
- * âm thầm sửa, để người đọc biết chỗ nào cần backend xác nhận trước khi tích
- * hợp thật.
+ * — kể cả những chỗ hai tài liệu chưa khớp nhau. Giới hạn upload Speaking là
+ * ngoại lệ: đọc từ OpenAPI đã ghim để khớp với kiểm tra runtime.
  */
 
 export type SchemaField = {
@@ -982,8 +982,7 @@ export const SPEAKING_STEPS: IntegrationStep[] = [
   },
   {
     title: "Gửi file âm thanh",
-    description:
-      "Dạng chính nhận một tệp wav, mp3, m4a, webm hoặc ogg, tối đa 25 MiB. Dạng dự phòng nhận audio_url trỏ tới một đối tượng trên s3.wispace.app, dùng khi bạn không thể tải tệp lên. Cả hai cùng nhận part, question_id và các trường tuỳ chọn.",
+    description: `Dạng chính nhận một tệp wav, mp3, m4a, webm hoặc ogg, tối đa ${MAX_SPEAKING_MIB} MiB. Dạng dự phòng nhận audio_url trỏ tới một đối tượng trên s3.wispace.app, dùng khi bạn không thể tải tệp lên. Cả hai cùng nhận part, question_id và các trường tuỳ chọn.`,
   },
   {
     title: "Đọc kết quả theo đúng thứ tự",
@@ -1165,8 +1164,7 @@ const AUDIO_FIELD: SchemaField = {
   required: true,
   sampleValue: "./answer.wav",
   formValue: "@${AIHUB_AUDIO_FILE}",
-  description:
-    "Một tệp wav, mp3, m4a, webm hoặc ogg; tối thiểu 100 byte, tối đa 25 MiB. Ví dụ trỏ tới tệp trên máy bạn; muốn chạy thử không cần tệp, dùng POST /v1/ielts/speaking/grading-json với Published sample answer của AIHUB.",
+  description: `Một tệp wav, mp3, m4a, webm hoặc ogg; tối thiểu 100 byte, tối đa ${MAX_SPEAKING_MIB} MiB. Ví dụ trỏ tới tệp trên máy bạn; muốn chạy thử không cần tệp, dùng POST /v1/ielts/speaking/grading-json với Published sample answer của AIHUB.`,
 };
 
 const AUDIO_URL_FIELD: SchemaField = {

@@ -100,7 +100,6 @@ test("an owner can configure identity and manage API keys", async ({
   request,
 }) => {
   const ownerOrg = org("owner-id", "Owner Org");
-  delete ownerOrg.identity_configured;
   await setup(request, [ownerOrg]);
   await signIn(page);
   await expect(page).toHaveURL(/\/console\/orgs\/owner-id$/);
@@ -108,7 +107,7 @@ test("an owner can configure identity and manage API keys", async ({
   await expect(
     page.getByRole("button", { name: "Cấu hình identity" })
   ).toBeVisible();
-  await expect(page.getByText(identityReadinessTitle)).toHaveCount(0);
+  await expect(page.getByText(identityReadinessTitle)).toBeVisible();
   // The sign-in is a client-side navigation, so this document needs its own wait.
   await waitForHydration(page);
   await page.getByRole("button", { name: "Cấu hình identity" }).click();
@@ -738,7 +737,10 @@ test("disabled configuration requires confirmation and saves only identity input
           issuer: "https://saved.example.test",
           jwks_url: "https://saved.example.test/keys",
           public_keys_jwks: null,
+          allowed_algorithms: ["RS256", "ES256"],
+          max_assertion_ttl_seconds: 300,
           status: "disabled",
+          updated_at: "2026-01-01T00:00:00.000Z",
         },
       },
       identityErrorCode: "IDENTITY_JWKS_INVALID",
@@ -854,7 +856,10 @@ test("active identity configuration saves without a declared-mode confirmation",
           issuer: "https://active.example.test",
           jwks_url: "https://active.example.test/keys",
           public_keys_jwks: null,
+          allowed_algorithms: ["RS256", "ES256"],
+          max_assertion_ttl_seconds: 300,
           status: "active",
+          updated_at: "2026-01-01T00:00:00.000Z",
         },
       },
     }
@@ -891,7 +896,10 @@ test("disabled configuration remains editable with operator warning and stale 40
           issuer: "https://saved.example.test",
           jwks_url: "https://saved.example.test/keys",
           public_keys_jwks: null,
+          allowed_algorithms: ["RS256", "ES256"],
+          max_assertion_ttl_seconds: 300,
           status: "disabled",
+          updated_at: "2026-01-01T00:00:00.000Z",
         },
       },
     }

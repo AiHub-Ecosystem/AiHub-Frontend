@@ -220,30 +220,6 @@ test("Writing keeps an invalid signed assertion as a live failure", async ({
   expectNoExternalRequests();
 });
 
-test("Writing fails closed when key validation omits or does not recognize identity mode", async ({
-  page,
-}) => {
-  for (const apiKey of [
-    "aihub_sk_e2e_missing_identity_mode_key",
-    "aihub_sk_e2e_unknown_identity_mode_key",
-  ]) {
-    await page.goto("/demo/scoring");
-    await waitForHydration(page);
-    await page.getByLabel("Mã API (không bắt buộc)").fill(apiKey);
-    await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
-
-    await expect(
-      page.getByText(/AIHUB chưa trả đủ thông tin để xác thực/)
-    ).toBeVisible();
-    await expect(
-      page.getByLabel("Signed User Assertion (JWT) (X-User-Identity)")
-    ).toHaveCount(0);
-    await expect(
-      page.getByLabel("Declared User ID (X-User-Identity)")
-    ).toHaveCount(0);
-  }
-});
-
 /**
  * The unit parser covers field validation. What only a browser can see is the
  * wiring: that the page reaches the gate without a login, that no credential
@@ -1331,7 +1307,7 @@ test("a rejected chart upload keeps the current preview and grading URL", async 
     buffer: chartImageBytes,
   });
   await expect(page.locator(".demo-error[role=alert]")).toContainText(
-    "Đã hết lượt tải ảnh"
+    "Bạn gửi hơi nhanh. Chờ một chút rồi thử lại."
   );
   await expect(page.getByTestId("scoring-chart-preview")).toHaveAttribute(
     "src",

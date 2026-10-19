@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { errorFromPayload, toneFor } from "@/app/demo/scoring/scoring-client";
 
 describe("errorFromPayload", () => {
-  it("narrows a well-formed error payload, retry hint included", () => {
+  it("keeps code and retry hints without rendering the raw upstream message", () => {
     expect(
       errorFromPayload({
         error: {
@@ -14,20 +14,21 @@ describe("errorFromPayload", () => {
       })
     ).toEqual({
       code: "RATE_LIMITED",
-      message: "quota exhausted for org 7",
+      message: "Bạn gửi hơi nhanh. Chờ một chút rồi thử lại.",
       retryable: true,
       retry_after_ms: 2000,
     });
   });
 
-  it("passes an unknown error code through instead of collapsing it", () => {
-    // Writing has no code enum: the upstream varies its codes, so a code this
-    // module has never heard of still has to reach the visitor.
+  it("uses a safe generic message for an unknown code without exposing backend text", () => {
     expect(
       errorFromPayload({
-        error: { code: "SOMETHING_NEW_UPSTREAM", message: "boom" },
+        error: { code: "SOMETHING_NEW_UPSTREAM", message: "internal db host" },
       })
-    ).toMatchObject({ code: "SOMETHING_NEW_UPSTREAM", message: "boom" });
+    ).toMatchObject({
+      code: "SOMETHING_NEW_UPSTREAM",
+      message: "Yêu cầu bị AIHUB từ chối.",
+    });
   });
 
   it("falls back when the error has no message", () => {

@@ -6,6 +6,10 @@ import {
   ScoringUpstreamError,
   type WritingErrorCode,
 } from "@/lib/scoring-gateway";
+import {
+  AIHUB_ERROR_MESSAGES,
+  AIHUB_GENERIC_ERROR_MESSAGE,
+} from "@/data/aihub-contract/error-code-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -92,7 +96,10 @@ export async function POST(request: Request) {
         {
           error: {
             code,
-            message: UPSTREAM_MESSAGES[code] ?? "Yêu cầu bị AIHUB từ chối.",
+            message:
+              UPSTREAM_MESSAGES[code] ??
+              AIHUB_ERROR_MESSAGES[code] ??
+              AIHUB_GENERIC_ERROR_MESSAGE,
             retryable,
             ...(retry_after_ms === undefined ? {} : { retry_after_ms }),
           },

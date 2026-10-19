@@ -1,5 +1,6 @@
 import { WRITING_TASK1_REQUEST } from "@/data/writing-task1-request";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
+import { aihubErrorMessage } from "@/data/aihub-contract/error-code-policy";
 
 /** The client budget. The real 90s, not a simulated delay. */
 export const CLIENT_BUDGET_SECONDS = 90;
@@ -50,7 +51,7 @@ export function errorFromPayload(payload: unknown): PublicError {
     };
     return {
       code: payload.error.code,
-      message: payload.error.message,
+      message: aihubErrorMessage(payload.error.code),
       ...(typeof error.retryable === "boolean"
         ? { retryable: error.retryable }
         : {}),

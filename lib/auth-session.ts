@@ -1,3 +1,4 @@
+import aihubLimits from "@/data/aihub-contract/limits.json";
 import {
   isWebSessionId,
   webSessionCookie,
@@ -150,7 +151,7 @@ async function exchangeWebSession(
     typeof expiresIn !== "number" ||
     !Number.isFinite(expiresIn) ||
     expiresIn <= 0 ||
-    expiresIn > 900
+    expiresIn > aihubLimits.webSessionAccessTokenMaxSeconds
   ) {
     throw new Error("AIHUB Web Session response is invalid");
   }

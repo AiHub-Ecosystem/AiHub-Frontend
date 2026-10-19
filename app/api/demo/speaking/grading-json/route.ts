@@ -6,6 +6,11 @@ import {
   SpeakingUpstreamError,
   type SpeakingErrorCode,
 } from "@/lib/speaking-gateway";
+import {
+  AIHUB_ERROR_MESSAGES,
+  AIHUB_GENERIC_ERROR_MESSAGE,
+} from "@/data/aihub-contract/error-code-policy";
+import { MAX_SPEAKING_MIB } from "@/data/speaking-contract";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +30,7 @@ const STATUS_BY_CODE: Record<SpeakingErrorCode, number> = {
 
 const MESSAGE_BY_CODE: Record<SpeakingErrorCode, string> = {
   INVALID_REQUEST: "Kiểm tra audio và đề Speaking rồi thử lại.",
-  PAYLOAD_TOO_LARGE: "Audio cần nhỏ hơn hoặc bằng 25 MB.",
+  PAYLOAD_TOO_LARGE: `Audio cần nhỏ hơn hoặc bằng ${MAX_SPEAKING_MIB} MiB.`,
   UNAUTHORIZED: "API key không hợp lệ hoặc đã bị thu hồi.",
   INVALID_USER_IDENTITY:
     "User Identity không hợp lệ. Nếu dùng Signed User Assertion, hãy lấy token mới từ máy chủ của tổ chức.",
@@ -70,7 +75,9 @@ export async function POST(request: Request) {
           error: {
             code: error.code,
             message:
-              UPSTREAM_MESSAGES[error.code] ?? "Yêu cầu bị AIHUB từ chối.",
+              UPSTREAM_MESSAGES[error.code] ??
+              AIHUB_ERROR_MESSAGES[error.code] ??
+              AIHUB_GENERIC_ERROR_MESSAGE,
             retryable: error.retryable,
             ...(error.retry_after_ms === undefined
               ? {}

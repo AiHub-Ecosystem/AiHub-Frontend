@@ -165,14 +165,22 @@ test("empty state and stable create denials explain what to do next", async ({
   });
   await page.getByRole("button", { name: "Tạo key" }).click();
   await expect(
-    page.getByText("Organization đã đạt giới hạn 50 API key", { exact: false })
+    page.getByText(
+      "Không thể tạo API key do quyền truy cập hoặc trạng thái Organization đã thay đổi. Hãy tải lại trạng thái.",
+      { exact: true }
+    )
   ).toBeVisible();
 
   await request.post(`${mockUrl}/__test__/organizations/config`, {
     data: { apiKeyLimitReached: false, apiKeyEntitlementDenied: true },
   });
   await page.getByRole("button", { name: "Tạo key" }).click();
-  await expect(page.getByText(/không còn entitlement/)).toBeVisible();
+  await expect(
+    page.getByText(
+      "Không thể tạo API key do quyền truy cập hoặc trạng thái Organization đã thay đổi. Hãy tải lại trạng thái.",
+      { exact: true }
+    )
+  ).toBeVisible();
 });
 
 test("creation offers Sandbox by default and labels Production as billable", async ({

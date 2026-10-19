@@ -238,7 +238,9 @@ export async function POST(request: Request) {
   const retryable =
     upstreamError &&
     "retryable" in upstreamError &&
-    upstreamError.retryable === true;
+    typeof upstreamError.retryable === "boolean"
+      ? upstreamError.retryable
+      : undefined;
   const retryAfter =
     upstreamError &&
     "retry_after_ms" in upstreamError &&
@@ -250,7 +252,7 @@ export async function POST(request: Request) {
       error: {
         code,
         message: errorMessage(code, environment),
-        ...(retryable ? { retryable: true } : {}),
+        ...(retryable === undefined ? {} : { retryable }),
         ...(retryAfter === undefined ? {} : { retry_after_ms: retryAfter }),
       },
       meta: { request_id: requestId },

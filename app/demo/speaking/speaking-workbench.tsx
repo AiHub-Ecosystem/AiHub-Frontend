@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { MOCK_SPEAKING_RESULTS } from "@/data/demo-grading-fixtures";
-import { MAX_SPEAKING_BYTES } from "@/data/speaking-contract";
+import { MAX_SPEAKING_BYTES, MAX_SPEAKING_MIB } from "@/data/speaking-contract";
 import { SPEAKING_SAMPLE_ANSWER_REQUEST } from "@/data/speaking-question";
 import {
   MOCK_SPEAKING_PROMPTS,
@@ -349,7 +349,8 @@ function promptsFromPayload(
 function fileProblem(file: File | null) {
   if (!file) return "Chọn hoặc ghi âm câu trả lời để chấm thật.";
   if (file.size < 100) return "Tệp ghi âm quá ngắn hoặc không có tiếng.";
-  if (file.size > MAX_SPEAKING_BYTES) return "Tệp ghi âm cần nhỏ hơn 25 MB.";
+  if (file.size > MAX_SPEAKING_BYTES)
+    return `Tệp ghi âm không được vượt quá ${MAX_SPEAKING_MIB} MiB.`;
   if (!/\.(wav|mp3|m4a|webm|ogg)$/i.test(file.name))
     return "Tệp ghi âm cần có định dạng WAV, MP3, M4A, WebM hoặc OGG.";
   return null;
@@ -1087,8 +1088,7 @@ export default function SpeakingWorkbench() {
       chunks.current = [];
       setError({
         code: "PAYLOAD_TOO_LARGE",
-        message:
-          "Bản ghi âm vượt quá giới hạn 25 MiB nên đã bị xóa. Hãy ghi âm lại hoặc chọn tệp khác.",
+        message: `Bản ghi âm vượt quá giới hạn ${MAX_SPEAKING_MIB} MiB nên đã bị xóa. Hãy ghi âm lại hoặc chọn tệp khác.`,
       });
     } else {
       const blob = new Blob(chunks.current, {
@@ -1837,7 +1837,7 @@ export default function SpeakingWorkbench() {
                 {recording
                   ? "Đang ghi âm…"
                   : recordingLimitReached
-                    ? "Đã dừng ghi âm khi đạt 25 MiB. Bản ghi được giữ lại; bạn có thể ghi âm lại hoặc chọn tệp khác."
+                    ? `Đã dừng ghi âm khi đạt ${MAX_SPEAKING_MIB} MiB. Bản ghi được giữ lại; bạn có thể ghi âm lại hoặc chọn tệp khác.`
                     : file
                       ? `${file.name} · ${Math.ceil(file.size / 1024)} KB`
                       : sampleAudioSelected
@@ -1880,7 +1880,8 @@ export default function SpeakingWorkbench() {
               )}
               {file && (
                 <p className="demo-help">
-                  Tệp ghi âm tối đa 25 MB. Hỗ trợ WAV, MP3, M4A, WebM hoặc OGG.
+                  Tệp ghi âm tối đa {MAX_SPEAKING_MIB} MiB. Hỗ trợ WAV, MP3,
+                  M4A, WebM hoặc OGG.
                 </p>
               )}
             </>

@@ -1,0 +1,4 @@
+{
+  "webSessionAccessTokenMaxSeconds": 900,
+  "speakingAudioMaxBytes": 26214400
+}

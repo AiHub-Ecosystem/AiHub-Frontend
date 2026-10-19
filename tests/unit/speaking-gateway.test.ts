@@ -9,6 +9,7 @@ import {
 } from "@/lib/speaking-gateway";
 import { POST as postSpeakingJson } from "@/app/api/demo/speaking/grading-json/route";
 import { POST as postSpeakingMultipart } from "@/app/api/demo/speaking/grading/route";
+import { MAX_SPEAKING_BYTES } from "@/data/speaking-contract";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -349,11 +350,11 @@ describe("Speaking multipart request", () => {
     expect(sent).toHaveLength(0);
   });
 
-  it("accepts a 25 MiB audio file with multipart framing under the 26 MiB wire limit", async () => {
+  it("accepts the contract maximum with multipart framing under the 26 MiB wire limit", async () => {
     const form = new FormData();
     form.append(
       "audio",
-      new File([new Uint8Array(25 * 1024 * 1024)], "answer.wav", {
+      new File([new Uint8Array(MAX_SPEAKING_BYTES)], "answer.wav", {
         type: "audio/wav",
       }),
       "answer.wav"
@@ -382,7 +383,7 @@ describe("Speaking multipart request", () => {
 
     const parsed = await parseSpeakingRequest(request);
 
-    expect(parsed.audio.size).toBe(25 * 1024 * 1024);
+    expect(parsed.audio.size).toBe(MAX_SPEAKING_BYTES);
   });
 
   it("forwards the widened fields upstream instead of dropping them", async () => {

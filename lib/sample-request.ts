@@ -4,6 +4,7 @@ import {
   WRITING_TASK1_REQUEST,
 } from "@/data/writing-task1-request";
 import { SPEAKING_SAMPLE_ANSWER_REQUEST } from "@/data/speaking-question";
+import { MAX_SPEAKING_MIB } from "@/data/speaking-contract";
 import { WRITING_TASK2_REQUEST } from "@/data/writing-task2-request";
 import type { ApiKeyScope } from "@/lib/api-key-scopes";
 import {
@@ -379,8 +380,7 @@ const SPEAKING_JSON_FIELDS: SpeakingJsonField[] = [
     sent: true,
     value: SPEAKING_SAMPLE_ANSWER_REQUEST.audio_url,
     required: true,
-    meaning:
-      "URL HTTPS của tệp âm thanh trả lời, trên đúng host s3.wispace.app; thay bằng URL của bạn. wav, mp3, m4a, webm hoặc ogg; tối đa 25 MiB.",
+    meaning: `URL HTTPS của tệp âm thanh trả lời, trên đúng host s3.wispace.app; thay bằng URL của bạn. wav, mp3, m4a, webm hoặc ogg; tối đa ${MAX_SPEAKING_MIB} MiB.`,
   },
   {
     field: "part",
@@ -647,8 +647,7 @@ const SPEAKING_AUDIO_FILE_ROW: SampleBodyField = {
   field: "audio",
   sampleValue: "./answer.wav",
   required: true,
-  meaning:
-    "Tệp âm thanh trả lời trên máy bạn; thay ./answer.wav bằng tệp của bạn. wav, mp3, m4a, webm hoặc ogg; tối đa 25 MiB.",
+  meaning: `Tệp âm thanh trả lời trên máy bạn; thay ./answer.wav bằng tệp của bạn. wav, mp3, m4a, webm hoặc ogg; tối đa ${MAX_SPEAKING_MIB} MiB.`,
 };
 
 /**
