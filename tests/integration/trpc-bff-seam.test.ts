@@ -208,7 +208,11 @@ describe.each(["rest", "trpc"])(
           await retried.json()
         )
       ).toBe("org-created-12345678");
-      expect(await seam.createRequests()).toEqual([
+      const requests = await seam.createRequests();
+      expect(requests).toHaveLength(2);
+      expect(
+        requests.map(({ name, idempotencyKey }) => ({ name, idempotencyKey }))
+      ).toEqual([
         { name: "Retry Org", idempotencyKey: IDEMPOTENCY_KEY },
         { name: "Retry Org", idempotencyKey: IDEMPOTENCY_KEY },
       ]);
