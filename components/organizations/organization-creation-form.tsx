@@ -10,14 +10,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { UUID_V4_PATTERN } from "@/lib/organizations";
 
 // ponytail: AIHUB expires idempotency records after 24h; extend backend retention if recovery must last longer.
 const CREATION_ATTEMPT_STORAGE_KEY = "aihub:organization-creation-attempt";
 const CREATION_ATTEMPT_TTL_MS = 24 * 60 * 60 * 1000;
 const EXPIRED_ATTEMPT_MESSAGE =
   "Lần tạo này đã quá 24 giờ hoặc không xác định được thời điểm; retry có thể tạo trùng Organization. Hãy kiểm tra danh sách Organization. Nếu kết quả chưa rõ, liên hệ hỗ trợ trước khi bắt đầu lần tạo mới.";
-const UUID_V4_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type CreationAttempt = {
   idempotencyKey: string;

@@ -8,7 +8,9 @@ import path from "node:path";
 import { createContractValidator } from "./aihub-contract.mjs";
 
 const host = "127.0.0.1";
-const port = 3101;
+// The port is overridable so a test that needs this mock (the tRPC seam spike)
+// can run beside an E2E run instead of fighting it for 3101.
+const port = Number(process.env.AIHUB_MOCK_PORT ?? 3101);
 const contractPath =
   process.env.AIHUB_OPENAPI_PATH ??
   path.resolve(
@@ -75,6 +77,7 @@ let organizationConfig = {
   creationLimit: false,
   renameDenied: false,
   createUncertainOnce: false,
+  createBodyReadFailureOnce: false,
   createConflictOnce: false,
   createKeyUncertainOnce: false,
   rotateKeyUncertainOnce: false,
@@ -86,6 +89,7 @@ let organizationConfig = {
 const createdOrganizations = new Map();
 let createdOrganizationSequence = 0;
 let uncertainCreationUsed = false;
+let bodyReadFailureUsed = false;
 let conflictCreationUsed = false;
 let uncertainApiKeyCreationUsed = false;
 let uncertainApiKeyRotationUsed = false;
@@ -298,6 +302,7 @@ const server = createServer(async (request, response) => {
       creationLimit: false,
       renameDenied: false,
       createUncertainOnce: false,
+      createBodyReadFailureOnce: false,
       createConflictOnce: false,
       createKeyUncertainOnce: false,
       rotateKeyUncertainOnce: false,
@@ -307,6 +312,7 @@ const server = createServer(async (request, response) => {
       identityConfigs: {},
     };
     uncertainCreationUsed = false;
+    bodyReadFailureUsed = false;
     conflictCreationUsed = false;
     uncertainApiKeyCreationUsed = false;
     uncertainApiKeyRotationUsed = false;
@@ -804,6 +810,11 @@ const server = createServer(async (request, response) => {
       });
       return;
     }
+    if (organizationConfig.createUnavailable) {
+      // The synthetic outage code the contract check excludes from validation.
+      sendJson(response, 503, { error: { code: "LOCAL_MOCK_OUTAGE" } });
+      return;
+    }
     const key = request.headers["idempotency-key"];
     if (organizationConfig.createConflictOnce && !conflictCreationUsed) {
       conflictCreationUsed = true;
@@ -839,6 +850,14 @@ const server = createServer(async (request, response) => {
     if (organizationConfig.createUncertainOnce && !uncertainCreationUsed) {
       uncertainCreationUsed = true;
       response.destroy();
+      return;
+    }
+    if (organizationConfig.createBodyReadFailureOnce && !bodyReadFailureUsed) {
+      bodyReadFailureUsed = true;
+      response.writeHead(201, { "Content-Type": "application/json" });
+      response.write("{");
+      // Let fetch receive the headers before the mock interrupts the body.
+      setTimeout(() => response.destroy(), 50);
       return;
     }
     sendJson(response, 201, {
@@ -1550,4 +1569,7 @@ const server = createServer(async (request, response) => {
   sendJson(response, 404, { error: "Not found" });
 });
 
-server.listen(port, host);
+server.listen(port, host, () => {
+  // The port it bound, so a caller that asked for 0 can find it.
+  console.log(`AIHUB_MOCK_LISTENING ${server.address().port}`);
+});

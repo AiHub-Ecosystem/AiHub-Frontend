@@ -7,6 +7,15 @@ export type OrganizationMembership = {
   identityConfigured?: boolean;
 };
 
+/**
+ * The pattern an Organization creation's idempotency key must match. The
+ * browser mints the key once per attempt and repeats it on a retry, so the
+ * rule lives in one place: the BFF, the Console form and the spike prototype
+ * all read it from here.
+ */
+export const UUID_V4_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export function validatedOrganizationName(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const name = value.trim();
