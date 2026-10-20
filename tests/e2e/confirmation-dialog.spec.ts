@@ -56,6 +56,9 @@ test("nested confirmation is accessible and restores focus after cancel", async 
 test("Escape closes only the idle nested confirmation", async ({ page }) => {
   const { trigger, confirmation } = await openNestedConfirmation(page);
 
+  await expect(
+    confirmation.getByRole("button", { name: "Cancel" })
+  ).toBeFocused();
   await page.keyboard.press("Escape");
 
   await expect(confirmation).toHaveCount(0);
