@@ -8,7 +8,9 @@ import path from "node:path";
 import { createContractValidator } from "./aihub-contract.mjs";
 
 const host = "127.0.0.1";
-const port = 3101;
+// The port is overridable so a test that needs this mock (the tRPC seam spike)
+// can run beside an E2E run instead of fighting it for 3101.
+const port = Number(process.env.AIHUB_MOCK_PORT ?? 3101);
 const contractPath =
   process.env.AIHUB_OPENAPI_PATH ??
   path.resolve(
@@ -804,6 +806,11 @@ const server = createServer(async (request, response) => {
       });
       return;
     }
+    if (organizationConfig.createUnavailable) {
+      // The synthetic outage code the contract check excludes from validation.
+      sendJson(response, 503, { error: { code: "LOCAL_MOCK_OUTAGE" } });
+      return;
+    }
     const key = request.headers["idempotency-key"];
     if (organizationConfig.createConflictOnce && !conflictCreationUsed) {
       conflictCreationUsed = true;
@@ -1550,4 +1557,7 @@ const server = createServer(async (request, response) => {
   sendJson(response, 404, { error: "Not found" });
 });
 
-server.listen(port, host);
+server.listen(port, host, () => {
+  // The port it bound, so a caller that asked for 0 can find it.
+  console.log(`AIHUB_MOCK_LISTENING ${server.address().port}`);
+});

@@ -7,6 +7,6 @@ export default defineConfig({
   resolve: { alias: { "@": root } },
   test: {
     environment: "node",
-    include: ["tests/unit/**/*.test.ts"],
+    include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
   },
 });

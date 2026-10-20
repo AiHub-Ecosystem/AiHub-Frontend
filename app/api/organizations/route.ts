@@ -5,7 +5,10 @@ import {
   requireWebSession,
   webSessionIdFromRequest,
 } from "@/lib/auth-session";
-import { validatedOrganizationName } from "@/lib/organizations";
+import {
+  validatedOrganizationName,
+  UUID_V4_PATTERN,
+} from "@/lib/organizations";
 
 const noStore = { "Cache-Control": "no-store" };
 
@@ -34,12 +37,7 @@ export async function POST(request: Request) {
     );
   }
   const idempotencyKey = request.headers.get("idempotency-key");
-  if (
-    !idempotencyKey ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      idempotencyKey
-    )
-  ) {
+  if (!idempotencyKey || !UUID_V4_PATTERN.test(idempotencyKey)) {
     return Response.json(
       { error: { code: "IDEMPOTENCY_KEY_REQUIRED" } },
       { status: 400, headers: noStore }
