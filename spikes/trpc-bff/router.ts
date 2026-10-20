@@ -72,6 +72,21 @@ const t = initTRPC.context<SpikeContext>().create({
   },
 });
 
+const authenticatedProcedure = t.procedure.use(async ({ ctx, next }) => {
+  const denied = await requireWebSession(ctx.req);
+  if (!denied) return next();
+
+  const cookie = denied.headers.get("set-cookie");
+  if (cookie) ctx.resHeaders.set("set-cookie", cookie);
+  const unauthorized = denied.status === 401;
+  const bffCode = unauthorized ? "AUTH_REQUIRED" : "AUTH_UNAVAILABLE";
+  throw new TRPCError({
+    code: unauthorized ? "UNAUTHORIZED" : "SERVICE_UNAVAILABLE",
+    message: bffCode,
+    cause: new BffError(bffCode, denied.status),
+  });
+});
+
 function upstreamError(
   ctx: SpikeContext,
   upstream: Response,
@@ -139,24 +154,11 @@ async function createOrganization(
 
 export const spikeRouter = t.router({
   organizations: t.router({
-    create: t.procedure
+    create: authenticatedProcedure
       // tRPC types an input only through a validator; this one keeps the raw
       // body, so the prototype validates exactly like the current route.
       .input((raw: unknown) => raw as { name?: unknown })
       .mutation(async ({ ctx, input }) => {
-        const denied = await requireWebSession(ctx.req);
-        if (denied) {
-          const cookie = denied.headers.get("set-cookie");
-          if (cookie) ctx.resHeaders.set("set-cookie", cookie);
-          const unauthorized = denied.status === 401;
-          const bffCode = unauthorized ? "AUTH_REQUIRED" : "AUTH_UNAVAILABLE";
-          throw new TRPCError({
-            code: unauthorized ? "UNAUTHORIZED" : "SERVICE_UNAVAILABLE",
-            message: bffCode,
-            cause: new BffError(bffCode, denied.status),
-          });
-        }
-
         const sessionId = webSessionIdFromRequest(ctx.req)!;
         const name = validatedOrganizationName(input?.name);
         if (!name)

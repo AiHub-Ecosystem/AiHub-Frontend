@@ -87,9 +87,9 @@ describe.each(["rest", "trpc"])(
       expect(await seam.createRequests()).toHaveLength(before.length);
     });
 
-    it("answers a missing Web Session with 401 and clears the session cookie", async () => {
-      const response = await call(
-        { name: "Org" },
+    it("answers a missing Web Session before parsing a malformed body", async () => {
+      const response = await (name === "rest" ? seam.rest : seam.trpc).raw(
+        "{not json",
         browserHeaders({ Cookie: "" })
       );
       expect(response.status).toBe(401);
@@ -105,13 +105,16 @@ describe.each(["rest", "trpc"])(
       expect(response.headers.get("set-cookie")).toBe(CLEAR_SESSION_COOKIE);
     });
 
-    it("answers an expired Web Session with 401 and clears the session cookie", async () => {
+    it("answers an expired Web Session before parsing a malformed body", async () => {
       await fetch(`${seam.upstreamUrl}/__test__/auth/mode`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionExchangeUnauthorized: true }),
       });
-      const response = await call({ name: "Org" }, browserHeaders());
+      const response = await (name === "rest" ? seam.rest : seam.trpc).raw(
+        "{not json",
+        browserHeaders()
+      );
       expect(response.status).toBe(401);
       expect(response.headers.get("set-cookie")).toBe(CLEAR_SESSION_COOKIE);
     });

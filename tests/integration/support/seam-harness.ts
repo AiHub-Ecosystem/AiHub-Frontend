@@ -235,8 +235,23 @@ export async function startSeam(handlers: {
       return token;
     },
     async close() {
-      upstream.child.kill();
-      await new Promise<void>((resolve) => bff.server.close(() => resolve()));
+      let contractErrors: unknown[] = [];
+      try {
+        const response = await upstreamRequest("/__test__/contract-errors");
+        if (!response.ok)
+          throw new Error(
+            `AIHUB mock contract check failed to report: ${response.status}`
+          );
+        const body = (await response.json()) as { errors?: unknown[] };
+        contractErrors = body.errors ?? [];
+      } finally {
+        upstream.child.kill();
+        await new Promise<void>((resolve) => bff.server.close(() => resolve()));
+      }
+      if (contractErrors.length)
+        throw new Error(
+          `AIHUB mock responses violate the pinned contract:\n${JSON.stringify(contractErrors, null, 2)}`
+        );
     },
   };
 }
