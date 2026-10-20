@@ -16,7 +16,7 @@ current route and once against the prototype, in one matrix.
 | ------------------------------------------- | ---------------------------------------------------------------- |
 | `spikes/trpc-bff/router.ts`                 | The tRPC router: one `organizations.create` mutation             |
 | `spikes/trpc-bff/handler.ts`                | The fetch adapter, its error formatter and its status hook       |
-| `tests/integration/trpc-bff-seam.test.ts`   | The matrix: 29 cases, both transports                            |
+| `tests/integration/trpc-bff-seam.test.ts`   | The matrix: 32 cases, both transports                            |
 | `tests/integration/support/seam-harness.ts` | The harness: the fake upstream, the BFF server, the browser side |
 
 The fake upstream is the E2E mock (`tests/e2e/mock-aihub-server.mjs`), so every upstream
@@ -36,24 +36,25 @@ Reproduce: `npm test -- tests/integration/trpc-bff-seam.test.ts`
 Observed, not inferred. "Same" means the browser sees the same status, the same cookie
 and the same upstream request.
 
-| Behaviour                        | Current route                     | tRPC prototype                    | Same?  |
-| -------------------------------- | --------------------------------- | --------------------------------- | ------ |
-| Cross-origin request             | `403`, empty body                 | `403`, JSON error envelope        | status |
-| Invalid Organization name        | `400`, `INVALID_NAME`             | `400`, `INVALID_NAME`             | status |
-| Malformed body                   | `400`, `INVALID_NAME`             | `400`, tRPC's own parse error     | status |
-| Invalid idempotency key          | `400`, `IDEMPOTENCY_KEY_REQUIRED` | `400`, `IDEMPOTENCY_KEY_REQUIRED` | status |
-| Upstream call on any rejection   | none                              | none                              | yes    |
-| Missing Web Session              | `401`, session cookie cleared     | `401`, session cookie cleared     | yes    |
-| Rejected Web Session             | `401`, session cookie cleared     | `401`, session cookie cleared     | yes    |
-| Expired Web Session              | `401`, session cookie cleared     | `401`, session cookie cleared     | yes    |
-| Successful creation              | `201`                             | `201`                             | yes    |
-| Name sent upstream               | trimmed                           | trimmed                           | yes    |
-| Idempotency key sent upstream    | unchanged                         | unchanged                         | yes    |
-| Organization Creation Limit      | `409`                             | `409`                             | yes    |
-| Upstream idempotency conflict    | `409`                             | `409`                             | yes    |
-| Upstream outage answer           | `503`                             | `503`                             | yes    |
-| Unreachable upstream             | `503`                             | `503`                             | yes    |
-| Retry with the same name and key | one Organization                  | one Organization                  | yes    |
+| Behaviour                              | Current route                     | tRPC prototype                    | Same?  |
+| -------------------------------------- | --------------------------------- | --------------------------------- | ------ |
+| Cross-origin request                   | `403`, empty body                 | `403`, empty body                 | yes    |
+| Invalid Organization name              | `400`, `INVALID_NAME`             | `400`, `INVALID_NAME`             | status |
+| Malformed body                         | `400`, `INVALID_NAME`             | `400`, tRPC's own parse error     | status |
+| Invalid idempotency key                | `400`, `IDEMPOTENCY_KEY_REQUIRED` | `400`, `IDEMPOTENCY_KEY_REQUIRED` | status |
+| Upstream call on any rejection         | none                              | none                              | yes    |
+| Missing Web Session                    | `401`, session cookie cleared     | `401`, session cookie cleared     | yes    |
+| Rejected Web Session                   | `401`, session cookie cleared     | `401`, session cookie cleared     | yes    |
+| Expired Web Session                    | `401`, session cookie cleared     | `401`, session cookie cleared     | yes    |
+| Successful creation                    | `201`                             | `201`                             | yes    |
+| Name sent upstream                     | trimmed                           | trimmed                           | yes    |
+| Idempotency key sent upstream          | unchanged                         | unchanged                         | yes    |
+| Organization Creation Limit            | `409`                             | `409`                             | yes    |
+| Upstream idempotency conflict          | `409`                             | `409`                             | yes    |
+| Upstream outage answer                 | `503`                             | `503`                             | yes    |
+| Upstream body read fails after headers | `503`                             | `503`                             | yes    |
+| Unreachable upstream                   | `503`                             | `503`                             | yes    |
+| Retry with the same name and key       | one Organization                  | one Organization                  | yes    |
 
 Every status the route produces survives, including the `201` and the cookie clearing.
 What does not survive is the body the browser reads:
@@ -91,11 +92,12 @@ to carry, and the browser would read `error.data.bffCode`.
    carries it in `data.bffCode`.
 4. **The tRPC client ignores the HTTP status.** `httpRequest` reads `await res.json()`
    without looking at `res.ok`, so an error body that is not a tRPC error envelope is
-   unreadable: the current route's empty-body `403` would leave the client with a JSON
-   parse error, and the current route's `{"error":{"code":"INVALID_NAME"}}` body is not a
-   tRPC error response either (`error.code` must be a number and `error.message` a
-   string), so the client would report "Unknown error" and drop the BFF's code. tRPC
-   answers `403` with a body, and the domain code has to travel in `data`.
+   unreadable: both transports' empty-body cross-origin `403` leaves the client with a
+   JSON parse error, and the current route's `{"error":{"code":"INVALID_NAME"}}` body
+   is not a tRPC error response either (`error.code` must be a number and
+   `error.message` a string), so the client would report "Unknown error" and drop the
+   BFF's code. tRPC answers procedure errors with a body, and the domain code has to
+   travel in `data`.
 
 The **status** itself is not limited: tRPC reads the answer's status from the error
 shape's `httpStatus`, and the prototype sets that field from the upstream's status, so an
@@ -138,8 +140,13 @@ and the evidence it needs is:
 
 ## Verification
 
-- `npm test` — 28 files, 355 tests, all passing, including the 29 spike cases.
-- `npx tsc --noEmit --incremental false` — clean.
+The test, lint, build and contract results below were recorded on the original spike
+commit. The TypeScript check was rerun after these review fixes.
+
+- `npm test` — 28 files, 355 tests, all passing on the original spike commit, including
+  its 29 spike cases. The review fixes add three regression cases.
+- `npx tsc --noEmit --incremental false` — clean on the original spike commit and after
+  the review fixes.
 - `npx eslint .` — clean.
 - `npm run build` — the built route list holds no `/trpc` route, because nothing under
   `app/` imports `spikes/`.
@@ -154,6 +161,11 @@ The spike is one artifact: the prototype, the evidence and the record. Splitting
 record from the prototype would leave a document that no reader can re-run, and the
 record is the deliverable the issue asks for. The change is larger than the 400-line
 guideline in `02TechandCodeRule.md` §C.17 for that reason.
+
+The 85-line `startSeam` factory exceeds the ~50-line signal in §A.6 because it assembles
+the test-local HTTP servers, exposes their lifecycle and provides both transport
+adapters in one fixture. Splitting those single-use pieces would scatter the fixture
+without reducing its responsibilities.
 
 ## Notes for the decision
 

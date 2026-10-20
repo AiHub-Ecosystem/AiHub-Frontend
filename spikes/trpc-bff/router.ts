@@ -8,7 +8,6 @@
 import { initTRPC, TRPCError, type TRPC_ERROR_CODE_KEY } from "@trpc/server";
 import {
   authenticatedAihubFetch,
-  originIsAllowed,
   rejectedWebSessionCookie,
   requireWebSession,
   webSessionIdFromRequest,
@@ -94,6 +93,7 @@ async function createOrganization(
   idempotencyKey: string
 ) {
   let upstream: Response;
+  let text: string;
   try {
     upstream = await authenticatedAihubFetch(
       ctx.req,
@@ -108,6 +108,7 @@ async function createOrganization(
         body: JSON.stringify({ name }),
       }
     );
+    text = await upstream.text();
   } catch {
     throw new TRPCError({
       code: "SERVICE_UNAVAILABLE",
@@ -116,7 +117,6 @@ async function createOrganization(
     });
   }
 
-  const text = await upstream.text();
   if (upstream.ok) {
     try {
       return JSON.parse(text);
@@ -144,13 +144,6 @@ export const spikeRouter = t.router({
       // body, so the prototype validates exactly like the current route.
       .input((raw: unknown) => raw as { name?: unknown })
       .mutation(async ({ ctx, input }) => {
-        if (!originIsAllowed(ctx.req))
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Cross-origin request refused",
-            cause: new BffError("FORBIDDEN", 403),
-          });
-
         const denied = await requireWebSession(ctx.req);
         if (denied) {
           const cookie = denied.headers.get("set-cookie");

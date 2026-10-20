@@ -4,11 +4,18 @@
 // from the spike's own harness, never from the deployed Customer Web.
 
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { originIsAllowed } from "@/lib/auth-session";
 
 import { spikeRouter, type SpikeContext } from "./router";
 
-export const spikeHandler = (request: Request) =>
-  fetchRequestHandler({
+export async function spikeHandler(request: Request) {
+  if (!originIsAllowed(request))
+    return new Response(null, {
+      status: 403,
+      headers: { "Cache-Control": "no-store" },
+    });
+
+  return fetchRequestHandler({
     endpoint: "/trpc",
     req: request,
     router: spikeRouter,
@@ -26,3 +33,4 @@ export const spikeHandler = (request: Request) =>
       headers: { "Cache-Control": "no-store" },
     }),
   });
+}

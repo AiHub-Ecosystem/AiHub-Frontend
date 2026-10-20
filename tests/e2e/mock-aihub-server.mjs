@@ -77,6 +77,7 @@ let organizationConfig = {
   creationLimit: false,
   renameDenied: false,
   createUncertainOnce: false,
+  createBodyReadFailureOnce: false,
   createConflictOnce: false,
   createKeyUncertainOnce: false,
   rotateKeyUncertainOnce: false,
@@ -88,6 +89,7 @@ let organizationConfig = {
 const createdOrganizations = new Map();
 let createdOrganizationSequence = 0;
 let uncertainCreationUsed = false;
+let bodyReadFailureUsed = false;
 let conflictCreationUsed = false;
 let uncertainApiKeyCreationUsed = false;
 let uncertainApiKeyRotationUsed = false;
@@ -300,6 +302,7 @@ const server = createServer(async (request, response) => {
       creationLimit: false,
       renameDenied: false,
       createUncertainOnce: false,
+      createBodyReadFailureOnce: false,
       createConflictOnce: false,
       createKeyUncertainOnce: false,
       rotateKeyUncertainOnce: false,
@@ -309,6 +312,7 @@ const server = createServer(async (request, response) => {
       identityConfigs: {},
     };
     uncertainCreationUsed = false;
+    bodyReadFailureUsed = false;
     conflictCreationUsed = false;
     uncertainApiKeyCreationUsed = false;
     uncertainApiKeyRotationUsed = false;
@@ -846,6 +850,14 @@ const server = createServer(async (request, response) => {
     if (organizationConfig.createUncertainOnce && !uncertainCreationUsed) {
       uncertainCreationUsed = true;
       response.destroy();
+      return;
+    }
+    if (organizationConfig.createBodyReadFailureOnce && !bodyReadFailureUsed) {
+      bodyReadFailureUsed = true;
+      response.writeHead(201, { "Content-Type": "application/json" });
+      response.write("{");
+      // Let fetch receive the headers before the mock interrupts the body.
+      setTimeout(() => response.destroy(), 50);
       return;
     }
     sendJson(response, 201, {

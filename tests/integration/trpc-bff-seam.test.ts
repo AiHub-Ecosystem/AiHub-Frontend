@@ -189,10 +189,50 @@ describe.each(["rest", "trpc"])(
       const { organizations } = await seam.upstreamState();
       expect(organizations).toHaveLength(1);
     });
+
+    it("maps an upstream body-read failure to 503 and retries safely", async () => {
+      await seam.configure({ createBodyReadFailureOnce: true });
+
+      const interrupted = await call({ name: "Retry Org" }, browserHeaders());
+      expect(interrupted.status).toBe(503);
+      expect(
+        (name === "rest" ? seam.rest : seam.trpc).bffCode(
+          await interrupted.json()
+        )
+      ).toBe("ORGANIZATION_CREATE_UNAVAILABLE");
+
+      const retried = await call({ name: "Retry Org" }, browserHeaders());
+      expect(retried.status).toBe(201);
+      expect(
+        (name === "rest" ? seam.rest : seam.trpc).organizationId(
+          await retried.json()
+        )
+      ).toBe("org-created-12345678");
+      expect(await seam.createRequests()).toEqual([
+        { name: "Retry Org", idempotencyKey: IDEMPOTENCY_KEY },
+        { name: "Retry Org", idempotencyKey: IDEMPOTENCY_KEY },
+      ]);
+
+      const { organizations } = await seam.upstreamState();
+      expect(organizations).toHaveLength(1);
+    });
   }
 );
 
 describe("the tRPC wire format", () => {
+  it("rejects malformed cross-origin bodies before parsing on both transports", async () => {
+    const before = await seam.createRequests();
+    for (const transport of [seam.rest, seam.trpc]) {
+      const response = await transport.raw(
+        "{not json",
+        browserHeaders({ Origin: "http://attacker.test" })
+      );
+      expect(response.status).toBe(403);
+      expect(await response.text()).toBe("");
+    }
+    expect(await seam.createRequests()).toHaveLength(before.length);
+  });
+
   it("answers a malformed body with 400 on both transports", async () => {
     for (const transport of [seam.rest, seam.trpc]) {
       const response = await transport.raw("{not json", browserHeaders());
