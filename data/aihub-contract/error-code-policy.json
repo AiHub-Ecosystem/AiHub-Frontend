@@ -14,6 +14,7 @@
     "AI_SERVICE_TIMEOUT": "Yêu cầu mất quá lâu. Vui lòng thử lại sau.",
     "AI_SERVICE_UNAVAILABLE": "Hiện chưa thể hoàn tất yêu cầu. Vui lòng thử lại sau.",
     "AI_SERVICE_ERROR": "Không thể hoàn tất yêu cầu. Vui lòng thử lại sau.",
+    "REDIS_UNAVAILABLE": "Dịch vụ đang tạm thời không khả dụng. Vui lòng thử lại sau.",
     "INTERNAL_ERROR": "Đã xảy ra lỗi. Vui lòng thử lại sau."
   },
   "safeGenericCodes": [
