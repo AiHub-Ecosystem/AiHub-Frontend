@@ -6,6 +6,7 @@
     "FORBIDDEN": "API key chưa được cấp quyền cho yêu cầu này.",
     "UNAUTHORIZED": "API key không hợp lệ, đã hết hạn hoặc đã bị thu hồi.",
     "AUTH_USER_ACCESS_TOKEN_INVALID": "Phiên đăng nhập không hợp lệ. Hãy đăng nhập lại.",
+    "AUTH_VERIFICATION_PASSWORD_INVALID": "Mật khẩu chưa khớp với lúc đăng ký. Hãy kiểm tra lại.",
     "ENVIRONMENT_NOT_ALLOWED": "Key không được phép trong môi trường này.",
     "USER_IDENTITY_REQUIRED": "Phiên demo thiếu User Identity hợp lệ.",
     "INVALID_USER_IDENTITY": "User Identity không hợp lệ. Tải lại trang rồi thử lại.",
