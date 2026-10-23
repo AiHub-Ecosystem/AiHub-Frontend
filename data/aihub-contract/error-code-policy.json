@@ -16,6 +16,7 @@
     "AI_SERVICE_UNAVAILABLE": "Hiện chưa thể hoàn tất yêu cầu. Vui lòng thử lại sau.",
     "AI_SERVICE_ERROR": "Không thể hoàn tất yêu cầu. Vui lòng thử lại sau.",
     "REDIS_UNAVAILABLE": "Dịch vụ đang tạm thời không khả dụng. Vui lòng thử lại sau.",
+    "EMAIL_DELIVERY_BACKLOGGED": "Hệ thống gửi email đang chậm. Vui lòng thử lại sau ít phút.",
     "INTERNAL_ERROR": "Đã xảy ra lỗi. Vui lòng thử lại sau."
   },
   "safeGenericCodes": [
