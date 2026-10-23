@@ -1,6 +1,40 @@
 import { EXERCISE_TYPE_LABELS, type ExerciseType } from "@/data/aiwriting";
-import { answerDetails, type AcademicExercise } from "@/lib/academic-lab";
 
+type AcademicAnswerDetails = {
+  sample_answer?: string;
+  answer?: string;
+  ai_grading_rubric?: string;
+  explanation?: string;
+};
+
+type AcademicCorrectAnswer =
+  string | Array<string | number> | number | AcademicAnswerDetails | null;
+
+type AcademicExercise = {
+  questions_no?: number | string;
+  question_text?: string;
+  question?: string;
+  question_image?: string | null;
+  image?: string | null;
+  image_url?: string | null;
+  imageUrl?: string | null;
+  chart?: string | null;
+  options?: Record<string, string>;
+  choices?: string[];
+  items?: string[];
+  correct?: AcademicCorrectAnswer;
+  hint?: string[] | string;
+  ai_grading_rubric?: string;
+  explanation?: string;
+};
+
+function answerDetails(
+  answer: AcademicCorrectAnswer | undefined
+): AcademicAnswerDetails | null {
+  return typeof answer === "object" && answer !== null && !Array.isArray(answer)
+    ? answer
+    : null;
+}
 type ExerciseMeta = {
   id: string;
   type: ExerciseType;

@@ -22,7 +22,12 @@ type ReferenceResponse = {
   criterion: string;
   error_code: string;
   references: Array<{
-    question: { prompt: string; image: string | null; imageDescription: string | null; questionType: string };
+    question: {
+      prompt: string;
+      image: string | null;
+      imageDescription: string | null;
+      questionType: string;
+    };
     comments: Array<{ quote: string; explanation: string }>;
   }>;
 };
@@ -46,8 +51,20 @@ type GenerateResponse = {
 
 function ChevronIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      className={className}
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+    >
+      <path
+        d="M4 6l4 4 4-4"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -67,7 +84,9 @@ export function ExerciseGenerationDemo() {
   const [openStep, setOpenStep] = useState<1 | 2 | 3>(1);
   const [backendTab, setBackendTab] = useState<1 | 2>(1);
   const [rrTab1, setRrTab1] = useState<"request" | "response">("request");
-  const [rrTab2, setRrTab2] = useState<"interface" | "response" | "request">("interface");
+  const [rrTab2, setRrTab2] = useState<"interface" | "response" | "request">(
+    "interface"
+  );
 
   const [refLoading, setRefLoading] = useState(false);
   const [refError, setRefError] = useState<string | null>(null);
@@ -80,7 +99,9 @@ export function ExerciseGenerationDemo() {
   const [acceptedNote, setAcceptedNote] = useState<string | null>(null);
 
   const criteriaOptions = task ? criteriaForTask(task) : [];
-  const errorCodeOptions = criterion ? errorCodesForCriterion(criterion as Criterion) : [];
+  const errorCodeOptions = criterion
+    ? errorCodesForCriterion(criterion as Criterion)
+    : [];
   const questionTypeOptions = task ? QUESTION_TYPES_BY_TASK[task] : [];
 
   function clearDownstream() {
@@ -129,7 +150,8 @@ export function ExerciseGenerationDemo() {
     setRrTab2("interface");
   }
 
-  const canQueryReferences = task !== null && topic !== "" && criterion !== "" && errorCode !== "";
+  const canQueryReferences =
+    task !== null && topic !== "" && criterion !== "" && errorCode !== "";
 
   const referencesPayload = canQueryReferences
     ? {
@@ -175,7 +197,14 @@ export function ExerciseGenerationDemo() {
   // ngược từ label — nhưng nếu chỉ có response của bước 1 trong tay thì đây
   // chính là chỗ phải map ngược trước khi gọi bước 2.
   const generatePayload = refData
-    ? { topic, writingTask: task, criterion, errorCode, instruction, references: refData.references }
+    ? {
+        topic,
+        writingTask: task,
+        criterion,
+        errorCode,
+        instruction,
+        references: refData.references,
+      }
     : null;
 
   async function handleGenerate() {
@@ -222,13 +251,6 @@ export function ExerciseGenerationDemo() {
             <span aria-hidden="true">/</span>
             <span>Tạo bài tập</span>
           </div>
-          <Link
-            href="/lab"
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-blue/10 text-brand-blue text-xs font-bold hover:bg-brand-blue/20 transition-colors"
-          >
-            <span>🧪 Vào Phòng Lab Academic</span>
-            <span>→</span>
-          </Link>
         </nav>
 
         <div className="aihub-split">
@@ -237,8 +259,9 @@ export function ExerciseGenerationDemo() {
             <p className="aihub-crumb-static">Các bước tích hợp API</p>
             <h1 className="aihub-title">Tạo bài tập</h1>
             <p className="aihub-lede">
-              Demo các bước tích hợp giải pháp Tạo bài tập của AIHub — chọn tiêu chí, lấy dữ liệu
-              tham chiếu, rồi sinh bài tập bám đúng lỗi cần luyện.
+              Demo các bước tích hợp giải pháp Tạo bài tập của AIHub — chọn tiêu
+              chí, lấy dữ liệu tham chiếu, rồi sinh bài tập bám đúng lỗi cần
+              luyện.
             </p>
 
             <div className="aihub-accordion">
@@ -252,7 +275,9 @@ export function ExerciseGenerationDemo() {
                   onClick={() => setOpenStep(1)}
                 >
                   <span className="aihub-astep-num">1</span>
-                  <span className="aihub-astep-title">Chọn tiêu chí luyện tập</span>
+                  <span className="aihub-astep-title">
+                    Chọn tiêu chí luyện tập
+                  </span>
                   <ChevronIcon className="aihub-astep-chevron" />
                 </button>
                 {openStep === 1 && (
@@ -261,11 +286,19 @@ export function ExerciseGenerationDemo() {
                       <span className="aihub-fieldset-label">Task</span>
                       <div className="aihub-checkrow">
                         <label className="aihub-check">
-                          <input type="checkbox" checked={task === 1} onChange={() => handleTask(1)} />
+                          <input
+                            type="checkbox"
+                            checked={task === 1}
+                            onChange={() => handleTask(1)}
+                          />
                           Task 1
                         </label>
                         <label className="aihub-check">
-                          <input type="checkbox" checked={task === 2} onChange={() => handleTask(2)} />
+                          <input
+                            type="checkbox"
+                            checked={task === 2}
+                            onChange={() => handleTask(2)}
+                          />
                           Task 2
                         </label>
                       </div>
@@ -291,7 +324,10 @@ export function ExerciseGenerationDemo() {
                     </div>
 
                     <div className="aihub-fieldset">
-                      <label className="aihub-fieldset-label" htmlFor="f-criterion">
+                      <label
+                        className="aihub-fieldset-label"
+                        htmlFor="f-criterion"
+                      >
                         Criteria
                       </label>
                       <select
@@ -301,7 +337,9 @@ export function ExerciseGenerationDemo() {
                         disabled={!task}
                         onChange={(e) => handleCriterion(e.target.value)}
                       >
-                        <option value="">{task ? "Select Criteria" : "Select Task first"}</option>
+                        <option value="">
+                          {task ? "Select Criteria" : "Select Task first"}
+                        </option>
                         {criteriaOptions.map((c) => (
                           <option key={c.value} value={c.value}>
                             {c.label}
@@ -321,7 +359,11 @@ export function ExerciseGenerationDemo() {
                         disabled={!criterion}
                         onChange={(e) => handleErrorCode(e.target.value)}
                       >
-                        <option value="">{criterion ? "Select Error Code" : "Select Criteria first"}</option>
+                        <option value="">
+                          {criterion
+                            ? "Select Error Code"
+                            : "Select Criteria first"}
+                        </option>
                         {errorCodeOptions.map((e) => (
                           <option key={e.value} value={e.value}>
                             {e.label} ({e.value})
@@ -333,7 +375,9 @@ export function ExerciseGenerationDemo() {
                     <div className="aihub-fieldset">
                       <label className="aihub-fieldset-label" htmlFor="f-qtype">
                         Question Type{" "}
-                        <span className="aihub-fieldset-hint">(filters sample references, not sent to AI)</span>
+                        <span className="aihub-fieldset-hint">
+                          (filters sample references, not sent to AI)
+                        </span>
                       </label>
                       <select
                         id="f-qtype"
@@ -360,7 +404,11 @@ export function ExerciseGenerationDemo() {
                       >
                         {refLoading ? "Querying…" : "Query reference"}
                       </button>
-                      <button type="button" className="aihub-btn aihub-btn--ghost" onClick={handleReset}>
+                      <button
+                        type="button"
+                        className="aihub-btn aihub-btn--ghost"
+                        onClick={handleReset}
+                      >
                         Reset
                       </button>
                     </div>
@@ -380,14 +428,20 @@ export function ExerciseGenerationDemo() {
                   onClick={() => refData && setOpenStep(2)}
                 >
                   <span className="aihub-astep-num">2</span>
-                  <span className="aihub-astep-title">Xem dữ liệu tham chiếu</span>
+                  <span className="aihub-astep-title">
+                    Xem dữ liệu tham chiếu
+                  </span>
                   <ChevronIcon className="aihub-astep-chevron" />
                 </button>
                 {openStep === 2 && refData && (
                   <div className="aihub-astep-body">
                     <div className="aihub-fieldset">
-                      <label className="aihub-fieldset-label" htmlFor="f-instruction">
-                        Detailed Instruction <span className="aihub-fieldset-hint">(tuỳ chọn)</span>
+                      <label
+                        className="aihub-fieldset-label"
+                        htmlFor="f-instruction"
+                      >
+                        Detailed Instruction{" "}
+                        <span className="aihub-fieldset-hint">(tuỳ chọn)</span>
                       </label>
                       <textarea
                         id="f-instruction"
@@ -404,17 +458,25 @@ export function ExerciseGenerationDemo() {
                           <p className="aihub-refcard-label">
                             Reference #{i + 1} · {r.question.questionType}
                           </p>
-                          <p className="aihub-refcard-prompt">“{r.question.prompt}”</p>
+                          <p className="aihub-refcard-prompt">
+                            “{r.question.prompt}”
+                          </p>
                           {r.question.image && (
-                            <p className="aihub-refcard-img">Ảnh: {r.question.image}</p>
+                            <p className="aihub-refcard-img">
+                              Ảnh: {r.question.image}
+                            </p>
                           )}
                           {r.question.imageDescription && (
-                            <p className="aihub-refcard-img">{r.question.imageDescription}</p>
+                            <p className="aihub-refcard-img">
+                              {r.question.imageDescription}
+                            </p>
                           )}
                           {r.comments.map((c, ci) => (
                             <div key={ci}>
                               <p className="aihub-refcard-quote">“{c.quote}”</p>
-                              <p className="aihub-refcard-explain">{c.explanation}</p>
+                              <p className="aihub-refcard-explain">
+                                {c.explanation}
+                              </p>
                             </div>
                           ))}
                         </div>
@@ -446,7 +508,9 @@ export function ExerciseGenerationDemo() {
                   onClick={() => genData && setOpenStep(3)}
                 >
                   <span className="aihub-astep-num">3</span>
-                  <span className="aihub-astep-title">Xem trước &amp; quyết định</span>
+                  <span className="aihub-astep-title">
+                    Xem trước &amp; quyết định
+                  </span>
                   <ChevronIcon className="aihub-astep-chevron" />
                 </button>
                 {openStep === 3 && genData && (
@@ -460,7 +524,14 @@ export function ExerciseGenerationDemo() {
                         marginBottom: "16px",
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          marginBottom: "6px",
+                        }}
+                      >
                         <span
                           style={{
                             display: "inline-flex",
@@ -477,14 +548,30 @@ export function ExerciseGenerationDemo() {
                         >
                           ✓
                         </span>
-                        <strong style={{ color: "#166534", fontSize: "13.5px" }}>
+                        <strong
+                          style={{ color: "#166534", fontSize: "13.5px" }}
+                        >
                           Đã tạo bộ bài tập thành công!
                         </strong>
                       </div>
-                      <p style={{ margin: "0 0 10px", fontSize: "12.5px", color: "#15803d", lineHeight: "1.5" }}>
-                        Dữ liệu bài tập trực quan (Interface) và Response JSON đầy đủ đã sẵn sàng ở cột bên phải.
+                      <p
+                        style={{
+                          margin: "0 0 10px",
+                          fontSize: "12.5px",
+                          color: "#15803d",
+                          lineHeight: "1.5",
+                        }}
+                      >
+                        Dữ liệu bài tập trực quan (Interface) và Response JSON
+                        đầy đủ đã sẵn sàng ở cột bên phải.
                       </p>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: "6px",
+                        }}
+                      >
                         <span
                           style={{
                             background: "#ffffff",
@@ -522,13 +609,18 @@ export function ExerciseGenerationDemo() {
                             fontWeight: 600,
                           }}
                         >
-                          {EXERCISE_TYPE_LABELS[genData.data.meta.type] || genData.data.meta.type}
+                          {EXERCISE_TYPE_LABELS[genData.data.meta.type] ||
+                            genData.data.meta.type}
                         </span>
                       </div>
                     </div>
 
                     <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-                      <button type="button" className="aihub-btn" onClick={handleAccept}>
+                      <button
+                        type="button"
+                        className="aihub-btn"
+                        onClick={handleAccept}
+                      >
                         Accept
                       </button>
                       <button
@@ -541,7 +633,13 @@ export function ExerciseGenerationDemo() {
                       </button>
                     </div>
                     {acceptedNote && (
-                      <p className="aihub-explain" style={{ marginTop: 12, borderLeft: "3px solid #10b981" }}>
+                      <p
+                        className="aihub-explain"
+                        style={{
+                          marginTop: 12,
+                          borderLeft: "3px solid #10b981",
+                        }}
+                      >
                         {acceptedNote}
                       </p>
                     )}
@@ -562,8 +660,8 @@ export function ExerciseGenerationDemo() {
               </span>
             </div>
             <p className="aihub-sublabel">
-              Đúng những lệnh gọi mà backend thực hiện cho thao tác bên trái. Đây là dữ liệu mock —
-              chưa gọi AI hay DB thật.
+              Đúng những lệnh gọi mà backend thực hiện cho thao tác bên trái.
+              Đây là dữ liệu mock — chưa gọi AI hay DB thật.
             </p>
 
             <div className="aihub-tabs">
@@ -590,9 +688,10 @@ export function ExerciseGenerationDemo() {
             {backendTab === 1 && (
               <div>
                 <div className="aihub-callout">
-                  Gọi <code>POST /external/micro-exercise/sample-references</code> với
-                  writing_task, topic, criterion, error_code để lấy các bài làm thật chứa đúng lỗi
-                  cần luyện.
+                  Gọi{" "}
+                  <code>POST /external/micro-exercise/sample-references</code>{" "}
+                  với writing_task, topic, criterion, error_code để lấy các bài
+                  làm thật chứa đúng lỗi cần luyện.
                 </div>
                 <div className="aihub-tabs">
                   <button
@@ -619,16 +718,19 @@ export function ExerciseGenerationDemo() {
                     <pre className="aihub-code">
                       {curl(
                         "https://testbackend.aihubproduction.com/external/micro-exercise/sample-references",
-                        referencesPayload,
+                        referencesPayload
                       )}
                     </pre>
                   ) : (
                     <div className="aihub-code-placeholder">
-                      Chọn đủ Task, Topic, Criteria, Error Code ở bên trái để dựng request.
+                      Chọn đủ Task, Topic, Criteria, Error Code ở bên trái để
+                      dựng request.
                     </div>
                   )
                 ) : refData ? (
-                  <pre className="aihub-code">{JSON.stringify(refData, null, 2)}</pre>
+                  <pre className="aihub-code">
+                    {JSON.stringify(refData, null, 2)}
+                  </pre>
                 ) : (
                   <div className="aihub-code-placeholder">
                     Chưa gọi — bấm “Query reference” ở bên trái.
@@ -640,8 +742,9 @@ export function ExerciseGenerationDemo() {
             {backendTab === 2 && (
               <div>
                 <div className="aihub-callout">
-                  Gọi <code>POST /create-micro-exercise</code> với reference vừa lấy được. Dạng bài
-                  và số câu do <code>error_code</code> quyết định, không cần chọn tay.
+                  Gọi <code>POST /create-micro-exercise</code> với reference vừa
+                  lấy được. Dạng bài và số câu do <code>error_code</code> quyết
+                  định, không cần chọn tay.
                 </div>
                 <div className="aihub-tabs">
                   <button
@@ -676,10 +779,14 @@ export function ExerciseGenerationDemo() {
                 {rrTab2 === "interface" && (
                   <div>
                     {genData ? (
-                      <ExercisePreview meta={genData.data.meta} exercise={genData.data.exercise} />
+                      <ExercisePreview
+                        meta={genData.data.meta}
+                        exercise={genData.data.exercise}
+                      />
                     ) : (
                       <div className="aihub-code-placeholder">
-                        Chưa có dữ liệu bài tập — bấm “Tạo bài tập” ở Bước 2 bên trái.
+                        Chưa có dữ liệu bài tập — bấm “Tạo bài tập” ở Bước 2 bên
+                        trái.
                       </div>
                     )}
                   </div>
@@ -688,7 +795,9 @@ export function ExerciseGenerationDemo() {
                 {rrTab2 === "response" && (
                   <div>
                     {genData ? (
-                      <pre className="aihub-code">{JSON.stringify(genData, null, 2)}</pre>
+                      <pre className="aihub-code">
+                        {JSON.stringify(genData, null, 2)}
+                      </pre>
                     ) : (
                       <div className="aihub-code-placeholder">
                         Chưa gọi — bấm “Tạo bài tập” ở bên trái.
@@ -703,11 +812,13 @@ export function ExerciseGenerationDemo() {
                       <pre className="aihub-code">
                         {curl(
                           "https://test-api-ielts-writing.aihubproduction.com/create-micro-exercise",
-                          generatePayload,
+                          generatePayload
                         )}
                       </pre>
                     ) : (
-                      <div className="aihub-code-placeholder">Cần lấy dữ liệu tham chiếu trước.</div>
+                      <div className="aihub-code-placeholder">
+                        Cần lấy dữ liệu tham chiếu trước.
+                      </div>
                     )}
                   </div>
                 )}

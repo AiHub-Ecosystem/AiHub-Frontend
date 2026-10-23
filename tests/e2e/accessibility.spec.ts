@@ -93,7 +93,6 @@ test("the signed-in Console has no WCAG A or AA violations axe can detect", asyn
     `/console/orgs/${organizationId}`,
     `/console/orgs/${organizationId}/api-keys`,
     `/console/orgs/${organizationId}/identity`,
-    "/lab",
   ]) {
     await page.goto(path);
     await waitForHydration(page);

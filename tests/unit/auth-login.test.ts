@@ -65,32 +65,6 @@ describe("Customer Web sign-in BFF", () => {
     ).toBe("invalid");
     expect(fetch).toHaveBeenCalledOnce();
   });
-
-  it("returns Lab sign-in errors to the Lab form", async () => {
-    process.env.CUSTOMER_WEB_ORIGIN = "http://localhost:3100";
-    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      Response.json(
-        { error: { code: "AUTH_CREDENTIALS_INVALID" } },
-        { status: 401 }
-      )
-    );
-
-    const response = await POST(
-      request({
-        email: "user@example.com",
-        password: "wrong",
-        next: "/console",
-        return_to: "/lab",
-      })
-    );
-    const location = new URL(response.headers.get("location")!);
-
-    expect(location.pathname).toBe("/lab");
-    expect(location.searchParams.get("error")).toBe("invalid");
-    expect(location.searchParams.get("next")).toBe("/console");
-  });
-
   it("includes a bounded retry delay for rate limited credentials", async () => {
     process.env.CUSTOMER_WEB_ORIGIN = "http://localhost:3100";
     process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";

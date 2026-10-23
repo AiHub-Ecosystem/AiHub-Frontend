@@ -150,42 +150,6 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
     page.getByRole("heading", { name: "Console", exact: true })
   ).toHaveCount(0);
 });
-
-test("Academic Lab uses Console sign-in and opens for an authenticated session", async ({
-  page,
-  request,
-}) => {
-  await resetAuthMock(request);
-  await configureConsoleRoster(request);
-
-  const anonymousSamples = await request.get(
-    `${appUrl}/api/portal/academic/samples`
-  );
-  expect(anonymousSamples.status()).toBe(401);
-
-  await page.goto("/lab");
-  await expect(
-    page.getByRole("heading", { name: "Đăng nhập để mở Academic Lab" })
-  ).toBeVisible();
-  await page.getByLabel("Email").fill("wrong@example.test");
-  await page.getByLabel("Mật khẩu").fill(validPassword);
-  await page.getByRole("button", { name: "Đăng nhập AIHub Console" }).click();
-  await expect(page).toHaveURL(/\/lab\?.*error=invalid/);
-  await expect(page.getByRole("alert")).toHaveText(
-    "Email hoặc mật khẩu không đúng."
-  );
-
-  await page.getByLabel("Email").fill("valid@example.test");
-  await page.getByLabel("Mật khẩu").fill(validPassword);
-  await page.getByRole("button", { name: "Đăng nhập AIHub Console" }).click();
-  await expect(page).toHaveURL(/\/console\/orgs$/);
-  await page.goto("/lab");
-  await expect(page).toHaveURL(/\/lab$/);
-  await expect(
-    page.getByRole("heading", { name: "Tạo bài tập", exact: true })
-  ).toBeVisible();
-});
-
 test("a visitor can register and safely request another verification email", async ({
   page,
   request,
