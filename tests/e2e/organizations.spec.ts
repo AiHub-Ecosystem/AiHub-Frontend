@@ -769,8 +769,12 @@ test("disabled configuration requires confirmation and saves only identity input
   let confirmation = page.getByRole("alertdialog");
   await expect(confirmation).toContainText(disabledIdentityCopy);
   await expect(page.getByRole("alert")).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await expect(confirmation).toHaveCount(0);
+  // Radix attaches its Escape listener a tick after the dialog is visible, so
+  // an immediate key press can land before it exists.
+  await expect(async () => {
+    await page.keyboard.press("Escape");
+    await expect(confirmation).toHaveCount(0, { timeout: 500 });
+  }).toPass();
   await expect(page.getByLabel("Issuer")).toHaveValue(
     "https://edited.example.test"
   );
