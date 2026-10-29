@@ -5,6 +5,7 @@
     "QUOTA_EXCEEDED": "Đã hết hạn mức chấm bài. Vui lòng thử lại sau.",
     "FORBIDDEN": "API key chưa được cấp quyền cho yêu cầu này.",
     "UNAUTHORIZED": "API key không hợp lệ, đã hết hạn hoặc đã bị thu hồi.",
+    "API_VERSION_RETIRED": "Phiên bản API này đã ngừng hỗ trợ. Vui lòng cập nhật ứng dụng.",
     "AUTH_USER_ACCESS_TOKEN_INVALID": "Phiên đăng nhập không hợp lệ. Hãy đăng nhập lại.",
     "AUTH_VERIFICATION_PASSWORD_INVALID": "Mật khẩu chưa khớp với lúc đăng ký. Hãy kiểm tra lại.",
     "ENVIRONMENT_NOT_ALLOWED": "Key không được phép trong môi trường này.",
