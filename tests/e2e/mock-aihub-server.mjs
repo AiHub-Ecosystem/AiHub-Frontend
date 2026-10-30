@@ -510,7 +510,9 @@ const server = createServer(async (request, response) => {
         organizations: organizationConfig.roster.map((item) => ({
           ...item,
           identity_configured: item.identity_configured ?? false,
+          member_count: item.member_count ?? item.members?.length ?? 0,
         })),
+        next_cursor: null,
       },
       meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
     });
