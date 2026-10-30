@@ -17,9 +17,15 @@ const contractPath =
     path.dirname(fileURLToPath(import.meta.url)),
     "../../data/aihub-contract/openapi.json"
   );
-const validateContract = createContractValidator(
-  JSON.parse(readFileSync(contractPath, "utf8"))
-);
+const contractDocument = JSON.parse(readFileSync(contractPath, "utf8"));
+const validateContract = createContractValidator(contractDocument);
+// AIHUB contract 1.4.0 paginates the roster and adds `member_count`. The
+// pinned contract closes these objects, so the mock sends the new fields only
+// when the contract it validates against declares them. Drop this switch once
+// the pin is at 1.4.0 or later.
+const rosterIsPaginated = JSON.stringify(
+  contractDocument.paths?.["/v1/organizations/me/members"]?.get ?? {}
+).includes("next_cursor");
 const aihubLimits = JSON.parse(
   readFileSync(
     path.resolve(
@@ -510,9 +516,11 @@ const server = createServer(async (request, response) => {
         organizations: organizationConfig.roster.map((item) => ({
           ...item,
           identity_configured: item.identity_configured ?? false,
-          member_count: item.member_count ?? item.members?.length ?? 0,
+          ...(rosterIsPaginated && {
+            member_count: item.member_count ?? item.members?.length ?? 0,
+          }),
         })),
-        next_cursor: null,
+        ...(rosterIsPaginated && { next_cursor: null }),
       },
       meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
     });
