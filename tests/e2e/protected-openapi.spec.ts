@@ -15,7 +15,6 @@ test("anonymous users sign in before Scalar and can download the protected contr
   request,
 }) => {
   await resetAuthMock(request);
-  await page.route("https://cdn.jsdelivr.net/**", (route) => route.abort());
   const browserAuthorizationHeaders: string[] = [];
   page.on("request", (browserRequest) => {
     browserAuthorizationHeaders.push(
@@ -33,8 +32,24 @@ test("anonymous users sign in before Scalar and can download the protected contr
   await waitForHydration(page);
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(validPassword);
+  const scalarScriptResponse = page.waitForResponse((response) =>
+    response
+      .url()
+      .startsWith("https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.72.1")
+  );
+  const scalarSpecResponse = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/docs/openapi/v1.json"
+  );
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(page).toHaveURL(/\/docs\/reference$/u);
+  const [scalarScript, scalarSpec] = await Promise.all([
+    scalarScriptResponse,
+    scalarSpecResponse,
+  ]);
+  expect(scalarScript.ok()).toBe(true);
+  expect(scalarSpec.ok()).toBe(true);
+  expect((await scalarSpec.json()).info.title).toBe("AIHUB API");
 
   await expect(page.locator("#api-reference")).toHaveAttribute(
     "data-url",
@@ -84,6 +99,7 @@ test("anonymous users sign in before Scalar and can download the protected contr
   }[];
   expect(requests.map(({ pathname }) => pathname)).toEqual([
     "/docs",
+    "/openapi/v1.json",
     "/openapi.json",
     "/openapi/v1.json",
   ]);
