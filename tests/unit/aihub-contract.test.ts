@@ -20,15 +20,24 @@ function addCandidateErrorCode(document: typeof pinnedContract, code: string) {
           properties?: {
             error?: {
               properties?: {
-                code?: { anyOf?: unknown[] };
+                code?: {
+                  anyOf?: unknown[];
+                  "x-extensible-enum"?: unknown[];
+                };
               };
             };
           };
         }
       | undefined;
-    const codes = schema?.properties?.error?.properties?.code?.anyOf;
+    const codeSchema = schema?.properties?.error?.properties?.code;
+    const codes = codeSchema?.anyOf;
     if (codes) {
       codes.push({ const: code, type: "string" });
+      return candidate;
+    }
+    const extensibleCodes = codeSchema?.["x-extensible-enum"];
+    if (extensibleCodes) {
+      extensibleCodes.push(code);
       return candidate;
     }
   }
@@ -118,7 +127,7 @@ describe("AIHUB pinned response contract", () => {
             properties: {
               error: {
                 properties: {
-                  code: { anyOf: [{ const: "REFERENCED_ERROR" }] },
+                  code: { "x-extensible-enum": ["REFERENCED_ERROR"] },
                 },
               },
             },

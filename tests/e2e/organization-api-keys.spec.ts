@@ -201,7 +201,7 @@ test("creation offers Sandbox by default and labels Production as billable", asy
   await expect(page.getByText("Sandbox (miễn phí)")).toBeVisible();
 
   await page.getByLabel("Tên API key").fill("Sandbox demo key");
-  await page.locator('input[name="scopes"][value="writing.grade"]').check();
+  await page.locator('input[name="scopes"][value="writing.exercise"]').check();
   await page.getByRole("button", { name: "Tạo key" }).click();
   await expect(page.getByTestId("api-key-raw")).toBeVisible();
 
@@ -212,6 +212,7 @@ test("creation offers Sandbox by default and labels Production as billable", asy
     (entry: { path?: string }) => entry.path === "create-api-key"
   );
   expect(created.allowed_environments).toEqual(["sandbox"]);
+  expect(created.scopes).toEqual(["writing.exercise"]);
 });
 
 test("a Production key is created for Production and says it is billed", async ({
@@ -227,7 +228,7 @@ test("a Production key is created for Production and says it is billed", async (
     page.getByText(/Mọi request.*tính vào hạn mức sử dụng của Organization/)
   ).toBeVisible();
   await page.getByLabel("Tên API key").fill("Billable production key");
-  await page.locator('input[name="scopes"][value="writing.grade"]').check();
+  await page.locator('input[name="scopes"][value="writing.exercise"]').check();
   await page.getByRole("button", { name: "Tạo key" }).click();
   await expect(page.getByTestId("api-key-raw")).toBeVisible();
 
@@ -238,6 +239,7 @@ test("a Production key is created for Production and says it is billed", async (
     (entry: { path?: string }) => entry.path === "create-api-key"
   );
   expect(created.allowed_environments).toEqual(["production"]);
+  expect(created.scopes).toEqual(["writing.exercise"]);
 });
 
 test("creation uses roster scopes and reveals the raw key only once", async ({
@@ -262,10 +264,17 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   await setup(request, { apiKeys: [] });
   await signIn(page);
   await page.getByText("Tạo API key", { exact: true }).click();
+  await expect(
+    page.getByText(/API key đã tạo giữ nguyên các scope ban đầu/)
+  ).toBeVisible();
 
-  const writing = page.locator('input[name="scopes"][value="writing.grade"]');
+  const writingExercise = page.locator(
+    'input[name="scopes"][value="writing.exercise"]'
+  );
   const speaking = page.locator('input[name="scopes"][value="speaking.grade"]');
-  await expect(writing).not.toBeChecked();
+  await expect(writingExercise).not.toBeChecked();
+  await expect(writingExercise).toBeEnabled();
+  await expect(page.getByText("Bài tập Writing")).toBeVisible();
   await expect(speaking).toBeDisabled();
   await expect(page.getByText(identityReadinessTitle)).toBeVisible();
   await expect(
@@ -274,7 +283,7 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   await expect(page.getByText("Môi trường được phép")).toHaveCount(0);
 
   await page.getByLabel("Tên API key").fill("New service key");
-  await writing.check();
+  await writingExercise.check();
   const responsePromise = page.waitForResponse(
     (response) =>
       response
@@ -308,6 +317,14 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   await expect(
     quickstart.getByRole("heading", { name: "New service key · Quickstart" })
   ).toBeVisible();
+  await expect(
+    quickstart.getByText("writing.exercise", { exact: true })
+  ).toBeVisible();
+  await expect(
+    quickstart.getByText(
+      /Quickstart hiện chưa có lệnh mẫu cho các API Writing exercise/
+    )
+  ).toBeVisible();
   expect(quickstart.url()).not.toContain(rawKey);
   expect(await quickstart.content()).not.toContain(rawKey);
   await quickstart.close();
@@ -315,14 +332,19 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   await expect(dialog).toBeVisible();
   await expect(page.getByTestId("api-key-raw")).toHaveText(rawKey ?? "");
   expect(requestContainsRawKey).toBe(false);
-  await expect(
-    page.getByRole("row", { name: /New service key/ })
-  ).toBeVisible();
+  const createdRow = page.getByRole("row", { name: /New service key/ });
+  await expect(createdRow).toBeVisible();
+  await expect(createdRow.getByText("writing.exercise")).toBeVisible();
 
   const requests = await request
     .get(`${mockUrl}/__test__/organizations/requests`)
     .then((result) => result.json());
   expect(JSON.stringify(requests)).not.toContain(rawKey);
+  expect(
+    requests.requests.find(
+      (entry: { path?: string }) => entry.path === "create-api-key"
+    ).scopes
+  ).toEqual(["writing.exercise"]);
   await page.getByRole("button", { name: "Đóng" }).click();
   await expect(page.getByTestId("api-key-raw")).toHaveCount(0);
   const browserStorageAfterClose = await page.evaluate(() =>
@@ -376,6 +398,9 @@ test("a key holding writing.grade shows a Task 1 request beside Task 2", async (
     .getByRole("link", { name: "Gọi thử" })
     .click();
 
+  await expect(
+    page.getByText(/API key đã tạo giữ nguyên các scope ban đầu/)
+  ).toBeVisible();
   const tablist = page.getByRole("tablist", { name: "Sample requests" });
   await expect(tablist.getByRole("tab")).toHaveText([
     "Writing Task 1",
@@ -975,7 +1000,7 @@ function quickstartPath(apiKeyId: string) {
   return `/console/orgs/org-keys-12345678/api-keys/${apiKeyId}/quickstart`;
 }
 
-test("only an active key with a Sample request offers a Quickstart", async ({
+test("only active keys with a Sample request or Writing exercise scope offer a Quickstart", async ({
   page,
   request,
 }) => {

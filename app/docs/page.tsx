@@ -273,7 +273,7 @@ const ERRORS = [
 ];
 
 const CHECKLIST = [
-  "Key có đúng scope: writing.grade cho Writing, speaking.grade cho Speaking.",
+  "Writing Task 1/2 cần writing.grade; Writing exercise cần writing.exercise. Key đã tạo giữ nguyên scope, nên hãy tạo key mới nếu cần thêm quyền exercise.",
   "Mỗi key đi cặp với host của nó: production với api.aihubproduction.com, Customer Sandbox với sandbox.aihubproduction.com.",
   "Đã xác định dạng định danh của Organization và mọi request gửi đúng dạng đó.",
   "API key, Signed User Assertion và private key chỉ nằm trên server hoặc trong secret manager.",
@@ -883,7 +883,10 @@ export default function Page() {
                     thử và có thể cấp quyền chấm Writing, Speaking hoặc cả hai
                     nếu Organization đã được bật các dịch vụ tương ứng.
                   </p>
-                  <p>Console hiện chỉ tạo khóa dùng thật.</p>
+                  <p>
+                    Trong Console, chọn Sandbox và scope{" "}
+                    <code>writing.exercise</code> để gọi API Writing exercise.
+                  </p>
                 </div>
                 <div className="docs-sandbox-card">
                   <h3>Hạn mức miễn phí</h3>

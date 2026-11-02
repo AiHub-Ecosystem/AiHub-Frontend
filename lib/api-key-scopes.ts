@@ -1,6 +1,22 @@
 export const API_KEY_SCOPE_CATALOG = [
-  { entitlement: "writing", scope: "writing.grade", service: "Writing" },
-  { entitlement: "speaking", scope: "speaking.grade", service: "Speaking" },
+  {
+    entitlement: "writing",
+    scope: "writing.grade",
+    service: "Writing",
+    label: "Chấm bài viết",
+  },
+  {
+    entitlement: "writing",
+    scope: "writing.exercise",
+    service: "Writing",
+    label: "Bài tập Writing",
+  },
+  {
+    entitlement: "speaking",
+    scope: "speaking.grade",
+    service: "Speaking",
+    label: "Chấm bài nói",
+  },
 ] as const;
 
 export type ApiKeyScope = (typeof API_KEY_SCOPE_CATALOG)[number]["scope"];

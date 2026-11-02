@@ -9,12 +9,21 @@ describe("API key scope options", () => {
         entitlement: "writing",
         scope: "writing.grade",
         service: "Writing",
+        label: "Chấm bài viết",
+        available: true,
+      },
+      {
+        entitlement: "writing",
+        scope: "writing.exercise",
+        service: "Writing",
+        label: "Bài tập Writing",
         available: true,
       },
       {
         entitlement: "speaking",
         scope: "speaking.grade",
         service: "Speaking",
+        label: "Chấm bài nói",
         available: false,
       },
     ]);
@@ -28,7 +37,19 @@ describe("API key scope options", () => {
       ])
     ).toEqual([
       ["writing.grade", true],
+      ["writing.exercise", true],
       ["speaking.grade", true],
+    ]);
+  });
+
+  it("requires the Writing entitlement for both Writing scopes", () => {
+    expect(
+      apiKeyScopeOptions(["speaking"])
+        .filter((option) => option.entitlement === "writing")
+        .map((option) => [option.scope, option.available])
+    ).toEqual([
+      ["writing.grade", false],
+      ["writing.exercise", false],
     ]);
   });
 

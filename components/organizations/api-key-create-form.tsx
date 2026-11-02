@@ -208,7 +208,7 @@ export function ApiKeyCreateForm({
                     }
                   />
                   <span>
-                    {option.scope}
+                    {option.label} <code>{option.scope}</code>
                     {!option.available && (
                       <span className="api-key-unavailable">
                         {option.service} chưa được bật cho Organization. Liên hệ
@@ -220,6 +220,11 @@ export function ApiKeyCreateForm({
               ))}
               <p className="api-key-help">
                 Chỉ chọn scope cần thiết. Chọn ít nhất một scope.
+              </p>
+              <p className="api-key-help">
+                API key đã tạo giữ nguyên các scope ban đầu. Muốn gọi Writing
+                exercise, hãy tạo key mới có scope <code>writing.exercise</code>
+                .
               </p>
             </fieldset>
 

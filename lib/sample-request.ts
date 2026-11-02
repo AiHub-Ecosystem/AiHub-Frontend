@@ -763,10 +763,11 @@ export function quickstartPath(organizationId: string, apiKeyId: string) {
   return `/console/orgs/${encodeURIComponent(organizationId)}/api-keys/${encodeURIComponent(apiKeyId)}/quickstart`;
 }
 
-/** An active key with at least one Sample request; see Quickstart in CONTEXT.md. */
+/** An active key with a Sample request or Writing exercise scope. */
 export function hasQuickstart(apiKey: OrganizationApiKey): boolean {
   return (
     apiKey.status === "active" &&
-    SAMPLE_REQUESTS.some((entry) => apiKey.scopes.includes(entry.scope))
+    (SAMPLE_REQUESTS.some((entry) => apiKey.scopes.includes(entry.scope)) ||
+      apiKey.scopes.includes("writing.exercise"))
   );
 }

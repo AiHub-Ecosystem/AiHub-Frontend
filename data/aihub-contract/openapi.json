@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AIHUB API",
-    "version": "0.1.0"
+    "version": "1.7.0"
   },
   "servers": [
     {
@@ -67,48 +67,39 @@
         "description": "Identifies the end user on user-scoped operations. For an Organization with an active identity configuration it must be a Signed User Assertion; otherwise it is a Declared User ID: 1-256 visible ASCII characters with no spaces, compared exactly as sent."
       }
     },
+    "schemas": {
+      "OrganizationId": {
+        "pattern": "^org_[A-Za-z0-9][A-Za-z0-9_-]*$",
+        "description": "Case-sensitive Organization ID prefixed with org_; its suffix starts with an ASCII letter or digit and may contain ASCII letters, digits, underscores, and hyphens.",
+        "type": "string"
+      }
+    },
     "responses": {
       "Error400": {
-        "description": "INVALID_REQUEST | IDENTITY_JWKS_URL_UNSAFE | IDENTITY_JWKS_INVALID | AUTH_VERIFICATION_TOKEN_INVALID | AUTH_PASSWORD_RESET_TOKEN_INVALID | ORGANIZATION_INVITE_TOKEN_INVALID",
+        "description": "INVALID_REQUEST | IDENTITY_JWKS_URL_UNSAFE | IDENTITY_JWKS_INVALID | AUTH_VERIFICATION_TOKEN_INVALID | AUTH_VERIFICATION_PASSWORD_INVALID | AUTH_PASSWORD_RESET_TOKEN_INVALID | ORGANIZATION_INVITE_TOKEN_INVALID",
         "content": {
           "application/json": {
             "schema": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "type": "object",
               "required": ["error"],
               "properties": {
                 "error": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["code", "message", "request_id", "retryable"],
                   "properties": {
                     "code": {
-                      "anyOf": [
-                        {
-                          "const": "INVALID_REQUEST",
-                          "type": "string"
-                        },
-                        {
-                          "const": "IDENTITY_JWKS_URL_UNSAFE",
-                          "type": "string"
-                        },
-                        {
-                          "const": "IDENTITY_JWKS_INVALID",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AUTH_VERIFICATION_TOKEN_INVALID",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AUTH_PASSWORD_RESET_TOKEN_INVALID",
-                          "type": "string"
-                        },
-                        {
-                          "const": "ORGANIZATION_INVITE_TOKEN_INVALID",
-                          "type": "string"
-                        }
-                      ]
+                      "x-extensible-enum": [
+                        "INVALID_REQUEST",
+                        "IDENTITY_JWKS_URL_UNSAFE",
+                        "IDENTITY_JWKS_INVALID",
+                        "AUTH_VERIFICATION_TOKEN_INVALID",
+                        "AUTH_VERIFICATION_PASSWORD_INVALID",
+                        "AUTH_PASSWORD_RESET_TOKEN_INVALID",
+                        "ORGANIZATION_INVITE_TOKEN_INVALID"
+                      ],
+                      "type": "string"
                     },
                     "message": {
                       "type": "string"
@@ -140,50 +131,27 @@
         "content": {
           "application/json": {
             "schema": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "type": "object",
               "required": ["error"],
               "properties": {
                 "error": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["code", "message", "request_id", "retryable"],
                   "properties": {
                     "code": {
-                      "anyOf": [
-                        {
-                          "const": "UNAUTHORIZED",
-                          "type": "string"
-                        },
-                        {
-                          "const": "USER_IDENTITY_REQUIRED",
-                          "type": "string"
-                        },
-                        {
-                          "const": "INVALID_USER_IDENTITY",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AUTH_CREDENTIALS_INVALID",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AUTH_REFRESH_TOKEN_INVALID",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AUTH_USER_ACCESS_TOKEN_REQUIRED",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AUTH_USER_ACCESS_TOKEN_INVALID",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AUTH_WEB_SESSION_INVALID",
-                          "type": "string"
-                        }
-                      ]
+                      "x-extensible-enum": [
+                        "UNAUTHORIZED",
+                        "USER_IDENTITY_REQUIRED",
+                        "INVALID_USER_IDENTITY",
+                        "AUTH_CREDENTIALS_INVALID",
+                        "AUTH_REFRESH_TOKEN_INVALID",
+                        "AUTH_USER_ACCESS_TOKEN_REQUIRED",
+                        "AUTH_USER_ACCESS_TOKEN_INVALID",
+                        "AUTH_WEB_SESSION_INVALID"
+                      ],
+                      "type": "string"
                     },
                     "message": {
                       "type": "string"
@@ -215,26 +183,21 @@
         "content": {
           "application/json": {
             "schema": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "type": "object",
               "required": ["error"],
               "properties": {
                 "error": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["code", "message", "request_id", "retryable"],
                   "properties": {
                     "code": {
-                      "anyOf": [
-                        {
-                          "const": "FORBIDDEN",
-                          "type": "string"
-                        },
-                        {
-                          "const": "ENVIRONMENT_NOT_ALLOWED",
-                          "type": "string"
-                        }
-                      ]
+                      "x-extensible-enum": [
+                        "FORBIDDEN",
+                        "ENVIRONMENT_NOT_ALLOWED"
+                      ],
+                      "type": "string"
                     },
                     "message": {
                       "type": "string"
@@ -266,17 +229,17 @@
         "content": {
           "application/json": {
             "schema": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "type": "object",
               "required": ["error"],
               "properties": {
                 "error": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["code", "message", "request_id", "retryable"],
                   "properties": {
                     "code": {
-                      "const": "NOT_FOUND",
+                      "x-extensible-enum": ["NOT_FOUND"],
                       "type": "string"
                     },
                     "message": {
@@ -306,53 +269,82 @@
       },
       "Error409": {
         "description": "IDEMPOTENCY_CONFLICT | AUTH_IDENTITY_UNAVAILABLE | AUTH_MFA_ALREADY_ENABLED | ORGANIZATION_MEMBER_EXISTS | ORGANIZATION_OWNER_REQUIRED | ORGANIZATION_IDENTITY_ISSUER_CONFLICT | ORGANIZATION_CREATION_LIMIT_REACHED | AVATAR_CHANGED",
+        "headers": {
+          "Retry-After": {
+            "description": "Present whenever the error includes retry_after_ms: the same wait in whole seconds, rounded up.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "type": "object",
               "required": ["error"],
               "properties": {
                 "error": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["code", "message", "request_id", "retryable"],
                   "properties": {
                     "code": {
-                      "anyOf": [
-                        {
-                          "const": "IDEMPOTENCY_CONFLICT",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AUTH_IDENTITY_UNAVAILABLE",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AUTH_MFA_ALREADY_ENABLED",
-                          "type": "string"
-                        },
-                        {
-                          "const": "ORGANIZATION_MEMBER_EXISTS",
-                          "type": "string"
-                        },
-                        {
-                          "const": "ORGANIZATION_OWNER_REQUIRED",
-                          "type": "string"
-                        },
-                        {
-                          "const": "ORGANIZATION_IDENTITY_ISSUER_CONFLICT",
-                          "type": "string"
-                        },
-                        {
-                          "const": "ORGANIZATION_CREATION_LIMIT_REACHED",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AVATAR_CHANGED",
-                          "type": "string"
-                        }
-                      ]
+                      "x-extensible-enum": [
+                        "IDEMPOTENCY_CONFLICT",
+                        "AUTH_IDENTITY_UNAVAILABLE",
+                        "AUTH_MFA_ALREADY_ENABLED",
+                        "ORGANIZATION_MEMBER_EXISTS",
+                        "ORGANIZATION_OWNER_REQUIRED",
+                        "ORGANIZATION_IDENTITY_ISSUER_CONFLICT",
+                        "ORGANIZATION_CREATION_LIMIT_REACHED",
+                        "AVATAR_CHANGED"
+                      ],
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "retry_after_ms": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "details": {
+                      "additionalProperties": true,
+                      "type": "object",
+                      "properties": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Error412": {
+        "description": "PRECONDITION_FAILED",
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": true,
+              "type": "object",
+              "required": ["error"],
+              "properties": {
+                "error": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "required": ["code", "message", "request_id", "retryable"],
+                  "properties": {
+                    "code": {
+                      "x-extensible-enum": ["PRECONDITION_FAILED"],
+                      "type": "string"
                     },
                     "message": {
                       "type": "string"
@@ -384,17 +376,17 @@
         "content": {
           "application/json": {
             "schema": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "type": "object",
               "required": ["error"],
               "properties": {
                 "error": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["code", "message", "request_id", "retryable"],
                   "properties": {
                     "code": {
-                      "const": "PAYLOAD_TOO_LARGE",
+                      "x-extensible-enum": ["PAYLOAD_TOO_LARGE"],
                       "type": "string"
                     },
                     "message": {
@@ -427,17 +419,17 @@
         "content": {
           "application/json": {
             "schema": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "type": "object",
               "required": ["error"],
               "properties": {
                 "error": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["code", "message", "request_id", "retryable"],
                   "properties": {
                     "code": {
-                      "const": "AUDIO_UNREADABLE",
+                      "x-extensible-enum": ["AUDIO_UNREADABLE"],
                       "type": "string"
                     },
                     "message": {
@@ -467,33 +459,46 @@
       },
       "Error429": {
         "description": "RATE_LIMITED | CONCURRENCY_LIMIT | QUOTA_EXCEEDED",
+        "headers": {
+          "Retry-After": {
+            "description": "Present whenever the error includes retry_after_ms: the same wait in whole seconds, rounded up.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          },
+          "RateLimit-Policy": {
+            "description": "Advisory. The per-minute limit of the API key, for example `\"per-key\";q=600;w=60`. Present on routes the per-key limit applies to.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "RateLimit": {
+            "description": "Advisory. What the API key has left of its current window and the whole seconds until it resets, for example `\"per-key\";r=0;t=13`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "type": "object",
               "required": ["error"],
               "properties": {
                 "error": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["code", "message", "request_id", "retryable"],
                   "properties": {
                     "code": {
-                      "anyOf": [
-                        {
-                          "const": "RATE_LIMITED",
-                          "type": "string"
-                        },
-                        {
-                          "const": "CONCURRENCY_LIMIT",
-                          "type": "string"
-                        },
-                        {
-                          "const": "QUOTA_EXCEEDED",
-                          "type": "string"
-                        }
-                      ]
+                      "x-extensible-enum": [
+                        "RATE_LIMITED",
+                        "CONCURRENCY_LIMIT",
+                        "QUOTA_EXCEEDED"
+                      ],
+                      "type": "string"
                     },
                     "message": {
                       "type": "string"
@@ -525,17 +530,17 @@
         "content": {
           "application/json": {
             "schema": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "type": "object",
               "required": ["error"],
               "properties": {
                 "error": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["code", "message", "request_id", "retryable"],
                   "properties": {
                     "code": {
-                      "const": "INTERNAL_ERROR",
+                      "x-extensible-enum": ["INTERNAL_ERROR"],
                       "type": "string"
                     },
                     "message": {
@@ -568,26 +573,21 @@
         "content": {
           "application/json": {
             "schema": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "type": "object",
               "required": ["error"],
               "properties": {
                 "error": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["code", "message", "request_id", "retryable"],
                   "properties": {
                     "code": {
-                      "anyOf": [
-                        {
-                          "const": "AI_SERVICE_CONTRACT_VIOLATION",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AI_SERVICE_ERROR",
-                          "type": "string"
-                        }
-                      ]
+                      "x-extensible-enum": [
+                        "AI_SERVICE_CONTRACT_VIOLATION",
+                        "AI_SERVICE_ERROR"
+                      ],
+                      "type": "string"
                     },
                     "message": {
                       "type": "string"
@@ -615,62 +615,46 @@
         }
       },
       "Error503": {
-        "description": "IDENTITY_PROVIDER_UNAVAILABLE | IDENTITY_JWKS_SOURCE_UNAVAILABLE | IDENTITY_CONFIG_CACHE_UNAVAILABLE | DATABASE_UNAVAILABLE | AUTH_WEB_SESSION_UNAVAILABLE | AVATAR_STORAGE_UNAVAILABLE | SPEAKING_AUDIO_STORAGE_UNAVAILABLE | WRITING_CHART_STORAGE_UNAVAILABLE | AI_SERVICE_THROTTLED | AI_SERVICE_UNAVAILABLE",
+        "description": "IDENTITY_PROVIDER_UNAVAILABLE | IDENTITY_JWKS_SOURCE_UNAVAILABLE | IDENTITY_CONFIG_CACHE_UNAVAILABLE | DATABASE_UNAVAILABLE | AUTH_ARGON2_CAPACITY | EMAIL_DELIVERY_BACKLOGGED | AUTH_WEB_SESSION_UNAVAILABLE | REDIS_UNAVAILABLE | RETRY_BUDGET_UNAVAILABLE | AVATAR_STORAGE_UNAVAILABLE | SPEAKING_AUDIO_STORAGE_UNAVAILABLE | WRITING_CHART_STORAGE_UNAVAILABLE | AI_SERVICE_THROTTLED | AI_SERVICE_UNAVAILABLE",
+        "headers": {
+          "Retry-After": {
+            "description": "Present whenever the error includes retry_after_ms: the same wait in whole seconds, rounded up.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "type": "object",
               "required": ["error"],
               "properties": {
                 "error": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["code", "message", "request_id", "retryable"],
                   "properties": {
                     "code": {
-                      "anyOf": [
-                        {
-                          "const": "IDENTITY_PROVIDER_UNAVAILABLE",
-                          "type": "string"
-                        },
-                        {
-                          "const": "IDENTITY_JWKS_SOURCE_UNAVAILABLE",
-                          "type": "string"
-                        },
-                        {
-                          "const": "IDENTITY_CONFIG_CACHE_UNAVAILABLE",
-                          "type": "string"
-                        },
-                        {
-                          "const": "DATABASE_UNAVAILABLE",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AUTH_WEB_SESSION_UNAVAILABLE",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AVATAR_STORAGE_UNAVAILABLE",
-                          "type": "string"
-                        },
-                        {
-                          "const": "SPEAKING_AUDIO_STORAGE_UNAVAILABLE",
-                          "type": "string"
-                        },
-                        {
-                          "const": "WRITING_CHART_STORAGE_UNAVAILABLE",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AI_SERVICE_THROTTLED",
-                          "type": "string"
-                        },
-                        {
-                          "const": "AI_SERVICE_UNAVAILABLE",
-                          "type": "string"
-                        }
-                      ]
+                      "x-extensible-enum": [
+                        "IDENTITY_PROVIDER_UNAVAILABLE",
+                        "IDENTITY_JWKS_SOURCE_UNAVAILABLE",
+                        "IDENTITY_CONFIG_CACHE_UNAVAILABLE",
+                        "DATABASE_UNAVAILABLE",
+                        "AUTH_ARGON2_CAPACITY",
+                        "EMAIL_DELIVERY_BACKLOGGED",
+                        "AUTH_WEB_SESSION_UNAVAILABLE",
+                        "REDIS_UNAVAILABLE",
+                        "RETRY_BUDGET_UNAVAILABLE",
+                        "AVATAR_STORAGE_UNAVAILABLE",
+                        "SPEAKING_AUDIO_STORAGE_UNAVAILABLE",
+                        "WRITING_CHART_STORAGE_UNAVAILABLE",
+                        "AI_SERVICE_THROTTLED",
+                        "AI_SERVICE_UNAVAILABLE"
+                      ],
+                      "type": "string"
                     },
                     "message": {
                       "type": "string"
@@ -702,17 +686,17 @@
         "content": {
           "application/json": {
             "schema": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "type": "object",
               "required": ["error"],
               "properties": {
                 "error": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["code", "message", "request_id", "retryable"],
                   "properties": {
                     "code": {
-                      "const": "AI_SERVICE_TIMEOUT",
+                      "x-extensible-enum": ["AI_SERVICE_TIMEOUT"],
                       "type": "string"
                     },
                     "message": {
@@ -754,17 +738,17 @@
         "content": {
           "application/json": {
             "schema": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "type": "object",
               "required": ["error"],
               "properties": {
                 "error": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["code", "message", "request_id", "retryable"],
                   "properties": {
                     "code": {
-                      "const": "RATE_LIMITED",
+                      "x-extensible-enum": ["RATE_LIMITED"],
                       "type": "string"
                     },
                     "message": {
@@ -838,6 +822,7 @@
                   "question": {
                     "minLength": 1,
                     "maxLength": 2000,
+                    "description": "The limit counts UTF-16 code units. A character outside the Basic Multilingual Plane, such as most emoji, counts as 2.",
                     "type": "string"
                   },
                   "chart_type": {
@@ -875,6 +860,7 @@
                   "essay": {
                     "minLength": 1,
                     "maxLength": 20000,
+                    "description": "The limit counts UTF-16 code units. A character outside the Basic Multilingual Plane, such as most emoji, counts as 2.",
                     "type": "string"
                   },
                   "image_url": {
@@ -908,12 +894,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "overall_band",
@@ -940,7 +926,7 @@
                           "maxItems": 4,
                           "type": "array",
                           "items": {
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "type": "object",
                             "required": [
                               "id",
@@ -1020,7 +1006,7 @@
                         "annotations": {
                           "type": "array",
                           "items": {
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "type": "object",
                             "required": [
                               "criterion",
@@ -1068,7 +1054,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "request_id",
@@ -1091,7 +1077,7 @@
                           "type": "string"
                         },
                         "timing": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "downstream_ms",
@@ -1199,16 +1185,19 @@
                   "question": {
                     "minLength": 1,
                     "maxLength": 2000,
+                    "description": "The limit counts UTF-16 code units. A character outside the Basic Multilingual Plane, such as most emoji, counts as 2.",
                     "type": "string"
                   },
                   "topic": {
                     "minLength": 1,
                     "maxLength": 200,
+                    "description": "The limit counts UTF-16 code units. A character outside the Basic Multilingual Plane, such as most emoji, counts as 2.",
                     "type": "string"
                   },
                   "essay": {
                     "minLength": 1,
                     "maxLength": 20000,
+                    "description": "The limit counts UTF-16 code units. A character outside the Basic Multilingual Plane, such as most emoji, counts as 2.",
                     "type": "string"
                   },
                   "language": {
@@ -1235,12 +1224,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "overall_band",
@@ -1267,7 +1256,7 @@
                           "maxItems": 4,
                           "type": "array",
                           "items": {
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "type": "object",
                             "required": [
                               "id",
@@ -1347,7 +1336,7 @@
                         "annotations": {
                           "type": "array",
                           "items": {
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "type": "object",
                             "required": [
                               "criterion",
@@ -1395,7 +1384,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "request_id",
@@ -1418,7 +1407,7 @@
                           "type": "string"
                         },
                         "timing": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "downstream_ms",
@@ -1591,15 +1580,23 @@
         "responses": {
           "200": {
             "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": ["no-store"]
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "question_id",
@@ -1628,7 +1625,7 @@
                           "type": "string"
                         },
                         "scorability": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "is_scorable",
@@ -1659,7 +1656,7 @@
                           }
                         },
                         "estimated_band": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "overall",
@@ -1702,7 +1699,7 @@
                           }
                         },
                         "transcript": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "text",
@@ -1724,7 +1721,7 @@
                           }
                         },
                         "relevance": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": ["on_topic", "score", "feedback_vi"],
                           "properties": {
@@ -1751,7 +1748,7 @@
                         "fluency_metrics": {
                           "anyOf": [
                             {
-                              "additionalProperties": false,
+                              "additionalProperties": true,
                               "type": "object",
                               "required": [
                                 "speech_rate_wpm",
@@ -1800,12 +1797,12 @@
                           ]
                         },
                         "pronunciation_detail": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": ["summary", "words"],
                           "properties": {
                             "summary": {
-                              "additionalProperties": false,
+                              "additionalProperties": true,
                               "type": "object",
                               "required": [
                                 "good_count",
@@ -1830,7 +1827,7 @@
                             "words": {
                               "type": "array",
                               "items": {
-                                "additionalProperties": false,
+                                "additionalProperties": true,
                                 "type": "object",
                                 "required": [
                                   "word",
@@ -1854,7 +1851,7 @@
                                   "syllables": {
                                     "type": "array",
                                     "items": {
-                                      "additionalProperties": false,
+                                      "additionalProperties": true,
                                       "type": "object",
                                       "required": [
                                         "letters",
@@ -1924,7 +1921,7 @@
                                   "phonemes": {
                                     "type": "array",
                                     "items": {
-                                      "additionalProperties": false,
+                                      "additionalProperties": true,
                                       "type": "object",
                                       "required": [
                                         "phone",
@@ -1990,14 +1987,14 @@
                           }
                         },
                         "language_analysis": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": ["grammar_errors", "vocabulary_upgrades"],
                           "properties": {
                             "grammar_errors": {
                               "type": "array",
                               "items": {
-                                "additionalProperties": false,
+                                "additionalProperties": true,
                                 "type": "object",
                                 "required": [
                                   "sentence",
@@ -2028,7 +2025,7 @@
                             "vocabulary_upgrades": {
                               "type": "array",
                               "items": {
-                                "additionalProperties": false,
+                                "additionalProperties": true,
                                 "type": "object",
                                 "required": [
                                   "original_word",
@@ -2058,7 +2055,7 @@
                           }
                         },
                         "feedback": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "summary_vi",
@@ -2080,7 +2077,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "request_id",
@@ -2103,7 +2100,7 @@
                           "type": "string"
                         },
                         "timing": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "downstream_ms",
@@ -2277,15 +2274,23 @@
         "responses": {
           "200": {
             "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": ["no-store"]
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "question_id",
@@ -2314,7 +2319,7 @@
                           "type": "string"
                         },
                         "scorability": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "is_scorable",
@@ -2345,7 +2350,7 @@
                           }
                         },
                         "estimated_band": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "overall",
@@ -2388,7 +2393,7 @@
                           }
                         },
                         "transcript": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "text",
@@ -2410,7 +2415,7 @@
                           }
                         },
                         "relevance": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": ["on_topic", "score", "feedback_vi"],
                           "properties": {
@@ -2437,7 +2442,7 @@
                         "fluency_metrics": {
                           "anyOf": [
                             {
-                              "additionalProperties": false,
+                              "additionalProperties": true,
                               "type": "object",
                               "required": [
                                 "speech_rate_wpm",
@@ -2486,12 +2491,12 @@
                           ]
                         },
                         "pronunciation_detail": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": ["summary", "words"],
                           "properties": {
                             "summary": {
-                              "additionalProperties": false,
+                              "additionalProperties": true,
                               "type": "object",
                               "required": [
                                 "good_count",
@@ -2516,7 +2521,7 @@
                             "words": {
                               "type": "array",
                               "items": {
-                                "additionalProperties": false,
+                                "additionalProperties": true,
                                 "type": "object",
                                 "required": [
                                   "word",
@@ -2540,7 +2545,7 @@
                                   "syllables": {
                                     "type": "array",
                                     "items": {
-                                      "additionalProperties": false,
+                                      "additionalProperties": true,
                                       "type": "object",
                                       "required": [
                                         "letters",
@@ -2610,7 +2615,7 @@
                                   "phonemes": {
                                     "type": "array",
                                     "items": {
-                                      "additionalProperties": false,
+                                      "additionalProperties": true,
                                       "type": "object",
                                       "required": [
                                         "phone",
@@ -2676,14 +2681,14 @@
                           }
                         },
                         "language_analysis": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": ["grammar_errors", "vocabulary_upgrades"],
                           "properties": {
                             "grammar_errors": {
                               "type": "array",
                               "items": {
-                                "additionalProperties": false,
+                                "additionalProperties": true,
                                 "type": "object",
                                 "required": [
                                   "sentence",
@@ -2714,7 +2719,7 @@
                             "vocabulary_upgrades": {
                               "type": "array",
                               "items": {
-                                "additionalProperties": false,
+                                "additionalProperties": true,
                                 "type": "object",
                                 "required": [
                                   "original_word",
@@ -2744,7 +2749,7 @@
                           }
                         },
                         "feedback": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "summary_vi",
@@ -2766,7 +2771,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "request_id",
@@ -2789,7 +2794,7 @@
                           "type": "string"
                         },
                         "timing": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "downstream_ms",
@@ -2893,12 +2898,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["assertion", "user_id", "expires_at"],
                       "properties": {
@@ -2917,7 +2922,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -3034,15 +3039,23 @@
         "responses": {
           "200": {
             "description": "Key is eligible for the requested live demo skill",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": ["no-store"]
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "valid",
@@ -3095,7 +3108,7 @@
                         "allowance": {
                           "anyOf": [
                             {
-                              "additionalProperties": false,
+                              "additionalProperties": true,
                               "type": "object",
                               "required": [
                                 "monthly_limit",
@@ -3130,7 +3143,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -3210,12 +3223,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["part", "questions"],
                       "properties": {
@@ -3234,7 +3247,7 @@
                         "questions": {
                           "type": "array",
                           "items": {
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "type": "object",
                             "required": [
                               "question_id",
@@ -3267,7 +3280,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id", "service", "operation"],
                       "properties": {
@@ -3355,6 +3368,7 @@
         "summary": "Create a Speaking Audio upload intent",
         "description": "Creates a one-hour intent bound to the Organization and exact End-User ID resolved from `X-User-Identity`. The response contains a five-minute presigned `PUT` URL; send the audio directly to that URL with the returned `Content-Type` and `Content-Length` headers.\n\nThe URL is a write credential. Do not log, persist, or expose it. The intent is not an Audio asset until completion verifies the stored object.",
         "x-identity-scope": "user",
+        "x-required-scope": "speaking.grade",
         "security": [
           {
             "ApiKeyAuth": []
@@ -3425,12 +3439,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "asset_id",
@@ -3454,7 +3468,7 @@
                           "type": "string"
                         },
                         "headers": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": ["Content-Type", "Content-Length"],
                           "properties": {
@@ -3499,7 +3513,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -3544,6 +3558,7 @@
         "summary": "Refresh a Speaking Audio upload URL",
         "description": "Issues another five-minute URL for the same open intent, key, content type, and byte size. It does not extend the original one-hour intent expiry.",
         "x-identity-scope": "user",
+        "x-required-scope": "speaking.grade",
         "security": [
           {
             "ApiKeyAuth": []
@@ -3557,7 +3572,7 @@
             "$ref": "#/components/parameters/UserIdentity"
           },
           {
-            "name": "assetId",
+            "name": "asset_id",
             "in": "path",
             "required": true,
             "description": "The asset ID returned when the upload intent was created.",
@@ -3582,12 +3597,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "asset_id",
@@ -3611,7 +3626,7 @@
                           "type": "string"
                         },
                         "headers": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": ["Content-Type", "Content-Length"],
                           "properties": {
@@ -3656,7 +3671,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -3701,6 +3716,7 @@
         "summary": "Complete a Speaking Audio upload",
         "description": "Verifies the stored object metadata at the exact key recorded by the intent. A valid object creates the Audio asset and sets `retention_expires_at` to 30 days after acceptance; a missing object leaves the intent retryable, while invalid metadata rejects the intent.\n\nOnly the same Organization and End-User ID can complete the intent. Repeating a successful completion returns the same Audio asset.",
         "x-identity-scope": "user",
+        "x-required-scope": "speaking.grade",
         "security": [
           {
             "ApiKeyAuth": []
@@ -3714,7 +3730,7 @@
             "$ref": "#/components/parameters/UserIdentity"
           },
           {
-            "name": "assetId",
+            "name": "asset_id",
             "in": "path",
             "required": true,
             "description": "The asset ID returned when the upload intent was created.",
@@ -3739,12 +3755,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "asset_id",
@@ -3798,7 +3814,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -3827,12 +3843,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "asset_id",
@@ -3886,7 +3902,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -3932,8 +3948,10 @@
       "post": {
         "operationId": "writing.chartUploads.create",
         "summary": "Create a Writing Task 1 chart upload intent",
-        "description": "Requires an API key with `writing.grade` and the same declared or signed `X-User-Identity` accepted by Writing Task 1 grading. The intent is bound to that Organization, End User, and API-key environment.\n\nUpload directly to the returned URL as `multipart/form-data`, including every returned `fields` entry and the file under `file`. The signed policy limits the stored file to the declared byte size. Staging remains private. The policy expires after five minutes; the intent expires after one hour and can be refreshed without extending that deadline. Limits are five intents and five published charts per Organization in a rolling hour.",
+        "description": "Requires an API key with `writing.grade` or `writing.exercise` and the same declared or signed `X-User-Identity` accepted by Writing Task 1 grading. The intent is bound to that Organization, End User, and API-key environment.\n\nUpload directly to the returned URL as `multipart/form-data`, including every returned `fields` entry and the file under `file`. The signed policy limits the stored file to the declared byte size. Staging remains private. The policy expires after five minutes; the intent expires after one hour and can be refreshed without extending that deadline. Limits are five intents and five published charts per Organization in a rolling hour.",
         "x-identity-scope": "user",
+        "x-required-scope": "writing.grade",
+        "x-accepted-scopes": ["writing.grade", "writing.exercise"],
         "security": [
           {
             "ApiKeyAuth": []
@@ -3996,12 +4014,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "asset_id",
@@ -4030,7 +4048,8 @@
                             "^(.*)$": {
                               "type": "string"
                             }
-                          }
+                          },
+                          "additionalProperties": true
                         },
                         "expires_at": {
                           "format": "date-time",
@@ -4043,7 +4062,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -4085,8 +4104,10 @@
       "post": {
         "operationId": "writing.chartUploads.refresh",
         "summary": "Refresh a Writing Task 1 chart upload URL",
-        "description": "Refreshes the signed URL for the same private staging object without extending the intent deadline.",
+        "description": "Requires an API key with `writing.grade` or `writing.exercise`. Refreshes the signed URL for the same private staging object without extending the intent deadline.",
         "x-identity-scope": "user",
+        "x-required-scope": "writing.grade",
+        "x-accepted-scopes": ["writing.grade", "writing.exercise"],
         "security": [
           {
             "ApiKeyAuth": []
@@ -4100,7 +4121,7 @@
             "$ref": "#/components/parameters/UserIdentity"
           },
           {
-            "name": "assetId",
+            "name": "asset_id",
             "in": "path",
             "required": true,
             "description": "The chart asset ID returned when the upload intent was created.",
@@ -4125,12 +4146,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "asset_id",
@@ -4159,7 +4180,8 @@
                             "^(.*)$": {
                               "type": "string"
                             }
-                          }
+                          },
+                          "additionalProperties": true
                         },
                         "expires_at": {
                           "format": "date-time",
@@ -4172,7 +4194,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -4214,8 +4236,10 @@
       "post": {
         "operationId": "writing.chartUploads.complete",
         "summary": "Verify and publish a Writing Task 1 chart",
-        "description": "Downloads the complete staged object (up to 10 MiB), decodes and verifies the JPEG, PNG, or WebP image, applies EXIF orientation, strips source metadata, and re-encodes it before publishing the sanitized bytes. Completion returns 413 and rejects the intent if the sanitized output exceeds 10 MiB; malformed or mismatched images are rejected with 400.\n\nThe returned `image_url` is anonymously readable and shareable until it expires 24 hours after publication. Anyone who learns the URL can read and reuse it. Only the same Organization, End User, and environment can complete the upload.",
+        "description": "Requires an API key with `writing.grade` or `writing.exercise`.\n\nDownloads the complete staged object (up to 10 MiB), decodes and verifies the JPEG, PNG, or WebP image, applies EXIF orientation, strips source metadata, and re-encodes it before publishing the sanitized bytes. Completion returns 413 and rejects the intent if the sanitized output exceeds 10 MiB; malformed or mismatched images are rejected with 400.\n\nThe returned `image_url` is anonymously readable and shareable until it expires 24 hours after publication. Anyone who learns the URL can read and reuse it. Only the same Organization, End User, and environment can complete the upload.",
         "x-identity-scope": "user",
+        "x-required-scope": "writing.grade",
+        "x-accepted-scopes": ["writing.grade", "writing.exercise"],
         "security": [
           {
             "ApiKeyAuth": []
@@ -4229,7 +4253,7 @@
             "$ref": "#/components/parameters/UserIdentity"
           },
           {
-            "name": "assetId",
+            "name": "asset_id",
             "in": "path",
             "required": true,
             "description": "The chart asset ID returned when the upload intent was created.",
@@ -4254,12 +4278,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "asset_id",
@@ -4310,7 +4334,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -4415,12 +4439,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "asset_id",
@@ -4443,7 +4467,7 @@
                           "type": "string"
                         },
                         "headers": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "Content-Type",
@@ -4484,7 +4508,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -4549,12 +4573,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "asset_id",
@@ -4599,7 +4623,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -4619,12 +4643,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "asset_id",
@@ -4669,7 +4693,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -4730,19 +4754,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["avatar"],
                       "properties": {
                         "avatar": {
                           "anyOf": [
                             {
-                              "additionalProperties": false,
+                              "additionalProperties": true,
                               "type": "object",
                               "required": [
                                 "asset_id",
@@ -4794,7 +4818,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -4946,17 +4970,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["organization", "role"],
                       "properties": {
                         "organization": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": ["organization_id", "name", "status"],
                           "properties": {
@@ -4982,7 +5006,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -5033,8 +5057,7 @@
             "required": true,
             "description": "The organization to rename.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           }
         ],
@@ -5063,17 +5086,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["organization"],
                       "properties": {
                         "organization": {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": ["organization_id", "name", "status"],
                           "properties": {
@@ -5095,7 +5118,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -5129,7 +5152,7 @@
       "get": {
         "operationId": "organizations.me.members.list",
         "summary": "List the authenticated user organization roster",
-        "description": "Returns the Organizations where the authenticated user has an active membership, including suspended Organizations. `identity_configured` reports only whether an active identity configuration is saved; the JWKS source is not probed and its URL or key material is not returned.",
+        "description": "Returns the Organizations where the authenticated user has an active membership, including suspended Organizations, ordered by `organization_id` ascending and paginated by limit and an opaque cursor. A page holds whole Organizations and never splits one. Each Organization lists its first 100 active members by username; `member_count` is the number of active members, so a value larger than the length of `members` means the list is cut. The members of a larger Organization are paginated by the Organization members route, which needs an owner or admin role. `identity_configured` reports only whether an active identity configuration is saved; the JWKS source is not probed and its URL or key material is not returned. A traversal is a live read, not a snapshot: membership is checked again on every page, so an Organization the caller left can disappear and one the caller joined behind the cursor appears only after a restart.",
         "x-identity-scope": "organization",
         "security": [
           {
@@ -5139,6 +5162,28 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Organizations per page. A value outside the range is rejected rather than clamped, because a silently shortened page is indistinguishable from the end of the collection.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque position from a previous `next_cursor`. Bound to the authenticated user: replaying it as another user is rejected.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         ],
         "responses": {
@@ -5147,19 +5192,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
-                      "required": ["organizations"],
+                      "required": ["organizations", "next_cursor"],
                       "properties": {
                         "organizations": {
                           "type": "array",
                           "items": {
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "type": "object",
                             "required": [
                               "organization_id",
@@ -5168,6 +5213,7 @@
                               "identity_configured",
                               "entitlements",
                               "membership",
+                              "member_count",
                               "members"
                             ],
                             "properties": {
@@ -5202,7 +5248,7 @@
                                 }
                               },
                               "membership": {
-                                "additionalProperties": false,
+                                "additionalProperties": true,
                                 "type": "object",
                                 "required": ["role"],
                                 "properties": {
@@ -5224,10 +5270,14 @@
                                   }
                                 }
                               },
+                              "member_count": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
                               "members": {
                                 "type": "array",
                                 "items": {
-                                  "additionalProperties": false,
+                                  "additionalProperties": true,
                                   "type": "object",
                                   "required": ["username", "role"],
                                   "properties": {
@@ -5256,11 +5306,22 @@
                               }
                             }
                           }
+                        },
+                        "next_cursor": {
+                          "anyOf": [
+                            {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -5274,6 +5335,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
           },
           "401": {
             "$ref": "#/components/responses/Error401"
@@ -5299,11 +5363,36 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Organizations per page. A value outside the range is rejected rather than clamped, because a silently shortened page is indistinguishable from the end of the collection.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque position from a previous `next_cursor`. Bound to the authenticated user: replaying it as another user is rejected.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Success; same headers as GET, without a response body."
+          },
+          "400": {
+            "description": "Same status as GET, without a response body."
           },
           "401": {
             "description": "Same status as GET, without a response body."
@@ -5321,7 +5410,7 @@
       "get": {
         "operationId": "organizations.members.list",
         "summary": "List an organization's memberships",
-        "description": "Active owners and admins may list active or disabled memberships for one active Organization. The filter defaults to active membership and does not depend on the member account status. Results are ordered by immutable username and omit account IDs and email addresses.",
+        "description": "Active owners and admins may list active or disabled memberships for one active Organization, paginated by limit and an opaque cursor. The filter defaults to active membership and does not depend on the member account status. Results are ordered by immutable username ascending and omit account IDs and email addresses. A traversal is a live read, not a snapshot: rows added before the cursor appear after a restart, and rows that are removed or change status can disappear.",
         "x-identity-scope": "organization",
         "security": [
           {
@@ -5338,8 +5427,7 @@
             "required": true,
             "description": "The organization whose memberships are listed.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           },
           {
@@ -5352,6 +5440,28 @@
               "enum": ["active", "disabled"],
               "default": "active"
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Members per page. A value outside the range is rejected rather than clamped, because a silently shortened page is indistinguishable from the end of the collection.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque position from a previous `next_cursor`. Bound to the organization and status filter it was issued under: replaying it under a different scope is rejected.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         ],
         "responses": {
@@ -5360,19 +5470,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
-                      "required": ["members"],
+                      "required": ["members", "next_cursor"],
                       "properties": {
                         "members": {
                           "type": "array",
                           "items": {
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "type": "object",
                             "required": ["username", "role", "status"],
                             "properties": {
@@ -5410,11 +5520,22 @@
                               }
                             }
                           }
+                        },
+                        "next_cursor": {
+                          "anyOf": [
+                            {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -5463,8 +5584,7 @@
             "required": true,
             "description": "The organization whose memberships are listed.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           },
           {
@@ -5476,6 +5596,28 @@
               "type": "string",
               "enum": ["active", "disabled"],
               "default": "active"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Members per page. A value outside the range is rejected rather than clamped, because a silently shortened page is indistinguishable from the end of the collection.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque position from a previous `next_cursor`. Bound to the organization and status filter it was issued under: replaying it under a different scope is rejected.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
             }
           }
         ],
@@ -5502,6 +5644,7 @@
       "get": {
         "operationId": "organizations.invitations.list",
         "summary": "List an organization's open invitations",
+        "description": "Active owners and admins may list open, unexpired invitations for one active Organization, paginated by limit and an opaque cursor. Results are ordered by creation timestamp descending, tie-broken by invitation ID ascending. A traversal is a live read, not a snapshot: rows added before the cursor appear after a restart, and rows that are accepted, revoked, superseded, or expired can disappear.",
         "x-identity-scope": "organization",
         "security": [
           {
@@ -5518,6 +5661,27 @@
             "required": true,
             "description": "The organization whose open invitations are listed.",
             "schema": {
+              "$ref": "#/components/schemas/OrganizationId"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Invitations per page. A value outside the range is rejected rather than clamped, because a silently shortened page is indistinguishable from the end of the collection.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque position from a previous `next_cursor`. Bound to the organization it was issued under: replaying it under a different organization is rejected.",
+            "schema": {
               "type": "string",
               "minLength": 1
             }
@@ -5529,19 +5693,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
-                      "required": ["invitations"],
+                      "required": ["invitations", "next_cursor"],
                       "properties": {
                         "invitations": {
                           "type": "array",
                           "items": {
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "type": "object",
                             "required": [
                               "invitation_id",
@@ -5596,11 +5760,22 @@
                               }
                             }
                           }
+                        },
+                        "next_cursor": {
+                          "anyOf": [
+                            {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -5614,6 +5789,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
           },
           "401": {
             "$ref": "#/components/responses/Error401"
@@ -5657,8 +5835,7 @@
             "required": true,
             "description": "The organization the invited person is invited to.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           }
         ],
@@ -5712,12 +5889,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "invitation_id",
@@ -5773,7 +5950,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -5805,12 +5982,16 @@
           },
           "500": {
             "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
           }
         }
       },
       "head": {
         "operationId": "organizations.invitations.list.head",
         "summary": "Retrieve response headers",
+        "description": "Returns the same status and headers as GET without a response body.",
         "x-identity-scope": "organization",
         "security": [
           {
@@ -5827,6 +6008,27 @@
             "required": true,
             "description": "The organization whose open invitations are listed.",
             "schema": {
+              "$ref": "#/components/schemas/OrganizationId"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Invitations per page. A value outside the range is rejected rather than clamped, because a silently shortened page is indistinguishable from the end of the collection.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque position from a previous `next_cursor`. Bound to the organization it was issued under: replaying it under a different organization is rejected.",
+            "schema": {
               "type": "string",
               "minLength": 1
             }
@@ -5835,6 +6037,9 @@
         "responses": {
           "200": {
             "description": "Success; same headers as GET, without a response body."
+          },
+          "400": {
+            "description": "Same status as GET, without a response body."
           },
           "401": {
             "description": "Same status as GET, without a response body."
@@ -5845,8 +6050,7 @@
           "500": {
             "description": "Same status as GET, without a response body."
           }
-        },
-        "description": "Returns the same status and headers as GET without a response body."
+        }
       }
     },
     "/v1/organizations/{organization_id}/invitations/{invitation_id}": {
@@ -5870,8 +6074,7 @@
             "required": true,
             "description": "The organization that owns the invitation.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           },
           {
@@ -5943,12 +6146,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["organization_id", "role", "status"],
                       "properties": {
@@ -5979,7 +6182,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -6029,8 +6232,7 @@
             "required": true,
             "description": "The organization whose membership is being changed.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           },
           {
@@ -6076,12 +6278,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "organization_id",
@@ -6129,7 +6331,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -6183,8 +6385,7 @@
             "required": true,
             "description": "The organization whose membership is being changed.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           },
           {
@@ -6204,12 +6405,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "organization_id",
@@ -6257,7 +6458,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -6313,8 +6514,7 @@
             "required": true,
             "description": "The organization whose membership is being changed.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           },
           {
@@ -6334,12 +6534,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "organization_id",
@@ -6387,7 +6587,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -6444,8 +6644,7 @@
             "required": true,
             "description": "The organization whose API keys are listed.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           }
         ],
@@ -6455,19 +6654,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["api_keys"],
                       "properties": {
                         "api_keys": {
                           "type": "array",
                           "items": {
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "type": "object",
                             "required": [
                               "id",
@@ -6555,7 +6754,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -6603,8 +6802,7 @@
             "required": true,
             "description": "The organization that will own the API key.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           }
         ],
@@ -6669,12 +6867,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "api_key",
@@ -6764,7 +6962,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -6816,8 +7014,7 @@
             "required": true,
             "description": "The organization whose API keys are listed.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           }
         ],
@@ -6861,8 +7058,7 @@
             "required": true,
             "description": "The organization that owns the API key.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           },
           {
@@ -6882,12 +7078,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "id",
@@ -6972,7 +7168,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -7026,8 +7222,7 @@
             "required": true,
             "description": "The organization that owns the API key.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           },
           {
@@ -7055,12 +7250,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "api_key",
@@ -7150,7 +7345,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -7187,7 +7382,7 @@
       "put": {
         "operationId": "organizations.identityConfig.set",
         "summary": "Set an organization identity configuration",
-        "description": "Creates or replaces the public Signed User Assertion identity configuration for an active owner of an active Organization. Submit exactly one JWKS source. URL sources are fetched through the SSRF-protected JWKS path before saving. Existing status is preserved. A retryable cache error may mean the durable save succeeded; retrying the same request safely retries cache purge.",
+        "description": "Creates or replaces the public Signed User Assertion identity configuration for an active owner of an active Organization. Submit exactly one JWKS source. URL sources are fetched through the SSRF-protected JWKS path before saving. Existing status is preserved. A retryable cache error may mean the durable save succeeded; retrying the same request safely retries cache purge. The write is conditional only when `If-Match` or `If-None-Match` is sent; without either, the last write wins. A stale precondition answers `412 PRECONDITION_FAILED` and changes nothing.",
         "x-identity-scope": "organization",
         "security": [
           {
@@ -7204,8 +7399,27 @@
             "required": true,
             "description": "The organization whose identity configuration is set.",
             "schema": {
+              "$ref": "#/components/schemas/OrganizationId"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "description": "The `ETag` of the configuration this write replaces, as one quoted value such as `\"7\"`. A different current revision refuses the write with `412`. Cannot be sent with `If-None-Match`.",
+            "schema": {
               "type": "string",
-              "minLength": 1
+              "pattern": "^\"[1-9][0-9]*\"$"
+            }
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "description": "Send `*` to create the configuration only when none exists; an existing one refuses the write with `412`. Cannot be sent with `If-Match`.",
+            "schema": {
+              "type": "string",
+              "enum": ["*"]
             }
           }
         ],
@@ -7395,17 +7609,25 @@
         "responses": {
           "200": {
             "description": "The stored public identity configuration, including its preserved status.",
+            "headers": {
+              "ETag": {
+                "description": "Strong entity tag of the configuration after this write, such as `\"8\"`; opaque.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
                       "anyOf": [
                         {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "configured",
@@ -7441,7 +7663,7 @@
                             "public_keys_jwks": {
                               "anyOf": [
                                 {
-                                  "additionalProperties": false,
+                                  "additionalProperties": true,
                                   "type": "object",
                                   "required": ["keys"],
                                   "properties": {
@@ -7454,7 +7676,8 @@
                                             "type": "object",
                                             "patternProperties": {
                                               "^(.*)$": {}
-                                            }
+                                            },
+                                            "additionalProperties": true
                                           },
                                           {
                                             "not": {
@@ -7578,7 +7801,7 @@
                           }
                         },
                         {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": ["configured"],
                           "properties": {
@@ -7591,7 +7814,7 @@
                       ]
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -7617,6 +7840,9 @@
           },
           "409": {
             "$ref": "#/components/responses/Error409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Error412"
           },
           "500": {
             "$ref": "#/components/responses/Error500"
@@ -7646,25 +7872,32 @@
             "required": true,
             "description": "The organization whose identity configuration is read.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           }
         ],
         "responses": {
           "200": {
             "description": "Stored public identity configuration, or `configured: false` when no row exists.",
+            "headers": {
+              "ETag": {
+                "description": "Strong entity tag of the stored configuration, such as `\"7\"`; opaque. Send it back in `If-Match` on the `PUT` to refuse the write if the configuration has changed since. Absent when `configured` is false.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
                       "anyOf": [
                         {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": [
                             "configured",
@@ -7700,7 +7933,7 @@
                             "public_keys_jwks": {
                               "anyOf": [
                                 {
-                                  "additionalProperties": false,
+                                  "additionalProperties": true,
                                   "type": "object",
                                   "required": ["keys"],
                                   "properties": {
@@ -7713,7 +7946,8 @@
                                             "type": "object",
                                             "patternProperties": {
                                               "^(.*)$": {}
-                                            }
+                                            },
+                                            "additionalProperties": true
                                           },
                                           {
                                             "not": {
@@ -7837,7 +8071,7 @@
                           }
                         },
                         {
-                          "additionalProperties": false,
+                          "additionalProperties": true,
                           "type": "object",
                           "required": ["configured"],
                           "properties": {
@@ -7850,7 +8084,7 @@
                       ]
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -7899,14 +8133,21 @@
             "required": true,
             "description": "The organization whose identity configuration is read.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Success; same headers as GET, without a response body."
+            "description": "Success; same headers as GET, without a response body.",
+            "headers": {
+              "ETag": {
+                "description": "Strong entity tag of the stored configuration, such as `\"7\"`; opaque. Send it back in `If-Match` on the `PUT` to refuse the write if the configuration has changed since. Absent when `configured` is false.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "401": {
             "description": "Same status as GET, without a response body."
@@ -7944,8 +8185,7 @@
             "required": true,
             "description": "The organization whose audit trail is read.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           },
           {
@@ -8040,24 +8280,25 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["events", "next_cursor"],
                       "properties": {
                         "events": {
                           "type": "array",
                           "items": {
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "type": "object",
                             "required": [
                               "event_id",
                               "action",
                               "outcome",
+                              "actor_source",
                               "target_type",
                               "target_label",
                               "detail",
@@ -8071,76 +8312,26 @@
                                 "type": "string"
                               },
                               "action": {
-                                "anyOf": [
-                                  {
-                                    "const": "organization.created",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "organization.renamed",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "organization.suspended",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "organization.restored",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "organization.identity_config_set",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "organization.entitlement_granted",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "invitation.sent",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "invitation.resent",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "invitation.accepted",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "invitation.revoked",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "membership.role_changed",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "membership.disabled",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "membership.owner_transferred",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "membership.owner_attached",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "api_key.created",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "api_key.rotated",
-                                    "type": "string"
-                                  },
-                                  {
-                                    "const": "api_key.revoked",
-                                    "type": "string"
-                                  }
-                                ]
+                                "x-extensible-enum": [
+                                  "organization.created",
+                                  "organization.renamed",
+                                  "organization.suspended",
+                                  "organization.restored",
+                                  "organization.identity_config_set",
+                                  "organization.entitlement_granted",
+                                  "invitation.sent",
+                                  "invitation.resent",
+                                  "invitation.accepted",
+                                  "invitation.revoked",
+                                  "membership.role_changed",
+                                  "membership.disabled",
+                                  "membership.owner_transferred",
+                                  "membership.owner_attached",
+                                  "api_key.created",
+                                  "api_key.rotated",
+                                  "api_key.revoked"
+                                ],
+                                "type": "string"
                               },
                               "outcome": {
                                 "anyOf": [
@@ -8153,6 +8344,14 @@
                                     "type": "string"
                                   }
                                 ]
+                              },
+                              "actor_source": {
+                                "x-extensible-enum": [
+                                  "authenticated_user",
+                                  "self_declared_operator",
+                                  "legacy_unknown"
+                                ],
+                                "type": "string"
                               },
                               "target_type": {
                                 "anyOf": [
@@ -8189,7 +8388,8 @@
                                 "type": "object",
                                 "patternProperties": {
                                   "^(.*)$": {}
-                                }
+                                },
+                                "additionalProperties": true
                               },
                               "actor_username": {
                                 "minLength": 1,
@@ -8220,7 +8420,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -8272,8 +8472,7 @@
             "required": true,
             "description": "The organization whose audit trail is read.",
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/components/schemas/OrganizationId"
             }
           },
           {
@@ -8436,7 +8635,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
@@ -8471,7 +8670,8 @@
                             }
                           ]
                         }
-                      }
+                      },
+                      "additionalProperties": true
                     },
                     "meta": {
                       "type": "object",
@@ -8480,7 +8680,8 @@
                         "request_id": {
                           "type": "string"
                         }
-                      }
+                      },
+                      "additionalProperties": true
                     }
                   }
                 }
@@ -8498,6 +8699,9 @@
           },
           "500": {
             "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
           }
         }
       }
@@ -8564,12 +8768,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["access_token", "token_type", "expires_in"],
                       "properties": {
@@ -8588,7 +8792,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -8616,12 +8820,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["status"],
                       "properties": {
@@ -8632,7 +8836,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -8658,6 +8862,9 @@
           },
           "500": {
             "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
           }
         }
       }
@@ -8713,12 +8920,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["secret", "otpauth_uri"],
                       "properties": {
@@ -8735,7 +8942,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -8764,6 +8971,9 @@
           },
           "500": {
             "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
           }
         }
       }
@@ -8816,12 +9026,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["recovery_codes"],
                       "properties": {
@@ -8837,7 +9047,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -8863,6 +9073,9 @@
           },
           "500": {
             "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
           }
         }
       }
@@ -8942,6 +9155,9 @@
           },
           "500": {
             "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
           }
         }
       }
@@ -8975,6 +9191,12 @@
                     "pattern": "^[A-Za-z0-9_-]{43}$",
                     "description": "Signup Browser Binding: 32 random bytes, base64url. Optional; binds the issued verification token to the requesting browser.",
                     "type": "string"
+                  },
+                  "password": {
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "description": "The password chosen at registration. Required when the verification token needs it; a wrong password answers AUTH_VERIFICATION_PASSWORD_INVALID.",
+                    "type": "string"
                   }
                 }
               }
@@ -9001,12 +9223,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["access_token", "token_type", "expires_in"],
                       "properties": {
@@ -9025,7 +9247,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -9041,10 +9263,67 @@
             }
           },
           "204": {
-            "description": "Email verified without signing in: no binding, another browser, or the token already signed in. Re-submitting the same unexpired token that activated the still-active account also succeeds."
+            "description": "Email verified without signing in: no binding, another browser, or the token already signed in. Re-submitting the same unexpired token that activated the still-active account also succeeds.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": ["no-store"]
+                }
+              }
+            }
           },
           "400": {
-            "$ref": "#/components/responses/Error400"
+            "description": "Malformed request, invalid verification token, or (ADR-0123) a registration password that is missing for a token that needs it or does not match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "required": ["error"],
+                  "properties": {
+                    "error": {
+                      "additionalProperties": true,
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "code": {
+                          "x-extensible-enum": [
+                            "INVALID_REQUEST",
+                            "AUTH_VERIFICATION_TOKEN_INVALID",
+                            "AUTH_VERIFICATION_PASSWORD_INVALID"
+                          ],
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "retry_after_ms": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "details": {
+                          "additionalProperties": true,
+                          "type": "object",
+                          "properties": {}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           "429": {
             "$ref": "#/components/responses/AuthRateLimited"
@@ -9102,6 +9381,9 @@
           },
           "500": {
             "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
           }
         }
       }
@@ -9142,12 +9424,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["message"],
                       "properties": {
@@ -9158,7 +9440,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -9181,6 +9463,9 @@
           },
           "500": {
             "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
           }
         }
       }
@@ -9247,6 +9532,9 @@
           },
           "500": {
             "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
           }
         }
       }
@@ -9298,12 +9586,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["access_token", "token_type", "expires_in"],
                       "properties": {
@@ -9322,7 +9610,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -9345,12 +9633,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["error"],
                   "properties": {
                     "error": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "code",
@@ -9360,7 +9648,7 @@
                       ],
                       "properties": {
                         "code": {
-                          "const": "AUTH_REFRESH_TOKEN_INVALID",
+                          "x-extensible-enum": ["AUTH_REFRESH_TOKEN_INVALID"],
                           "type": "string"
                         },
                         "message": {
@@ -9480,12 +9768,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["username"],
                       "properties": {
@@ -9497,7 +9785,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -9623,12 +9911,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["web_session_token", "expires_at"],
                       "properties": {
@@ -9645,7 +9933,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -9673,12 +9961,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["status"],
                       "properties": {
@@ -9689,7 +9977,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -9712,12 +10000,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["error"],
                   "properties": {
                     "error": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "code",
@@ -9727,16 +10015,11 @@
                       ],
                       "properties": {
                         "code": {
-                          "anyOf": [
-                            {
-                              "const": "UNAUTHORIZED",
-                              "type": "string"
-                            },
-                            {
-                              "const": "AUTH_CREDENTIALS_INVALID",
-                              "type": "string"
-                            }
-                          ]
+                          "x-extensible-enum": [
+                            "UNAUTHORIZED",
+                            "AUTH_CREDENTIALS_INVALID"
+                          ],
+                          "type": "string"
                         },
                         "message": {
                           "type": "string"
@@ -9810,6 +10093,12 @@
                     "pattern": "^[A-Za-z0-9_-]{43}$",
                     "description": "Signup Browser Binding: 32 random bytes, base64url. Optional; binds the issued verification token to the requesting browser.",
                     "type": "string"
+                  },
+                  "password": {
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "description": "The password chosen at registration. Required when the verification token needs it; a wrong password answers AUTH_VERIFICATION_PASSWORD_INVALID.",
+                    "type": "string"
                   }
                 }
               }
@@ -9830,12 +10119,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["web_session_token", "expires_at"],
                       "properties": {
@@ -9852,7 +10141,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -9868,19 +10157,27 @@
             }
           },
           "204": {
-            "description": "Email verified; no Web Session created."
+            "description": "Email verified; no Web Session created.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": ["no-store"]
+                }
+              }
+            }
           },
           "400": {
-            "description": "Malformed request or invalid verification token",
+            "description": "Malformed request, invalid verification token, or a registration password that is missing or does not match",
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["error"],
                   "properties": {
                     "error": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "code",
@@ -9890,16 +10187,12 @@
                       ],
                       "properties": {
                         "code": {
-                          "anyOf": [
-                            {
-                              "const": "INVALID_REQUEST",
-                              "type": "string"
-                            },
-                            {
-                              "const": "AUTH_VERIFICATION_TOKEN_INVALID",
-                              "type": "string"
-                            }
-                          ]
+                          "x-extensible-enum": [
+                            "INVALID_REQUEST",
+                            "AUTH_VERIFICATION_TOKEN_INVALID",
+                            "AUTH_VERIFICATION_PASSWORD_INVALID"
+                          ],
+                          "type": "string"
                         },
                         "message": {
                           "type": "string"
@@ -9931,12 +10224,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["error"],
                   "properties": {
                     "error": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "code",
@@ -9946,7 +10239,7 @@
                       ],
                       "properties": {
                         "code": {
-                          "const": "UNAUTHORIZED",
+                          "x-extensible-enum": ["UNAUTHORIZED"],
                           "type": "string"
                         },
                         "message": {
@@ -10036,12 +10329,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["access_token", "token_type", "expires_in"],
                       "properties": {
@@ -10060,7 +10353,7 @@
                       }
                     },
                     "meta": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": ["request_id"],
                       "properties": {
@@ -10083,12 +10376,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["error"],
                   "properties": {
                     "error": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "code",
@@ -10098,16 +10391,11 @@
                       ],
                       "properties": {
                         "code": {
-                          "anyOf": [
-                            {
-                              "const": "UNAUTHORIZED",
-                              "type": "string"
-                            },
-                            {
-                              "const": "AUTH_WEB_SESSION_INVALID",
-                              "type": "string"
-                            }
-                          ]
+                          "x-extensible-enum": [
+                            "UNAUTHORIZED",
+                            "AUTH_WEB_SESSION_INVALID"
+                          ],
+                          "type": "string"
                         },
                         "message": {
                           "type": "string"
@@ -10202,12 +10490,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
+                  "additionalProperties": true,
                   "type": "object",
                   "required": ["error"],
                   "properties": {
                     "error": {
-                      "additionalProperties": false,
+                      "additionalProperties": true,
                       "type": "object",
                       "required": [
                         "code",
@@ -10217,7 +10505,7 @@
                       ],
                       "properties": {
                         "code": {
-                          "const": "UNAUTHORIZED",
+                          "x-extensible-enum": ["UNAUTHORIZED"],
                           "type": "string"
                         },
                         "message": {

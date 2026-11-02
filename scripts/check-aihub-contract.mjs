@@ -40,6 +40,9 @@ export function collectErrorCodes(document) {
     if (Array.isArray(schema.enum))
       for (const code of schema.enum)
         if (typeof code === "string") codes.add(code);
+    if (Array.isArray(schema["x-extensible-enum"]))
+      for (const code of schema["x-extensible-enum"])
+        if (typeof code === "string") codes.add(code);
     for (const [key, child] of Object.entries(schema)) {
       if (key === "$ref") continue;
       if (Array.isArray(child)) child.forEach(visitCodeSchema);
@@ -176,10 +179,11 @@ async function verifyPinnedOpenApiSource(source) {
     return;
   }
 
-  const response = await fetch(
-    `https://raw.githubusercontent.com/${source.repository}/${source.commit}/openapi.json`,
-    { signal: AbortSignal.timeout(15_000) }
-  );
+  const sourcePath = source.path ?? "openapi.json";
+  const sourceUrl = `https://raw.githubusercontent.com/${source.repository}/${source.commit}/${sourcePath}`;
+  const response = await fetch(sourceUrl, {
+    signal: AbortSignal.timeout(15_000),
+  });
   if (!response.ok)
     throw new Error(
       `Unable to fetch AIHUB OpenAPI at pinned commit (${response.status}); publish it or set AIHUB_OPENAPI_SOURCE_PATH to a local checkout`

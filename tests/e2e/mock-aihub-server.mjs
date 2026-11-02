@@ -653,14 +653,14 @@ const server = createServer(async (request, response) => {
       scopes: body.scopes,
       allowed_environments: body.allowed_environments,
     });
-    // Mirrors the backend: a Sandbox key is bound to that Environment alone and
-    // may carry only the demo grading pair, so an E2E run fails when the form
-    // sends anything else.
+    // Mirrors the backend's Sandbox binding and supported scope catalog.
     if (
       body.allowed_environments?.includes("sandbox") &&
       (body.allowed_environments.length !== 1 ||
         !body.scopes.every((scope) =>
-          ["writing.grade", "speaking.grade"].includes(scope)
+          ["writing.grade", "writing.exercise", "speaking.grade"].includes(
+            scope
+          )
         ))
     ) {
       sendJson(response, 400, {

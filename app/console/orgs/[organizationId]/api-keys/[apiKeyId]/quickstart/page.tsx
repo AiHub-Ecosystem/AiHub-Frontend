@@ -95,6 +95,18 @@ export default async function ApiKeyQuickstartPage({
                 </dd>
               </div>
             </dl>
+            {!apiKey.scopes.includes("writing.exercise") && (
+              <p className="qs-callout qs-callout--info">
+                API key đã tạo giữ nguyên các scope ban đầu. Muốn gọi Writing
+                exercise, hãy tạo key mới có scope <code>writing.exercise</code>
+                .
+              </p>
+            )}
+            {apiKey.scopes.includes("writing.exercise") && (
+              <p className="qs-callout qs-callout--info">
+                Quickstart hiện chưa có lệnh mẫu cho các API Writing exercise.
+              </p>
+            )}
           </div>
           <SampleRequests
             apiKey={apiKey}

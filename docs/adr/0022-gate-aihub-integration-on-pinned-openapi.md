@@ -24,5 +24,5 @@ Document how to trace AIHUB routes to BFF callers and mocks using repository sea
 
 ## Verification evidence
 
-- The FE contract check compares the pinned OpenAPI bytes with `openapi.json` at the recorded AIHUB commit. Before that commit is published, local checks can use `AIHUB_OPENAPI_SOURCE_PATH` to point at its local checkout.
+- The FE contract check compares the pinned OpenAPI bytes with the file path recorded in `source.json` at the exact AIHUB commit. Before that commit is published, local checks can use `AIHUB_OPENAPI_SOURCE_PATH` to point at a local checkout.
 - 2026-10-19 local negative E2E run: temporarily changed `GET /v1/ielts/speaking/questions` to return undocumented status `201`, then ran `npm run test:e2e -- tests/e2e/speaking.spec.ts`. The command exited 1 during global teardown with `status 201 is undocumented for GET /v1/ielts/speaking/questions` (12 tests passed; 1 teardown error). The mock response was restored after the run.

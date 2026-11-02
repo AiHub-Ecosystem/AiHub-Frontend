@@ -59,7 +59,7 @@ Content-Type: application/json
 
 {
   "name": "scoring-demo-sandbox",
-  "scopes": ["writing.grade", "speaking.grade"],
+  "scopes": ["writing.grade", "writing.exercise", "speaking.grade"],
   "allowed_environments": ["sandbox"]
 }`;
 
