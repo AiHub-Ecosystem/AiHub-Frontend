@@ -38,6 +38,7 @@ const aihubLimits = JSON.parse(
 const contractErrors = [];
 const requests = [];
 const authRequests = [];
+const documentationRequests = [];
 const avatarRequests = [];
 const organizationRequests = [];
 const speakingRequests = [];
@@ -182,8 +183,8 @@ function multipartField(body, name) {
 }
 
 const server = createServer(async (request, response) => {
-  const pathname = new URL(request.url ?? "/", `http://${host}:${port}`)
-    .pathname;
+  const requestUrl = new URL(request.url ?? "/", `http://${host}:${port}`);
+  const pathname = requestUrl.pathname;
 
   const responseChunks = [];
   let responseContentType = "";
@@ -266,6 +267,11 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "GET" && pathname === "/__test__/docs/requests") {
+    sendJson(response, 200, { requests: documentationRequests });
+    return;
+  }
+
   if (request.method === "GET" && pathname === "/__test__/avatar/requests") {
     sendJson(response, 200, { requests: avatarRequests });
     return;
@@ -273,6 +279,7 @@ const server = createServer(async (request, response) => {
 
   if (request.method === "POST" && pathname === "/__test__/auth/reset") {
     authRequests.length = 0;
+    documentationRequests.length = 0;
     avatarRequests.length = 0;
     avatarConfig = {
       username: "test-user",
@@ -324,6 +331,69 @@ const server = createServer(async (request, response) => {
     uncertainApiKeyRotationUsed = false;
     apiKeySequence = 0;
     response.writeHead(204).end();
+    return;
+  }
+
+  if (
+    request.method === "GET" &&
+    (pathname === "/docs" ||
+      pathname === "/openapi.json" ||
+      /^\/openapi\/v[1-9][0-9]*\.json$/u.test(pathname))
+  ) {
+    const bearerForwarded = /^Bearer access-token-[1-9][0-9]*$/u.test(
+      request.headers.authorization ?? ""
+    );
+    documentationRequests.push({ pathname, bearerForwarded });
+    if (!bearerForwarded) {
+      sendJson(response, 401, {
+        error: { code: "AUTH_USER_ACCESS_TOKEN_REQUIRED" },
+      });
+      return;
+    }
+
+    const major = String(contractDocument.info.version).split(".")[0];
+    const requestedMajor =
+      pathname === "/docs"
+        ? (requestUrl.searchParams.get("version")?.slice(1) ?? major)
+        : pathname === "/openapi.json"
+          ? major
+          : /^\/openapi\/v([1-9][0-9]*)\.json$/u.exec(pathname)?.[1];
+    if (requestedMajor !== major) {
+      sendJson(response, 404, { error: { code: "NOT_FOUND" } });
+      return;
+    }
+
+    if (pathname === "/docs") {
+      const html = `<!doctype html>
+<html>
+<head><title>AIHUB API Reference</title><meta charset="utf-8" /></head>
+<body>
+  <form action="/docs" method="get">
+    <label for="api-version">API version</label>
+    <select id="api-version" name="version"><option value="v${major}" selected>v${major} (current)</option></select>
+    <button type="submit">View</button>
+  </form>
+  <script id="api-reference" data-url="/openapi/v${major}.json"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.72.1" integrity="sha384-JezfTaoGe2t8F2YRYUQosjM0S21blpE8j3yOUgTEiTKCyLWx9K4lfwjKPd8Dp7WY" crossorigin="anonymous"></script>
+</body>
+</html>
+`;
+      response
+        .writeHead(200, {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store",
+          "Content-Security-Policy":
+            "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'sha384-JezfTaoGe2t8F2YRYUQosjM0S21blpE8j3yOUgTEiTKCyLWx9K4lfwjKPd8Dp7WY'; style-src 'unsafe-inline'; connect-src 'self'; font-src https://fonts.scalar.com",
+        })
+        .end(html);
+      return;
+    }
+
+    response.writeHead(200, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+    });
+    response.end(JSON.stringify(contractDocument));
     return;
   }
 
