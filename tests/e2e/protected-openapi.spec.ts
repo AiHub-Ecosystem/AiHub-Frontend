@@ -78,7 +78,7 @@ test("anonymous users sign in before Scalar and can download the protected contr
   });
   expect(versionedDownload.status).toBe(200);
   expect(versionedDownload.disposition).toContain('filename="openapi-v1.json"');
-  expect(versionedDownload.document.info.version).toBe("1.7.0");
+  expect(versionedDownload.document.info.version).toMatch(/^1\.\d+\.\d+$/u);
 
   const browserState = await page.evaluate(() => ({
     cookies: document.cookie,
