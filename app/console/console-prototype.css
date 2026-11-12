@@ -1,0 +1,738 @@
+/* Inline styles in the workbench name these families literally, so they are loaded by name rather than through next/font's hashed families. */
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..900;1,300..900&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:ital,wght@0,400..800;1,400..800&display=swap");
+
+/*
+ * AIHub Console prototype, ported from the "AIHub Console Prototype" design
+ * canvas. Every rule is scoped under [data-console-app]: the class names here
+ * (.btn, .badge, .card, .nav, .tab) are also used by the global mirror CSS,
+ * and page CSS stays loaded after client-side navigation, so unscoped rules
+ * restyled the rest of the site and the mirror CSS restyled the console.
+ */
+
+/* The console is full-screen: hide the shared site chrome on this page only. */
+body:has([data-console-app]) {
+  margin: 0;
+  background: #f7f7fb;
+}
+body:has([data-console-app]) > div:not([data-console-app]):has(> header),
+body:has([data-console-app]) > div:not([data-console-app]):has(> footer),
+body:has([data-console-app]) > header,
+body:has([data-console-app]) > footer,
+body:has([data-console-app]) > .account-avatar-menu {
+  display: none !important;
+}
+
+/* AiHub design-system tokens. */
+[data-console-app] {
+  --primary-600: #5b5fef;
+  --primary-700: #4547c9;
+  --primary-100: #edebfe;
+  --on-primary: #ffffff;
+  --surface: #ffffff;
+  --surface-card: #ffffff;
+  --surface-hero-from: #f1eeff;
+  --surface-hero-to: #ffffff;
+  --surface-sunken: #f7f7fb;
+  --surface-inverse: #14152b;
+  --surface-inverse-raised: #1e2040;
+  --border: #e4e4ec;
+  --border-strong: #c7c7d9;
+  --border-inverse: #33355a;
+  --ink: #14152b;
+  --ink-muted: #5c5d77;
+  --ink-on-inverse: #f3f3fa;
+  --ink-muted-on-inverse: #9c9dc2;
+  --link: #4547c9;
+  --focus-ring: #4547c9;
+  --focus-ring-on-inverse: #8b8ef5;
+  --badge-stable-bg: #0f6b4c;
+  --badge-stable-ink: #ffffff;
+  --badge-pending-bg: #edeef3;
+  --badge-pending-ink: #5c5d77;
+  --badge-beta-bg: #edebfe;
+  --badge-beta-ink: #4547c9;
+  --shadow-sm: 0 1px 2px rgba(20, 21, 43, 0.06);
+  --shadow-md: 0 12px 32px rgba(20, 21, 43, 0.14);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+  --font-heading: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-h1: 700 56px/62px var(--font-heading);
+  --text-h2: 700 40px/46px var(--font-heading);
+  --text-h3: 700 28px/34px var(--font-heading);
+  --text-h4: 700 20px/26px var(--font-heading);
+  --text-body-lg: 400 18px/28px var(--font-body);
+  --text-body: 400 16px/24px var(--font-body);
+  --text-body-sm: 400 14px/20px var(--font-body);
+  --text-body-sm-strong: 600 14px/20px var(--font-body);
+  --text-caption: 400 12px/16px var(--font-body);
+  --text-code-button: 500 14px/20px var(--font-mono);
+  --text-code-inline: 400 14px/22px var(--font-mono);
+  --text-code-block: 400 13px/20px var(--font-mono);
+  --text-code-api: 500 13px/18px var(--font-mono);
+  --text-code-badge: 600 11px/16px var(--font-mono);
+}
+
+/* Neutralise the mirror's element styles (it centres headings, sizes p/h*). */
+[data-console-app] :where(h1, h2, h3, h4, h5, h6) {
+  margin: 0;
+  text-align: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+}
+[data-console-app] :where(p, ul, ol, pre, figure) {
+  margin: 0;
+}
+/* The mirror pins every <header> to the viewport and gives every element
+ * `transition: all`; the console's own header and controls must not inherit that. */
+[data-console-app] :where(header) {
+  position: static;
+  inset: auto;
+  width: auto;
+  height: auto;
+  z-index: auto;
+  background-color: transparent;
+}
+[data-console-app] :where(*) {
+  transition: none;
+}
+/* The design leans on browser list defaults; the mirror strips them. */
+[data-console-app] :where(ul) {
+  list-style: disc;
+}
+[data-console-app] :where(ol) {
+  list-style: decimal;
+}
+[data-console-app] :where(li) {
+  display: list-item;
+  list-style: inherit;
+}
+
+[data-console-app] a {
+  color: #4547c9;
+}
+[data-console-app] a:hover {
+  color: #14152b;
+}
+[data-console-app],
+[data-console-app] * {
+  box-sizing: border-box;
+}
+[data-console-app] button {
+  font-family: inherit;
+}
+[data-console-app] button:focus-visible,
+[data-console-app] a:focus-visible,
+[data-console-app] input:focus-visible,
+[data-console-app] textarea:focus-visible {
+  outline: 2px solid #4547c9;
+  outline-offset: 2px;
+}
+[data-console-app] .h {
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  color: #14152b;
+  margin: 0;
+}
+[data-console-app] .mono {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+[data-console-app] .muted {
+  color: #5c5d77;
+}
+[data-console-app] .eyebrow {
+  font:
+    600 12px/16px "Hanken Grotesk",
+    sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5c5d77;
+}
+[data-console-app] .eyebrow-p {
+  font:
+    600 12px/16px "Hanken Grotesk",
+    sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #4547c9;
+}
+[data-console-app] .card {
+  background: #fff;
+  border: 1px solid #e4e4ec;
+  border-radius: 20px;
+}
+[data-console-app] .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font:
+    500 14px/20px "IBM Plex Mono",
+    monospace;
+  letter-spacing: 0.01em;
+  padding: 10px 18px;
+  min-height: 40px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+[data-console-app] .btn-p {
+  background: #5b5fef;
+  color: #fff;
+}
+[data-console-app] .btn-p:hover {
+  background: #4547c9;
+  color: #fff;
+}
+[data-console-app] .btn-p:disabled {
+  background: #c7c7d9;
+  cursor: not-allowed;
+}
+[data-console-app] .btn-s {
+  background: #fff;
+  color: #14152b;
+  border-color: #e4e4ec;
+  border-radius: 12px;
+}
+[data-console-app] .btn-s:hover {
+  border-color: #c7c7d9;
+  color: #14152b;
+}
+[data-console-app] .btn-s:disabled {
+  color: #9c9dc2;
+  cursor: not-allowed;
+}
+[data-console-app] .btn-sm {
+  padding: 6px 12px;
+  min-height: 32px;
+  font-size: 13px;
+}
+[data-console-app] .btn-d {
+  background: #fff;
+  color: #b42318;
+  border-color: #f1c4bf;
+  border-radius: 12px;
+}
+[data-console-app] .btn-d:hover {
+  background: #fdecea;
+}
+[data-console-app] .btn-dfill {
+  background: #b42318;
+  color: #fff;
+  border-radius: 12px;
+}
+[data-console-app] .btn-dfill:hover {
+  background: #912018;
+}
+[data-console-app] .btn-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: #4547c9;
+  font:
+    600 14px/20px "Hanken Grotesk",
+    sans-serif;
+  cursor: pointer;
+  text-align: left;
+}
+[data-console-app] .btn-link:hover {
+  color: #14152b;
+}
+[data-console-app] .badge {
+  display: inline-flex;
+  align-items: center;
+  font:
+    600 11px/16px "IBM Plex Mono",
+    monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+[data-console-app] .b-stable {
+  background: #0f6b4c;
+  color: #fff;
+}
+[data-console-app] .b-beta {
+  background: #edebfe;
+  color: #4547c9;
+}
+[data-console-app] .b-soon {
+  background: #edeef3;
+  color: #5c5d77;
+}
+[data-console-app] .b-prod {
+  background: #e6f4ee;
+  color: #0f6b4c;
+}
+[data-console-app] .b-sbx {
+  background: #edebfe;
+  color: #4547c9;
+}
+[data-console-app] .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font:
+    600 12px/16px "Hanken Grotesk",
+    sans-serif;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+[data-console-app] .p-ok {
+  background: #e6f4ee;
+  color: #0f6b4c;
+}
+[data-console-app] .p-warn {
+  background: #fff4db;
+  color: #7a4f00;
+}
+[data-console-app] .p-err {
+  background: #fdecea;
+  color: #b42318;
+}
+[data-console-app] .p-neu {
+  background: #edeef3;
+  color: #5c5d77;
+}
+[data-console-app] .scope {
+  display: inline-flex;
+  font:
+    500 12px/16px "IBM Plex Mono",
+    monospace;
+  background: #f7f7fb;
+  border: 1px solid #e4e4ec;
+  border-radius: 8px;
+  padding: 3px 8px;
+  color: #14152b;
+  white-space: nowrap;
+}
+[data-console-app] .tbl {
+  width: 100%;
+  border-collapse: collapse;
+}
+[data-console-app] .th {
+  text-align: left;
+  font:
+    600 12px/16px "Hanken Grotesk",
+    sans-serif;
+  color: #5c5d77;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e4e4ec;
+  white-space: nowrap;
+}
+[data-console-app] .td {
+  padding: 12px;
+  border-bottom: 1px solid #e4e4ec;
+  font-size: 14px;
+  line-height: 20px;
+  color: #14152b;
+  vertical-align: middle;
+}
+[data-console-app] .trow {
+  display: grid;
+  align-items: center;
+  border-bottom: 1px solid #e4e4ec;
+  column-gap: 4px;
+}
+[data-console-app] .trow.b:hover {
+  background: #fafafd;
+}
+[data-console-app] .tc {
+  padding: 12px;
+  font-size: 14px;
+  line-height: 20px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+[data-console-app] .thc {
+  padding: 10px 12px;
+  font:
+    600 12px/16px "Hanken Grotesk",
+    sans-serif;
+  color: #5c5d77;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+[data-console-app] .nav {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 0;
+  background: transparent;
+  font:
+    500 14px/20px "Hanken Grotesk",
+    sans-serif;
+  color: #14152b;
+  text-align: left;
+  cursor: pointer;
+}
+[data-console-app] .nav:hover {
+  background: #efeff6;
+}
+[data-console-app] .nav.on {
+  background: #edebfe;
+  color: #4547c9;
+  font-weight: 600;
+}
+[data-console-app] .nav.par {
+  color: #14152b;
+  font-weight: 600;
+}
+[data-console-app] .subnav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 6px 21px;
+  padding-left: 10px;
+  border-left: 1px solid #e4e4ec;
+}
+[data-console-app] .snav {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  font:
+    500 13px/18px "Hanken Grotesk",
+    sans-serif;
+  color: #5c5d77;
+  text-align: left;
+  cursor: pointer;
+}
+[data-console-app] .snav:hover {
+  background: #efeff6;
+  color: #14152b;
+}
+[data-console-app] .snav.on {
+  background: #edebfe;
+  color: #4547c9;
+  font-weight: 600;
+}
+[data-console-app] .navgrp {
+  font:
+    600 11px/16px "Hanken Grotesk",
+    sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5c5d77;
+  padding: 16px 12px 6px;
+}
+[data-console-app] .tab {
+  padding: 12px 2px;
+  margin-right: 22px;
+  border: 0;
+  background: none;
+  border-bottom: 2px solid transparent;
+  font:
+    500 14px/20px "Hanken Grotesk",
+    sans-serif;
+  color: #5c5d77;
+  cursor: pointer;
+  white-space: nowrap;
+}
+[data-console-app] .tab:hover {
+  color: #14152b;
+}
+[data-console-app] .tab.on {
+  color: #14152b;
+  border-bottom-color: #5b5fef;
+  font-weight: 600;
+}
+[data-console-app] .skt {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  border: 1px solid #e4e4ec;
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px 16px;
+  cursor: pointer;
+  min-width: 150px;
+  text-align: left;
+  font-family: inherit;
+}
+[data-console-app] .skt:hover {
+  border-color: #c7c7d9;
+}
+[data-console-app] .skt.on {
+  border: 2px solid #5b5fef;
+  background: #f7f6ff;
+  padding: 9px 15px;
+}
+[data-console-app] .seg {
+  display: inline-flex;
+  gap: 4px;
+  background: #fff;
+  border: 1px solid #e4e4ec;
+  border-radius: 999px;
+  padding: 3px;
+  flex-wrap: wrap;
+}
+[data-console-app] .sb {
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font:
+    500 13px/18px "Hanken Grotesk",
+    sans-serif;
+  color: #5c5d77;
+  cursor: pointer;
+  white-space: nowrap;
+}
+[data-console-app] .sb:hover {
+  color: #14152b;
+}
+[data-console-app] .sb.on {
+  background: #5b5fef;
+  color: #fff;
+}
+[data-console-app] .flabel {
+  display: block;
+  font:
+    600 13px/18px "Hanken Grotesk",
+    sans-serif;
+  color: #14152b;
+  margin-bottom: 6px;
+}
+[data-console-app] .inp {
+  width: 100%;
+  font:
+    400 14px/20px "IBM Plex Mono",
+    monospace;
+  color: #14152b;
+  background: #f7f7fb;
+  border: 1px solid #e4e4ec;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+[data-console-app] .inp:focus {
+  border-color: #5b5fef;
+  background: #fff;
+}
+[data-console-app] .inp-t {
+  font-family: "Hanken Grotesk", sans-serif;
+}
+[data-console-app] .help {
+  font-size: 12px;
+  line-height: 16px;
+  color: #5c5d77;
+  margin-top: 6px;
+}
+[data-console-app] .code {
+  margin: 0;
+  background: #14152b;
+  color: #f3f3fa;
+  font:
+    400 13px/20px "IBM Plex Mono",
+    monospace;
+  padding: 14px 16px;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+[data-console-app] .track {
+  height: 6px;
+  border-radius: 999px;
+  background: #edeef3;
+  overflow: hidden;
+}
+[data-console-app] .fill {
+  height: 6px;
+  border-radius: 999px;
+  background: #5b5fef;
+}
+[data-console-app] .fill-warn {
+  height: 6px;
+  border-radius: 999px;
+  background: #c77700;
+}
+[data-console-app] .stepbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font:
+    500 13px/18px "Hanken Grotesk",
+    sans-serif;
+  cursor: pointer;
+  border: 1px solid #e4e4ec;
+  background: #fff;
+  color: #5c5d77;
+}
+[data-console-app] .stepbtn.cur {
+  border: 2px solid #5b5fef;
+  color: #14152b;
+  font-weight: 600;
+  padding: 5px 11px;
+}
+[data-console-app] .stepbtn.done {
+  background: #e6f4ee;
+  border-color: #bfe3d2;
+  color: #0f6b4c;
+}
+[data-console-app] .stepbtn:disabled {
+  cursor: not-allowed;
+  color: #9c9dc2;
+}
+[data-console-app] .chk {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  border: 1px solid #e4e4ec;
+  border-radius: 14px;
+  background: #fff;
+}
+[data-console-app] .chk.on {
+  border: 2px solid #5b5fef;
+  background: #f7f6ff;
+  padding: 13px;
+}
+[data-console-app] .cb {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #5b5fef;
+  flex: none;
+}
+[data-console-app] .skl {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+[data-console-app] .overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 21, 43, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 64px 16px;
+  z-index: 50;
+  overflow: auto;
+}
+[data-console-app] .modal {
+  background: #fff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 600px;
+  padding: 24px;
+  box-shadow: 0 12px 32px rgba(20, 21, 43, 0.14);
+}
+[data-console-app] .toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: #14152b;
+  color: #f3f3fa;
+  font:
+    500 14px/20px "Hanken Grotesk",
+    sans-serif;
+  padding: 12px 18px;
+  border-radius: 12px;
+  z-index: 60;
+  box-shadow: 0 12px 32px rgba(20, 21, 43, 0.2);
+  max-width: calc(100% - 32px);
+}
+[data-console-app] .iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid #e4e4ec;
+  background: #fff;
+  cursor: pointer;
+  color: #5c5d77;
+}
+[data-console-app] .iconbtn:hover {
+  color: #14152b;
+  border-color: #c7c7d9;
+}
+[data-console-app] .bar {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: #5b5fef;
+}
+[data-console-app] .pipe {
+  background: #fff;
+  border: 1px solid #e4e4ec;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: #14152b;
+}
+[data-console-app] .pipe:hover {
+  border-color: #5b5fef;
+}
+[data-console-app] .num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #edebfe;
+  color: #4547c9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font:
+    700 12px/16px "Plus Jakarta Sans",
+    sans-serif;
+  flex: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-console-app] .fade {
+    animation: cw-fd 0.18s cubic-bezier(0.2, 0, 0, 1);
+  }
+}
+@keyframes cw-fd {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
