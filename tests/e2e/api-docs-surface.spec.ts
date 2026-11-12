@@ -27,6 +27,13 @@ test("Site header leads to the API product catalog and never to /specs", async (
     await expect(header.locator('a[href="/specs"]')).toHaveCount(0);
   }
 
+  // The home page brings its own nav, where the catalog entry is "Sản phẩm".
+  await header.getByRole("link", { name: "Sản phẩm" }).click();
+  await expect(page).toHaveURL(/\/product$/);
+
+  // Every other page keeps the shared site header and its "Document" entry.
+  await page.goto("/pricing");
+  await expect(header.locator('a[href="/specs"]')).toHaveCount(0);
   await header.getByRole("link", { name: "Document" }).click();
   await expect(page).toHaveURL(/\/product$/);
 });

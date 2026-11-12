@@ -287,18 +287,22 @@ function replaceMenuExtras(header: string, signedIn: boolean) {
   return `${header.slice(0, start)}${authActions(signedIn)}${header.slice(end + 6)}`;
 }
 
+/** Whether the request carries a live web session; shared by the site header and the landing nav. */
+export async function isSignedIn(): Promise<boolean> {
+  const sessionId = (await cookies()).get(WEB_SESSION_COOKIE)?.value;
+  if (!sessionId) return false;
+  const endUserIp = endUserIpFromHeaders(await headers());
+  try {
+    return !!(await getCurrentWebSession(sessionId, endUserIp));
+  } catch {
+    // AIHUB trouble should not make public pages unavailable.
+    return false;
+  }
+}
+
 export async function SiteHeader() {
   const chrome = readChrome();
-  const sessionId = (await cookies()).get(WEB_SESSION_COOKIE)?.value;
-  const endUserIp = endUserIpFromHeaders(await headers());
-  let signedIn = false;
-  if (sessionId) {
-    try {
-      signedIn = !!(await getCurrentWebSession(sessionId, endUserIp));
-    } catch {
-      // AIHUB trouble should not make public pages unavailable.
-    }
-  }
+  const signedIn = await isSignedIn();
   if (chrome) {
     const header = replaceMenuExtras(chrome.header, signedIn);
     return <div dangerouslySetInnerHTML={{ __html: header }} />;

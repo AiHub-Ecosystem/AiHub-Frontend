@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
-import { MirrorPage } from "@/components/mirror-page";
+import { AihubLanding } from "@/components/landing/aihub-landing";
+import { isSignedIn } from "@/components/site-chrome";
+import "./landing.css";
 
 export const metadata: Metadata = {
-  title: "AIHub — Luyện viết IELTS thông minh hơn",
+  title: "AiHub — API chấm IELTS Writing & Speaking",
   description:
-    "AIHub là nền tảng API AI cho giáo dục — bắt đầu với AIWriting, sinh bài tập luyện viết bám đúng lỗi sai thật của học viên.",
+    "Band 4 tiêu chí, câu sai có mã lỗi, giải thích tiếng Việt và bài luyện tiếp theo. Một API key, một HTTP request.",
 };
 
-export default function Page() {
-  return <MirrorPage name="home" />;
+export default async function Page() {
+  return <AihubLanding signedIn={await isSignedIn()} />;
 }
