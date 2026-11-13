@@ -135,8 +135,12 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
   await expect(
     page.getByRole("link", { name: "Đăng nhập", exact: true })
   ).toBeVisible();
+  // The home page nav labels its sign-up link "Lấy API key"; what matters
+  // after logout is that sign-up is offered again.
   await expect(
-    page.getByRole("link", { name: "Đăng ký", exact: true })
+    page
+      .getByRole("navigation", { name: "Chính" })
+      .locator('a[href="/register"]')
   ).toBeVisible();
   expect(
     (await page.context().cookies()).some(
