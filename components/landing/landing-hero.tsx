@@ -84,12 +84,12 @@ export function LandingHero() {
               <Link href="/register" className="al-btn al-btn-white">
                 Bắt đầu miễn phí →
               </Link>
-              <Link href="/demo" className="al-btn al-btn-glass">
-                Xem demo trực tiếp
-              </Link>
+              <a href="#dung-thu" className="al-btn al-btn-glass">
+                Dùng thử key ngay ↓
+              </a>
             </div>
             <p className="al-hero-note al-mono al-fu" style={delay(0.4)}>
-              25 lượt chấm sandbox miễn phí · không cần thẻ
+              Key dùng thử công khai · 100 lượt/ngày · không cần đăng ký
             </p>
           </div>
           <div className="al-stage-wrap al-fu" style={delay(0.3)}>

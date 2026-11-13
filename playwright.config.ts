@@ -41,6 +41,7 @@ export default defineConfig({
         AIHUB_WEB_SESSION_CLIENT_SECRET: "e2e-web-session-secret",
         E2E_TESTING: "1",
         NEXT_TELEMETRY_DISABLED: "1",
+        AIHUB_PUBLIC_TRIAL_API_KEY: `aihub_sandbox_${"e2eTrialKey".repeat(4).slice(0, 43)}`,
         ...speakingEnv,
       },
       reuseExistingServer: false,
