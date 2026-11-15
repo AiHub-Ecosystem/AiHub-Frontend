@@ -118,7 +118,7 @@ describe("Customer Web sign-in BFF", () => {
 
       expect(response.status).toBe(303);
       expect(response.headers.get("location")).toBe(expected);
-      expect(cookie).toContain(`__Host-aihub_web_session=${sessionId}`);
+      expect(cookie).toContain(`__Secure-aihub_web_session=${sessionId}`);
       expect(cookie).toContain(
         "Path=/app; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict"
       );
@@ -158,7 +158,7 @@ describe("Customer Web sign-in BFF", () => {
         method: "POST",
         headers: {
           Origin: "http://localhost:3100",
-          Cookie: `__Host-aihub_web_session=${sessionId}`,
+          Cookie: `__Secure-aihub_web_session=${sessionId}`,
           "X-Real-IP": "198.51.100.10",
         },
       })
@@ -199,7 +199,7 @@ describe("Customer Web sign-in BFF", () => {
         method: "POST",
         headers: {
           Origin: "http://localhost:3100",
-          Cookie: `__Host-aihub_web_session=${"z".repeat(43)}`,
+          Cookie: `__Secure-aihub_web_session=${"z".repeat(43)}`,
         },
       })
     );

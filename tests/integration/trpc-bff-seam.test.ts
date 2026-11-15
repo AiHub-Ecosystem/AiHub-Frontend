@@ -18,7 +18,7 @@ import { startSeam, type Seam } from "./support/seam-harness";
 
 const IDEMPOTENCY_KEY = "a1b2c3d4-e5f6-4a1b-8c2d-1234567890ab";
 const CLEAR_SESSION_COOKIE =
-  "__Host-aihub_web_session=; Path=/app; Max-Age=0; HttpOnly; Secure; SameSite=Strict";
+  "__Secure-aihub_web_session=; Path=/app; Max-Age=0; HttpOnly; Secure; SameSite=Strict";
 
 let seam: Seam;
 let sessionToken: string;
@@ -26,7 +26,7 @@ let sessionToken: string;
 function browserHeaders(extra: Record<string, string> = {}) {
   return {
     Origin: seam.bffOrigin,
-    Cookie: `__Host-aihub_web_session=${sessionToken}`,
+    Cookie: `__Secure-aihub_web_session=${sessionToken}`,
     "Idempotency-Key": IDEMPOTENCY_KEY,
     ...extra,
   };
@@ -102,7 +102,9 @@ describe.each(["rest", "trpc"])(
     it("answers a rejected Web Session with 401 and clears the session cookie", async () => {
       const response = await call(
         { name: "Org" },
-        browserHeaders({ Cookie: `__Host-aihub_web_session=${"e".repeat(43)}` })
+        browserHeaders({
+          Cookie: `__Secure-aihub_web_session=${"e".repeat(43)}`,
+        })
       );
       expect(response.status).toBe(401);
       expect(response.headers.get("set-cookie")).toContain(

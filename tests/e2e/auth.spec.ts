@@ -69,9 +69,9 @@ async function createSession(request: APIRequestContext, email: string) {
   expect(response.status()).toBe(303);
   const cookie = response
     .headers()
-    ["set-cookie"]?.match(/__Host-aihub_web_session=([^;]+)/)?.[1];
+    ["set-cookie"]?.match(/__Secure-aihub_web_session=([^;]+)/)?.[1];
   expect(cookie).toBeTruthy();
-  return `__Host-aihub_web_session=${cookie}`;
+  return `__Secure-aihub_web_session=${cookie}`;
 }
 
 test("sign-in keeps AIHUB credentials server-side and logout clears the session", async ({
@@ -108,7 +108,7 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
 
   const cookies = await page.context().cookies();
   const sessionCookie = cookies.find(
-    (cookie) => cookie.name === "__Host-aihub_web_session"
+    (cookie) => cookie.name === "__Secure-aihub_web_session"
   );
   expect(sessionCookie).toBeDefined();
   expect(sessionCookie).toMatchObject({
@@ -140,7 +140,7 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
   ).toBeVisible();
   expect(
     (await page.context().cookies()).some(
-      (cookie) => cookie.name === "__Host-aihub_web_session"
+      (cookie) => cookie.name === "__Secure-aihub_web_session"
     )
   ).toBe(false);
 
@@ -275,7 +275,7 @@ test("email verification removes its token from the URL and offers generic recov
   );
   expect(
     (await otherContext.cookies()).some(
-      (cookie) => cookie.name === "__Host-aihub_web_session"
+      (cookie) => cookie.name === "__Secure-aihub_web_session"
     )
   ).toBe(false);
   expect(
@@ -293,7 +293,7 @@ test("email verification removes its token from the URL and offers generic recov
   const signedInPage = await signedInContext.newPage();
   await signIn(signedInPage, request);
   const existingSession = (await signedInContext.cookies()).find(
-    (cookie) => cookie.name === "__Host-aihub_web_session"
+    (cookie) => cookie.name === "__Secure-aihub_web_session"
   )?.value;
   expect(existingSession).toBeTruthy();
   await signedInPage.goto(
@@ -305,7 +305,7 @@ test("email verification removes its token from the URL and offers generic recov
   ).toBeVisible();
   expect(
     (await signedInContext.cookies()).find(
-      (cookie) => cookie.name === "__Host-aihub_web_session"
+      (cookie) => cookie.name === "__Secure-aihub_web_session"
     )?.value
   ).toBe(existingSession);
 
@@ -355,7 +355,7 @@ test("email verification removes its token from the URL and offers generic recov
   await expect(signedInPage).toHaveURL(/\/console\/orgs$/);
   expect(
     (await signedInContext.cookies()).find(
-      (cookie) => cookie.name === "__Host-aihub_web_session"
+      (cookie) => cookie.name === "__Secure-aihub_web_session"
     )?.value
   ).toBe(existingSession);
 
@@ -463,7 +463,7 @@ test("a mail scanner can verify first without consuming the registration browser
   );
   expect(
     (await scannerContext.cookies()).some(
-      (cookie) => cookie.name === "__Host-aihub_web_session"
+      (cookie) => cookie.name === "__Secure-aihub_web_session"
     )
   ).toBe(false);
   expect(
@@ -484,7 +484,7 @@ test("a mail scanner can verify first without consuming the registration browser
   ).toBeVisible();
   expect(
     (await page.context().cookies()).some(
-      (cookie) => cookie.name === "__Host-aihub_web_session"
+      (cookie) => cookie.name === "__Secure-aihub_web_session"
     )
   ).toBe(true);
   expect(
@@ -523,10 +523,10 @@ test("a matching verification binding signs in and replaces the existing session
   await resetAuthMock(request);
   await signIn(page, request);
   const oldSessionId = (await page.context().cookies()).find(
-    (cookie) => cookie.name === "__Host-aihub_web_session"
+    (cookie) => cookie.name === "__Secure-aihub_web_session"
   )?.value;
   expect(oldSessionId).toBeTruthy();
-  const oldCookie = `__Host-aihub_web_session=${oldSessionId}`;
+  const oldCookie = `__Secure-aihub_web_session=${oldSessionId}`;
 
   await page.goto("/app/register");
   await page.getByLabel("Email").fill("new@example.test");
@@ -551,7 +551,7 @@ test("a matching verification binding signs in and replaces the existing session
   ).toBeVisible();
   const cookies = await page.context().cookies();
   const newSessionId = cookies.find(
-    (cookie) => cookie.name === "__Host-aihub_web_session"
+    (cookie) => cookie.name === "__Secure-aihub_web_session"
   )?.value;
   expect(newSessionId).toBeTruthy();
   expect(newSessionId).not.toBe(oldSessionId);
@@ -675,7 +675,7 @@ test("password reset removes its token, checks mismatch, and clears the current 
   await signIn(page, request);
   expect(
     (await page.context().cookies()).some(
-      (cookie) => cookie.name === "__Host-aihub_web_session"
+      (cookie) => cookie.name === "__Secure-aihub_web_session"
     )
   ).toBe(true);
 
@@ -705,7 +705,7 @@ test("password reset removes its token, checks mismatch, and clears the current 
   await expect
     .poll(async () =>
       (await page.context().cookies()).some(
-        (cookie) => cookie.name === "__Host-aihub_web_session"
+        (cookie) => cookie.name === "__Secure-aihub_web_session"
       )
     )
     .toBe(false);
@@ -909,7 +909,7 @@ test("a rejected session exchange ends the session and logout clears it during a
   await expect
     .poll(async () =>
       (await page.context().cookies()).some(
-        (cookie) => cookie.name === "__Host-aihub_web_session"
+        (cookie) => cookie.name === "__Secure-aihub_web_session"
       )
     )
     .toBe(false);
@@ -924,7 +924,7 @@ test("a rejected session exchange ends the session and logout clears it during a
   await expect(page).toHaveURL(`${appUrl}/app`);
   expect(
     (await page.context().cookies()).some(
-      (cookie) => cookie.name === "__Host-aihub_web_session"
+      (cookie) => cookie.name === "__Secure-aihub_web_session"
     )
   ).toBe(false);
   const logged = await request.get(`${mockUrl}/__test__/auth/requests`);

@@ -17,7 +17,7 @@ function sessionRequest() {
     method: "POST",
     headers: {
       Origin: origin,
-      Cookie: `__Host-aihub_web_session=${token}`,
+      Cookie: `__Secure-aihub_web_session=${token}`,
       "Content-Type": "application/json",
       "X-Real-IP": "198.51.100.10",
       "X-AIHUB-End-User-IP": "192.0.2.99",
@@ -59,7 +59,7 @@ describe("AIHUB Web Session BFF", () => {
     expect(response.status).toBe(204);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("set-cookie")).toContain(
-      `__Host-aihub_web_session=${token}; Path=/app; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict`
+      `__Secure-aihub_web_session=${token}; Path=/app; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict`
     );
     expect(fetch).toHaveBeenCalledWith(
       "http://127.0.0.1:3101/v1/auth/web-sessions/exchange",
@@ -89,7 +89,7 @@ describe("AIHUB Web Session BFF", () => {
         method: "POST",
         headers: {
           Origin: origin,
-          Cookie: `__Host-aihub_web_session=${"x".repeat(43)}`,
+          Cookie: `__Secure-aihub_web_session=${"x".repeat(43)}`,
         },
       })
     );
@@ -129,7 +129,7 @@ describe("AIHUB Web Session BFF", () => {
         method: "POST",
         headers: {
           Origin: origin,
-          Cookie: `__Host-aihub_web_session=${"o".repeat(43)}`,
+          Cookie: `__Secure-aihub_web_session=${"o".repeat(43)}`,
           "Content-Type": "application/json",
           "Idempotency-Key": "9f6a9dd3-80d3-4f2b-a7bf-625a75d0a38a",
         },

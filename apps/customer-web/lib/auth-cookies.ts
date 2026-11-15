@@ -1,6 +1,8 @@
 import { randomBytes } from "node:crypto";
 
-export const WEB_SESSION_COOKIE = "__Host-aihub_web_session";
+// `__Host-` requires Path=/, so a cookie scoped to the /app basePath uses `__Secure-`.
+export const WEB_SESSION_COOKIE = "__Secure-aihub_web_session";
+export const LEGACY_WEB_SESSION_COOKIE = "__Host-aihub_web_session";
 export const SIGNUP_BINDING_COOKIE = "__Host-aihub_signup";
 export const SIGNUP_BINDING_TTL_SECONDS = 24 * 60 * 60;
 
@@ -9,7 +11,7 @@ export function webSessionCookie(value: string, maxAge: number) {
 }
 
 export function expiredLegacyWebSessionCookie() {
-  return `${WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`;
+  return `${LEGACY_WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`;
 }
 
 export function expiredWebSessionCookies() {

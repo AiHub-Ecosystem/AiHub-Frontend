@@ -181,7 +181,7 @@ describe("Password Reset BFF", () => {
         headers: {
           Origin: appOrigin,
           "Content-Type": "application/json",
-          Cookie: `__Host-aihub_web_session=${sessionId}`,
+          Cookie: `__Secure-aihub_web_session=${sessionId}`,
         },
         body: JSON.stringify({
           token: "private-token",
@@ -192,7 +192,7 @@ describe("Password Reset BFF", () => {
 
     expect(response.status).toBe(204);
     expect(response.headers.get("set-cookie")).toContain(
-      "__Host-aihub_web_session=; Path=/app; Max-Age=0; HttpOnly; Secure; SameSite=Strict"
+      "__Secure-aihub_web_session=; Path=/app; Max-Age=0; HttpOnly; Secure; SameSite=Strict"
     );
     expect(fetch).toHaveBeenCalledOnce();
   });

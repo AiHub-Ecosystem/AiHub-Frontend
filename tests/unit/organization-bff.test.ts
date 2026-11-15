@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { WEB_SESSION_COOKIE } from "@/lib/auth-cookies";
+import {
+  LEGACY_WEB_SESSION_COOKIE,
+  WEB_SESSION_COOKIE,
+} from "@/lib/auth-cookies";
 
 const auth = vi.hoisted(() => ({
   authenticatedAihubFetch: vi.fn(),
@@ -14,7 +17,7 @@ const auth = vi.hoisted(() => ({
       );
       result.append(
         "Set-Cookie",
-        `${WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`
+        `${LEGACY_WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`
       );
     }
     return result;
@@ -30,7 +33,7 @@ import { POST as createOrganization } from "@/app/api/organizations/route";
 import { PATCH as renameOrganization } from "@/app/api/organizations/[organizationId]/route";
 
 const sessionId = "s".repeat(43);
-const clearSessionCookie = `${WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`;
+const clearSessionCookie = `${LEGACY_WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`;
 
 function request(
   method: string,
@@ -41,7 +44,7 @@ function request(
     method,
     headers: {
       Origin: "http://localhost",
-      Cookie: "__Host-aihub_web_session=test",
+      Cookie: "__Secure-aihub_web_session=test",
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
       ...headers,
     },

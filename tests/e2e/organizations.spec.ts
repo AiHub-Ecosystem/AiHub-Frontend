@@ -610,7 +610,7 @@ test("owner can use inline public JWKS and private JWK is blocked before request
   ).toHaveLength(1);
 
   const session = (await page.context().cookies()).find(
-    (cookie) => cookie.name === "__Host-aihub_web_session"
+    (cookie) => cookie.name === "__Secure-aihub_web_session"
   );
   const privateJwkResponse = await request.put(
     `${new URL(page.url()).origin}/app/api/organizations/identity-inline/identity-config`,
@@ -1030,7 +1030,7 @@ test("active owner can rename; backend denial and foreign IDs use generic denial
   ).toBeVisible();
 
   const sessionCookie = (await page.context().cookies()).find(
-    (cookie) => cookie.name === "__Host-aihub_web_session"
+    (cookie) => cookie.name === "__Secure-aihub_web_session"
   );
   const foreignRename = await request.patch(
     `${new URL(page.url()).origin}/app/api/organizations/foreign-org-known`,

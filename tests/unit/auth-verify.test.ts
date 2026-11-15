@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import aihubLimits from "@/data/aihub-contract/limits.json";
-import { WEB_SESSION_COOKIE } from "@/lib/auth-cookies";
+import {
+  LEGACY_WEB_SESSION_COOKIE,
+  WEB_SESSION_COOKIE,
+} from "@/lib/auth-cookies";
 import { POST } from "@/app/api/auth/verify-email/route";
 
 const origin = "http://localhost:3100";
@@ -57,7 +60,7 @@ describe("Customer Web email verification BFF", () => {
     const response = await POST(
       verifyRequest(
         "opaque-token",
-        `__Host-aihub_web_session=${oldToken}; __Host-aihub_signup=${binding}`
+        `__Secure-aihub_web_session=${oldToken}; __Host-aihub_signup=${binding}`
       )
     );
 
@@ -66,7 +69,7 @@ describe("Customer Web email verification BFF", () => {
     expect(response.headers.get("location")).toBe(`${origin}/app/console`);
     expect(response.headers.getSetCookie()).toEqual([
       `${WEB_SESSION_COOKIE}=${newToken}; Path=/app; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict`,
-      `${WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`,
+      `${LEGACY_WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`,
       "__Host-aihub_signup=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict",
     ]);
     expect(fetch).toHaveBeenNthCalledWith(
@@ -106,7 +109,7 @@ describe("Customer Web email verification BFF", () => {
       );
 
     const response = await POST(
-      verifyRequest("opaque-token", `__Host-aihub_web_session=${oldToken}`)
+      verifyRequest("opaque-token", `__Secure-aihub_web_session=${oldToken}`)
     );
 
     expect(response.status).toBe(303);
@@ -130,7 +133,7 @@ describe("Customer Web email verification BFF", () => {
     const response = await POST(
       verifyRequest(
         "opaque-token",
-        `__Host-aihub_web_session=${"q".repeat(43)}`
+        `__Secure-aihub_web_session=${"q".repeat(43)}`
       )
     );
 

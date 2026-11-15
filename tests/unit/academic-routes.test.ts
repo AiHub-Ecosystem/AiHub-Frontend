@@ -39,7 +39,7 @@ function signedInRequest(path: string, method: "GET" | "POST") {
     method,
     headers: {
       Origin: ORIGIN,
-      Cookie: `__Host-aihub_web_session=${"a".repeat(43)}`,
+      Cookie: `__Secure-aihub_web_session=${"a".repeat(43)}`,
       "Content-Type": "application/json",
     },
     ...(method === "POST" ? { body: JSON.stringify({ id: "sample_1" }) } : {}),
@@ -103,7 +103,7 @@ describe("Academic routes", () => {
         method: "POST",
         headers: {
           Origin: "https://evil.example",
-          Cookie: `__Host-aihub_web_session=${"w".repeat(43)}`,
+          Cookie: `__Secure-aihub_web_session=${"w".repeat(43)}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ id: "sample_1" }),
