@@ -12,7 +12,7 @@ function countDemoApiCalls(page: Page) {
   const paths: string[] = [];
   page.on("request", (browserRequest) => {
     const path = new URL(browserRequest.url()).pathname;
-    if (path.startsWith("/app/app/api/demo/")) paths.push(path);
+    if (path.startsWith("/app/api/demo/")) paths.push(path);
   });
   return paths;
 }
@@ -95,8 +95,7 @@ test("an environment-less key can select Production before validation", async ({
   const validationEnvironments: string[] = [];
   page.on("request", (browserRequest) => {
     if (
-      new URL(browserRequest.url()).pathname ===
-      "/app/app/api/demo/key/validate"
+      new URL(browserRequest.url()).pathname === "/app/api/demo/key/validate"
     ) {
       validationEnvironments.push(
         JSON.parse(browserRequest.postData() ?? "{}").environment
@@ -122,8 +121,7 @@ test("a Production key pasted into the default Sandbox flow is detected and warn
   const validationEnvironments: string[] = [];
   page.on("request", (browserRequest) => {
     if (
-      new URL(browserRequest.url()).pathname ===
-      "/app/app/api/demo/key/validate"
+      new URL(browserRequest.url()).pathname === "/app/api/demo/key/validate"
     ) {
       validationEnvironments.push(
         JSON.parse(browserRequest.postData() ?? "{}").environment
@@ -150,8 +148,7 @@ test("a Production key pasted into Speaking is checked on Production", async ({
   const validationEnvironments: string[] = [];
   page.on("request", (browserRequest) => {
     if (
-      new URL(browserRequest.url()).pathname ===
-      "/app/app/api/demo/key/validate"
+      new URL(browserRequest.url()).pathname === "/app/api/demo/key/validate"
     ) {
       validationEnvironments.push(
         JSON.parse(browserRequest.postData() ?? "{}").environment
@@ -196,8 +193,7 @@ test("a Production key opens live grading on the Production tier", async ({
   const submittedIdentities: string[] = [];
   page.on("request", (browserRequest) => {
     if (
-      new URL(browserRequest.url()).pathname ===
-      "/app/app/api/demo/scoring/grade"
+      new URL(browserRequest.url()).pathname === "/app/api/demo/scoring/grade"
     )
       submittedIdentities.push(
         browserRequest.headers()["x-demo-user-identity"] ?? "(missing)"
@@ -303,8 +299,7 @@ test("the first Production grade needs the billable acknowledgement", async ({
   const gradingRequests: string[] = [];
   page.on("request", (browserRequest) => {
     if (
-      new URL(browserRequest.url()).pathname ===
-      "/app/app/api/demo/scoring/grade"
+      new URL(browserRequest.url()).pathname === "/app/api/demo/scoring/grade"
     )
       gradingRequests.push(
         browserRequest.headers()["x-demo-environment"] ?? "(none)"

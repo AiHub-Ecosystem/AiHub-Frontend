@@ -251,7 +251,7 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   let requestContainsRawKey = false;
   let apiRequestCount = 0;
   page.on("request", (browserRequest) => {
-    if (new URL(browserRequest.url()).pathname.startsWith("/app/app/api/"))
+    if (new URL(browserRequest.url()).pathname.startsWith("/app/api/"))
       apiRequestCount += 1;
     if (
       rawKeyToWatch &&
@@ -289,7 +289,7 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
     (response) =>
       response
         .url()
-        .endsWith("/app/app/api/organizations/org-keys-12345678/api-keys") &&
+        .endsWith("/app/api/organizations/org-keys-12345678/api-keys") &&
       response.request().method() === "POST"
   );
   await page.getByRole("button", { name: "Tạo key" }).click();

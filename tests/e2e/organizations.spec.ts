@@ -264,7 +264,7 @@ test("successful creations clear the attempt and use a fresh key next time", asy
   const legacyKeyRequests: string[] = [];
   page.on("request", (browserRequest) => {
     const path = new URL(browserRequest.url()).pathname;
-    if (path.startsWith("/app/app/api/organizations/creation-key"))
+    if (path.startsWith("/app/api/organizations/creation-key"))
       legacyKeyRequests.push(path);
   });
   await setup(request);

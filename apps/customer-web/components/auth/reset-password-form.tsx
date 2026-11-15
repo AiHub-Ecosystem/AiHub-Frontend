@@ -136,7 +136,7 @@ export function ResetPasswordForm() {
         <>
           <p className="aihub-lede">Bạn có thể đăng nhập bằng mật khẩu mới.</p>
           <p className="auth-secondary">
-            <a href="/login">Đăng nhập</a>
+            <a href="/app/login">Đăng nhập</a>
           </p>
         </>
       ) : phase === "expired" ? (
@@ -145,7 +145,7 @@ export function ResetPasswordForm() {
             {message}
           </p>
           <p className="auth-secondary">
-            <a href="/forgot-password">Yêu cầu liên kết mới</a>
+            <a href="/app/forgot-password">Yêu cầu liên kết mới</a>
           </p>
         </>
       ) : (
@@ -194,7 +194,7 @@ export function ResetPasswordForm() {
             </button>
           </form>
           <p className="auth-secondary">
-            <a href="/forgot-password">Yêu cầu liên kết mới</a>
+            <a href="/app/forgot-password">Yêu cầu liên kết mới</a>
           </p>
         </>
       )}

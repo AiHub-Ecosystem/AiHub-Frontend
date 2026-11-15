@@ -315,7 +315,7 @@ export default function Page() {
               <a className="docs-secondary-link" href="#sandbox">
                 Xem cách thử miễn phí
               </a>
-              <a className="docs-secondary-link" href="/docs/reference">
+              <a className="docs-secondary-link" href="/app/docs/reference">
                 Mở API Reference đầy đủ (cần đăng nhập)
               </a>
             </div>

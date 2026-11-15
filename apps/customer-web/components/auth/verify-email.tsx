@@ -191,7 +191,7 @@ export function VerifyEmail() {
             </p>
           )}
           <p className="auth-secondary">
-            <a href="/login">Quay lại đăng nhập</a>
+            <a href="/app/login">Quay lại đăng nhập</a>
           </p>
         </>
       )}

@@ -724,7 +724,7 @@ test("Speaking grading rejects an invalid key if the client bypasses validation"
     form.append("prompt_text", "Do you enjoy living in your hometown?");
     form.append("test_type", "Practice");
 
-    const response = await fetch("/app/app/api/demo/speaking/grading", {
+    const response = await fetch("/app/api/demo/speaking/grading", {
       method: "POST",
       headers: {
         "X-Demo-API-Key": "invalid-sandbox-key",

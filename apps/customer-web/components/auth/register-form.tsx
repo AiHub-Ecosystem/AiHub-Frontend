@@ -162,7 +162,7 @@ export function RegisterForm() {
             </p>
           )}
           <p className="auth-secondary">
-            <a href="/login">Quay lại đăng nhập</a>
+            <a href="/app/login">Quay lại đăng nhập</a>
           </p>
         </>
       ) : (
@@ -249,7 +249,7 @@ export function RegisterForm() {
             </button>
           )}
           <p className="auth-secondary">
-            Đã có tài khoản? <a href="/login">Đăng nhập</a>
+            Đã có tài khoản? <a href="/app/login">Đăng nhập</a>
           </p>
         </>
       )}

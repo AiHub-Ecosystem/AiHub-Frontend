@@ -41,7 +41,7 @@ test("anonymous users sign in before Scalar and can download the protected contr
   );
   const scalarSpecResponse = page.waitForResponse(
     (response) =>
-      new URL(response.url()).pathname === "/app/app/api/docs/openapi/v1.json"
+      new URL(response.url()).pathname === "/app/api/docs/openapi/v1.json"
   );
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(page).toHaveURL(/\/app\/docs\/reference$/u);
@@ -55,7 +55,7 @@ test("anonymous users sign in before Scalar and can download the protected contr
 
   await expect(page.locator("#api-reference")).toHaveAttribute(
     "data-url",
-    "/app/app/api/docs/openapi/v1.json"
+    "/app/api/docs/openapi/v1.json"
   );
   await expect(
     page.getByRole("link", { name: "Download latest OpenAPI JSON" })
@@ -71,7 +71,7 @@ test("anonymous users sign in before Scalar and can download the protected contr
   expect(download.suggestedFilename()).toBe("openapi.json");
 
   const versionedDownload = await page.evaluate(async () => {
-    const response = await fetch("/app/app/api/docs/openapi/v1.json");
+    const response = await fetch("/app/api/docs/openapi/v1.json");
     return {
       status: response.status,
       disposition: response.headers.get("content-disposition"),
@@ -100,7 +100,7 @@ test("anonymous users sign in before Scalar and can download the protected contr
     bearerForwarded: boolean;
   }[];
   expect(requests.map(({ pathname }) => pathname)).toEqual([
-    "/app/docs",
+    "/docs",
     "/openapi/v1.json",
     "/openapi.json",
     "/openapi/v1.json",

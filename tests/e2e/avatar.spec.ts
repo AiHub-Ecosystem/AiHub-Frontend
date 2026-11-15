@@ -465,7 +465,7 @@ test("avatar upload BFF accepts metadata only and rejects any image payload", as
   await prepareMocks(request);
   await signIn(page);
   const status = await page.evaluate(async () => {
-    const response = await fetch("/app/app/api/account/avatar/uploads", {
+    const response = await fetch("/app/api/account/avatar/uploads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

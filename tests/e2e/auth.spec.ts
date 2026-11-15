@@ -131,7 +131,8 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
   ).toBeVisible();
   await page.getByText("Tài khoản", { exact: true }).click();
   await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
-  await expect(page).toHaveURL(`${appUrl}/app`);
+  // The signed-out home is the landing app in production; Customer Web alone sends / to the console, which asks for sign-in.
+  await expect(page).toHaveURL(/\/app\/login(\?|$)/);
   await expect(
     page.getByRole("link", { name: "Đăng nhập", exact: true })
   ).toBeVisible();
@@ -372,7 +373,7 @@ test("email verification removes its token from the URL and offers generic recov
     )
   ).toBe(false);
   const replay = await otherPage.evaluate(async () => {
-    const response = await fetch("/app/app/api/auth/verify-email", {
+    const response = await fetch("/app/api/auth/verify-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: "resent-verification-token" }),
@@ -589,7 +590,7 @@ test("a matching verification binding signs in and replaces the existing session
   ]);
 
   const replay = await page.evaluate(async () => {
-    const response = await fetch("/app/app/api/auth/verify-email", {
+    const response = await fetch("/app/api/auth/verify-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: "matching-verification-token" }),
@@ -921,7 +922,8 @@ test("a rejected session exchange ends the session and logout clears it during a
   });
   await page.getByText("Tài khoản", { exact: true }).click();
   await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
-  await expect(page).toHaveURL(`${appUrl}/app`);
+  // The signed-out home is the landing app in production; Customer Web alone sends / to the console, which asks for sign-in.
+  await expect(page).toHaveURL(/\/app\/login(\?|$)/);
   expect(
     (await page.context().cookies()).some(
       (cookie) => cookie.name === "__Secure-aihub_web_session"

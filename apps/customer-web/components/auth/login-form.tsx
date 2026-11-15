@@ -46,7 +46,7 @@ export function LoginForm({
         required
       />
       <p className="auth-secondary">
-        <a href="/forgot-password">Quên mật khẩu?</a>
+        <a href="/app/forgot-password">Quên mật khẩu?</a>
       </p>
       {message && (
         <p className="auth-error" role="alert">

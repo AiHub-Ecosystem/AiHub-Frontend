@@ -768,7 +768,7 @@ test("Writing grading rejects an invalid key even when the client skips validati
   await openWriting(page, { mode: "live", step: 2 });
 
   const result = await page.evaluate(async () => {
-    const response = await fetch("/app/app/api/demo/scoring/grade", {
+    const response = await fetch("/app/api/demo/scoring/grade", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
