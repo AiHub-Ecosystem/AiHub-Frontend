@@ -32,7 +32,7 @@ export default defineConfig({
     },
     {
       name: "Next.js app",
-      command: "npm run dev:e2e",
+      command: "npm run dev:e2e --workspace=@aihub/customer-web",
       url: `${appUrl}/app/login`,
       env: {
         API_BASE_URL: mockUrl,
@@ -48,7 +48,7 @@ export default defineConfig({
     },
     {
       name: "Second Next.js app instance",
-      command: "npm run dev:e2e:secondary",
+      command: "npm run dev:e2e:secondary --workspace=@aihub/customer-web",
       url: `${secondAppUrl}/app/login`,
       env: {
         API_BASE_URL: mockUrl,

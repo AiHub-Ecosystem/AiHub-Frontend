@@ -15,7 +15,7 @@ const contractPath =
   process.env.AIHUB_OPENAPI_PATH ??
   path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
-    "../../data/aihub-contract/openapi.json"
+    "../../apps/customer-web/data/aihub-contract/openapi.json"
   );
 const contractDocument = JSON.parse(readFileSync(contractPath, "utf8"));
 const validateContract = createContractValidator(contractDocument);
@@ -30,7 +30,7 @@ const aihubLimits = JSON.parse(
   readFileSync(
     path.resolve(
       path.dirname(fileURLToPath(import.meta.url)),
-      "../../data/aihub-contract/limits.json"
+      "../../apps/customer-web/data/aihub-contract/limits.json"
     ),
     "utf8"
   )

@@ -5,7 +5,9 @@ test("landing root and legacy auth links route to their app owners", async ({
 }) => {
   const landing = await request.get("http://127.0.0.1:3102/");
   expect(landing.ok()).toBeTruthy();
-  expect(await landing.text()).toContain("Hệ sinh thái API AI");
+  expect(await landing.text()).toContain(
+    "AIHub — Luyện viết IELTS thông minh hơn"
+  );
 
   for (const route of ["verify-email?token=old", "reset-password?token=old"]) {
     const response = await request.get(`http://127.0.0.1:3102/${route}`, {

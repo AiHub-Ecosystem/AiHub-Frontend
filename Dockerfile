@@ -17,6 +17,7 @@ FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+COPY apps/customer-web/package.json apps/customer-web/package.json
 COPY apps/landing/package.json apps/landing/package.json
 COPY scripts/prod-dependencies.mjs ./scripts/
 
@@ -49,18 +50,18 @@ RUN --mount=type=bind,target=/source \
     cp -a /source/. /app/; \
     npm ci --ignore-scripts --libc=glibc; \
     if [ -f /run/secrets/next_preview_info ]; then \
-      mkdir -p .next/cache && cp /run/secrets/next_preview_info .next/cache/.previewinfo; \
+      mkdir -p apps/customer-web/.next/cache && cp /run/secrets/next_preview_info apps/customer-web/.next/cache/.previewinfo; \
     fi; \
     if [ -f /run/secrets/next_rsc_info ]; then \
-      mkdir -p .next/cache && cp /run/secrets/next_rsc_info .next/cache/.rscinfo; \
+      mkdir -p apps/customer-web/.next/cache && cp /run/secrets/next_rsc_info apps/customer-web/.next/cache/.rscinfo; \
     fi; \
     if [ -f /run/secrets/next_server_actions_key ]; then \
       NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(cat /run/secrets/next_server_actions_key)" npm run build:web; \
     else \
       npm run build:web; \
     fi; \
-    rm -rf /app/.next/cache/turbopack /app/.next/cache/.tsbuildinfo /app/.next/trace /app/.next/trace-build /app/.next/next-server.js.nft.json; \
-    mkdir -p /app/.next/cache; \
+    rm -rf /app/apps/customer-web/.next/cache/turbopack /app/apps/customer-web/.next/cache/.tsbuildinfo /app/apps/customer-web/.next/trace /app/apps/customer-web/.next/trace-build /app/apps/customer-web/.next/next-server.js.nft.json; \
+    mkdir -p /app/apps/customer-web/.next/cache; \
     rm -rf /root/.npm
 
 # The server reads the build output, the production dependencies, public/ and the
@@ -70,11 +71,12 @@ FROM ${NODE_IMAGE} AS runtime
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/data ./data
+COPY --from=builder /app/apps/customer-web/.next ./apps/customer-web/.next
+COPY --from=builder /app/apps/customer-web/public ./apps/customer-web/public
+COPY --from=builder /app/apps/customer-web/data ./apps/customer-web/data
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/package-lock.json ./package-lock.json
+COPY --from=builder /app/apps/customer-web/package.json ./apps/customer-web/package.json
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
@@ -84,4 +86,4 @@ USER node
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["npm", "run", "start:web"]

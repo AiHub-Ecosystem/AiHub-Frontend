@@ -3,12 +3,13 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const pinnedPath = path.join(root, "data/aihub-contract/openapi.json");
-const limitsPath = path.join(root, "data/aihub-contract/limits.json");
-const sourcePath = path.join(root, "data/aihub-contract/source.json");
+const appData = path.join(root, "apps/customer-web/data");
+const pinnedPath = path.join(appData, "aihub-contract/openapi.json");
+const limitsPath = path.join(appData, "aihub-contract/limits.json");
+const sourcePath = path.join(appData, "aihub-contract/source.json");
 const policy = JSON.parse(
   readFileSync(
-    path.join(root, "data/aihub-contract/error-code-policy.json"),
+    path.join(appData, "aihub-contract/error-code-policy.json"),
     "utf8"
   )
 );

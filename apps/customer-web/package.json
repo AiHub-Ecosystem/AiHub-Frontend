@@ -1,0 +1,19 @@
+{
+  "name": "@aihub/customer-web",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:e2e": "next dev --hostname 127.0.0.1 --port 3100",
+    "dev:e2e:secondary": "next dev --hostname 127.0.0.1 --port 3105",
+    "build": "next build",
+    "start": "next start",
+    "typegen": "next typegen"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.23",
+    "lucide-react": "^1.46.0",
+    "next": "^16.4.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  }
+}

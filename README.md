@@ -2,7 +2,7 @@
 
 ## Monorepo applications
 
-- The repository root is the `@aihub/web` workspace: the AIHUB application, served at `/app`.
+- `apps/customer-web` is the AIHUB application, served at `/app`.
 - `apps/landing` is the public landing site, served at `/`.
 - `npm run dev` runs both apps through Turborepo; `npm run dev:web` and `npm run dev --workspace=@aihub/landing` run one app.
 - `npm run build` builds both apps in sequence. `npm run build:web` builds only the AIHUB application.
@@ -17,7 +17,7 @@ Phân hệ Frontend của AIHub xây dựng trên nền tảng **Next.js 16.3 (T
 ## 🗺️ 1. Cấu Trúc Routing (28 Routes Hoàn Hảo)
 
 ```
-app/
+apps/customer-web/app/
 ├── (Root)                      # / - Trang chủ AIHub
 ├── lab/                        # /lab - Phòng Lab Academic (Chấm điểm & Quản lý mẫu)
 ├── demo/                       # /demo - Danh mục Demo sản phẩm
@@ -42,7 +42,7 @@ app/
 
 ## 🧪 2. Tính Năng Trọng Tâm: Phòng Lab Academic (`/lab`)
 
-Giao diện phòng Lab được thiết kế đồng nhất 100% với phong cách hiện đại của trang Demo ([`aihub.css`](file:///d:/AiHub/frontend/app/aihub.css)), gồm 2 phân hệ:
+Giao diện phòng Lab được thiết kế đồng nhất 100% với phong cách hiện đại của trang Demo ([`aihub.css`](apps/customer-web/app/aihub.css)), gồm 2 phân hệ:
 
 ### A. Tab "🧪 Phòng Lab Tạo & Chấm Điểm"
 

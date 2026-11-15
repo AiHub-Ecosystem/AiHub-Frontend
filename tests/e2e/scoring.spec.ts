@@ -6,7 +6,7 @@ import {
 } from "@playwright/test";
 import { waitForHydration } from "./hydration";
 import { expectReadable } from "./text-contrast";
-import { WRITING_TASK1_SAMPLE_IMAGE_URL } from "../../data/writing-task1-request";
+import { WRITING_TASK1_SAMPLE_IMAGE_URL } from "../../apps/customer-web/data/writing-task1-request";
 
 const mockUrl = "http://127.0.0.1:3101";
 const signedSandboxKey = "aihub_sk_e2e_signed_sandbox_key";

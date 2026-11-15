@@ -5,15 +5,15 @@
 // upstream side of every case is contract-validated against the pinned OpenAPI.
 //
 // Nothing here runs in production: the prototype lives in `spikes/`, is not
-// mounted under `app/`, and no caller is switched to it.
+// mounted under the customer-web app, and no caller is switched to it.
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { createTRPCClient, httpLink } from "@trpc/client";
 
 import { POST as createOrganizationRoute } from "@/app/api/organizations/route";
-import { spikeHandler } from "@/spikes/trpc-bff/handler";
-import type { SpikeRouter } from "@/spikes/trpc-bff/router";
+import { spikeHandler } from "@spikes/trpc-bff/handler";
+import type { SpikeRouter } from "@spikes/trpc-bff/router";
 import { startSeam, type Seam } from "./support/seam-harness";
 
 const IDEMPOTENCY_KEY = "a1b2c3d4-e5f6-4a1b-8c2d-1234567890ab";

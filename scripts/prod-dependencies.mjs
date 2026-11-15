@@ -21,7 +21,10 @@ const lock = JSON.parse(
 // every package inside every scope.
 const productionPackages = new Set(
   Object.entries(lock.packages)
-    .filter(([path, entry]) => path && !entry.dev && !entry.devOptional)
+    .filter(
+      ([path, entry]) =>
+        path.startsWith("node_modules/") && !entry.dev && !entry.devOptional
+    )
     .map(
       ([path]) => path.replace(/^node_modules\//, "").split("/node_modules/")[0]
     )
