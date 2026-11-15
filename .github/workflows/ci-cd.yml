@@ -62,7 +62,7 @@ jobs:
 
       - name: Generate route types
         # PageProps/LayoutProps are generated into .next/types; tsc below needs them.
-        run: npm run typegen --workspace=@aihub/aihub
+        run: npm run typegen --workspace=@aihub/customer-web
 
       - name: Lint (advisory)
         # ponytail: keep deployment unblocked by the existing lint baseline; make it a gate after cleanup.
