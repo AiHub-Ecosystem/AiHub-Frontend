@@ -4,6 +4,8 @@ import {
   isWebSessionId,
   originIsAllowed,
   WEB_SESSION_TTL_SECONDS,
+  appendExpiredWebSessionCookies,
+  expiredLegacyWebSessionCookie,
   webSessionCookie,
   webSessionIdFromRequest,
 } from "@/lib/auth-session";
@@ -18,7 +20,7 @@ export async function POST(request: Request) {
   if (!isWebSessionId(token))
     return new Response(null, {
       status: 401,
-      headers: { ...noStore, "Set-Cookie": webSessionCookie("", 0) },
+      headers: appendExpiredWebSessionCookies(new Headers(noStore)),
     });
 
   try {
@@ -30,14 +32,17 @@ export async function POST(request: Request) {
     )
       return new Response(null, {
         status: 401,
-        headers: { ...noStore, "Set-Cookie": webSessionCookie("", 0) },
+        headers: appendExpiredWebSessionCookies(new Headers(noStore)),
       });
+    const headers = new Headers(noStore);
+    headers.append(
+      "Set-Cookie",
+      webSessionCookie(token, WEB_SESSION_TTL_SECONDS)
+    );
+    headers.append("Set-Cookie", expiredLegacyWebSessionCookie());
     return new Response(null, {
       status: 204,
-      headers: {
-        ...noStore,
-        "Set-Cookie": webSessionCookie(token, WEB_SESSION_TTL_SECONDS),
-      },
+      headers,
     });
   } catch {
     return new Response(null, { status: 503, headers: noStore });

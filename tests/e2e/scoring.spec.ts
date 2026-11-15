@@ -118,7 +118,7 @@ test("Writing supports signed assertions and redacts them from traces and export
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
   const assertion = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJ1c2VyLTQyIn0.signature";
   await resetScoringLog(request);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await openWriting(page, {
     mode: "live",
     apiKey: signedSandboxKey,
@@ -191,7 +191,7 @@ test("Writing keeps an invalid signed assertion as a live failure", async ({
 }) => {
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
   await resetScoringLog(request);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await openWriting(page, {
     mode: "live",
     apiKey: signedSandboxKey,
@@ -360,7 +360,7 @@ test.beforeEach(async ({ request }) => {
 test("the catalog offers the scoring demo as Stable with a link", async ({
   page,
 }) => {
-  await page.goto("/demo");
+  await page.goto("/app/demo");
 
   const card = page
     .locator(".aihub-demo-product", { hasText: "Chấm điểm" })
@@ -376,7 +376,7 @@ test("the Task 1 overview animates the API flow without sending a grade", async 
   page,
   request,
 }) => {
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await expect(
     page.getByRole("region", {
       name: "Các bước chấm IELTS Writing (Task 1 & Task 2)",
@@ -418,7 +418,7 @@ test("grades the prefilled Task 1 sample without a login", async ({
   const failed: string[] = [];
   page.on("pageerror", (error) => failed.push(error.message));
 
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await openWriting(page, { step: 2 });
 
   const mockQuestions = page.locator('[data-testid^="writing-mock-question-"]');
@@ -502,7 +502,7 @@ test("uploads a Task 1 chart and grades with its published URL", async ({
   const imageUrl = "https://charts-upload.test/writing-charts/chart.png";
   let uploadedBytes: Buffer | undefined;
 
-  await page.route("**/api/demo/scoring/chart-uploads", async (route) => {
+  await page.route("**/app/api/demo/scoring/chart-uploads", async (route) => {
     expect(route.request().postDataJSON()).toEqual({
       content_type: "image/png",
       byte_size: bytes.length,
@@ -528,23 +528,26 @@ test("uploads a Task 1 chart and grades with its published URL", async ({
       },
     });
   });
-  await page.route("**/api/demo/scoring/chart-uploads/**", async (route) => {
-    expect(route.request().url()).toContain(`/${assetId}/complete`);
-    await route.fulfill({
-      status: 200,
-      json: {
-        data: {
-          asset_id: assetId,
-          image_url: imageUrl,
-          content_type: "image/png",
-          byte_size: bytes.length,
-          published_at: "2026-10-15T00:00:00.000Z",
-          expires_at: "2026-10-16T00:00:00.000Z",
+  await page.route(
+    "**/app/api/demo/scoring/chart-uploads/**",
+    async (route) => {
+      expect(route.request().url()).toContain(`/${assetId}/complete`);
+      await route.fulfill({
+        status: 200,
+        json: {
+          data: {
+            asset_id: assetId,
+            image_url: imageUrl,
+            content_type: "image/png",
+            byte_size: bytes.length,
+            published_at: "2026-10-15T00:00:00.000Z",
+            expires_at: "2026-10-16T00:00:00.000Z",
+          },
+          meta: { request_id: "req_01J00000000000000000000002" },
         },
-        meta: { request_id: "req_01J00000000000000000000002" },
-      },
-    });
-  });
+      });
+    }
+  );
   await page.route("https://charts-upload.test/**", async (route) => {
     const uploadRequest = route.request();
     if (uploadRequest.method() === "POST") {
@@ -562,7 +565,7 @@ test("uploads a Task 1 chart and grades with its published URL", async ({
     });
   });
 
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await openWriting(page, { mode: "live", step: 2 });
   const chartPreview = page.getByTestId("scoring-chart-preview");
   await expect(chartPreview).toHaveAttribute(
@@ -608,7 +611,7 @@ test("the report keeps the criteria order the response carried", async ({
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await gradeWriting(page, { mode: "live" });
 
   await expect(
@@ -625,7 +628,7 @@ test("an annotation highlight is keyboard reachable and reveals its detail", asy
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await gradeWriting(page, { mode: "live" });
 
   const chip = page.getByTestId("annotation-chip-0");
@@ -642,7 +645,7 @@ test("the same colour ties a criterion's card, badge and annotation together", a
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await gradeWriting(page, { mode: "live" });
 
   const lexicalCard = page
@@ -668,7 +671,7 @@ test("suggestions and next steps render as two lists side by side", async ({
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await gradeWriting(page, { mode: "live" });
 
   // The last region of the result layout, which carries no tone class of its
@@ -689,7 +692,7 @@ test("text on a criterion-tinted card stays legible against its own tint", async
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await gradeWriting(page, { mode: "live" });
   await page.getByTestId("annotation-chip-0").click();
   await expect(page.getByTestId("scoring-annotation-detail")).toBeVisible();
@@ -712,7 +715,7 @@ test("text on a criterion-tinted card stays legible against its own tint", async
 
 test("both demo workbenches keep the AIHUB brand palette", async ({ page }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await waitForHydration(page);
 
   const tokens = await page
@@ -727,7 +730,7 @@ test("both demo workbenches keep the AIHUB brand palette", async ({ page }) => {
     });
   expect(tokens).toEqual(["#3a64fa", "#1d2838"]);
 
-  await page.goto("/demo/speaking");
+  await page.goto("/app/demo/speaking");
   const speakingBrand = await page
     .locator("main.aihub-demo-flow")
     .first()
@@ -741,7 +744,7 @@ test("a rejected submission shows a clear error and no credential leaked", async
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await waitForHydration(page);
 
   await page.getByLabel("Mã API (không bắt buộc)").fill("invalid-sandbox-key");
@@ -761,11 +764,11 @@ test("Writing grading rejects an invalid key even when the client skips validati
   page,
   request,
 }) => {
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await openWriting(page, { mode: "live", step: 2 });
 
   const result = await page.evaluate(async () => {
-    const response = await fetch("/api/demo/scoring/grade", {
+    const response = await fetch("/app/app/api/demo/scoring/grade", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -794,7 +797,7 @@ test("the Task 2 tab opens without a page load and survives a return visit", asy
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await waitForHydration(page);
 
   await page
@@ -846,7 +849,7 @@ test("live Task 2 grading sends topic and no Task 1 field", async ({
   request,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await openWriting(page, { mode: "live", task: 2, step: 2 });
 
   const identity = page.getByLabel("Declared User ID (X-User-Identity)");
@@ -900,7 +903,7 @@ test("the Task 2 report leads with Task Response in Task Achievement's colour", 
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await gradeWriting(page, { mode: "live", task: 2 });
 
   // Rendered in the order the response carried them.
@@ -942,7 +945,7 @@ test("the Task 2 report leads with Task Response in Task Achievement's colour", 
 
 test("the Task 2 tab renders none of the Task 1 form", async ({ page }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await waitForHydration(page);
   await page.getByRole("button", { name: "Xem bài mẫu" }).click();
   await page.getByTestId("tab-task-2").click();
@@ -961,7 +964,7 @@ test("a Task 1 report does not reappear under the Task 2 tab", async ({
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await gradeWriting(page, { mode: "live" });
   await expect(page.getByTestId("scoring-report")).toContainText(
     "Báo cáo chấm bài Task 1"
@@ -984,7 +987,7 @@ test("the four criteria fit a phone without horizontal scrolling", async ({
 }) => {
   await keepBrowserTrafficLocal(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await waitForHydration(page);
   await gradeWriting(page);
 
@@ -1018,7 +1021,7 @@ test("every text on the page is readable, before and after a grade", async ({
   // the navigation waits on a real network fetch, which hangs the test when
   // the suite runs without outbound access.
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await waitForHydration(page);
   await expectReadable(page);
 
@@ -1035,7 +1038,7 @@ test("a scrolled report clears the fixed site header instead of hiding behind it
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await waitForHydration(page);
   // Measured before grading, while the panel is short enough to stick. Once a
   // report exists it is taller than any viewport, and scrolling it past the
@@ -1097,7 +1100,7 @@ test("the visitor can leave the optional Sandbox key empty", async ({
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await waitForHydration(page);
 
   await expect(page.getByLabel("Mã API (không bắt buộc)")).toHaveValue("");
@@ -1115,7 +1118,7 @@ test("Writing retries reuse the submission key and a new successful send rotates
 }) => {
   await keepBrowserTrafficLocal(page);
   const idempotencyKeys: string[] = [];
-  await page.route("**/api/demo/scoring/grade", async (route) => {
+  await page.route("**/app/api/demo/scoring/grade", async (route) => {
     idempotencyKeys.push(
       route.request().headers()["idempotency-key"] ?? "(missing)"
     );
@@ -1132,7 +1135,7 @@ test("Writing retries reuse the submission key and a new successful send rotates
     await route.continue();
   });
 
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await openWriting(page, { mode: "live", step: 4 });
   await page.getByTestId("button-grade").click();
   await expect(page.locator(".demo-error[role=alert]")).toBeVisible();
@@ -1164,7 +1167,7 @@ test("no demo heading inherits display type from the foreign stylesheet", async 
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await waitForHydration(page);
 
   const headings = await page
@@ -1194,7 +1197,7 @@ test("an essay with nothing to quote says so, rather than showing a count of zer
   await setScoringConfig(request, { noAnnotations: true });
   try {
     await keepBrowserTrafficLocal(page);
-    await page.goto("/demo/scoring");
+    await page.goto("/app/demo/scoring");
     await waitForHydration(page);
     await gradeWriting(page, { mode: "live" });
 
@@ -1217,7 +1220,7 @@ test("the Request and Response console appears only on the grading step", async 
   page,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await waitForHydration(page);
   const stepper = page.getByRole("navigation", { name: "Các bước thực hành" });
   await expect(stepper.getByRole("listitem")).toHaveCount(4);
@@ -1261,7 +1264,7 @@ test("the Request and Response console appears only on the grading step", async 
 test("the report is never clipped, at any width", async ({ page }) => {
   await keepBrowserTrafficLocal(page);
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await gradeWriting(page);
 
   for (const width of [1440, 1200, 1061, 1060, 1020, 1001, 900, 768]) {
@@ -1287,7 +1290,7 @@ test("a rejected chart upload keeps the current preview and grading URL", async 
 }) => {
   const assertNoExternalTraffic = await keepBrowserTrafficLocal(page);
   await resetScoringLog(request);
-  await page.route("**/api/demo/scoring/chart-uploads", async (route) => {
+  await page.route("**/app/api/demo/scoring/chart-uploads", async (route) => {
     await route.fulfill({
       status: 429,
       json: {
@@ -1298,7 +1301,7 @@ test("a rejected chart upload keeps the current preview and grading URL", async 
       },
     });
   });
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await openWriting(page, { mode: "live", step: 2 });
 
   await page.getByLabel("Chọn ảnh biểu đồ").setInputFiles({

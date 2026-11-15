@@ -12,16 +12,16 @@ function referenceHtml(html: string) {
     ),
   ];
   const downloads = [
-    '<a href="/api/docs/openapi.json" download="openapi.json">Download latest OpenAPI JSON</a>',
+    '<a href="/app/api/docs/openapi.json" download="openapi.json">Download latest OpenAPI JSON</a>',
     ...majors.map(
       (major) =>
-        `<a href="/api/docs/openapi/${major}.json" download="openapi-${major}.json">Download OpenAPI ${major} JSON</a>`
+        `<a href="/app/api/docs/openapi/${major}.json" download="openapi-${major}.json">Download OpenAPI ${major} JSON</a>`
     ),
   ].join("\n    ");
 
   return html
     .replace('action="/docs"', 'action="/docs/reference"')
-    .replaceAll('data-url="/openapi/', 'data-url="/api/docs/openapi/')
+    .replaceAll('data-url="/openapi/', 'data-url="/app/api/docs/openapi/')
     .replace(
       "</form>",
       `</form>\n  <nav aria-label="OpenAPI downloads">\n    ${downloads}\n  </nav>`

@@ -22,11 +22,13 @@ test("anonymous users sign in before Scalar and can download the protected contr
     );
   });
 
-  await page.goto("/docs/reference");
-  await expect(page).toHaveURL(/\/login\?next=%2Fdocs%2Freference$/u);
+  await page.goto("/app/docs/reference");
+  await expect(page).toHaveURL(
+    /\/app\/login\?next=%2Fapp%2Fdocs%2Freference$/u
+  );
   const anonymousDownload = await page
     .context()
-    .request.get(`${appUrl}/api/docs/openapi.json`);
+    .request.get(`${appUrl}/app/api/docs/openapi.json`);
   expect(anonymousDownload.status()).toBe(401);
 
   await waitForHydration(page);
@@ -39,10 +41,10 @@ test("anonymous users sign in before Scalar and can download the protected contr
   );
   const scalarSpecResponse = page.waitForResponse(
     (response) =>
-      new URL(response.url()).pathname === "/api/docs/openapi/v1.json"
+      new URL(response.url()).pathname === "/app/app/api/docs/openapi/v1.json"
   );
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
-  await expect(page).toHaveURL(/\/docs\/reference$/u);
+  await expect(page).toHaveURL(/\/app\/docs\/reference$/u);
   const [scalarScript, scalarSpec] = await Promise.all([
     scalarScriptResponse,
     scalarSpecResponse,
@@ -53,7 +55,7 @@ test("anonymous users sign in before Scalar and can download the protected contr
 
   await expect(page.locator("#api-reference")).toHaveAttribute(
     "data-url",
-    "/api/docs/openapi/v1.json"
+    "/app/app/api/docs/openapi/v1.json"
   );
   await expect(
     page.getByRole("link", { name: "Download latest OpenAPI JSON" })
@@ -69,7 +71,7 @@ test("anonymous users sign in before Scalar and can download the protected contr
   expect(download.suggestedFilename()).toBe("openapi.json");
 
   const versionedDownload = await page.evaluate(async () => {
-    const response = await fetch("/api/docs/openapi/v1.json");
+    const response = await fetch("/app/app/api/docs/openapi/v1.json");
     return {
       status: response.status,
       disposition: response.headers.get("content-disposition"),
@@ -98,7 +100,7 @@ test("anonymous users sign in before Scalar and can download the protected contr
     bearerForwarded: boolean;
   }[];
   expect(requests.map(({ pathname }) => pathname)).toEqual([
-    "/docs",
+    "/app/docs",
     "/openapi/v1.json",
     "/openapi.json",
     "/openapi/v1.json",
@@ -109,7 +111,7 @@ test("anonymous users sign in before Scalar and can download the protected contr
 test("the integration guide and curated API reference stay public", async ({
   page,
 }) => {
-  await page.goto("/docs");
+  await page.goto("/app/docs");
   await expect(
     page.getByRole("heading", {
       name: "Đưa tính năng chấm AI vào ứng dụng của bạn",
@@ -119,9 +121,9 @@ test("the integration guide and curated API reference stay public", async ({
     page.getByRole("link", {
       name: "Mở API Reference đầy đủ (cần đăng nhập)",
     })
-  ).toHaveAttribute("href", "/docs/reference");
+  ).toHaveAttribute("href", "/app/docs/reference");
 
-  await page.goto("/product/scoring/api/grade-task1");
+  await page.goto("/app/product/scoring/api/grade-task1");
   await expect(page.locator("h1")).toBeVisible();
   await expect(page.locator(".aihub-path")).toContainText(
     "/v1/ielts/writing/task1/grade"

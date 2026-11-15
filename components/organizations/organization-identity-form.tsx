@@ -63,7 +63,7 @@ export function OrganizationIdentityForm({
     setBusy(true);
     try {
       const response = await fetch(
-        `/api/organizations/${encodeURIComponent(organizationId)}/identity-config`,
+        `/app/api/organizations/${encodeURIComponent(organizationId)}/identity-config`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

@@ -1,5 +1,15 @@
 # 🎨 AIHub Frontend — Giao Diện Người Dùng & Phòng Lab Academic
 
+## Monorepo applications
+
+- The repository root is the `@aihub/web` workspace: the AIHUB application, served at `/app`.
+- `apps/landing` is the public landing site, served at `/`.
+- `npm run dev` runs both apps through Turborepo; `npm run dev:web` and `npm run dev --workspace=@aihub/landing` run one app.
+- `npm run build` builds both apps in sequence. `npm run build:web` builds only the AIHUB application.
+- Build images with `docker build -f Dockerfile .` and `docker build -f Dockerfile.landing .`.
+
+Production routing and cutover requirements are in [the two-app deployment guide](docs/deployment/two-app-routing.md).
+
 Phân hệ Frontend của AIHub xây dựng trên nền tảng **Next.js 16.3 (Turbopack), React 19, và CSS Design System `aihub.css`**.
 
 ---

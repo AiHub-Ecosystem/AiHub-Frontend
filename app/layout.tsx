@@ -57,7 +57,11 @@ export default function RootLayout({
       lang="vi"
     >
       <head>
-        <link rel="icon" type="image/png" href="/content/assets/favicon.png" />
+        <link
+          rel="icon"
+          type="image/png"
+          href="/app/content/assets/favicon.png"
+        />
       </head>
       <body>
         <MirrorInteractions />

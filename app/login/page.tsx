@@ -41,7 +41,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       // AIHUB is unavailable: keep the sign-in form usable and retain the cookie.
     }
   }
-  if (hasActiveSession) redirect(next);
+  if (hasActiveSession) redirect(next.replace(/^\/app(?=\/|$)/, ""));
 
   const retry =
     typeof params.retry === "string"

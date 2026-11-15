@@ -5,7 +5,26 @@ export const SIGNUP_BINDING_COOKIE = "__Host-aihub_signup";
 export const SIGNUP_BINDING_TTL_SECONDS = 24 * 60 * 60;
 
 export function webSessionCookie(value: string, maxAge: number) {
-  return `${WEB_SESSION_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Strict`;
+  return `${WEB_SESSION_COOKIE}=${value}; Path=/app; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Strict`;
+}
+
+export function expiredLegacyWebSessionCookie() {
+  return `${WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`;
+}
+
+export function expiredWebSessionCookies() {
+  return [webSessionCookie("", 0), expiredLegacyWebSessionCookie()];
+}
+
+export function appendExpiredWebSessionCookies(headers: Headers) {
+  for (const cookie of expiredWebSessionCookies())
+    headers.append("Set-Cookie", cookie);
+  return headers;
+}
+
+export function webSessionClearHeaders(headers: HeadersInit, clear: boolean) {
+  const result = new Headers(headers);
+  return clear ? appendExpiredWebSessionCookies(result) : result;
 }
 
 export function newSignupBinding() {

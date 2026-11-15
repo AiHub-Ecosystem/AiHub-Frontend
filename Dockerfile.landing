@@ -1,0 +1,21 @@
+# Public Landing app. Build from repository root: docker build -f Dockerfile.landing .
+FROM node:20-slim AS builder
+WORKDIR /repo
+COPY package.json package-lock.json ./
+COPY apps/landing/package.json apps/landing/package.json
+RUN npm ci --ignore-scripts
+COPY . .
+RUN npm run build --workspace=@aihub/landing
+
+FROM node:20-slim AS runtime
+WORKDIR /repo
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000
+COPY package.json package-lock.json ./
+COPY apps/landing/package.json apps/landing/package.json
+RUN npm ci --omit=dev --ignore-scripts
+COPY --from=builder /repo/apps/landing/.next apps/landing/.next
+COPY --from=builder /repo/apps/landing/public apps/landing/public
+COPY --from=builder /repo/apps/landing/data apps/landing/data
+USER node
+EXPOSE 3000
+CMD ["npm", "run", "start", "--workspace=@aihub/landing"]

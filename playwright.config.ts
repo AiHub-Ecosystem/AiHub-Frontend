@@ -32,8 +32,8 @@ export default defineConfig({
     },
     {
       name: "Next.js app",
-      command: "npm run dev -- --hostname 127.0.0.1 --port 3100",
-      url: appUrl,
+      command: "npm run dev:e2e",
+      url: `${appUrl}/app/login`,
       env: {
         API_BASE_URL: mockUrl,
         AIHUB_BASE_URL: mockUrl,
@@ -48,8 +48,8 @@ export default defineConfig({
     },
     {
       name: "Second Next.js app instance",
-      command: "npm run dev -- --hostname 127.0.0.1 --port 3105",
-      url: secondAppUrl,
+      command: "npm run dev:e2e:secondary",
+      url: `${secondAppUrl}/app/login`,
       env: {
         API_BASE_URL: mockUrl,
         AIHUB_BASE_URL: mockUrl,
@@ -59,6 +59,13 @@ export default defineConfig({
         NEXT_TELEMETRY_DISABLED: "1",
         ...speakingEnv,
       },
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+    {
+      name: "Landing Next.js app",
+      command: "npm run dev --workspace=@aihub/landing",
+      url: "http://127.0.0.1:3102",
       reuseExistingServer: false,
       timeout: 120_000,
     },

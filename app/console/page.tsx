@@ -24,7 +24,9 @@ export default async function ConsolePage({
     typeof nextValue === "string" ? nextValue : null,
     ""
   );
-  if (next && next !== "/console") redirect(next);
+  if (next && next !== "/app/console") {
+    redirect(next.replace(/^\/app(?=\/|$)/, ""));
+  }
 
   const roster = await readOrganizationRoster(sessionId);
   if (!roster) {

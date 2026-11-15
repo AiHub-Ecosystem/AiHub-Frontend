@@ -51,7 +51,7 @@ async function signIn(
   email = "valid@example.test"
 ) {
   await configureConsoleRoster(request);
-  await page.goto("/login");
+  await page.goto("/app/login");
   // ponytail: a click before hydration is silently lost; slower shards lose the race.
   await waitForHydration(page);
   await page.getByLabel("Email").fill(email);
@@ -61,7 +61,7 @@ async function signIn(
 }
 
 async function createSession(request: APIRequestContext, email: string) {
-  const response = await request.post(`${appUrl}/api/auth/login`, {
+  const response = await request.post(`${appUrl}/app/api/auth/login`, {
     headers: { Origin: appUrl },
     form: { email, password: validPassword },
     maxRedirects: 0,
@@ -80,7 +80,7 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
 }) => {
   await resetAuthMock(request);
   await configureConsoleRoster(request);
-  await page.goto("/login?next=https%3A%2F%2Fattacker.test%2Fcollect");
+  await page.goto("/app/login?next=https%3A%2F%2Fattacker.test%2Fcollect");
   await expect(
     page.getByRole("link", { name: "Đăng nhập", exact: true })
   ).toBeVisible();
@@ -115,7 +115,7 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
     httpOnly: true,
     secure: true,
     sameSite: "Strict",
-    path: "/",
+    path: "/app",
   });
   expect(cookies.some((cookie) => cookie.name === "__Host-aihub_refresh")).toBe(
     false
@@ -131,7 +131,7 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
   ).toBeVisible();
   await page.getByText("Tài khoản", { exact: true }).click();
   await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
-  await expect(page).toHaveURL(`${appUrl}/`);
+  await expect(page).toHaveURL(`${appUrl}/app`);
   await expect(
     page.getByRole("link", { name: "Đăng nhập", exact: true })
   ).toBeVisible();
@@ -145,7 +145,7 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
   ).toBe(false);
 
   await page.goBack();
-  await expect(page).toHaveURL(/\/login\?next=%2Fconsole/);
+  await expect(page).toHaveURL(/\/app\/login\?next=%2Fapp%2Fconsole/);
   await expect(
     page.getByRole("heading", { name: "Console", exact: true })
   ).toHaveCount(0);
@@ -155,7 +155,7 @@ test("a visitor can register and safely request another verification email", asy
   request,
 }) => {
   await resetAuthMock(request);
-  await page.goto("/register");
+  await page.goto("/app/register");
   await expect(
     page.getByRole("heading", { name: "Đăng ký", exact: true })
   ).toBeVisible();
@@ -241,7 +241,7 @@ test("email verification removes its token from the URL and offers generic recov
   request,
 }) => {
   await resetAuthMock(request);
-  await page.goto("/register");
+  await page.goto("/app/register");
   await page.getByLabel("Email").fill("verify-only@example.test");
   await page.getByLabel("Username").fill("verify-only");
   await page.getByLabel("Mật khẩu").fill(validPassword);
@@ -257,16 +257,16 @@ test("email verification removes its token from the URL and offers generic recov
   expect(registeredBinding).toMatch(/^[A-Za-z0-9_-]{43}$/);
 
   const response = await request.get(
-    `${appUrl}/verify-email?token=private-verification-token`
+    `${appUrl}/app/verify-email?token=private-verification-token`
   );
   expect(response.headers()["referrer-policy"]).toBe("no-referrer");
 
   const otherContext = await browser.newContext();
   const otherPage = await otherContext.newPage();
   await otherPage.goto(
-    `${appUrl}/verify-email?token=private-verification-token`
+    `${appUrl}/app/verify-email?token=private-verification-token`
   );
-  await expect(otherPage).toHaveURL(`${appUrl}/login?verified=1`);
+  await expect(otherPage).toHaveURL(`${appUrl}/app/login?verified=1`);
   await expect(otherPage.getByRole("status")).toHaveText(
     "Email đã xác minh. Vui lòng đăng nhập."
   );
@@ -297,7 +297,7 @@ test("email verification removes its token from the URL and offers generic recov
   )?.value;
   expect(existingSession).toBeTruthy();
   await signedInPage.goto(
-    `${appUrl}/verify-email?token=private-verification-token`
+    `${appUrl}/app/verify-email?token=private-verification-token`
   );
   await expect(signedInPage).toHaveURL(/\/console\/orgs$/);
   await expect(
@@ -309,7 +309,7 @@ test("email verification removes its token from the URL and offers generic recov
     )?.value
   ).toBe(existingSession);
 
-  await otherPage.goto("/verify-email");
+  await otherPage.goto("/app/verify-email");
   await otherPage.reload();
   await expect(otherPage.getByRole("textbox", { name: "Email" })).toBeVisible();
   await expect(
@@ -335,8 +335,8 @@ test("email verification removes its token from the URL and offers generic recov
   await request.post(`${mockUrl}/__test__/auth/mode`, {
     data: { verifySignIn: true },
   });
-  await page.goto(`${appUrl}/verify-email?token=resent-verification-token`);
-  await expect(page).toHaveURL(`${appUrl}/login?verified=1`);
+  await page.goto(`${appUrl}/app/verify-email?token=resent-verification-token`);
+  await expect(page).toHaveURL(`${appUrl}/app/login?verified=1`);
   await expect(page.getByRole("status")).toHaveText(
     "Email đã xác minh. Vui lòng đăng nhập."
   );
@@ -350,7 +350,7 @@ test("email verification removes its token from the URL and offers generic recov
   ).toBe(false);
 
   await signedInPage.goto(
-    `${appUrl}/verify-email?token=resent-verification-token`
+    `${appUrl}/app/verify-email?token=resent-verification-token`
   );
   await expect(signedInPage).toHaveURL(/\/console\/orgs$/);
   expect(
@@ -360,7 +360,7 @@ test("email verification removes its token from the URL and offers generic recov
   ).toBe(existingSession);
 
   await otherPage.goto(
-    `${appUrl}/verify-email?token=resent-verification-token`
+    `${appUrl}/app/verify-email?token=resent-verification-token`
   );
   await expect(otherPage).toHaveURL(/\/console\/orgs$/);
   await expect(
@@ -372,7 +372,7 @@ test("email verification removes its token from the URL and offers generic recov
     )
   ).toBe(false);
   const replay = await otherPage.evaluate(async () => {
-    const response = await fetch("/api/auth/verify-email", {
+    const response = await fetch("/app/app/api/auth/verify-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: "resent-verification-token" }),
@@ -380,7 +380,7 @@ test("email verification removes its token from the URL and offers generic recov
     return { redirected: response.redirected, url: response.url };
   });
   expect(replay.redirected).toBe(true);
-  expect(replay.url).toContain("/console");
+  expect(replay.url).toContain("/app/console");
   await expect(otherPage).toHaveURL(/\/console\/orgs$/);
 
   const logged = await request.get(`${mockUrl}/__test__/auth/requests`);
@@ -436,7 +436,7 @@ test("a mail scanner can verify first without consuming the registration browser
   request,
 }) => {
   await resetAuthMock(request);
-  await page.goto("/register");
+  await page.goto("/app/register");
   await page.getByLabel("Email").fill("scanner@example.test");
   await page.getByLabel("Username").fill("scanner-user");
   await page.getByLabel("Mật khẩu").fill(validPassword);
@@ -455,9 +455,9 @@ test("a mail scanner can verify first without consuming the registration browser
   const scannerContext = await browser.newContext();
   const scannerPage = await scannerContext.newPage();
   await scannerPage.goto(
-    `${appUrl}/verify-email?token=private-verification-token`
+    `${appUrl}/app/verify-email?token=private-verification-token`
   );
-  await expect(scannerPage).toHaveURL(`${appUrl}/login?verified=1`);
+  await expect(scannerPage).toHaveURL(`${appUrl}/app/login?verified=1`);
   await expect(scannerPage.getByRole("status")).toHaveText(
     "Email đã xác minh. Vui lòng đăng nhập."
   );
@@ -475,7 +475,9 @@ test("a mail scanner can verify first without consuming the registration browser
   await request.post(`${mockUrl}/__test__/auth/mode`, {
     data: { verifySignIn: true },
   });
-  await page.goto(`${appUrl}/verify-email?token=private-verification-token`);
+  await page.goto(
+    `${appUrl}/app/verify-email?token=private-verification-token`
+  );
   await expect(page).toHaveURL(/\/console\/orgs$/);
   await expect(
     page.getByRole("heading", { name: "Organizations", exact: true })
@@ -526,7 +528,7 @@ test("a matching verification binding signs in and replaces the existing session
   expect(oldSessionId).toBeTruthy();
   const oldCookie = `__Host-aihub_web_session=${oldSessionId}`;
 
-  await page.goto("/register");
+  await page.goto("/app/register");
   await page.getByLabel("Email").fill("new@example.test");
   await page.getByLabel("Username").fill("new-user");
   await page.getByLabel("Mật khẩu").fill(validPassword);
@@ -540,7 +542,9 @@ test("a matching verification binding signs in and replaces the existing session
     data: { verifySignIn: true },
   });
 
-  await page.goto(`${appUrl}/verify-email?token=matching-verification-token`);
+  await page.goto(
+    `${appUrl}/app/verify-email?token=matching-verification-token`
+  );
   await expect(page).toHaveURL(/\/console\/orgs$/);
   await expect(
     page.getByRole("heading", { name: "Organizations", exact: true })
@@ -555,7 +559,7 @@ test("a matching verification binding signs in and replaces the existing session
     false
   );
 
-  const oldSession = await request.post(`${appUrl}/api/auth/session`, {
+  const oldSession = await request.post(`${appUrl}/app/api/auth/session`, {
     headers: { Origin: appUrl, Cookie: oldCookie },
     data: {},
   });
@@ -585,7 +589,7 @@ test("a matching verification binding signs in and replaces the existing session
   ]);
 
   const replay = await page.evaluate(async () => {
-    const response = await fetch("/api/auth/verify-email", {
+    const response = await fetch("/app/app/api/auth/verify-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: "matching-verification-token" }),
@@ -593,7 +597,7 @@ test("a matching verification binding signs in and replaces the existing session
     return { redirected: response.redirected, url: response.url };
   });
   expect(replay.redirected).toBe(true);
-  expect(replay.url).toContain("/console");
+  expect(replay.url).toContain("/app/console");
   await expect(page).toHaveURL(/\/console\/orgs$/);
 });
 
@@ -602,8 +606,8 @@ test("an invalid verification link gets the same generic recovery form", async (
   request,
 }) => {
   await resetAuthMock(request);
-  await page.goto(`${appUrl}/verify-email?token=invalid-expired-secret`);
-  await expect(page).toHaveURL(`${appUrl}/verify-email`);
+  await page.goto(`${appUrl}/app/verify-email?token=invalid-expired-secret`);
+  await expect(page).toHaveURL(`${appUrl}/app/verify-email`);
   await expect(
     page.getByRole("region", { name: "Xác minh email" }).getByRole("alert")
   ).toContainText("không hợp lệ hoặc đã hết hạn");
@@ -618,12 +622,12 @@ test("password recovery keeps confirmation generic and shows a retry delay", asy
   request,
 }) => {
   await resetAuthMock(request);
-  await page.goto("/login");
+  await page.goto("/app/login");
   await page.getByRole("link", { name: "Quên mật khẩu?" }).click();
-  await expect(page).toHaveURL(`${appUrl}/forgot-password`);
+  await expect(page).toHaveURL(`${appUrl}/app/forgot-password`);
 
   for (const email of ["known@example.test", "unknown@example.test"]) {
-    await page.goto("/forgot-password");
+    await page.goto("/app/forgot-password");
     await page.getByLabel("Email").fill(email);
     await page
       .getByRole("button", { name: "Gửi hướng dẫn", exact: true })
@@ -640,7 +644,7 @@ test("password recovery keeps confirmation generic and shows a retry delay", asy
     await expect(page.getByText(email, { exact: true })).toBeVisible();
   }
 
-  await page.goto("/forgot-password");
+  await page.goto("/app/forgot-password");
   await page.getByLabel("Email").fill("rate-limit@example.test");
   await page
     .getByRole("button", { name: "Gửi hướng dẫn", exact: true })
@@ -676,12 +680,12 @@ test("password reset removes its token, checks mismatch, and clears the current 
   ).toBe(true);
 
   const response = await request.get(
-    `${appUrl}/reset-password?token=private-reset-token`
+    `${appUrl}/app/reset-password?token=private-reset-token`
   );
   expect(response.headers()["referrer-policy"]).toBe("no-referrer");
 
-  await page.goto(`${appUrl}/reset-password?token=private-reset-token`);
-  await expect(page).toHaveURL(`${appUrl}/reset-password`);
+  await page.goto(`${appUrl}/app/reset-password?token=private-reset-token`);
+  await expect(page).toHaveURL(`${appUrl}/app/reset-password`);
   expect(await page.locator("body").innerText()).not.toContain(
     "private-reset-token"
   );
@@ -707,7 +711,7 @@ test("password reset removes its token, checks mismatch, and clears the current 
     .toBe(false);
   await expect(page.getByRole("link", { name: "Đăng nhập" })).toHaveAttribute(
     "href",
-    "/login"
+    "/app/login"
   );
   expect(await page.locator("body").innerText()).not.toContain(
     "private-reset-token"
@@ -725,8 +729,8 @@ test("an invalid or reloaded reset link offers a fresh recovery link", async ({
   request,
 }) => {
   await resetAuthMock(request);
-  await page.goto(`${appUrl}/reset-password?token=invalid-expired-secret`);
-  await expect(page).toHaveURL(`${appUrl}/reset-password`);
+  await page.goto(`${appUrl}/app/reset-password?token=invalid-expired-secret`);
+  await expect(page).toHaveURL(`${appUrl}/app/reset-password`);
   const resetForm = page.locator("form.auth-form");
   await resetForm.getByLabel("Mật khẩu mới").fill(validPassword);
   await resetForm.getByLabel("Xác nhận mật khẩu").fill(validPassword);
@@ -736,7 +740,7 @@ test("an invalid or reloaded reset link offers a fresh recovery link", async ({
   ).toContainText("không hợp lệ hoặc đã hết hạn");
   await expect(
     page.getByRole("link", { name: "Yêu cầu liên kết mới", exact: true })
-  ).toHaveAttribute("href", "/forgot-password");
+  ).toHaveAttribute("href", "/app/forgot-password");
   expect(await page.locator("body").innerText()).not.toContain(
     "invalid-expired-secret"
   );
@@ -759,7 +763,7 @@ test("registration reports a duplicate identity and clears only the password", a
   request,
 }) => {
   await resetAuthMock(request);
-  await page.goto("/register");
+  await page.goto("/app/register");
   await page.getByLabel("Email").fill("taken@example.test");
   await page.getByLabel("Username").fill("kept-username");
   await page.getByLabel("Mật khẩu").fill(validPassword);
@@ -786,7 +790,7 @@ test("credential failures share one message and rate limits show a retry delay",
     "pending@example.test",
     "disabled@example.test",
   ]) {
-    await page.goto("/login");
+    await page.goto("/app/login");
     await waitForHydration(page);
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Mật khẩu").fill(validPassword);
@@ -798,7 +802,7 @@ test("credential failures share one message and rate limits show a retry delay",
   expect(new Set(messages).size).toBe(1);
   expect(messages[0]).toBe("Email hoặc mật khẩu không đúng.");
 
-  await page.goto("/login");
+  await page.goto("/app/login");
   await waitForHydration(page);
   await page.getByLabel("Email").fill("rate-limit@example.test");
   await page.getByLabel("Mật khẩu").fill(validPassword);
@@ -818,7 +822,7 @@ test("rejects foreign or missing Origin and shares AIHUB sessions across app ins
   ];
   for (const path of ["login", "logout", "session"]) {
     for (const headers of originCases) {
-      const response = await request.post(`${appUrl}/api/auth/${path}`, {
+      const response = await request.post(`${appUrl}/app/api/auth/${path}`, {
         headers,
         form: { email: "valid@example.test", password: validPassword },
       });
@@ -833,7 +837,7 @@ test("rejects foreign or missing Origin and shares AIHUB sessions across app ins
     "reset-password",
   ]) {
     for (const headers of originCases) {
-      const response = await request.post(`${appUrl}/api/auth/${path}`, {
+      const response = await request.post(`${appUrl}/app/api/auth/${path}`, {
         headers,
         data:
           path === "register"
@@ -855,7 +859,7 @@ test("rejects foreign or missing Origin and shares AIHUB sessions across app ins
   expect((await beforeLogin.json()).requests).toEqual([]);
 
   const cookie = await createSession(request, "expiring@example.test");
-  const touched = await request.post(`${appUrl}/api/auth/session`, {
+  const touched = await request.post(`${appUrl}/app/api/auth/session`, {
     headers: { Origin: appUrl, Cookie: cookie },
     data: {},
   });
@@ -863,7 +867,7 @@ test("rejects foreign or missing Origin and shares AIHUB sessions across app ins
   expect(touched.headers()["set-cookie"]).toContain("Max-Age=2592000");
   const cookieHeader = { Cookie: cookie };
   const [first, second] = await Promise.all([
-    request.get(`${appUrl}/console`, { headers: cookieHeader }),
+    request.get(`${appUrl}/app/console`, { headers: cookieHeader }),
     request.get(`${secondAppUrl}/console`, { headers: cookieHeader }),
   ]);
   expect(first.status()).toBe(200);
@@ -896,12 +900,12 @@ test("a rejected session exchange ends the session and logout clears it during a
   await request.post(`${mockUrl}/__test__/auth/mode`, {
     data: { sessionExchangeUnauthorized: true },
   });
-  await page.goto("/login");
+  await page.goto("/app/login");
   await waitForHydration(page);
   await page.getByLabel("Email").fill("expiring@example.test");
   await page.getByLabel("Mật khẩu").fill(validPassword);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
-  await expect(page).toHaveURL(/\/login\?error=session/);
+  await expect(page).toHaveURL(/\/app\/login\?error=session/);
   await expect
     .poll(async () =>
       (await page.context().cookies()).some(
@@ -917,7 +921,7 @@ test("a rejected session exchange ends the session and logout clears it during a
   });
   await page.getByText("Tài khoản", { exact: true }).click();
   await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
-  await expect(page).toHaveURL(`${appUrl}/`);
+  await expect(page).toHaveURL(`${appUrl}/app`);
   expect(
     (await page.context().cookies()).some(
       (cookie) => cookie.name === "__Host-aihub_web_session"
@@ -935,7 +939,7 @@ test("logout revokes the Web Session across frontend instances", async ({
 }) => {
   await resetAuthMock(request);
   const cookie = await createSession(request, "valid@example.test");
-  const logout = await request.post(`${appUrl}/api/auth/logout`, {
+  const logout = await request.post(`${appUrl}/app/api/auth/logout`, {
     headers: { Origin: appUrl, Cookie: cookie },
     maxRedirects: 0,
   });

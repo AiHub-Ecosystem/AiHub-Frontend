@@ -121,7 +121,7 @@ export function ChartImageUpload({
     };
     try {
       if (isIdentityExpired()) throw expiredIdentityError;
-      const created = await fetch("/api/demo/scoring/chart-uploads", {
+      const created = await fetch("/app/api/demo/scoring/chart-uploads", {
         method: "POST",
         headers: authHeaders,
         body: JSON.stringify({ content_type: file.type, byte_size: file.size }),
@@ -156,7 +156,7 @@ export function ChartImageUpload({
       if (upload.status === 401 || upload.status === 403) {
         if (isIdentityExpired()) throw expiredIdentityError;
         const refreshed = await fetch(
-          `/api/demo/scoring/chart-uploads/${grant.assetId}/refresh`,
+          `/app/api/demo/scoring/chart-uploads/${grant.assetId}/refresh`,
           { method: "POST", headers: authHeaders, cache: "no-store" }
         );
         payload = await refreshed.json().catch(() => null);
@@ -181,7 +181,7 @@ export function ChartImageUpload({
       setStatus("verifying");
       if (isIdentityExpired()) throw expiredIdentityError;
       const completed = await fetch(
-        `/api/demo/scoring/chart-uploads/${grant.assetId}/complete`,
+        `/app/api/demo/scoring/chart-uploads/${grant.assetId}/complete`,
         { method: "POST", headers: authHeaders, cache: "no-store" }
       );
       payload = await completed.json().catch(() => null);

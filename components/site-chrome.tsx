@@ -19,6 +19,10 @@ const CHROME_SOURCE = path.join(process.cwd(), "data", "mirror", "home.html");
 const HEADER_END = "</header>";
 const FOOTER_START = "<footer";
 
+function withAppBasePath(html: string) {
+  return html.replace(/\b(href|src)="\/(?!\/|app\/|["#])/g, '$1="/app/');
+}
+
 /** Nav gốc của Meltano, viết lại theo cấu trúc AIHub. */
 const NAV_REWRITES = [
   {
@@ -261,9 +265,11 @@ function readChrome(): Chrome | null {
 export function stripChrome(html: string): string {
   const headerEnd = html.indexOf(HEADER_END);
   const footerStart = html.lastIndexOf(FOOTER_START);
-  return html.slice(
-    headerEnd === -1 ? 0 : headerEnd + HEADER_END.length,
-    footerStart === -1 ? html.length : footerStart
+  return withAppBasePath(
+    html.slice(
+      headerEnd === -1 ? 0 : headerEnd + HEADER_END.length,
+      footerStart === -1 ? html.length : footerStart
+    )
   );
 }
 
@@ -301,7 +307,9 @@ export async function SiteHeader() {
   }
   if (chrome) {
     const header = replaceMenuExtras(chrome.header, signedIn);
-    return <div dangerouslySetInnerHTML={{ __html: header }} />;
+    return (
+      <div dangerouslySetInnerHTML={{ __html: withAppBasePath(header) }} />
+    );
   }
   return (
     <header>
@@ -342,5 +350,7 @@ export async function SiteHeader() {
 export function SiteFooter() {
   const chrome = readChrome();
   if (!chrome) return null;
-  return <div dangerouslySetInnerHTML={{ __html: chrome.footer }} />;
+  return (
+    <div dangerouslySetInnerHTML={{ __html: withAppBasePath(chrome.footer) }} />
+  );
 }

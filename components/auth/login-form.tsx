@@ -2,7 +2,7 @@ import { getLoginErrorMessage } from "@/lib/auth-messages";
 
 export function LoginForm({
   next,
-  returnTo = "/login",
+  returnTo = "/app/login",
   error,
   retry = 60,
   unavailableMessage,
@@ -21,7 +21,7 @@ export function LoginForm({
 
   return (
     <form
-      action="/api/auth/login"
+      action="/app/api/auth/login"
       method="post"
       className={`auth-form${variant === "lab" ? " auth-form--lab" : ""}`}
     >

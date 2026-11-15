@@ -13,6 +13,7 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  basePath: "/app",
   distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   ...(buildId ? { generateBuildId: async () => buildId } : {}),
@@ -22,8 +23,52 @@ const nextConfig: NextConfig = {
     },
   },
   async redirects() {
-    // The retired Spec & cURL Hub; see docs/adr/0010-retire-specs-page.md.
-    return [{ source: "/specs", destination: "/product", permanent: true }];
+    return [
+      // Legacy page URLs remain valid while traffic moves to the /app app.
+      ...[
+        "/about",
+        "/blog/:path*",
+        "/case-studies/:path*",
+        "/community",
+        "/connectors/:path*",
+        "/console/:path*",
+        "/contact",
+        "/demo/:path*",
+        "/docs/:path*",
+        "/forgot-password",
+        "/lab/:path*",
+        "/login",
+        "/meltano-vs-fivetran",
+        "/podcasts/:path*",
+        "/pricing",
+        "/pricingcalculator",
+        "/privacy-policy",
+        "/product/:path*",
+        "/register",
+        "/reset-password",
+        "/terms-of-service",
+        "/test-harness/:path*",
+        "/verify-email",
+      ].map((source) => ({
+        source,
+        destination: `/app${source}`,
+        basePath: false as const,
+        permanent: true,
+      })),
+      {
+        source: "/",
+        destination: "/app",
+        basePath: false as const,
+        permanent: true,
+      },
+      // The retired Spec & cURL Hub; see docs/adr/0010-retire-specs-page.md.
+      {
+        source: "/specs",
+        destination: "/app/product",
+        basePath: false as const,
+        permanent: true,
+      },
+    ];
   },
   async headers() {
     return [

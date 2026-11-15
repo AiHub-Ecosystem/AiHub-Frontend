@@ -7,6 +7,7 @@ import {
   safeLocalPath,
   WEB_SESSION_TTL_SECONDS,
   webSessionCookie,
+  expiredLegacyWebSessionCookie,
 } from "@/lib/auth-session";
 
 const noStore = { "Cache-Control": "no-store" };
@@ -15,7 +16,7 @@ function redirectToLogin(
   error: string,
   retry?: number,
   next?: string,
-  returnTo = "/login"
+  returnTo = "/app/login"
 ) {
   const login = new URL(returnTo, customerWebOrigin());
   login.searchParams.set("error", error);
@@ -98,13 +99,18 @@ export async function POST(request: Request) {
 
   try {
     const sessionToken = await readCreatedWebSession(upstream);
+    const headers = new Headers({
+      ...noStore,
+      Location: new URL(next, customerWebOrigin()).toString(),
+    });
+    headers.append(
+      "Set-Cookie",
+      webSessionCookie(sessionToken, WEB_SESSION_TTL_SECONDS)
+    );
+    headers.append("Set-Cookie", expiredLegacyWebSessionCookie());
     return new Response(null, {
       status: 303,
-      headers: {
-        ...noStore,
-        Location: new URL(next, customerWebOrigin()).toString(),
-        "Set-Cookie": webSessionCookie(sessionToken, WEB_SESSION_TTL_SECONDS),
-      },
+      headers,
     });
   } catch {
     return redirectToLogin("unavailable", undefined, next, returnTo);

@@ -48,7 +48,7 @@ export function ApiKeyManager({
   const [revealedKey, setRevealedKey] =
     useState<MintedOrganizationApiKey | null>(null);
 
-  const collectionUrl = `/api/organizations/${encodeURIComponent(organizationId)}/api-keys`;
+  const collectionUrl = `/app/api/organizations/${encodeURIComponent(organizationId)}/api-keys`;
 
   const loadApiKeys = useCallback(async () => {
     setLoading(true);

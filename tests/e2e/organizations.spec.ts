@@ -47,8 +47,8 @@ async function identityConfigPuts(request: APIRequestContext) {
 
 async function signIn(page: Page) {
   await page.context().clearCookies();
-  await page.goto("/login");
-  await expect(page).toHaveURL(/\/login(?:\?.*)?$/);
+  await page.goto("/app/login");
+  await expect(page).toHaveURL(/\/app\/login(?:\?.*)?$/);
   await expect(page.getByLabel("Email")).toBeVisible();
   // ponytail: a click before hydration is silently lost; slower shards lose the race.
   await waitForHydration(page);
@@ -210,7 +210,7 @@ test("safe same-origin next wins while an external next is ignored", async ({
 }) => {
   await setup(request, [org("one", "One Org")]);
   await page.context().clearCookies();
-  await page.goto("/login?next=%2Fpricing");
+  await page.goto("/app/login?next=%2Fapp%2Fpricing");
   await waitForHydration(page);
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(password);
@@ -219,7 +219,7 @@ test("safe same-origin next wins while an external next is ignored", async ({
 
   await setup(request, [org("one", "One Org")]);
   await page.context().clearCookies();
-  await page.goto("/login?next=https%3A%2F%2Fattacker.test%2Fcollect");
+  await page.goto("/app/login?next=https%3A%2F%2Fattacker.test%2Fcollect");
   await waitForHydration(page);
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(password);
@@ -264,7 +264,7 @@ test("successful creations clear the attempt and use a fresh key next time", asy
   const legacyKeyRequests: string[] = [];
   page.on("request", (browserRequest) => {
     const path = new URL(browserRequest.url()).pathname;
-    if (path.startsWith("/api/organizations/creation-key"))
+    if (path.startsWith("/app/app/api/organizations/creation-key"))
       legacyKeyRequests.push(path);
   });
   await setup(request);
@@ -285,7 +285,7 @@ test("successful creations clear the attempt and use a fresh key next time", asy
     )
   ).toBeNull();
 
-  await page.goto("/console/orgs");
+  await page.goto("/app/console/orgs");
   await openCreationForm(page);
   await page.getByLabel("Tên Organization").fill("Second Org");
   await page
@@ -519,7 +519,7 @@ test("owner can save a JWKS URL and the readiness reminder clears", async ({
 }) => {
   await setup(request, [org("identity-url", "Identity Org")]);
   await signIn(page);
-  await page.goto("/console/orgs/identity-url/identity");
+  await page.goto("/app/console/orgs/identity-url/identity");
   await page.getByLabel("Issuer").fill("https://id.example.test");
   await page
     .getByRole("textbox", { name: "JWKS URL" })
@@ -530,7 +530,7 @@ test("owner can save a JWKS URL and the readiness reminder clears", async ({
   await expect(page.locator(".identity-form [role=status]")).toContainText(
     "Đã lưu identity configuration"
   );
-  await page.goto("/console/orgs/identity-url");
+  await page.goto("/app/console/orgs/identity-url");
   await expect(page.getByText(identityReadinessTitle)).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Cấu hình identity" })
@@ -581,7 +581,7 @@ test("owner can use inline public JWKS and private JWK is blocked before request
     org("identity-inline", "Identity Inline", "owner", "active"),
   ]);
   await signIn(page);
-  await page.goto("/console/orgs/identity-inline/identity");
+  await page.goto("/app/console/orgs/identity-inline/identity");
   await page.getByRole("radio", { name: "Dán public JWKS" }).check();
   await page.getByLabel("Issuer").fill("https://inline.example.test");
   const input = page.getByLabel("Public JWKS (JSON)");
@@ -613,7 +613,7 @@ test("owner can use inline public JWKS and private JWK is blocked before request
     (cookie) => cookie.name === "__Host-aihub_web_session"
   );
   const privateJwkResponse = await request.put(
-    `${new URL(page.url()).origin}/api/organizations/identity-inline/identity-config`,
+    `${new URL(page.url()).origin}/app/api/organizations/identity-inline/identity-config`,
     {
       headers: {
         Origin: new URL(page.url()).origin,
@@ -658,7 +658,7 @@ test("identity readiness recommends signed verification, stays role-safe, and su
   ).toBeVisible();
   await expect(page.getByText(/setup chưa hoàn tất/i)).toHaveCount(0);
   await expect(page.getByText("IDENTITY_CONFIG_REQUIRED")).toHaveCount(0);
-  await page.goto("/console/orgs/identity-member/identity");
+  await page.goto("/app/console/orgs/identity-member/identity");
   await expect(page.getByText(/Nhờ owner cấu hình/)).toBeVisible();
   const requests = await request
     .get(`${mockUrl}/__test__/organizations/requests`)
@@ -682,7 +682,7 @@ test("identity readiness recommends signed verification, stays role-safe, and su
   });
   await page.context().clearCookies();
   await signIn(page);
-  await page.goto("/console/orgs/identity-errors/identity");
+  await page.goto("/app/console/orgs/identity-errors/identity");
   await page.getByLabel("Issuer").fill("https://error.example.test");
   await page
     .getByRole("textbox", { name: "JWKS URL" })
@@ -701,7 +701,7 @@ test("stable identity source reason codes have separate safe messages", async ({
 }) => {
   await setup(request, [org("identity-reasons", "Identity Reasons")]);
   await signIn(page);
-  await page.goto("/console/orgs/identity-reasons/identity");
+  await page.goto("/app/console/orgs/identity-reasons/identity");
   await page.getByLabel("Issuer").fill("https://reasons.example.test");
   await page
     .getByRole("textbox", { name: "JWKS URL" })
@@ -748,7 +748,7 @@ test("disabled configuration requires confirmation and saves only identity input
     }
   );
   await signIn(page);
-  await page.goto("/console/orgs/identity-disabled-save/identity");
+  await page.goto("/app/console/orgs/identity-disabled-save/identity");
 
   await expect(page.locator(".identity-warning")).toHaveText(
     disabledIdentityCopy
@@ -869,7 +869,7 @@ test("active identity configuration saves without a declared-mode confirmation",
     }
   );
   await signIn(page);
-  await page.goto("/console/orgs/identity-active-save/identity");
+  await page.goto("/app/console/orgs/identity-active-save/identity");
   await waitForHydration(page);
   await expect(page.locator(".identity-warning")).toHaveCount(0);
   await expect(page.getByText(/Declared User ID/)).toHaveCount(0);
@@ -909,7 +909,7 @@ test("disabled configuration remains editable with operator warning and stale 40
     }
   );
   await signIn(page);
-  await page.goto("/console/orgs/identity-disabled/identity");
+  await page.goto("/app/console/orgs/identity-disabled/identity");
   await expect(page.locator(".identity-warning")).toHaveText(
     disabledIdentityCopy
   );
@@ -961,7 +961,7 @@ test("a 403 while loading identity settings refreshes the roster and hides all c
         ).length
     );
   await signIn(page);
-  await page.goto("/console/orgs/identity-get-forbidden");
+  await page.goto("/app/console/orgs/identity-get-forbidden");
   await waitForHydration(page);
   await page.getByRole("button", { name: "Cấu hình identity" }).click();
   await expect(
@@ -999,7 +999,7 @@ test("active owner can rename; backend denial and foreign IDs use generic denial
 }) => {
   await setup(request, [org("rename-id", "Before")]);
   await signIn(page);
-  await page.goto("/console/orgs/rename-id");
+  await page.goto("/app/console/orgs/rename-id");
   await waitForHydration(page);
   await page.getByRole("button", { name: "Đổi tên" }).click();
   await page.getByLabel("Tên mới").fill("After");
@@ -1009,7 +1009,7 @@ test("active owner can rename; backend denial and foreign IDs use generic denial
   });
 
   await setup(request, [org("rename-id", "After")], { renameDenied: true });
-  await page.goto("/console/orgs/rename-id");
+  await page.goto("/app/console/orgs/rename-id");
   await waitForHydration(page);
   await page.getByRole("button", { name: "Đổi tên" }).click();
   await page.getByLabel("Tên mới").fill("Denied");
@@ -1021,7 +1021,7 @@ test("active owner can rename; backend denial and foreign IDs use generic denial
     )
   ).toBeVisible();
 
-  await page.goto("/console/orgs/unknown-org");
+  await page.goto("/app/console/orgs/unknown-org");
   await expect(page).toHaveURL(/\/console\/orgs\/denied$/);
   await expect(
     page.getByText(
@@ -1033,7 +1033,7 @@ test("active owner can rename; backend denial and foreign IDs use generic denial
     (cookie) => cookie.name === "__Host-aihub_web_session"
   );
   const foreignRename = await request.patch(
-    `${new URL(page.url()).origin}/api/organizations/foreign-org-known`,
+    `${new URL(page.url()).origin}/app/api/organizations/foreign-org-known`,
     {
       headers: {
         Origin: new URL(page.url()).origin,
@@ -1043,7 +1043,7 @@ test("active owner can rename; backend denial and foreign IDs use generic denial
     }
   );
   expect(foreignRename.status()).toBe(404);
-  await page.goto("/console/orgs/foreign-org-known");
+  await page.goto("/app/console/orgs/foreign-org-known");
   await expect(page).toHaveURL(/\/console\/orgs\/denied$/);
   await expect(
     page.getByText(
@@ -1062,7 +1062,7 @@ test("the Organization header switches to another Organization", async ({
     org("switch-c", "Gamma Org", "owner", "suspended"),
   ]);
   await signIn(page);
-  await page.goto("/console/orgs/switch-a");
+  await page.goto("/app/console/orgs/switch-a");
   await waitForHydration(page);
 
   const switcher = page.getByText("Chuyển Organization", { exact: true });

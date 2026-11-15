@@ -4,6 +4,14 @@ Terms for the public AIHUB site and signed-in Console, where User Accounts manag
 
 ## Language
 
+### Site experiences
+
+**Landing site**:
+The public-facing AIHUB experience visitors reach at the site's root URL.
+
+**AIHUB application**:
+The AIHUB product experience for authentication, demos, and signed-in organization management.
+
 ### API integration
 
 **AIHUB API contract**:

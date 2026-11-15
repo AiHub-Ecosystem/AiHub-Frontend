@@ -13,7 +13,7 @@ export function SessionActivity() {
       if (pending || Date.now() - lastTouch < MIN_TOUCH_INTERVAL) return;
       pending = true;
       try {
-        const response = await fetch("/api/auth/session", {
+        const response = await fetch("/app/api/auth/session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: "{}",

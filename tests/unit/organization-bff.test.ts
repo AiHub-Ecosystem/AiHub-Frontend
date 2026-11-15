@@ -1,9 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { WEB_SESSION_COOKIE } from "@/lib/auth-cookies";
 
 const auth = vi.hoisted(() => ({
   authenticatedAihubFetch: vi.fn(),
   originIsAllowed: vi.fn(),
   rejectedWebSessionCookie: vi.fn(),
+  webSessionClearHeaders: vi.fn((headers: HeadersInit, clear: boolean) => {
+    const result = new Headers(headers);
+    if (clear) {
+      result.append(
+        "Set-Cookie",
+        `${WEB_SESSION_COOKIE}=; Path=/app; Max-Age=0; HttpOnly; Secure; SameSite=Strict`
+      );
+      result.append(
+        "Set-Cookie",
+        `${WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`
+      );
+    }
+    return result;
+  }),
   requireWebSession: vi.fn(),
   webSessionIdFromRequest: vi.fn(),
 }));
@@ -15,8 +30,7 @@ import { POST as createOrganization } from "@/app/api/organizations/route";
 import { PATCH as renameOrganization } from "@/app/api/organizations/[organizationId]/route";
 
 const sessionId = "s".repeat(43);
-const clearSessionCookie =
-  "__Host-aihub_web_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict";
+const clearSessionCookie = `${WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`;
 
 function request(
   method: string,
@@ -40,7 +54,7 @@ beforeEach(() => {
   auth.originIsAllowed.mockReturnValue(true);
   auth.rejectedWebSessionCookie.mockImplementation((response: Response) =>
     response.status === 401 &&
-    response.headers.get("set-cookie") === clearSessionCookie
+    response.headers.get("set-cookie")?.includes(clearSessionCookie)
       ? clearSessionCookie
       : null
   );
@@ -164,7 +178,8 @@ describe("Organization BFF", () => {
     const response = await getRoster(request("GET"));
 
     expect(response.status).toBe(401);
-    expect(response.headers.get("set-cookie")).toBe(clearSessionCookie);
+    expect(response.headers.get("set-cookie")).toContain(clearSessionCookie);
+    expect(response.headers.get("set-cookie")).toContain("Path=/; Max-Age=0");
     expect(await response.json()).toEqual({
       success: false,
       error: { code: "AUTH_REQUIRED" },

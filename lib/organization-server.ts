@@ -16,7 +16,7 @@ export async function readOrganizationRoster(
   let response: Response;
   try {
     response = await fetch(
-      new URL("/api/organizations/me/members", customerWebOrigin()),
+      new URL("/app/api/organizations/me/members", customerWebOrigin()),
       {
         headers: { Cookie: `${WEB_SESSION_COOKIE}=${sessionId}` },
         cache: "no-store",
@@ -44,7 +44,7 @@ export async function readOrganizationApiKeys(
   try {
     response = await fetch(
       new URL(
-        `/api/organizations/${encodeURIComponent(organizationId)}/api-keys`,
+        `/app/api/organizations/${encodeURIComponent(organizationId)}/api-keys`,
         customerWebOrigin()
       ),
       {

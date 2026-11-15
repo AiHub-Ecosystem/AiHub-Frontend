@@ -48,7 +48,7 @@ export function RegisterForm() {
     setBusy(true);
     let body: { error?: AuthError } = {};
     try {
-      const response = await fetch("/api/auth/register", {
+      const response = await fetch("/app/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, username, password }),
@@ -108,7 +108,7 @@ export function RegisterForm() {
     setBusy(true);
     setMessage("");
     try {
-      const response = await fetch("/api/auth/resend-verification", {
+      const response = await fetch("/app/api/auth/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: address }),

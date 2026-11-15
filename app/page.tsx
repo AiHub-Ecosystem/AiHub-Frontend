@@ -1,12 +1,5 @@
-import type { Metadata } from "next";
-import { MirrorPage } from "@/components/mirror-page";
-
-export const metadata: Metadata = {
-  title: "AIHub — Luyện viết IELTS thông minh hơn",
-  description:
-    "AIHub là nền tảng API AI cho giáo dục — bắt đầu với AIWriting, sinh bài tập luyện viết bám đúng lỗi sai thật của học viên.",
-};
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <MirrorPage name="home" />;
+  redirect("/console");
 }

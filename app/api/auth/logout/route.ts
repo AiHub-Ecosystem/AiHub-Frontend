@@ -4,7 +4,7 @@ import {
   isWebSessionId,
   logoutFromAihubBestEffort,
   originIsAllowed,
-  webSessionCookie,
+  appendExpiredWebSessionCookies,
   webSessionIdFromRequest,
 } from "@/lib/auth-session";
 
@@ -24,11 +24,12 @@ export async function POST(request: Request) {
 
   return new Response(null, {
     status: 303,
-    headers: {
-      "Cache-Control": "no-store",
-      "Clear-Site-Data": '"cache"',
-      Location: new URL("/", customerWebOrigin()).toString(),
-      "Set-Cookie": webSessionCookie("", 0),
-    },
+    headers: appendExpiredWebSessionCookies(
+      new Headers({
+        "Cache-Control": "no-store",
+        "Clear-Site-Data": '"cache"',
+        Location: new URL("/", customerWebOrigin()).toString(),
+      })
+    ),
   });
 }

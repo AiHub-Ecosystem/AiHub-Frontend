@@ -232,7 +232,7 @@ async function emitFakeRecordingChunk(page: Page, size: number) {
 
 async function openLiveSpeakingAnswer(page: Page) {
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/speaking");
+  await page.goto("/app/demo/speaking");
   await startLiveSession(page);
   await page.getByRole("button", { name: "Tiếp tục đến câu trả lời" }).click();
   return expectNoExternalRequests;
@@ -256,7 +256,7 @@ test("live Speaking forwards a signed assertion and redacts both trace tabs", as
 }) => {
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
   const assertion = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJ1c2VyLTQyIn0.signature";
-  await page.goto("/demo/speaking");
+  await page.goto("/app/demo/speaking");
   await prepareLiveGrading(page, signedSandboxKey, assertion);
 
   const identity = page.getByLabel(
@@ -283,7 +283,7 @@ test("an invalid Speaking assertion remains available on step 2 without a sample
   request,
 }) => {
   await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/speaking");
+  await page.goto("/app/demo/speaking");
   await prepareLiveGrading(page, signedSandboxKey, "expired.e2e.assertion");
   await page.getByRole("button", { name: "Chấm thật Part 1" }).click();
 
@@ -346,7 +346,7 @@ test("live Speaking waits for the recording to replace the sample before grading
     });
   });
   await keepBrowserTrafficLocal(page);
-  await page.route("**/api/demo/speaking/questions?part=1", (route) =>
+  await page.route("**/app/api/demo/speaking/questions?part=1", (route) =>
     route.fulfill({
       status: 200,
       json: {
@@ -362,7 +362,7 @@ test("live Speaking waits for the recording to replace the sample before grading
       },
     })
   );
-  await page.goto("/demo/speaking");
+  await page.goto("/app/demo/speaking");
   await waitForHydration(page);
   await page.getByLabel("Mã API (không bắt buộc)").fill(sandboxKey);
   await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
@@ -411,11 +411,9 @@ test(`live Speaking rejects recordings over ${MAX_SPEAKING_MIB} MiB`, async ({
   await emitFakeRecordingChunk(page, MAX_SPEAKING_BYTES + 1);
 
   await expect(
-    page
-      .getByRole("alert")
-      .filter({
-        hasText: new RegExp(`vượt quá giới hạn ${MAX_SPEAKING_MIB} MiB`),
-      })
+    page.getByRole("alert").filter({
+      hasText: new RegExp(`vượt quá giới hạn ${MAX_SPEAKING_MIB} MiB`),
+    })
   ).toBeVisible();
   await expect.poll(() => speakingTrackStopCount(page)).toBe(1);
   await expect(
@@ -515,7 +513,7 @@ test("Speaking without a key uses a read-only fixture and grades locally", async
   request,
 }) => {
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
-  await page.route("**/api/demo/speaking/questions?part=*", (route) => {
+  await page.route("**/app/api/demo/speaking/questions?part=*", (route) => {
     const part = Number(
       new URL(route.request().url()).searchParams.get("part")
     );
@@ -536,7 +534,7 @@ test("Speaking without a key uses a read-only fixture and grades locally", async
       json: { data: { part, questions } },
     });
   });
-  await page.goto("/demo/speaking");
+  await page.goto("/app/demo/speaking");
   await waitForHydration(page);
   await page.getByRole("button", { name: "Xem câu hỏi mẫu" }).click();
   await page.getByRole("button", { name: "Quay lại nhập mã API" }).click();
@@ -650,7 +648,7 @@ test("live Speaking never falls back to fixture questions when the catalog is un
     })
   );
 
-  await page.goto("/demo/speaking");
+  await page.goto("/app/demo/speaking");
   await waitForHydration(page);
   await page.getByLabel("Mã API (không bắt buộc)").fill(sandboxKey);
   await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
@@ -688,7 +686,7 @@ test("live Speaking grading forwards the temporary demo UUID", async ({
 }) => {
   test.setTimeout(90_000);
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/speaking");
+  await page.goto("/app/demo/speaking");
   await startLiveSession(page);
   const identity = page.getByLabel("Declared User ID (X-User-Identity)");
   await identity.fill("");
@@ -712,7 +710,7 @@ test("Speaking grading rejects an invalid key if the client bypasses validation"
   page,
   request,
 }) => {
-  await page.goto("/demo/speaking");
+  await page.goto("/app/demo/speaking");
   await startLiveSession(page);
 
   const result = await page.evaluate(async () => {
@@ -726,7 +724,7 @@ test("Speaking grading rejects an invalid key if the client bypasses validation"
     form.append("prompt_text", "Do you enjoy living in your hometown?");
     form.append("test_type", "Practice");
 
-    const response = await fetch("/api/demo/speaking/grading", {
+    const response = await fetch("/app/app/api/demo/speaking/grading", {
       method: "POST",
       headers: {
         "X-Demo-API-Key": "invalid-sandbox-key",
@@ -751,7 +749,7 @@ test("live Speaking reuses the temporary UUID for the demo session", async ({
 }) => {
   test.setTimeout(90_000);
   const expectNoExternalRequests = await keepBrowserTrafficLocal(page);
-  await page.goto("/demo/speaking");
+  await page.goto("/app/demo/speaking");
   await prepareLiveGrading(page);
   await submitLiveGrading(page);
 

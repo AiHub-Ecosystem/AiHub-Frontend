@@ -18,7 +18,7 @@ import { startSeam, type Seam } from "./support/seam-harness";
 
 const IDEMPOTENCY_KEY = "a1b2c3d4-e5f6-4a1b-8c2d-1234567890ab";
 const CLEAR_SESSION_COOKIE =
-  "__Host-aihub_web_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict";
+  "__Host-aihub_web_session=; Path=/app; Max-Age=0; HttpOnly; Secure; SameSite=Strict";
 
 let seam: Seam;
 let sessionToken: string;
@@ -93,7 +93,10 @@ describe.each(["rest", "trpc"])(
         browserHeaders({ Cookie: "" })
       );
       expect(response.status).toBe(401);
-      expect(response.headers.get("set-cookie")).toBe(CLEAR_SESSION_COOKIE);
+      expect(response.headers.get("set-cookie")).toContain(
+        CLEAR_SESSION_COOKIE
+      );
+      expect(response.headers.get("set-cookie")).toContain("Path=/; Max-Age=0");
     });
 
     it("answers a rejected Web Session with 401 and clears the session cookie", async () => {
@@ -102,7 +105,10 @@ describe.each(["rest", "trpc"])(
         browserHeaders({ Cookie: `__Host-aihub_web_session=${"e".repeat(43)}` })
       );
       expect(response.status).toBe(401);
-      expect(response.headers.get("set-cookie")).toBe(CLEAR_SESSION_COOKIE);
+      expect(response.headers.get("set-cookie")).toContain(
+        CLEAR_SESSION_COOKIE
+      );
+      expect(response.headers.get("set-cookie")).toContain("Path=/; Max-Age=0");
     });
 
     it("answers an expired Web Session before parsing a malformed body", async () => {
@@ -116,7 +122,10 @@ describe.each(["rest", "trpc"])(
         browserHeaders()
       );
       expect(response.status).toBe(401);
-      expect(response.headers.get("set-cookie")).toBe(CLEAR_SESSION_COOKIE);
+      expect(response.headers.get("set-cookie")).toContain(
+        CLEAR_SESSION_COOKIE
+      );
+      expect(response.headers.get("set-cookie")).toContain("Path=/; Max-Age=0");
     });
 
     it("creates the Organization with a trimmed name and the caller's idempotency key", async () => {

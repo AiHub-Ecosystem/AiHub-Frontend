@@ -41,7 +41,7 @@ export function OrganizationIdentityDialog({
     const controller = new AbortController();
 
     void fetch(
-      `/api/organizations/${encodeURIComponent(organizationId)}/identity-config`,
+      `/app/api/organizations/${encodeURIComponent(organizationId)}/identity-config`,
       { signal: controller.signal }
     )
       .then(async (response) => {

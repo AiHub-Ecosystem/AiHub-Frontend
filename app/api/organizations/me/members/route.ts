@@ -1,6 +1,7 @@
 import {
   authenticatedAihubFetch,
   rejectedWebSessionCookie,
+  webSessionClearHeaders,
   requireWebSession,
   webSessionIdFromRequest,
 } from "@/lib/auth-session";
@@ -28,10 +29,10 @@ export async function GET(request: Request) {
         },
         {
           status: clearCookie ? 401 : 503,
-          headers: {
-            "Cache-Control": "no-store",
-            ...(clearCookie ? { "Set-Cookie": clearCookie } : {}),
-          },
+          headers: webSessionClearHeaders(
+            { "Cache-Control": "no-store" },
+            !!clearCookie
+          ),
         }
       );
     }

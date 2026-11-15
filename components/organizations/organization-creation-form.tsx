@@ -125,7 +125,7 @@ export function OrganizationCreationForm({
         }
         setAttempt(currentAttempt);
       }
-      const response = await fetch("/api/organizations", {
+      const response = await fetch("/app/api/organizations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

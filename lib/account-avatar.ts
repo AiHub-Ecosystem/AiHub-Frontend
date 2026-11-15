@@ -1,4 +1,7 @@
-import { rejectedWebSessionCookie } from "@/lib/auth-session";
+import {
+  rejectedWebSessionCookie,
+  webSessionClearHeaders,
+} from "@/lib/auth-session";
 
 export {
   AVATAR_CONTENT_TYPES,
@@ -29,10 +32,7 @@ export function upstreamFailure(response: Response, fallback: string) {
         { error: { code } },
         {
           status: response.status,
-          headers: {
-            ...noStore,
-            ...(clearCookie ? { "Set-Cookie": clearCookie } : {}),
-          },
+          headers: webSessionClearHeaders(noStore, !!clearCookie),
         }
       );
     });

@@ -2,6 +2,7 @@ import {
   authenticatedAihubFetch,
   originIsAllowed,
   rejectedWebSessionCookie,
+  webSessionClearHeaders,
   requireWebSession,
   webSessionIdFromRequest,
 } from "@/lib/auth-session";
@@ -45,11 +46,10 @@ export async function PATCH(
     const clearCookie = rejectedWebSessionCookie(upstream);
     return new Response(await upstream.text(), {
       status: upstream.status,
-      headers: {
-        "Cache-Control": "no-store",
-        "Content-Type": "application/json",
-        ...(clearCookie ? { "Set-Cookie": clearCookie } : {}),
-      },
+      headers: webSessionClearHeaders(
+        { "Cache-Control": "no-store", "Content-Type": "application/json" },
+        !!clearCookie
+      ),
     });
   } catch {
     return Response.json(

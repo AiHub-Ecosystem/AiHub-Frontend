@@ -2,6 +2,7 @@ import {
   authenticatedAihubFetch,
   originIsAllowed,
   rejectedWebSessionCookie,
+  webSessionClearHeaders,
   requireWebSession,
   webSessionIdFromRequest,
 } from "@/lib/auth-session";
@@ -75,10 +76,7 @@ export async function POST(request: Request) {
       { error: { code } },
       {
         status: upstream.status,
-        headers: {
-          ...noStore,
-          ...(clearCookie ? { "Set-Cookie": clearCookie } : {}),
-        },
+        headers: webSessionClearHeaders(noStore, !!clearCookie),
       }
     );
   } catch {

@@ -100,7 +100,7 @@ export function AccountAvatarMenu() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/account", {
+      const response = await fetch("/app/api/account", {
         cache: "no-store",
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
@@ -152,7 +152,7 @@ export function AccountAvatarMenu() {
 
     setBusy(true);
     try {
-      const grantResponse = await fetch("/api/account/avatar/uploads", {
+      const grantResponse = await fetch("/app/api/account/avatar/uploads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content_type: file.type, byte_size: file.size }),
@@ -178,7 +178,7 @@ export function AccountAvatarMenu() {
       if (!storageResponse.ok) throw new Error("STORAGE_UPLOAD_FAILED");
 
       const completeResponse = await fetch(
-        `/api/account/avatar/uploads/${grant.asset_id}/complete`,
+        `/app/api/account/avatar/uploads/${grant.asset_id}/complete`,
         {
           method: "POST",
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -212,7 +212,7 @@ export function AccountAvatarMenu() {
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch("/api/account/avatar", {
+      const response = await fetch("/app/api/account/avatar", {
         method: "DELETE",
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
@@ -299,7 +299,11 @@ export function AccountAvatarMenu() {
           Xóa ảnh
         </button>
       )}
-      <form action="/api/auth/logout" method="post" onSubmit={broadcastLogout}>
+      <form
+        action="/app/api/auth/logout"
+        method="post"
+        onSubmit={broadcastLogout}
+      >
         <button type="submit">Đăng xuất</button>
       </form>
       <ConfirmationDialog

@@ -4,7 +4,10 @@ import {
   parseOrganizationIdentityConfig,
   parseOrganizationIdentityInput,
 } from "@/lib/organization-identity";
-import { rejectedWebSessionCookie } from "@/lib/auth-session";
+import {
+  rejectedWebSessionCookie,
+  webSessionClearHeaders,
+} from "@/lib/auth-session";
 
 export const identityNoStore = { "Cache-Control": "no-store" };
 const knownReasons = new Set([
@@ -52,10 +55,7 @@ export async function forwardIdentityResponse(upstream: Response) {
     },
     {
       status: upstream.status,
-      headers: {
-        ...identityNoStore,
-        ...(clearCookie ? { "Set-Cookie": clearCookie } : {}),
-      },
+      headers: webSessionClearHeaders(identityNoStore, !!clearCookie),
     }
   );
 }

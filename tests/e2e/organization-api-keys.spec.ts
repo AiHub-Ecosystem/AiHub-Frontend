@@ -92,14 +92,15 @@ async function openQuickstartFromDialog(page: Page) {
 
 async function signIn(page: Page, openApiKeys = true) {
   await page.context().clearCookies();
-  await page.goto("/login");
+  await page.goto("/app/login");
   // ponytail: a click before hydration is silently lost; slower shards lose the race.
   await waitForHydration(page);
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(password);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(page).toHaveURL(/\/console\/orgs\/org-keys-12345678$/);
-  if (openApiKeys) await page.goto("/console/orgs/org-keys-12345678/api-keys");
+  if (openApiKeys)
+    await page.goto("/app/console/orgs/org-keys-12345678/api-keys");
 }
 
 test("owner sees active and expired API keys with their metadata", async ({
@@ -250,7 +251,7 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   let requestContainsRawKey = false;
   let apiRequestCount = 0;
   page.on("request", (browserRequest) => {
-    if (new URL(browserRequest.url()).pathname.startsWith("/api/"))
+    if (new URL(browserRequest.url()).pathname.startsWith("/app/app/api/"))
       apiRequestCount += 1;
     if (
       rawKeyToWatch &&
@@ -288,7 +289,7 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
     (response) =>
       response
         .url()
-        .endsWith("/api/organizations/org-keys-12345678/api-keys") &&
+        .endsWith("/app/app/api/organizations/org-keys-12345678/api-keys") &&
       response.request().method() === "POST"
   );
   await page.getByRole("button", { name: "Tạo key" }).click();
@@ -363,7 +364,7 @@ test("creation uses roster scopes and reveals the raw key only once", async ({
   await expect(
     page.getByRole("row", { name: /New service key/ })
   ).toBeVisible();
-  await page.goto("/console/orgs/org-keys-12345678");
+  await page.goto("/app/console/orgs/org-keys-12345678");
   await page.goBack();
   await expect(page).toHaveURL(/\/console\/orgs\/org-keys-12345678\/api-keys$/);
   await expect(page.getByTestId("api-key-raw")).toHaveCount(0);
@@ -882,7 +883,7 @@ test("members and suspended Organizations never request the API-key list", async
   await setup(request, { membershipRole: "member" });
   await signIn(page, false);
   await expect(page).toHaveURL(/\/console\/orgs\/org-keys-12345678$/);
-  await page.goto("/console/orgs/org-keys-12345678/api-keys");
+  await page.goto("/app/console/orgs/org-keys-12345678/api-keys");
   await expect(page).toHaveURL(/\/console\/orgs\/denied$/);
 
   await setup(request, {
@@ -891,7 +892,7 @@ test("members and suspended Organizations never request the API-key list", async
   });
   await signIn(page, false);
   await expect(page).toHaveURL(/\/console\/orgs\/org-keys-12345678$/);
-  await page.goto("/console/orgs/org-keys-12345678/api-keys");
+  await page.goto("/app/console/orgs/org-keys-12345678/api-keys");
   await expect(page).toHaveURL(/\/console\/orgs\/denied$/);
   const requests = await request
     .get(`${mockUrl}/__test__/organizations/requests`)
@@ -997,7 +998,7 @@ const quickstartKeys = [
 ];
 
 function quickstartPath(apiKeyId: string) {
-  return `/console/orgs/org-keys-12345678/api-keys/${apiKeyId}/quickstart`;
+  return `/app/console/orgs/org-keys-12345678/api-keys/${apiKeyId}/quickstart`;
 }
 
 test("only active keys with a Sample request or Writing exercise scope offer a Quickstart", async ({

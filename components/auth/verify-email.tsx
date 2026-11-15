@@ -45,7 +45,7 @@ export function VerifyEmail() {
     setPhase("loading");
     setMessage("");
     try {
-      const response = await fetch("/api/auth/verify-email", {
+      const response = await fetch("/app/api/auth/verify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: value }),
@@ -109,7 +109,7 @@ export function VerifyEmail() {
     setBusy(true);
     setMessage("");
     try {
-      const response = await fetch("/api/auth/resend-verification", {
+      const response = await fetch("/app/api/auth/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

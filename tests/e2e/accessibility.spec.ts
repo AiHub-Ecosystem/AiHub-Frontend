@@ -57,21 +57,23 @@ async function setup(request: APIRequestContext) {
 
 async function signIn(page: Page) {
   await page.context().clearCookies();
-  await page.goto("/login");
+  await page.goto("/app/login");
   // ponytail: a click before hydration is silently lost; slower shards lose the race.
   await waitForHydration(page);
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(password);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`/console/orgs/${organizationId}$`));
+  await expect(page).toHaveURL(
+    new RegExp(`/app/console/orgs/${organizationId}$`)
+  );
 }
 
 for (const path of [
-  "/login",
-  "/register",
-  "/forgot-password",
-  "/demo",
-  "/docs",
+  "/app/login",
+  "/app/register",
+  "/app/forgot-password",
+  "/app/demo",
+  "/app/docs",
 ]) {
   test(`${path} has no WCAG A or AA violations axe can detect`, async ({
     page,
@@ -90,9 +92,9 @@ test("the signed-in Console has no WCAG A or AA violations axe can detect", asyn
   await signIn(page);
   const found: Record<string, Awaited<ReturnType<typeof violations>>> = {};
   for (const path of [
-    `/console/orgs/${organizationId}`,
-    `/console/orgs/${organizationId}/api-keys`,
-    `/console/orgs/${organizationId}/identity`,
+    `/app/console/orgs/${organizationId}`,
+    `/app/console/orgs/${organizationId}/api-keys`,
+    `/app/console/orgs/${organizationId}/identity`,
   ]) {
     await page.goto(path);
     await waitForHydration(page);

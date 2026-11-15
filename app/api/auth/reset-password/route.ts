@@ -3,7 +3,10 @@ import {
   postAihubAuth,
   readAihubAuthError,
 } from "@/lib/auth-bff";
-import { originIsAllowed, webSessionCookie } from "@/lib/auth-session";
+import {
+  appendExpiredWebSessionCookies,
+  originIsAllowed,
+} from "@/lib/auth-session";
 
 export async function POST(request: Request) {
   if (!originIsAllowed(request))
@@ -51,10 +54,7 @@ export async function POST(request: Request) {
   if (upstream.status === 204) {
     return new Response(null, {
       status: 204,
-      headers: {
-        ...AUTH_NO_STORE,
-        "Set-Cookie": webSessionCookie("", 0),
-      },
+      headers: appendExpiredWebSessionCookies(new Headers(AUTH_NO_STORE)),
     });
   }
 

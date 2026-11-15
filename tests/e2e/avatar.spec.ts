@@ -29,7 +29,7 @@ async function prepareMocks(
 }
 
 async function signIn(page: Page) {
-  await page.goto("/login");
+  await page.goto("/app/login");
   await waitForHydration(page);
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(validPassword);
@@ -382,7 +382,7 @@ test("an AVATAR_CHANGED confirmation refreshes the current Avatar", async ({
   });
   await mockStorage(page);
   await page.route(
-    "**/api/account/avatar/uploads/*/complete",
+    "**/app/api/account/avatar/uploads/*/complete",
     async (route) => {
       await request.post(`${mockUrl}/__test__/avatar/config`, {
         data: { avatar: changedAvatar },
@@ -418,7 +418,7 @@ test("a failed AVATAR_CHANGED refresh reports that account data could not be loa
   await mockStorage(page);
   await signIn(page);
   await openAccountMenu(page);
-  await page.route("**/api/account", async (route) => {
+  await page.route("**/app/api/account", async (route) => {
     await route.fulfill({
       status: 503,
       json: { error: { code: "ACCOUNT_UNAVAILABLE" } },
@@ -442,10 +442,13 @@ test("avatar upload API rejects an unauthenticated caller", async ({
   request,
 }) => {
   await prepareMocks(request);
-  const response = await request.post(`${appUrl}/api/account/avatar/uploads`, {
-    headers: { Origin: appUrl },
-    data: { content_type: "image/png", byte_size: 128 },
-  });
+  const response = await request.post(
+    `${appUrl}/app/api/account/avatar/uploads`,
+    {
+      headers: { Origin: appUrl },
+      data: { content_type: "image/png", byte_size: 128 },
+    }
+  );
   expect(response.status()).toBe(401);
   const { requests } = await (
     await request.get(`${mockUrl}/__test__/avatar/requests`)
@@ -462,7 +465,7 @@ test("avatar upload BFF accepts metadata only and rejects any image payload", as
   await prepareMocks(request);
   await signIn(page);
   const status = await page.evaluate(async () => {
-    const response = await fetch("/api/account/avatar/uploads", {
+    const response = await fetch("/app/app/api/account/avatar/uploads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

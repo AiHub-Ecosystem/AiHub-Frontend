@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import aihubLimits from "@/data/aihub-contract/limits.json";
+import { WEB_SESSION_COOKIE } from "@/lib/auth-cookies";
 import { POST } from "@/app/api/auth/verify-email/route";
 
 const origin = "http://localhost:3100";
@@ -62,9 +63,10 @@ describe("Customer Web email verification BFF", () => {
 
     expect(response.status).toBe(303);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("location")).toBe(`${origin}/console`);
+    expect(response.headers.get("location")).toBe(`${origin}/app/console`);
     expect(response.headers.getSetCookie()).toEqual([
-      `__Host-aihub_web_session=${newToken}; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict`,
+      `${WEB_SESSION_COOKIE}=${newToken}; Path=/app; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict`,
+      `${WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`,
       "__Host-aihub_signup=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict",
     ]);
     expect(fetch).toHaveBeenNthCalledWith(
@@ -108,7 +110,7 @@ describe("Customer Web email verification BFF", () => {
     );
 
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(`${origin}/console`);
+    expect(response.headers.get("location")).toBe(`${origin}/app/console`);
     expect(response.headers.getSetCookie()).toEqual([
       "__Host-aihub_signup=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict",
     ]);
@@ -149,7 +151,9 @@ describe("Customer Web email verification BFF", () => {
     const response = await POST(verifyRequest("opaque-token"));
 
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(`${origin}/login?verified=1`);
+    expect(response.headers.get("location")).toBe(
+      `${origin}/app/login?verified=1`
+    );
     expect(response.headers.get("set-cookie")).toContain(
       "__Host-aihub_signup=; Path=/; Max-Age=0"
     );

@@ -729,7 +729,7 @@ export default function SpeakingWorkbench() {
     if (step !== 2) return;
     let cancelled = false;
     let receivedHttpResponse = false;
-    fetch(`/api/demo/speaking/questions?part=${part}`, {
+    fetch(`/app/api/demo/speaking/questions?part=${part}`, {
       cache: "no-store",
       headers: { "X-Demo-Environment": environment },
     })
@@ -882,7 +882,7 @@ export default function SpeakingWorkbench() {
     setKeyCheckResponse({ state: "pending", scope: SCOPE });
     let receivedHttpResponse = false;
     try {
-      const response = await fetch("/api/demo/key/validate", {
+      const response = await fetch("/app/api/demo/key/validate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1226,8 +1226,8 @@ export default function SpeakingWorkbench() {
       form.append("test_type", "Practice");
     }
     const gradingPath = sampleAudioSelected
-      ? "/api/demo/speaking/grading-json"
-      : "/api/demo/speaking/grading";
+      ? "/app/api/demo/speaking/grading-json"
+      : "/app/api/demo/speaking/grading";
     setGradeResponse({
       state: "pending",
       request: `/v1/ielts/speaking/${
@@ -1334,7 +1334,7 @@ export default function SpeakingWorkbench() {
               : "chưa gửi yêu cầu kiểm tra mã",
         browser_to_aihub_bff: {
           method: "POST",
-          path: "/api/demo/key/validate",
+          path: "/app/api/demo/key/validate",
           headers: {
             "X-Demo-API-Key": "[REDACTED]",
             "Content-Type": "application/json",
@@ -1359,7 +1359,7 @@ export default function SpeakingWorkbench() {
             source: "đang tải danh sách câu hỏi",
             browser_to_aihub_bff: {
               method: "GET",
-              path: `/api/demo/speaking/questions?part=${part}`,
+              path: `/app/api/demo/speaking/questions?part=${part}`,
             },
             bff_to_selected_environment: {
               environment: demoEnvironmentName(environment),
@@ -1372,7 +1372,7 @@ export default function SpeakingWorkbench() {
             source: "catalog mẫu công khai",
             browser_to_aihub_bff: {
               method: "GET",
-              path: `/api/demo/speaking/questions?part=${part}`,
+              path: `/app/api/demo/speaking/questions?part=${part}`,
             },
             bff_to_selected_environment: {
               environment: demoEnvironmentName(environment),
@@ -1388,8 +1388,8 @@ export default function SpeakingWorkbench() {
           ? {
               method: "POST",
               path: sampleAudioSelected
-                ? "/api/demo/speaking/grading-json"
-                : "/api/demo/speaking/grading",
+                ? "/app/api/demo/speaking/grading-json"
+                : "/app/api/demo/speaking/grading",
               upstream_path: sampleAudioSelected
                 ? "/v1/ielts/speaking/grading-json"
                 : "/v1/ielts/speaking/grading",

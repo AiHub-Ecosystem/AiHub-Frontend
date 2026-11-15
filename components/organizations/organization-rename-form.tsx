@@ -31,7 +31,7 @@ export function OrganizationRenameForm({
     const form = new FormData(event.currentTarget);
     try {
       const response = await fetch(
-        `/api/organizations/${encodeURIComponent(organizationId)}`,
+        `/app/api/organizations/${encodeURIComponent(organizationId)}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },

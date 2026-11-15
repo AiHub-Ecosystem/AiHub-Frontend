@@ -7,7 +7,7 @@ test("Retired /specs redirects permanently to the API product catalog", async ({
 }) => {
   const response = await request.get("/specs", { maxRedirects: 0 });
   expect(response.status()).toBe(308);
-  expect(response.headers()["location"]).toBe("/product");
+  expect(response.headers()["location"]).toBe("/app/product");
 
   await page.goto("/specs");
   await expect(page).toHaveURL(/\/product$/);
@@ -32,22 +32,22 @@ test("Site header leads to the API product catalog and never to /specs", async (
 });
 
 const OPERATION_REFERENCES = [
-  { name: "Writing Task 1", href: "/product/scoring/api/grade-task1" },
-  { name: "Writing Task 2", href: "/product/scoring/api/grade-task2" },
+  { name: "Writing Task 1", href: "/app/product/scoring/api/grade-task1" },
+  { name: "Writing Task 2", href: "/app/product/scoring/api/grade-task2" },
   {
     name: "Speaking multipart",
-    href: "/product/speaking/api/speaking-grading",
+    href: "/app/product/speaking/api/speaking-grading",
   },
   {
     name: "Speaking JSON-by-URL",
-    href: "/product/speaking/api/speaking-grading-json",
+    href: "/app/product/speaking/api/speaking-grading-json",
   },
 ];
 
 test("/docs opens with the identity decision and a Declared first call", async ({
   page,
 }) => {
-  await page.goto("/docs");
+  await page.goto("/app/docs");
 
   const main = page.locator(".aihub-shell");
   const overview = main.locator("#tong-quan");
@@ -74,7 +74,7 @@ test("/docs opens with the identity decision and a Declared first call", async (
 test("/docs explains Declared trust and optional Signed setup", async ({
   page,
 }) => {
-  await page.goto("/docs");
+  await page.goto("/app/docs");
 
   const identity = page.locator("#dinh-danh");
   await expect(identity).toContainText("1–256");
@@ -112,7 +112,7 @@ test("/docs explains Declared trust and optional Signed setup", async ({
 test("/docs links each grading operation to its API reference page", async ({
   page,
 }) => {
-  await page.goto("/docs");
+  await page.goto("/app/docs");
 
   for (const { name, href } of OPERATION_REFERENCES) {
     await expect(
@@ -122,7 +122,7 @@ test("/docs links each grading operation to its API reference page", async ({
   }
 
   for (const { href } of OPERATION_REFERENCES) {
-    await page.goto("/docs");
+    await page.goto("/app/docs");
     // ponytail: a click before hydration is silently lost; slower shards lose the race.
     await waitForHydration(page);
     await page.locator(`.aihub-shell a[href="${href}"]`).first().click();
@@ -134,7 +134,7 @@ test("/docs links each grading operation to its API reference page", async ({
 test("/docs states the header contract shared by every grading endpoint", async ({
   page,
 }) => {
-  await page.goto("/docs");
+  await page.goto("/app/docs");
 
   const contracts = page.locator("#thao-tac");
   for (const header of [
@@ -156,27 +156,27 @@ test("/docs states the header contract shared by every grading endpoint", async 
 test("/docs shows the request body and response shape of every grading endpoint", async ({
   page,
 }) => {
-  await page.goto("/docs");
+  await page.goto("/app/docs");
 
   for (const { name, href, bodyFields } of [
     {
       name: "Writing Task 1",
-      href: "/product/scoring/api/grade-task1",
+      href: "/app/product/scoring/api/grade-task1",
       bodyFields: ["question", "chart_type", "essay", "image_url"],
     },
     {
       name: "Writing Task 2",
-      href: "/product/scoring/api/grade-task2",
+      href: "/app/product/scoring/api/grade-task2",
       bodyFields: ["question", "topic", "essay"],
     },
     {
       name: "Speaking multipart",
-      href: "/product/speaking/api/speaking-grading",
+      href: "/app/product/speaking/api/speaking-grading",
       bodyFields: ["part", "question_id"],
     },
     {
       name: "Speaking JSON-by-URL",
-      href: "/product/speaking/api/speaking-grading-json",
+      href: "/app/product/speaking/api/speaking-grading-json",
       bodyFields: ["audio_url", "part", "question_id"],
     },
   ]) {
@@ -204,7 +204,7 @@ test("/docs shows the request body and response shape of every grading endpoint"
 test("/docs body tables mark required fields and keep optional ones optional", async ({
   page,
 }) => {
-  await page.goto("/docs");
+  await page.goto("/app/docs");
 
   const task2 = page.locator(".docs-endpoint", { hasText: "Writing Task 2" });
   await task2.locator("summary").click();
@@ -224,7 +224,7 @@ test("/docs body tables mark required fields and keep optional ones optional", a
 test("/docs separates Customer Sandbox from the demo assertion route", async ({
   page,
 }) => {
-  await page.goto("/docs");
+  await page.goto("/app/docs");
 
   const sandbox = page.locator("#sandbox");
   await expect(
@@ -246,7 +246,7 @@ test("/docs separates Customer Sandbox from the demo assertion route", async ({
 test("/docs gives reliability guidance by operation and error", async ({
   page,
 }) => {
-  await page.goto("/docs");
+  await page.goto("/app/docs");
 
   const reliability = page.locator("#do-tin-cay");
   await expect(reliability).toContainText("Speaking không có idempotency");
@@ -278,7 +278,7 @@ test("/docs offers no browser grading action and makes no AIHUB API request", as
     if (/aihubproduction\.com/.test(new URL(request.url()).hostname))
       apiRequests.push(request.url());
   });
-  await page.goto("/docs");
+  await page.goto("/app/docs");
   await page.waitForLoadState("networkidle");
 
   const shell = page.locator(".aihub-shell");
@@ -299,7 +299,7 @@ test("/docs code samples copy to the clipboard and announce it without moving th
   context,
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.goto("/docs");
+  await page.goto("/app/docs");
   await waitForHydration(page);
 
   const block = page.locator(".aihub-codeblock").first();
@@ -324,7 +324,7 @@ test("/docs code samples copy to the clipboard and announce it without moving th
 test("/docs shows how to sign an assertion in Node.js, Python and Java", async ({
   page,
 }) => {
-  await page.goto("/docs");
+  await page.goto("/app/docs");
 
   const signed = page.locator("#dinh-danh");
   for (const language of ["Node.js", "Python", "Java"]) {
@@ -346,7 +346,7 @@ test("/docs stays inside a phone viewport and is keyboard reachable", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/docs");
+  await page.goto("/app/docs");
   // CI renders monospace wider than a dev machine; widen it here so an
   // unbreakable path in running text fails locally too, not only on CI.
   await page.addStyleTag({
@@ -370,7 +370,7 @@ test("/docs stays inside a phone viewport and is keyboard reachable", async ({
 test("/docs highlights the sidebar item for the section in view", async ({
   page,
 }) => {
-  await page.goto("/docs");
+  await page.goto("/app/docs");
   const toc = page.getByRole("navigation", { name: "Trong trang" });
   const identity = toc.getByRole("link", { name: "Nhận diện người học" });
   const sandbox = toc.getByRole("link", { name: "Thử miễn phí" });
@@ -393,7 +393,7 @@ test("/docs anchors land below the site header, one per identity mode", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/docs");
+  await page.goto("/app/docs");
 
   for (const id of ["declared", "signed", "sandbox", "do-tin-cay"]) {
     await page.evaluate((hash) => (location.hash = hash), id);

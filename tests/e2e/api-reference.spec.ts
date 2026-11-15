@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 test("Exercise generation API reference shows its headers and errors", async ({
   page,
 }) => {
-  await page.goto("/product/exercise-generation/api/create-micro-exercise");
+  await page.goto("/app/product/exercise-generation/api/create-micro-exercise");
 
   await expect(page.locator("pre.aihub-code").first()).toContainText(
     `-H "Content-Type: application/json"`
@@ -114,18 +114,18 @@ const countCriteria = (body: string | null) =>
 test("Writing Scoring is stable and links both grading operations", async ({
   page,
 }) => {
-  await page.goto("/product/scoring");
+  await page.goto("/app/product/scoring");
 
   await expect(page.locator(".aihub-badge")).toHaveText("Stable");
-  const links = page.locator('a[href^="/product/scoring/api/"]');
+  const links = page.locator('a[href^="/app/product/scoring/api/"]');
   await expect(links).toHaveCount(2);
   await expect(links.nth(0)).toHaveAttribute(
     "href",
-    "/product/scoring/api/grade-task1"
+    "/app/product/scoring/api/grade-task1"
   );
   await expect(links.nth(1)).toHaveAttribute(
     "href",
-    "/product/scoring/api/grade-task2"
+    "/app/product/scoring/api/grade-task2"
   );
   await expect(page.locator(".aihub-path")).toHaveText([
     "/v1/ielts/writing/task1/grade",
@@ -136,7 +136,7 @@ test("Writing Scoring is stable and links both grading operations", async ({
 test("Writing Scoring overview names the production host and its requirements", async ({
   page,
 }) => {
-  await page.goto("/product/scoring");
+  await page.goto("/app/product/scoring");
 
   const facts = page.locator(".aihub-facts");
   await expect(facts).toContainText("api.aihubproduction.com");
@@ -147,7 +147,7 @@ test("Writing Scoring overview names the production host and its requirements", 
 test("Writing Task 1 reference shows the request contract and AIHUB's published chart", async ({
   page,
 }) => {
-  await page.goto("/product/scoring/api/grade-task1");
+  await page.goto("/app/product/scoring/api/grade-task1");
 
   const request = requestExample(page);
   for (const header of WRITING_CURL_HEADERS) {
@@ -186,7 +186,7 @@ test("Writing Task 1 reference shows the request contract and AIHUB's published 
 test("Writing Task 1 reference shows four ordered criteria in the response", async ({
   page,
 }) => {
-  await page.goto("/product/scoring/api/grade-task1");
+  await page.goto("/app/product/scoring/api/grade-task1");
 
   const response = await showResponse(page);
   await expect(response).toContainText(/"overall_band": 6\.5/);
@@ -203,7 +203,7 @@ test("Writing Task 1 reference shows four ordered criteria in the response", asy
 test("Writing Task 2 reference requires topic and grades task response", async ({
   page,
 }) => {
-  await page.goto("/product/scoring/api/grade-task2");
+  await page.goto("/app/product/scoring/api/grade-task2");
 
   const request = requestExample(page);
   for (const header of WRITING_CURL_HEADERS) {
@@ -231,7 +231,7 @@ test("Writing Task 2 reference requires topic and grades task response", async (
 test("Writing Scoring shows all nineteen gateway errors grouped by status", async ({
   page,
 }) => {
-  await page.goto("/product/scoring/api/grade-task2");
+  await page.goto("/app/product/scoring/api/grade-task2");
 
   const errors = errorSection(page);
   await expect(errors.locator(".aihub-status")).toHaveText(
@@ -335,10 +335,10 @@ const SPEAKING_ERROR_CODES = [
  */
 for (const slug of ["exercise-generation", "scoring", "speaking"]) {
   test(`every ${slug} endpoint has a reference page`, async ({ page }) => {
-    await page.goto(`/product/${slug}`);
+    await page.goto(`/app/product/${slug}`);
 
     const cards = page.locator(".aihub-endpoint");
-    const links = page.locator(`a[href^="/product/${slug}/api/"]`);
+    const links = page.locator(`a[href^="/app/product/${slug}/api/"]`);
     const cardCount = await cards.count();
     expect(cardCount).toBeGreaterThan(0);
     expect(await links.count()).toBe(cardCount);
@@ -348,21 +348,21 @@ for (const slug of ["exercise-generation", "scoring", "speaking"]) {
 test("every Speaking endpoint in the catalog has a reference page", async ({
   page,
 }) => {
-  await page.goto("/product/speaking");
+  await page.goto("/app/product/speaking");
 
-  const links = page.locator('a[href^="/product/speaking/api/"]');
+  const links = page.locator('a[href^="/app/product/speaking/api/"]');
   await expect(links).toHaveCount(3);
   await expect(links.nth(0)).toHaveAttribute(
     "href",
-    "/product/speaking/api/speaking-questions"
+    "/app/product/speaking/api/speaking-questions"
   );
   await expect(links.nth(1)).toHaveAttribute(
     "href",
-    "/product/speaking/api/speaking-grading"
+    "/app/product/speaking/api/speaking-grading"
   );
   await expect(links.nth(2)).toHaveAttribute(
     "href",
-    "/product/speaking/api/speaking-grading-json"
+    "/app/product/speaking/api/speaking-grading-json"
   );
   await expect(page.locator(".aihub-path")).toHaveText([
     "/v1/ielts/speaking/questions?part={part}",
@@ -374,7 +374,7 @@ test("every Speaking endpoint in the catalog has a reference page", async ({
 test("Speaking overview names the production host and the required key scope", async ({
   page,
 }) => {
-  await page.goto("/product/speaking");
+  await page.goto("/app/product/speaking");
 
   const facts = page.locator(".aihub-facts");
   await expect(facts).toContainText("api.aihubproduction.com");
@@ -384,7 +384,7 @@ test("Speaking overview names the production host and the required key scope", a
 test("Speaking grading reference builds a multipart request, not a JSON body", async ({
   page,
 }) => {
-  await page.goto("/product/speaking/api/speaking-grading");
+  await page.goto("/app/product/speaking/api/speaking-grading");
 
   const request = requestExample(page);
   for (const header of SPEAKING_CURL_HEADERS) {
@@ -407,7 +407,7 @@ test("Speaking grading reference builds a multipart request, not a JSON body", a
 test("Speaking grading command sends every documented field", async ({
   page,
 }) => {
-  await page.goto("/product/speaking/api/speaking-grading");
+  await page.goto("/app/product/speaking/api/speaking-grading");
 
   const request = requestExample(page);
   const fields = await requestFields(page).allTextContents();
@@ -439,7 +439,7 @@ test("Speaking grading command sends every documented field", async ({
 test("Speaking published answer sample uses its stable URL in a JSON body", async ({
   page,
 }) => {
-  await page.goto("/product/speaking/api/speaking-grading-json");
+  await page.goto("/app/product/speaking/api/speaking-grading-json");
 
   const request = requestExample(page);
   for (const header of SPEAKING_CURL_HEADERS) {
@@ -472,7 +472,7 @@ test("Speaking published answer sample uses its stable URL in a JSON body", asyn
 test("Speaking grading reference marks fields as the contract does", async ({
   page,
 }) => {
-  await page.goto("/product/speaking/api/speaking-grading");
+  await page.goto("/app/product/speaking/api/speaking-grading");
 
   await expect(requestFields(page)).toHaveText([
     "audio",
@@ -495,7 +495,7 @@ test("Speaking grading reference marks fields as the contract does", async ({
 test("Speaking grading warns that a retry starts another billed run", async ({
   page,
 }) => {
-  await page.goto("/product/speaking/api/speaking-grading");
+  await page.goto("/app/product/speaking/api/speaking-grading");
 
   const notes = endpointNotes(page);
   await expect(notes).toContainText("không có idempotent");
@@ -506,7 +506,7 @@ test("Speaking grading warns that a retry starts another billed run", async ({
 test("Speaking questions reference carries no User Identity header", async ({
   page,
 }) => {
-  await page.goto("/product/speaking/api/speaking-questions");
+  await page.goto("/app/product/speaking/api/speaking-questions");
 
   const request = requestExample(page);
   await expect(request).not.toContainText("X-User-Identity");
@@ -520,7 +520,7 @@ test("Speaking questions reference carries no User Identity header", async ({
 test("Speaking questions response example names real Speaking questions with signed answer audio", async ({
   page,
 }) => {
-  await page.goto("/product/speaking/api/speaking-questions");
+  await page.goto("/app/product/speaking/api/speaking-questions");
 
   const response = await showResponse(page);
   await expect(response).toContainText(
@@ -540,7 +540,7 @@ test("Speaking questions response example names real Speaking questions with sig
 test("Speaking questions documents its answer audio and short-lived URL", async ({
   page,
 }) => {
-  await page.goto("/product/speaking/api/speaking-questions");
+  await page.goto("/app/product/speaking/api/speaking-questions");
 
   const notes = endpointNotes(page);
   await expect(notes).toContainText("bản ghi câu trả lời mẫu tương ứng");
@@ -555,7 +555,7 @@ test("Speaking questions documents its answer audio and short-lived URL", async 
 test("Speaking URL fallback states the host AIHUB will accept", async ({
   page,
 }) => {
-  await page.goto("/product/speaking/api/speaking-grading-json");
+  await page.goto("/app/product/speaking/api/speaking-grading-json");
 
   await expect(requestFields(page)).toHaveText([
     "audio_url",
@@ -572,7 +572,7 @@ test("Speaking URL fallback states the host AIHUB will accept", async ({
 test("Speaking lists the failures AIHUB can return and the shared retry policy", async ({
   page,
 }) => {
-  await page.goto("/product/speaking/api/speaking-grading");
+  await page.goto("/app/product/speaking/api/speaking-grading");
 
   const errors = errorSection(page);
   // The idempotency conflict is raised only by a Writing grade.
@@ -602,7 +602,7 @@ test("Speaking lists the failures AIHUB can return and the shared retry policy",
 test("Speaking questions shows only the failures it can return", async ({
   page,
 }) => {
-  await page.goto("/product/speaking/api/speaking-questions");
+  await page.goto("/app/product/speaking/api/speaking-questions");
 
   const errors = errorSection(page);
   await expect(errors.locator("article code")).toHaveText([
@@ -622,7 +622,7 @@ test("Speaking questions shows only the failures it can return", async ({
 test("Speaking example values are labelled as illustrative", async ({
   page,
 }) => {
-  await page.goto("/product/speaking/api/speaking-grading");
+  await page.goto("/app/product/speaking/api/speaking-grading");
 
   await expect(endpointNotes(page)).toContainText("minh hoạ");
 });
@@ -630,13 +630,13 @@ test("Speaking example values are labelled as illustrative", async ({
 test("Speaking operations state their own body limit and timeout", async ({
   page,
 }) => {
-  await page.goto("/product/speaking/api/speaking-grading");
+  await page.goto("/app/product/speaking/api/speaking-grading");
   await expect(endpointNotes(page)).toContainText("26 MiB");
   await expect(endpointNotes(page)).toContainText("60 giây");
   await expect(endpointNotes(page)).toContainText("tối thiểu 90 giây");
   await expect(endpointNotes(page)).not.toContainText("256 KB");
 
-  await page.goto("/product/speaking/api/speaking-grading-json");
+  await page.goto("/app/product/speaking/api/speaking-grading-json");
   await expect(endpointNotes(page)).toContainText("256 KB");
   await expect(endpointNotes(page)).toContainText("30 giây");
   await expect(endpointNotes(page)).toContainText("tối thiểu 60 giây");

@@ -1,7 +1,10 @@
 import { API_KEY_SCOPE_CATALOG } from "@/lib/api-key-scopes";
 import { API_KEY_ENVIRONMENTS } from "@/lib/api-keys";
 import { validatedOrganizationName } from "@/lib/organizations";
-import { rejectedWebSessionCookie } from "@/lib/auth-session";
+import {
+  rejectedWebSessionCookie,
+  webSessionClearHeaders,
+} from "@/lib/auth-session";
 
 export const apiKeyNoStore = { "Cache-Control": "no-store" };
 
@@ -177,10 +180,7 @@ export async function forwardApiKeyResponse(
       { error: { code } },
       {
         status: upstream.status,
-        headers: {
-          ...apiKeyNoStore,
-          ...(clearCookie ? { "Set-Cookie": clearCookie } : {}),
-        },
+        headers: webSessionClearHeaders(apiKeyNoStore, !!clearCookie),
       }
     );
   }

@@ -546,7 +546,7 @@ export default function ScoringWorkbench() {
     setKeyCheckResponse({ state: "pending", scope: SCOPE });
     let receivedTrace: HttpTrace | null = null;
     try {
-      const response = await fetch("/api/demo/key/validate", {
+      const response = await fetch("/app/api/demo/key/validate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -724,7 +724,7 @@ export default function ScoringWorkbench() {
     );
     let receivedTrace: HttpTrace | null = null;
     try {
-      const response = await fetch("/api/demo/scoring/grade", {
+      const response = await fetch("/app/api/demo/scoring/grade", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -808,7 +808,7 @@ export default function ScoringWorkbench() {
                   : "chưa nhập mã API",
               browser_to_aihub_bff: {
                 method: "POST",
-                path: "/api/demo/key/validate",
+                path: "/app/api/demo/key/validate",
                 headers: {
                   "X-Demo-API-Key": apiKey.trim() ? "[REDACTED]" : "(not set)",
                   "Content-Type": "application/json",
@@ -848,7 +848,7 @@ export default function ScoringWorkbench() {
         planned_request: liveReady
           ? {
               method: "POST",
-              browser_to_aihub_bff: "/api/demo/scoring/grade",
+              browser_to_aihub_bff: "/app/api/demo/scoring/grade",
               bff_to_selected_environment: {
                 environment: demoEnvironmentName(environment),
                 path: `/v1/ielts/writing/task${task}/grade`,

@@ -82,8 +82,8 @@ describe("Customer Web sign-in BFF", () => {
   });
 
   it.each([
-    ["/console?tab=keys", "http://localhost:3100/console?tab=keys"],
-    ["https://attacker.test/collect", "http://localhost:3100/console"],
+    ["/console?tab=keys", "http://localhost:3100/app/console?tab=keys"],
+    ["https://attacker.test/collect", "http://localhost:3100/app/console"],
   ])(
     "sets a protected Web Session cookie and safely routes next=%s",
     async (next, expected) => {
@@ -120,7 +120,7 @@ describe("Customer Web sign-in BFF", () => {
       expect(response.headers.get("location")).toBe(expected);
       expect(cookie).toContain(`__Host-aihub_web_session=${sessionId}`);
       expect(cookie).toContain(
-        "Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict"
+        "Path=/app; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict"
       );
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(fetch).toHaveBeenCalledWith(

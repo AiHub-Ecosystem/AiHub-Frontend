@@ -192,7 +192,7 @@ describe("Password Reset BFF", () => {
 
     expect(response.status).toBe(204);
     expect(response.headers.get("set-cookie")).toContain(
-      "__Host-aihub_web_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict"
+      "__Host-aihub_web_session=; Path=/app; Max-Age=0; HttpOnly; Secure; SameSite=Strict"
     );
     expect(fetch).toHaveBeenCalledOnce();
   });

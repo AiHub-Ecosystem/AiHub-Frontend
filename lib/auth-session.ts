@@ -1,5 +1,6 @@
 import aihubLimits from "@/data/aihub-contract/limits.json";
 import {
+  appendExpiredWebSessionCookies,
   isWebSessionId,
   webSessionCookie,
   webSessionIdFromRequest,
@@ -25,7 +26,7 @@ const exchanges = new Map<string, Promise<WebSession | null>>();
 
 export function safeLocalPath(
   value: string | null | undefined,
-  fallback = "/console"
+  fallback = "/app/console"
 ) {
   if (
     !value ||
@@ -39,9 +40,12 @@ export function safeLocalPath(
   const origin = customerWebOrigin();
   try {
     const parsed = new URL(value, origin);
-    return parsed.origin === origin
-      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
-      : fallback;
+    if (parsed.origin !== origin) return fallback;
+    const pathname =
+      parsed.pathname === "/app" || parsed.pathname.startsWith("/app/")
+        ? parsed.pathname
+        : `/app${parsed.pathname}`;
+    return `${pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return fallback;
   }
@@ -239,7 +243,7 @@ export async function requireWebSession(request: Request) {
 export function rejectedWebSessionCookie(response: Response) {
   const cookie = webSessionCookie("", 0);
   return response.status === 401 &&
-    response.headers.get("set-cookie") === cookie
+    response.headers.get("set-cookie")?.includes(cookie)
     ? cookie
     : null;
 }
@@ -252,10 +256,7 @@ function authRequired(headers: Record<string, string>) {
     }),
     {
       status: 401,
-      headers: {
-        ...headers,
-        "Set-Cookie": webSessionCookie("", 0),
-      },
+      headers: appendExpiredWebSessionCookies(new Headers(headers)),
     }
   );
 }

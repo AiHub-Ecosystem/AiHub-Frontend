@@ -17,6 +17,7 @@ FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+COPY apps/landing/package.json apps/landing/package.json
 COPY scripts/prod-dependencies.mjs ./scripts/
 
 RUN npm ci --omit=dev --ignore-scripts --libc=glibc; \
@@ -54,9 +55,9 @@ RUN --mount=type=bind,target=/source \
       mkdir -p .next/cache && cp /run/secrets/next_rsc_info .next/cache/.rscinfo; \
     fi; \
     if [ -f /run/secrets/next_server_actions_key ]; then \
-      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(cat /run/secrets/next_server_actions_key)" npm run build; \
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(cat /run/secrets/next_server_actions_key)" npm run build:web; \
     else \
-      npm run build; \
+      npm run build:web; \
     fi; \
     rm -rf /app/.next/cache/turbopack /app/.next/cache/.tsbuildinfo /app/.next/trace /app/.next/trace-build /app/.next/next-server.js.nft.json; \
     mkdir -p /app/.next/cache; \

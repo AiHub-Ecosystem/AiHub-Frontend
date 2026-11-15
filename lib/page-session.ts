@@ -9,7 +9,7 @@ import {
 export async function requirePageWebSession(next: string) {
   const sessionId = (await cookies()).get(WEB_SESSION_COOKIE)?.value;
   const endUserIp = endUserIpFromHeaders(await headers());
-  const encodedNext = encodeURIComponent(next);
+  const encodedNext = encodeURIComponent(`/app${next}`);
 
   if (!sessionId) redirect(`/login?next=${encodedNext}`);
   let active: boolean;

@@ -12,13 +12,13 @@ function countDemoApiCalls(page: Page) {
   const paths: string[] = [];
   page.on("request", (browserRequest) => {
     const path = new URL(browserRequest.url()).pathname;
-    if (path.startsWith("/api/demo/")) paths.push(path);
+    if (path.startsWith("/app/app/api/demo/")) paths.push(path);
   });
   return paths;
 }
 
 async function openDemo(page: Page, skill: "scoring" | "speaking") {
-  await page.goto(`/demo/${skill}`);
+  await page.goto(`/app/demo/${skill}`);
   await waitForHydration(page);
   return page;
 }
@@ -94,7 +94,10 @@ test("an environment-less key can select Production before validation", async ({
 }) => {
   const validationEnvironments: string[] = [];
   page.on("request", (browserRequest) => {
-    if (new URL(browserRequest.url()).pathname === "/api/demo/key/validate") {
+    if (
+      new URL(browserRequest.url()).pathname ===
+      "/app/app/api/demo/key/validate"
+    ) {
       validationEnvironments.push(
         JSON.parse(browserRequest.postData() ?? "{}").environment
       );
@@ -118,7 +121,10 @@ test("a Production key pasted into the default Sandbox flow is detected and warn
 }) => {
   const validationEnvironments: string[] = [];
   page.on("request", (browserRequest) => {
-    if (new URL(browserRequest.url()).pathname === "/api/demo/key/validate") {
+    if (
+      new URL(browserRequest.url()).pathname ===
+      "/app/app/api/demo/key/validate"
+    ) {
       validationEnvironments.push(
         JSON.parse(browserRequest.postData() ?? "{}").environment
       );
@@ -143,7 +149,10 @@ test("a Production key pasted into Speaking is checked on Production", async ({
 }) => {
   const validationEnvironments: string[] = [];
   page.on("request", (browserRequest) => {
-    if (new URL(browserRequest.url()).pathname === "/api/demo/key/validate") {
+    if (
+      new URL(browserRequest.url()).pathname ===
+      "/app/app/api/demo/key/validate"
+    ) {
       validationEnvironments.push(
         JSON.parse(browserRequest.postData() ?? "{}").environment
       );
@@ -186,7 +195,10 @@ test("a Production key opens live grading on the Production tier", async ({
   await expect(requestTrace).not.toContainText("bff_to_sandbox");
   const submittedIdentities: string[] = [];
   page.on("request", (browserRequest) => {
-    if (new URL(browserRequest.url()).pathname === "/api/demo/scoring/grade")
+    if (
+      new URL(browserRequest.url()).pathname ===
+      "/app/app/api/demo/scoring/grade"
+    )
       submittedIdentities.push(
         browserRequest.headers()["x-demo-user-identity"] ?? "(missing)"
       );
@@ -212,7 +224,7 @@ test("the Production acknowledgement is locked while a grade is in flight", asyn
   const gradeGate = new Promise<void>((resolve) => {
     releaseGrade = resolve;
   });
-  await page.route("**/api/demo/scoring/grade", async (route) => {
+  await page.route("**/app/api/demo/scoring/grade", async (route) => {
     await gradeGate;
     await route.continue();
   });
@@ -255,7 +267,7 @@ test("the shared key and environment stay locked across skills during grading", 
   const gradeGate = new Promise<void>((resolve) => {
     releaseGrade = resolve;
   });
-  await page.route("**/api/demo/scoring/grade", async (route) => {
+  await page.route("**/app/api/demo/scoring/grade", async (route) => {
     await gradeGate;
     await route.continue();
   });
@@ -290,7 +302,10 @@ test("the first Production grade needs the billable acknowledgement", async ({
 
   const gradingRequests: string[] = [];
   page.on("request", (browserRequest) => {
-    if (new URL(browserRequest.url()).pathname === "/api/demo/scoring/grade")
+    if (
+      new URL(browserRequest.url()).pathname ===
+      "/app/app/api/demo/scoring/grade"
+    )
       gradingRequests.push(
         browserRequest.headers()["x-demo-environment"] ?? "(none)"
       );
@@ -511,7 +526,7 @@ test("a logout in another tab clears the key the demo is holding", async ({
       apiKeys: [],
     },
   });
-  await page.goto("/login");
+  await page.goto("/app/login");
   await waitForHydration(page);
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(password);
@@ -524,7 +539,7 @@ test("a logout in another tab clears the key the demo is holding", async ({
   await expect(page.locator(".demo-env-picker")).toHaveCount(0);
 
   const otherTab = await page.context().newPage();
-  await otherTab.goto("/console/orgs/org-keys-12345678");
+  await otherTab.goto("/app/console/orgs/org-keys-12345678");
   await waitForHydration(otherTab);
   await otherTab.locator("details.account-menu > summary").click();
   await otherTab.getByRole("button", { name: "Đăng xuất" }).first().click();
@@ -578,7 +593,7 @@ test("the sequential flow creates an Idempotency-Key after key setup is skipped"
 test("a Speaking export keeps the sample recording's own question", async ({
   page,
 }) => {
-  await page.route("**/api/demo/speaking/questions?part=*", (route) => {
+  await page.route("**/app/api/demo/speaking/questions?part=*", (route) => {
     const part = Number(
       new URL(route.request().url()).searchParams.get("part")
     );

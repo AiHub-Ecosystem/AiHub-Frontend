@@ -171,7 +171,7 @@ export function ExerciseGenerationDemo() {
     setBackendTab(1);
     setRrTab1("request");
     try {
-      const res = await fetch("/api/demo/exercise-generation/references", {
+      const res = await fetch("/app/api/demo/exercise-generation/references", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(referencesPayload),
@@ -214,7 +214,7 @@ export function ExerciseGenerationDemo() {
     setBackendTab(2);
     setRrTab2("interface");
     try {
-      const res = await fetch("/api/demo/exercise-generation/generate", {
+      const res = await fetch("/app/api/demo/exercise-generation/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(generatePayload),

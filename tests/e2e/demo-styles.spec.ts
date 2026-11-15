@@ -11,7 +11,7 @@ test("the shared four-step workbench styles apply", async ({ page }) => {
     if (m.type() === "error") failed.push(m.text());
   });
   page.on("pageerror", (e) => failed.push(e.message));
-  await page.route("**/api/demo/speaking/questions?part=1", (route) =>
+  await page.route("**/app/api/demo/speaking/questions?part=1", (route) =>
     route.fulfill({
       status: 200,
       json: {
@@ -31,7 +31,7 @@ test("the shared four-step workbench styles apply", async ({ page }) => {
     })
   );
 
-  await page.goto("/demo/speaking");
+  await page.goto("/app/demo/speaking");
   const root = page.locator("main.aihub-demo-flow");
   await expect(root).toBeVisible();
 

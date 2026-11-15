@@ -59,7 +59,7 @@ describe("AIHUB Web Session BFF", () => {
     expect(response.status).toBe(204);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("set-cookie")).toContain(
-      `__Host-aihub_web_session=${token}; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict`
+      `__Host-aihub_web_session=${token}; Path=/app; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict`
     );
     expect(fetch).toHaveBeenCalledWith(
       "http://127.0.0.1:3101/v1/auth/web-sessions/exchange",

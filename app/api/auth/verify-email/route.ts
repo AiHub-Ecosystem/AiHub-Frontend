@@ -11,6 +11,8 @@ import {
   signupBindingCookie,
   signupBindingFromRequest,
   webSessionCookie,
+  expiredLegacyWebSessionCookie,
+  expiredWebSessionCookies,
   webSessionIdFromRequest,
   WEB_SESSION_TTL_SECONDS,
 } from "@/lib/auth-session";
@@ -64,13 +66,13 @@ async function verifyOnly(request: Request) {
           endUserIpFromHeaders(request.headers)
         )
       )
-        return redirectTo("/console", cookies);
+        return redirectTo("/app/console", cookies);
     } catch {
       return unavailable(true);
     }
-    cookies.push(webSessionCookie("", 0));
+    cookies.push(...expiredWebSessionCookies());
   }
-  return redirectTo("/login?verified=1", cookies);
+  return redirectTo("/app/login?verified=1", cookies);
 }
 
 async function verificationSignIn(request: Request, upstream: Response) {
@@ -88,8 +90,9 @@ async function verificationSignIn(request: Request, upstream: Response) {
       endUserIpFromHeaders(request.headers)
     );
 
-  return redirectTo("/console", [
+  return redirectTo("/app/console", [
     webSessionCookie(newToken, WEB_SESSION_TTL_SECONDS),
+    expiredLegacyWebSessionCookie(),
     signupBindingCookie("", 0),
   ]);
 }

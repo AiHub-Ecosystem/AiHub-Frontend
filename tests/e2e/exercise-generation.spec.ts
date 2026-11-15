@@ -18,7 +18,7 @@ test("Exercise Generation displays a reference from the local mock", async ({
     await route.continue();
   });
 
-  await page.goto("/demo/exercise-generation");
+  await page.goto("/app/demo/exercise-generation");
   await page.getByLabel("Task 1", { exact: true }).check();
   await page.getByLabel("Topic").selectOption("environment");
   await page.getByLabel("Criteria").selectOption("task_achievement");

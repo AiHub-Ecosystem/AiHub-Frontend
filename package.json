@@ -1,17 +1,27 @@
 {
-  "name": "aihub-frontend",
+  "name": "@aihub/web",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@10.8.2",
+  "workspaces": [
+    "apps/landing"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "turbo run //#dev:web dev",
+    "build": "turbo run //#build:web build --concurrency=1",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
     "generate:aihub-contract": "node scripts/check-aihub-contract.mjs --write-limits",
     "check:aihub-contract": "node scripts/check-aihub-contract.mjs",
     "test:e2e": "playwright test",
-    "prepare": "husky"
+    "prepare": "husky",
+    "dev:web": "next dev",
+    "dev:e2e": "next dev --hostname 127.0.0.1 --port 3100",
+    "dev:e2e:secondary": "next dev --hostname 127.0.0.1 --port 3105",
+    "build:web": "next build",
+    "start:web": "next start",
+    "start:landing": "npm run start --workspace=@aihub/landing"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",
@@ -37,6 +47,7 @@
     "prettier": "^3.9.8",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "turbo": "^2.11.10",
     "vitest": "^4.1.11"
   }
 }

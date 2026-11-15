@@ -140,7 +140,7 @@ test("Writing fetches an assertion on demand and forwards it redacted to live gr
     },
   ]);
   await request.post(`${mockUrl}/__test__/scoring/reset`);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await validateSignedKey(page, "scoring");
   await expect(
     page.getByLabel("URL endpoint cấp assertion (HTTPS)")
@@ -203,7 +203,7 @@ test("Speaking fetches an assertion and uses the shared identity flow", async ({
 }) => {
   const customer = await mockCustomerEndpoint(page);
   await request.post(`${mockUrl}/__test__/speaking/reset`);
-  await page.goto("/demo/speaking");
+  await page.goto("/app/demo/speaking");
   await validateSignedKey(page, "speaking");
   await page
     .locator(".demo-scenario-list")
@@ -248,7 +248,7 @@ test("endpoint failures show safe guidance and clear an old assertion", async ({
 }) => {
   const customer = await mockCustomerEndpoint(page);
   await request.post(`${mockUrl}/__test__/scoring/reset`);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await validateSignedKey(page, "scoring");
   await fetchAssertion(page, customer.token);
   customer.failWith("ISSUER_ERROR");
@@ -277,7 +277,7 @@ test("manual assertion edits cancel an in-flight endpoint response", async ({
   page,
 }) => {
   const customer = await mockCustomerEndpoint(page, {}, { defer: true });
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await validateSignedKey(page, "scoring");
   await page.getByLabel("URL endpoint cấp assertion (HTTPS)").fill(endpointUrl);
 
@@ -307,7 +307,7 @@ test("a stalled endpoint request times out and can be retried", async ({
     {},
     { controlClock: true, defer: true }
   );
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await validateSignedKey(page, "scoring");
   await page.getByLabel("URL endpoint cấp assertion (HTTPS)").fill(endpointUrl);
 
@@ -340,7 +340,9 @@ for (const route of ["scoring", "speaking"] as const) {
     );
     const resetPath = route === "scoring" ? "scoring/reset" : "speaking/reset";
     await request.post(`${mockUrl}/__test__/${resetPath}`);
-    await page.goto(route === "scoring" ? "/demo/scoring" : "/demo/speaking");
+    await page.goto(
+      route === "scoring" ? "/app/demo/scoring" : "/app/demo/speaking"
+    );
     await validateSignedKey(page, route);
     if (route === "speaking")
       await page
@@ -388,7 +390,7 @@ test("endpoint and assertion are shared between demos and cleared when the visit
   page,
 }) => {
   const customer = await mockCustomerEndpoint(page);
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await validateSignedKey(page, "scoring");
   await fetchAssertion(page, customer.token);
 
@@ -404,7 +406,7 @@ test("endpoint and assertion are shared between demos and cleared when the visit
   ).toHaveValue(customer.token);
 
   await page.goto("/");
-  await page.goto("/demo/scoring");
+  await page.goto("/app/demo/scoring");
   await waitForHydration(page);
   await page.getByLabel("Mã API (không bắt buộc)").fill(signedSandboxKey);
   await page.getByRole("button", { name: "Kiểm tra mã API" }).click();
