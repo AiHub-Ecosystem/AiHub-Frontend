@@ -72,6 +72,7 @@ WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/apps/customer-web/.next ./apps/customer-web/.next
+COPY --from=builder /app/apps/customer-web/next.config.ts ./apps/customer-web/next.config.ts
 COPY --from=builder /app/apps/customer-web/public ./apps/customer-web/public
 COPY --from=builder /app/apps/customer-web/data ./apps/customer-web/data
 COPY --from=builder /app/package.json ./package.json
