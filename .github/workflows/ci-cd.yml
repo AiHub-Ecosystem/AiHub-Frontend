@@ -177,7 +177,7 @@ jobs:
 
           # Same wait the post-deploy smoke test uses, on the image's HTTP port.
           for attempt in $(seq 1 30); do
-            if curl -fsS --max-time 5 http://127.0.0.1:3000/ >/dev/null; then
+            if curl -fsS --max-time 5 http://127.0.0.1:3000/app >/dev/null; then
               break
             fi
             if [ "$attempt" -eq 30 ]; then
@@ -188,11 +188,10 @@ jobs:
             sleep 2
           done
 
-          # Routes that carry special response headers and the retired redirect.
+          # Routes that carry special response headers.
           curl -fsSI --max-time 15 http://127.0.0.1:3000/app/verify-email | grep -qi '^cache-control: no-store'
           curl -fsSI --max-time 15 http://127.0.0.1:3000/app/reset-password | grep -qi '^referrer-policy: no-referrer'
-          curl -fsSI --max-time 15 http://127.0.0.1:3000/specs | grep -qi '^location: /app/product'
-          echo "Routes and special response headers intact"
+          echo "Customer Web routes and special response headers intact"
 
       - name: Smoke test Landing image
         run: |
@@ -209,6 +208,7 @@ jobs:
             sleep 2
           done
           curl -fsSI --max-time 15 http://127.0.0.1:3101/verify-email | grep -Eqi '^location: .*\/app\/verify-email'
+          curl -fsSI --max-time 15 http://127.0.0.1:3101/specs | grep -qi '^location: /app/product'
           echo "Landing root and compatibility redirects respond"
 
   image-cache-validation:
@@ -552,7 +552,7 @@ jobs:
           sudo -n docker compose -f "$COMPOSE_FILE" up -d --no-build --no-deps --force-recreate frontend landing
 
           for attempt in $(seq 1 30); do
-            if curl -fsS --max-time 5 http://127.0.0.1:3000/ >/dev/null; then
+            if curl -fsS --max-time 5 http://127.0.0.1:3000/app >/dev/null; then
               break
             fi
             if [ "$attempt" -eq 30 ]; then
