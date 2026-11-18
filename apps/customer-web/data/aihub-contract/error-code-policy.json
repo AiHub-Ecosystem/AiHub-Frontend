@@ -13,6 +13,7 @@
     "INVALID_USER_IDENTITY": "User Identity không hợp lệ. Tải lại trang rồi thử lại.",
     "IDEMPOTENCY_CONFLICT": "Yêu cầu này đã được gửi với nội dung khác. Hãy sửa bài rồi thử lại.",
     "AI_SERVICE_THROTTLED": "Yêu cầu đang quá tải. Vui lòng thử lại sau.",
+    "SERVICE_OVERLOADED": "Hệ thống đang quá tải nên yêu cầu này tạm hoãn. Vui lòng thử lại sau.",
     "AI_SERVICE_TIMEOUT": "Yêu cầu mất quá lâu. Vui lòng thử lại sau.",
     "AI_SERVICE_UNAVAILABLE": "Hiện chưa thể hoàn tất yêu cầu. Vui lòng thử lại sau.",
     "AI_SERVICE_ERROR": "Không thể hoàn tất yêu cầu. Vui lòng thử lại sau.",
