@@ -16,13 +16,49 @@ export function endUserIpFromHeaders(headers: Pick<Headers, "get">) {
   return headers.get("x-real-ip") ?? undefined;
 }
 
+export type PublicProofKey = {
+  kty: "EC";
+  crv: "P-256";
+  x: string;
+  y: string;
+};
+
 type WebSession = {
   accessToken: string;
   accessTokenExpiresAt: number;
+  dpopBound: boolean;
 };
 
 const sessions = new Map<string, WebSession>();
 const exchanges = new Map<string, Promise<WebSession | null>>();
+const clientProofKeys = new Map<string, PublicProofKey>();
+
+function isPublicProofKey(value: unknown): value is PublicProofKey {
+  if (!value || typeof value !== "object") return false;
+  const key = value as Record<string, unknown>;
+  return (
+    Object.keys(key).length === 4 &&
+    key.kty === "EC" &&
+    key.crv === "P-256" &&
+    typeof key.x === "string" &&
+    /^[A-Za-z0-9_-]{43}$/.test(key.x) &&
+    typeof key.y === "string" &&
+    /^[A-Za-z0-9_-]{43}$/.test(key.y)
+  );
+}
+
+/** Remember the browser's public proof key for a Web Session until sign-out. */
+export function rememberClientProofKey(token: string, value: unknown): boolean {
+  if (!isWebSessionId(token) || !isPublicProofKey(value)) return false;
+  const previous = clientProofKeys.get(token);
+  // The Web Session binds the first key durably; a changed key needs a sign-in.
+  if (previous && (previous.x !== value.x || previous.y !== value.y))
+    return false;
+  clientProofKeys.set(token, value);
+  const cached = sessions.get(token);
+  if (cached && !cached.dpopBound) sessions.delete(token);
+  return true;
+}
 
 export function safeLocalPath(
   value: string | null | undefined,
@@ -126,17 +162,32 @@ async function exchangeWebSession(
   endUserIp: string | undefined
 ): Promise<WebSession | null> {
   if (!isWebSessionId(token)) return null;
+  const proofKey = clientProofKeys.get(token);
   let response: Response;
   try {
     response = await postAihubWebSession(
       "/v1/auth/web-sessions/exchange",
       {
         web_session_token: token,
+        ...(proofKey ? { client_proof_key: proofKey } : {}),
       },
       endUserIp
     );
   } catch {
     throw new Error("AIHUB Web Session exchange failed");
+  }
+  if (response.status === 400 && proofKey) {
+    // An AIHUB image from before contract 1.18 rejects the unknown request
+    // member. Retry unbound so Bearer sign-in keeps working across the rollout.
+    try {
+      response = await postAihubWebSession(
+        "/v1/auth/web-sessions/exchange",
+        { web_session_token: token },
+        endUserIp
+      );
+    } catch {
+      throw new Error("AIHUB Web Session exchange failed");
+    }
   }
   if (response.status === 401) {
     sessions.delete(token);
@@ -145,7 +196,11 @@ async function exchangeWebSession(
   if (!response.ok) throw new Error("AIHUB Web Session exchange failed");
 
   const body = (await response.json()) as {
-    data?: { access_token?: unknown; expires_in?: unknown };
+    data?: {
+      access_token?: unknown;
+      expires_in?: unknown;
+      dpop_bound?: unknown;
+    };
   };
   const accessToken = body.data?.access_token;
   const expiresIn = body.data?.expires_in;
@@ -162,6 +217,7 @@ async function exchangeWebSession(
   const session = {
     accessToken,
     accessTokenExpiresAt: Date.now() + expiresIn * 1000,
+    dpopBound: body.data?.dpop_bound === true,
   };
   pruneExpiredSessions();
   sessions.set(token, session);
@@ -179,7 +235,10 @@ function pruneExpiredSessions(now = Date.now()) {
   if (now - lastPrunedAt < PRUNE_INTERVAL_MS) return;
   lastPrunedAt = now;
   for (const [token, session] of sessions) {
-    if (session.accessTokenExpiresAt <= now) sessions.delete(token);
+    if (session.accessTokenExpiresAt <= now) {
+      sessions.delete(token);
+      clientProofKeys.delete(token);
+    }
   }
 }
 
@@ -212,6 +271,7 @@ export async function getCurrentWebSession(
 
 export function clearWebSessionCache(token: string) {
   sessions.delete(token);
+  clientProofKeys.delete(token);
 }
 
 export async function requireWebSession(request: Request) {

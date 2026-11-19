@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
+import {
+  currentProofKeyScope,
+  getPublicProofKey,
+} from "@/lib/web-session-proof-key";
 
 const MIN_TOUCH_INTERVAL = 60 * 60 * 1000;
 const LAST_TOUCH_KEY = "aihub:web-session-last-exchange";
@@ -13,10 +17,19 @@ export function SessionActivity() {
       if (pending || Date.now() - lastTouch < MIN_TOUCH_INTERVAL) return;
       pending = true;
       try {
+        let body = "{}";
+        try {
+          const scope = currentProofKeyScope() ?? "aihub:current-session";
+          body = JSON.stringify({
+            client_proof_key: await getPublicProofKey(scope),
+          });
+        } catch {
+          // A browser without WebCrypto keeps the unbound Bearer path.
+        }
         const response = await fetch("/app/api/auth/session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: "{}",
+          body,
           cache: "no-store",
         });
         if (response.status === 204) {

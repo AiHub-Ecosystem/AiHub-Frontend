@@ -7,6 +7,7 @@ import {
   cachedWebSessionCount,
   clearWebSessionCache,
   getCurrentWebSession,
+  rememberClientProofKey,
 } from "@/lib/auth-session";
 
 const origin = "http://localhost:3100";
@@ -33,6 +34,9 @@ afterEach(() => {
     "x".repeat(43),
     "o".repeat(43),
     "r".repeat(43),
+    "p".repeat(43),
+    "u".repeat(43),
+    "v".repeat(43),
   ])
     clearWebSessionCache(sessionToken);
   delete process.env.AIHUB_BASE_URL;
@@ -142,6 +146,110 @@ describe("AIHUB Web Session BFF", () => {
       data: { organization_id: "org-1" },
     });
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("relays the browser proof key at exchange and caches the bound flag", async () => {
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    const boundToken = "p".repeat(43);
+    const proofKey = {
+      kty: "EC",
+      crv: "P-256",
+      x: "x".repeat(43),
+      y: "y".repeat(43),
+    };
+    rememberClientProofKey(boundToken, proofKey);
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        data: {
+          access_token: "jwt-bound",
+          token_type: "Bearer",
+          expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+          dpop_bound: true,
+        },
+      })
+    );
+
+    const session = await getCurrentWebSession(boundToken, undefined);
+
+    expect(session?.dpopBound).toBe(true);
+    expect(fetch).toHaveBeenCalledWith(
+      "http://127.0.0.1:3101/v1/auth/web-sessions/exchange",
+      expect.objectContaining({
+        body: JSON.stringify({
+          web_session_token: boundToken,
+          client_proof_key: proofKey,
+        }),
+      })
+    );
+  });
+
+  it("treats an exchange response without dpop_bound as unbound Bearer", async () => {
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    const unboundToken = "u".repeat(43);
+    rememberClientProofKey(unboundToken, {
+      kty: "EC",
+      crv: "P-256",
+      x: "x".repeat(43),
+      y: "y".repeat(43),
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        data: {
+          access_token: "jwt-unbound",
+          token_type: "Bearer",
+          expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+        },
+      })
+    );
+
+    const session = await getCurrentWebSession(unboundToken, undefined);
+
+    expect(session?.dpopBound).toBe(false);
+  });
+
+  it("retries unbound when an older AIHUB image rejects the proof key field", async () => {
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    const legacyToken = "v".repeat(43);
+    const proofKey = {
+      kty: "EC",
+      crv: "P-256",
+      x: "x".repeat(43),
+      y: "y".repeat(43),
+    };
+    rememberClientProofKey(legacyToken, proofKey);
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(null, { status: 400 }))
+      .mockResolvedValueOnce(
+        Response.json({
+          data: {
+            access_token: "jwt-legacy",
+            token_type: "Bearer",
+            expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+          },
+        })
+      );
+
+    const session = await getCurrentWebSession(legacyToken, undefined);
+
+    expect(session?.dpopBound).toBe(false);
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      "http://127.0.0.1:3101/v1/auth/web-sessions/exchange",
+      expect.objectContaining({
+        body: JSON.stringify({
+          web_session_token: legacyToken,
+          client_proof_key: proofKey,
+        }),
+      })
+    );
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      "http://127.0.0.1:3101/v1/auth/web-sessions/exchange",
+      expect.objectContaining({
+        body: JSON.stringify({ web_session_token: legacyToken }),
+      })
+    );
   });
 
   it("clears the browser cookie when a protected request and session exchange reject it", async () => {

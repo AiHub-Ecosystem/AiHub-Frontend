@@ -38,6 +38,16 @@ const aihubLimits = JSON.parse(
 const contractErrors = [];
 const requests = [];
 const authRequests = [];
+const isPublicProofKey = (value) =>
+  !!value &&
+  typeof value === "object" &&
+  Object.keys(value).length === 4 &&
+  value.kty === "EC" &&
+  value.crv === "P-256" &&
+  typeof value.x === "string" &&
+  /^[A-Za-z0-9_-]{43}$/.test(value.x) &&
+  typeof value.y === "string" &&
+  /^[A-Za-z0-9_-]{43}$/.test(value.y);
 const documentationRequests = [];
 const avatarRequests = [];
 const organizationRequests = [];
@@ -104,6 +114,7 @@ let apiKeySequence = 0;
 const knownForeignOrganizationIds = new Set(["foreign-org-known"]);
 let authMode = {
   sessionExchangeUnauthorized: false,
+  unboundExchange: false,
   logoutDown: false,
   registerDown: false,
   resendDown: false,
@@ -297,6 +308,7 @@ const server = createServer(async (request, response) => {
     webSessions.clear();
     authMode = {
       sessionExchangeUnauthorized: false,
+      unboundExchange: false,
       logoutDown: false,
       registerDown: false,
       resendDown: false,
@@ -1060,6 +1072,10 @@ const server = createServer(async (request, response) => {
       sessionKnown,
       clientSecretValid:
         request.headers["x-aihub-client-secret"] === "e2e-web-session-secret",
+      proofKeyValid: isPublicProofKey(body.client_proof_key),
+      clientProofKey: isPublicProofKey(body.client_proof_key)
+        ? body.client_proof_key
+        : null,
     });
     if (authMode.sessionExchangeUnauthorized || !sessionKnown) {
       sendJson(response, 401, { error: { code: "AUTH_WEB_SESSION_INVALID" } });
@@ -1073,6 +1089,10 @@ const server = createServer(async (request, response) => {
           access_token: `access-token-${exchangeNumber}`,
           token_type: "Bearer",
           expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+          ...(isPublicProofKey(body.client_proof_key) &&
+          !authMode.unboundExchange
+            ? { dpop_bound: true }
+            : {}),
         },
         meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
       },

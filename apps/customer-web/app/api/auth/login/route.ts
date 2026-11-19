@@ -3,6 +3,7 @@ import {
   endUserIpFromHeaders,
   originIsAllowed,
   postAihubWebSession,
+  rememberClientProofKey,
   readCreatedWebSession,
   safeLocalPath,
   WEB_SESSION_TTL_SECONDS,
@@ -99,6 +100,14 @@ export async function POST(request: Request) {
 
   try {
     const sessionToken = await readCreatedWebSession(upstream);
+    const proofKeyField = form.get("client_proof_key");
+    if (typeof proofKeyField === "string") {
+      try {
+        rememberClientProofKey(sessionToken, JSON.parse(proofKeyField));
+      } catch {
+        // A malformed browser key leaves the token unbound.
+      }
+    }
     const headers = new Headers({
       ...noStore,
       Location: new URL(next, customerWebOrigin()).toString(),

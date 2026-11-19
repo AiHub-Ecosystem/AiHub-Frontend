@@ -3,6 +3,7 @@ import {
   getCurrentWebSession,
   isWebSessionId,
   originIsAllowed,
+  rememberClientProofKey,
   WEB_SESSION_TTL_SECONDS,
   appendExpiredWebSessionCookies,
   expiredLegacyWebSessionCookie,
@@ -16,6 +17,15 @@ export async function POST(request: Request) {
   if (!originIsAllowed(request))
     return new Response(null, { status: 403, headers: noStore });
   const token = webSessionIdFromRequest(request);
+  if (isWebSessionId(token)) {
+    try {
+      const body = (await request.json()) as { client_proof_key?: unknown };
+      if (body.client_proof_key)
+        rememberClientProofKey(token, body.client_proof_key);
+    } catch {
+      // An empty or malformed activity body keeps the key already on file.
+    }
+  }
 
   if (!isWebSessionId(token))
     return new Response(null, {

@@ -74,6 +74,109 @@ async function createSession(request: APIRequestContext, email: string) {
   return `__Secure-aihub_web_session=${cookie}`;
 }
 
+async function lastExchange(request: APIRequestContext) {
+  const logged = await request.get(`${mockUrl}/__test__/auth/requests`);
+  const exchanges = (await logged.json()).requests.filter(
+    (entry: { path: string }) => entry.path === "exchange"
+  );
+  return exchanges.at(-1) as
+    | {
+        proofKeyValid: boolean;
+        clientProofKey: { x: string; y: string } | null;
+      }
+    | undefined;
+}
+
+test("browser proof key survives reload and is scoped to the User Account", async ({
+  page,
+  request,
+}) => {
+  await resetAuthMock(request);
+  await signIn(page, request, "valid@example.test");
+
+  await expect
+    .poll(async () => (await lastExchange(request))?.proofKeyValid)
+    .toBe(true);
+  const first = (await lastExchange(request))?.clientProofKey;
+  expect(Object.keys(first ?? {}).sort()).toEqual(["crv", "kty", "x", "y"]);
+  expect(first).toMatchObject({ kty: "EC", crv: "P-256" });
+
+  const privateKeyExtractable = await page.evaluate(
+    () =>
+      new Promise<boolean | null>((resolve, reject) => {
+        const open = indexedDB.open("aihub-web-proof-key");
+        open.onsuccess = () => {
+          const store = open.result
+            .transaction("proof-keys", "readonly")
+            .objectStore("proof-keys");
+          const get = store.get("valid@example.test");
+          get.onsuccess = () =>
+            resolve(
+              get.result?.privateKey
+                ? (get.result.privateKey.extractable as boolean)
+                : null
+            );
+          get.onerror = () => reject(get.error);
+        };
+        open.onerror = () => reject(open.error);
+      })
+  );
+  expect(privateKeyExtractable).toBe(false);
+
+  await page.evaluate(() =>
+    sessionStorage.removeItem("aihub:web-session-last-exchange")
+  );
+  await page.reload();
+  await expect
+    .poll(async () => (await lastExchange(request))?.clientProofKey)
+    .toEqual(first);
+
+  await page.getByText("Tài khoản", { exact: true }).click();
+  await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
+  await expect(page).toHaveURL(/\/app\/login(\?|$)/);
+  await signIn(page, request, "another@example.test");
+  await expect
+    .poll(async () => (await lastExchange(request))?.proofKeyValid)
+    .toBe(true);
+  expect((await lastExchange(request))?.clientProofKey?.x).not.toBe(first?.x);
+});
+
+test("session activity sends the browser proof key to the BFF", async ({
+  page,
+  request,
+}) => {
+  await resetAuthMock(request);
+  await signIn(page, request, "valid@example.test");
+  const exchanged = (await lastExchange(request))?.clientProofKey;
+  const activityBodies: string[] = [];
+  await page.route("**/app/api/auth/session", async (route) => {
+    activityBodies.push(route.request().postData() ?? "");
+    await route.continue();
+  });
+
+  await page.evaluate(() =>
+    sessionStorage.removeItem("aihub:web-session-last-exchange")
+  );
+  await page.reload();
+  await expect.poll(() => activityBodies.length).toBeGreaterThan(0);
+  expect(JSON.parse(activityBodies[0]).client_proof_key).toEqual(exchanged);
+});
+
+test("an exchange without dpop_bound keeps Bearer sign-in working", async ({
+  page,
+  request,
+}) => {
+  await resetAuthMock(request);
+  await request.post(`${mockUrl}/__test__/auth/mode`, {
+    data: { unboundExchange: true },
+  });
+  await signIn(page, request, "valid@example.test");
+  await expect(
+    page.getByRole("heading", { name: "Organizations", exact: true })
+  ).toBeVisible();
+  expect((await lastExchange(request))?.proofKeyValid).toBe(true);
+});
+
 test("sign-in keeps AIHUB credentials server-side and logout clears the session", async ({
   page,
   request,
@@ -797,7 +900,7 @@ test("credential failures share one message and rate limits show a retry delay",
     await page.getByLabel("Mật khẩu").fill(validPassword);
     await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
     const alert = page.getByRole("alert");
-    await expect(alert).toBeVisible();
+    await expect(alert).toHaveText(/\S/);
     messages.push(await alert.innerText());
   }
   expect(new Set(messages).size).toBe(1);
