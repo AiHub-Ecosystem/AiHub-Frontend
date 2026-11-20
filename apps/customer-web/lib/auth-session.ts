@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import aihubLimits from "@/data/aihub-contract/limits.json";
 import {
   appendExpiredWebSessionCookies,
@@ -36,7 +37,15 @@ type WebSession = {
   accessToken: string;
   accessTokenExpiresAt: number;
   dpopBound: boolean;
+  boundThumbprint: string | null;
 };
+
+function proofKeyThumbprint(key: PublicProofKey) {
+  // RFC 7638 over the closed P-256 JWK; byte-identical to AIHUB ADR-0176.
+  return createHash("sha256")
+    .update(JSON.stringify({ crv: key.crv, kty: key.kty, x: key.x, y: key.y }))
+    .digest("base64url");
+}
 
 const sessions = new Map<string, WebSession>();
 const exchanges = new Map<string, Promise<WebSession | null>>();
@@ -206,6 +215,7 @@ async function exchangeWebSession(
     accessToken,
     accessTokenExpiresAt: Date.now() + expiresIn * 1000,
     dpopBound: body.data?.dpop_bound === true,
+    boundThumbprint: proofKey ? proofKeyThumbprint(proofKey) : null,
   };
   pruneExpiredSessions();
   sessions.set(token, session);
@@ -239,6 +249,17 @@ export async function getCurrentWebSession(
 ) {
   if (!isWebSessionId(token)) return null;
   let cached = sessions.get(token);
+  // A different browser key cannot use this bound session. AIHUB keeps the
+  // first key's thumbprint with compare-and-set, so re-exchanging here would
+  // be a re-registration attempt: drop the cache and make the caller sign in.
+  if (
+    cached?.dpopBound &&
+    proofKey &&
+    proofKeyThumbprint(proofKey) !== cached.boundThumbprint
+  ) {
+    sessions.delete(token);
+    return null;
+  }
   if (cached && proofKey && !cached.dpopBound) {
     sessions.delete(token);
     cached = undefined;

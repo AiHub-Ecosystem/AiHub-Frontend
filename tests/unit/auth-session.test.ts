@@ -52,6 +52,8 @@ afterEach(() => {
     "c".repeat(43),
     "d".repeat(43),
     "e".repeat(43),
+    "k".repeat(43),
+    "b".repeat(43),
   ])
     clearWebSessionCache(sessionToken);
   delete process.env.AIHUB_BASE_URL;
@@ -550,5 +552,51 @@ describe("AIHUB Web Session BFF", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("drops a bound session and skips exchange when the browser key changes", async () => {
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    const sessionToken = "k".repeat(43);
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        data: {
+          access_token: "jwt-bound",
+          token_type: "Bearer",
+          expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+          dpop_bound: true,
+        },
+      })
+    );
+    expect(
+      await getCurrentWebSession(sessionToken, undefined, proofKey)
+    ).not.toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    const replaced: PublicProofKey = { ...proofKey, x: "z".repeat(43) };
+    expect(
+      await getCurrentWebSession(sessionToken, undefined, replaced)
+    ).toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(1); // no re-registration exchange
+    expect(cachedWebSessionCount()).toBe(0);
+  });
+
+  it("keeps a bound session for a direct request with no proof key", async () => {
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    const sessionToken = "b".repeat(43);
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        data: {
+          access_token: "jwt-bound",
+          token_type: "Bearer",
+          expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+          dpop_bound: true,
+        },
+      })
+    );
+    expect(
+      await getCurrentWebSession(sessionToken, undefined, proofKey)
+    ).not.toBeNull();
+    expect(await getCurrentWebSession(sessionToken, undefined)).not.toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
