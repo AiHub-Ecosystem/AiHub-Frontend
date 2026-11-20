@@ -414,7 +414,7 @@ export async function authenticatedAihubFetch(
     request.headers.get("sec-fetch-site") === "same-origin";
   const challenge = request.headers.get(DPOP_REQUEST_CHALLENGE_HEADER);
   const proofsHeader = request.headers.get(DPOP_REQUEST_PROOFS_HEADER);
-  let proofs: Record<string, string> = {};
+  const proofs: Record<string, string> = {};
   if (proofsHeader) {
     try {
       const parsed = JSON.parse(proofsHeader) as Record<string, unknown>;

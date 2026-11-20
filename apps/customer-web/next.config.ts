@@ -13,6 +13,7 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: { agentUpgrade: "security" },
   basePath: "/app",
   distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
