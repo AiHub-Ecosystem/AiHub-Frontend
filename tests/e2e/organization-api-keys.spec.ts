@@ -1023,8 +1023,9 @@ test("only active keys with a Sample request or Writing exercise scope offer a Q
     "ak_01J00000000000000000000009", // revoked
     "ak_01J0000000000000000000ZZZZ", // unknown, or another Organization's
   ]) {
-    const response = await page.goto(quickstartPath(apiKeyId));
-    expect(response?.status(), apiKeyId).toBe(404);
+    await page.goto(quickstartPath(apiKeyId));
+    // The page is a client-rendered shell; invalid keys redirect after data loads.
+    await expect(page).toHaveURL(/\/console\/orgs$/u);
     await expect(page.getByTestId("sample-request-command")).toHaveCount(0);
   }
 });

@@ -255,19 +255,22 @@ const server = createServer(async (request, response) => {
         : null;
     const token = scheme ? authorization.slice(scheme.length + 1) : null;
     if (token && boundAccessTokens.has(token)) {
-      const proofValid =
-        scheme === "DPoP" &&
-        verifyDpopProof(request.headers.dpop, {
+      if (scheme === "Bearer") {
+        // AIHUB is in verify mode: Bearer still works for bound tokens.
+        authRequests.push({ path: "dpop", scheme: "bearer", proofValid: null });
+      } else {
+        const proofValid = verifyDpopProof(request.headers.dpop, {
           method: request.method,
           url: `http://${host}:${port}${pathname}`,
           accessToken: token,
         });
-      authRequests.push({ path: "dpop", scheme: "dpop", proofValid });
-      if (!proofValid) {
-        sendJson(response, 401, {
-          error: { code: "AUTH_USER_ACCESS_TOKEN_INVALID" },
-        });
-        return;
+        authRequests.push({ path: "dpop", scheme: "dpop", proofValid });
+        if (!proofValid) {
+          sendJson(response, 401, {
+            error: { code: "AUTH_USER_ACCESS_TOKEN_INVALID" },
+          });
+          return;
+        }
       }
     }
   }

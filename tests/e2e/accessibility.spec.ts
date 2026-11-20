@@ -98,6 +98,7 @@ test("the signed-in Console has no WCAG A or AA violations axe can detect", asyn
   ]) {
     await page.goto(path);
     await waitForHydration(page);
+    await page.waitForLoadState("networkidle");
     const pageViolations = await violations(page);
     if (pageViolations.length > 0) found[path] = pageViolations;
   }

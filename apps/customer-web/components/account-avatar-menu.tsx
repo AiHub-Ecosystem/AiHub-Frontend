@@ -31,6 +31,16 @@ const getAvatarMenuOpen = () =>
 const getServerAvatarMenuOpen = () => false;
 
 type Account = { username: string; avatar: Avatar | null };
+const ACCOUNT_CACHE_KEY = "aihub:account-cache";
+
+function cachedAccount(): Account | null {
+  try {
+    const raw = sessionStorage.getItem(ACCOUNT_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as Account) : null;
+  } catch {
+    return null;
+  }
+}
 type UploadGrant = {
   asset_id: string;
   upload_url: string;
@@ -118,9 +128,11 @@ export function AccountAvatarMenu() {
       if (!response.ok) throw new Error("ACCOUNT_UNAVAILABLE");
       const payload = (await response.json()) as { data: Account };
       setAccount(payload.data);
+      sessionStorage.setItem(ACCOUNT_CACHE_KEY, JSON.stringify(payload.data));
       setImageFailed(false);
       return true;
     } catch {
+      setAccount(cachedAccount());
       setError("Không thể tải thông tin tài khoản.");
       return false;
     } finally {

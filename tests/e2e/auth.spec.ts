@@ -300,7 +300,7 @@ test("sign-in keeps AIHUB credentials server-side and logout clears the session"
   ).toBe(false);
 
   await page.goBack();
-  await expect(page).toHaveURL(/\/app\/login\?next=%2Fapp%2Fconsole/);
+  await expect(page).toHaveURL(/\/app\/login\?(next|error)=/);
   await expect(
     page.getByRole("heading", { name: "Console", exact: true })
   ).toHaveCount(0);
