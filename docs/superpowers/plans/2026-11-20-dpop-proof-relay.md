@@ -743,30 +743,15 @@ if (dpopBound) {
 
 In the exchange handler, add each issued `access-token-<n>` to `boundAccessTokens` when `dpop_bound: true` is returned.
 
-- [ ] **Step 3: Add browser assertion**
-
-In `tests/e2e/auth.spec.ts`, in the existing bound-key test after sign-in, add:
-
-```ts
-const logged = await request.get(`${mockUrl}/__test__/auth/requests`);
-const authRequests = (await logged.json()).requests;
-expect(
-  authRequests.some(
-    (entry: { path: string; proofValid?: boolean }) =>
-      entry.path === "dpop" && entry.proofValid === true
-  )
-).toBe(true);
-```
-
-- [ ] **Step 4: Run targeted e2e**
+- [ ] **Step 3: Run targeted e2e**
 
 Run: `npx playwright test tests/e2e/auth.spec.ts -g "browser proof key survives"`
-Expected: PASS with a recorded valid DPoP proof.
+Expected: PASS. The DPoP assertion is added in Task 5 because Console still uses server-side reads until that task converts them to client fetch.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add tests/e2e/mock-aihub-server.mjs tests/e2e/auth.spec.ts
+git add tests/e2e/mock-aihub-server.mjs
 git commit -m "test(mock): verify DPoP proofs in AIHUB mock (#123)"
 ```
 
@@ -891,7 +876,22 @@ Delete `apps/customer-web/app/docs/reference/route.ts` (a route handler cannot c
 
 - [ ] **Step 6: Run browser suite**
 
-Run: `npx playwright test tests/e2e/organizations.spec.ts tests/e2e/protected-openapi.spec.ts`
+Before running, add the DPoP assertion to `tests/e2e/auth.spec.ts` in the bound-key test after sign-in:
+
+```ts
+await expect
+  .poll(async () => {
+    const logged = await request.get(`${mockUrl}/__test__/auth/requests`);
+    const entries = (await logged.json()).requests;
+    return entries.some(
+      (entry: { path: string; proofValid?: boolean }) =>
+        entry.path === "dpop" && entry.proofValid === true
+    );
+  })
+  .toBe(true);
+```
+
+Run: `npx playwright test tests/e2e/auth.spec.ts tests/e2e/organizations.spec.ts tests/e2e/protected-openapi.spec.ts`
 Expected: all tests pass; if a test asserted server-rendered content before hydration, add `await waitForHydration(page)` rather than weakening assertions.
 
 - [ ] **Step 7: Commit**

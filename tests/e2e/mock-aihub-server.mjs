@@ -1,5 +1,9 @@
 import { createServer } from "node:http";
-import { createHash } from "node:crypto";
+import {
+  createHash,
+  createPublicKey,
+  verify as verifySignature,
+} from "node:crypto";
 import { readFileSync } from "node:fs";
 import { isIP } from "node:net";
 import { fileURLToPath } from "node:url";
@@ -39,6 +43,8 @@ const aihubLimits = JSON.parse(
 const contractErrors = [];
 const requests = [];
 const authRequests = [];
+const boundAccessTokens = new Set();
+const seenDpopJti = new Set();
 const documentationRequests = [];
 const avatarRequests = [];
 const organizationRequests = [];
@@ -134,6 +140,58 @@ function browserBindingHash(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function verifyDpopProof(proof, { method, url, accessToken }) {
+  if (typeof proof !== "string") return false;
+  const [headerPart, payloadPart, signaturePart] = proof.split(".");
+  if (!headerPart || !payloadPart || !signaturePart) return false;
+  try {
+    const header = JSON.parse(
+      Buffer.from(
+        headerPart.replace(/-/gu, "+").replace(/_/gu, "/"),
+        "base64url"
+      ).toString()
+    );
+    const payload = JSON.parse(
+      Buffer.from(
+        payloadPart.replace(/-/gu, "+").replace(/_/gu, "/"),
+        "base64url"
+      ).toString()
+    );
+    if (
+      header.typ !== "dpop+jwt" ||
+      header.alg !== "ES256" ||
+      !isPublicProofKey(header.jwk)
+    )
+      return false;
+    const ath = createHash("sha256").update(accessToken).digest("base64url");
+    const now = Math.floor(Date.now() / 1000);
+    if (
+      payload.htm !== method ||
+      payload.htu !== url ||
+      payload.ath !== ath ||
+      typeof payload.jti !== "string" ||
+      typeof payload.iat !== "number" ||
+      Math.abs(now - payload.iat) > 60 ||
+      seenDpopJti.has(payload.jti)
+    )
+      return false;
+    const publicKey = createPublicKey({ key: header.jwk, format: "jwk" });
+    const valid = verifySignature(
+      "sha256",
+      Buffer.from(`${headerPart}.${payloadPart}`),
+      { key: publicKey, dsaEncoding: "ieee-p1363" },
+      Buffer.from(
+        signaturePart.replace(/-/gu, "+").replace(/_/gu, "/"),
+        "base64url"
+      )
+    );
+    if (valid) seenDpopJti.add(payload.jti);
+    return valid;
+  } catch {
+    return false;
+  }
+}
+
 function sendJson(response, status, body, headers = {}) {
   if (
     response.req?.url?.startsWith("/v1/") &&
@@ -187,6 +245,32 @@ function multipartField(body, name) {
 const server = createServer(async (request, response) => {
   const requestUrl = new URL(request.url ?? "/", `http://${host}:${port}`);
   const pathname = requestUrl.pathname;
+
+  if (pathname.startsWith("/v1/") && !pathname.startsWith("/v1/auth/")) {
+    const authorization = request.headers.authorization ?? "";
+    const scheme = authorization.startsWith("DPoP ")
+      ? "DPoP"
+      : authorization.startsWith("Bearer ")
+        ? "Bearer"
+        : null;
+    const token = scheme ? authorization.slice(scheme.length + 1) : null;
+    if (token && boundAccessTokens.has(token)) {
+      const proofValid =
+        scheme === "DPoP" &&
+        verifyDpopProof(request.headers.dpop, {
+          method: request.method,
+          url: `http://${host}:${port}${pathname}`,
+          accessToken: token,
+        });
+      authRequests.push({ path: "dpop", scheme: "dpop", proofValid });
+      if (!proofValid) {
+        sendJson(response, 401, {
+          error: { code: "AUTH_USER_ACCESS_TOKEN_INVALID" },
+        });
+        return;
+      }
+    }
+  }
 
   const responseChunks = [];
   let responseContentType = "";
@@ -1072,6 +1156,9 @@ const server = createServer(async (request, response) => {
       sendJson(response, 401, { error: { code: "AUTH_WEB_SESSION_INVALID" } });
       return;
     }
+    const bound =
+      isPublicProofKey(body.client_proof_key) && !authMode.unboundExchange;
+    if (bound) boundAccessTokens.add(`access-token-${exchangeNumber}`);
     sendJson(
       response,
       200,
@@ -1080,10 +1167,7 @@ const server = createServer(async (request, response) => {
           access_token: `access-token-${exchangeNumber}`,
           token_type: "Bearer",
           expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
-          ...(isPublicProofKey(body.client_proof_key) &&
-          !authMode.unboundExchange
-            ? { dpop_bound: true }
-            : {}),
+          ...(bound ? { dpop_bound: true } : {}),
         },
         meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
       },
