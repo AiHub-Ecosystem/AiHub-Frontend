@@ -5,6 +5,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { waitForHydration } from "./hydration";
+import { PROOF_KEY_COOKIE } from "../../apps/customer-web/lib/public-proof-key.mjs";
 
 const appUrl = "http://127.0.0.1:3100";
 const mockUrl = "http://127.0.0.1:3101";
@@ -100,6 +101,9 @@ test("browser proof key survives reload and is scoped to the User Account", asyn
   const first = (await lastExchange(request))?.clientProofKey;
   expect(Object.keys(first ?? {}).sort()).toEqual(["crv", "kty", "x", "y"]);
   expect(first).toMatchObject({ kty: "EC", crv: "P-256" });
+  expect(await page.evaluate(() => document.cookie)).toContain(
+    PROOF_KEY_COOKIE
+  );
 
   const privateKeyExtractable = await page.evaluate(
     () =>
@@ -135,10 +139,28 @@ test("browser proof key survives reload and is scoped to the User Account", asyn
   await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
   await expect(page).toHaveURL(/\/app\/login(\?|$)/);
   await signIn(page, request, "another@example.test");
-  await expect
-    .poll(async () => (await lastExchange(request))?.proofKeyValid)
-    .toBe(true);
-  expect((await lastExchange(request))?.clientProofKey?.x).not.toBe(first?.x);
+  await expect(page).toHaveURL(/\/console\/orgs$/);
+  const storedKeys = await page.evaluate(
+    () =>
+      new Promise<
+        Array<{ scope: string; publicJwk: { x: string; y: string } }>
+      >((resolve, reject) => {
+        const open = indexedDB.open("aihub-web-proof-key");
+        open.onsuccess = () => {
+          const store = open.result
+            .transaction("proof-keys", "readonly")
+            .objectStore("proof-keys");
+          const getAll = store.getAll();
+          getAll.onsuccess = () => resolve(getAll.result);
+          getAll.onerror = () => reject(getAll.error);
+        };
+        open.onerror = () => reject(open.error);
+      })
+  );
+  const byScope = new Map(storedKeys.map((key) => [key.scope, key]));
+  expect(byScope.get("valid@example.test")?.publicJwk.x).not.toBe(
+    byScope.get("another@example.test")?.publicJwk.x
+  );
 });
 
 test("session activity sends the browser proof key to the BFF", async ({
@@ -147,10 +169,16 @@ test("session activity sends the browser proof key to the BFF", async ({
 }) => {
   await resetAuthMock(request);
   await signIn(page, request, "valid@example.test");
+  expect(await page.evaluate(() => document.cookie)).toContain(
+    PROOF_KEY_COOKIE
+  );
+  await expect
+    .poll(async () => (await lastExchange(request))?.proofKeyValid)
+    .toBe(true);
   const exchanged = (await lastExchange(request))?.clientProofKey;
-  const activityBodies: string[] = [];
+  const activityCookieHeaders: string[] = [];
   await page.route("**/app/api/auth/session", async (route) => {
-    activityBodies.push(route.request().postData() ?? "");
+    activityCookieHeaders.push(route.request().headers()["cookie"] ?? "");
     await route.continue();
   });
 
@@ -158,8 +186,18 @@ test("session activity sends the browser proof key to the BFF", async ({
     sessionStorage.removeItem("aihub:web-session-last-exchange")
   );
   await page.reload();
-  await expect.poll(() => activityBodies.length).toBeGreaterThan(0);
-  expect(JSON.parse(activityBodies[0]).client_proof_key).toEqual(exchanged);
+  await expect
+    .poll(() =>
+      activityCookieHeaders.some((header) => header.includes(PROOF_KEY_COOKIE))
+    )
+    .toBe(true);
+  const proofKeyCookie = activityCookieHeaders.find((header) =>
+    header.includes(PROOF_KEY_COOKIE)
+  )!;
+  const rawKey = decodeURIComponent(
+    proofKeyCookie.match(new RegExp(`${PROOF_KEY_COOKIE}=([^;]*)`))?.[1] ?? ""
+  );
+  expect(JSON.parse(rawKey)).toEqual(exchanged);
 });
 
 test("an exchange without dpop_bound keeps Bearer sign-in working", async ({

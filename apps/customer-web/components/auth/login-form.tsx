@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, type FormEvent } from "react";
+import { type FormEvent } from "react";
 import { getLoginErrorMessage } from "@/lib/auth-messages";
 import {
   getPublicProofKey,
+  installProofKeyCookie,
   rememberProofKeyScope,
 } from "@/lib/web-session-proof-key";
 
@@ -25,7 +26,6 @@ export function LoginForm({
   variant?: "lab";
 }) {
   const message = unavailableMessage ?? getLoginErrorMessage(error, retry);
-  const proofKeyField = useRef<HTMLInputElement>(null);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     const form = event.currentTarget;
@@ -36,9 +36,7 @@ export function LoginForm({
       .toLowerCase();
     try {
       rememberProofKeyScope(email);
-      const proofKey = await getPublicProofKey(email);
-      if (proofKeyField.current)
-        proofKeyField.current.value = JSON.stringify(proofKey);
+      installProofKeyCookie(await getPublicProofKey(email));
     } catch {
       // Key creation is best effort: signing in must still work unbound.
     }
@@ -54,12 +52,6 @@ export function LoginForm({
     >
       <input type="hidden" name="next" value={next} />
       <input type="hidden" name="return_to" value={returnTo} />
-      <input
-        ref={proofKeyField}
-        type="hidden"
-        name="client_proof_key"
-        value=""
-      />
       <label htmlFor="login-email">Email</label>
       <input
         id="login-email"

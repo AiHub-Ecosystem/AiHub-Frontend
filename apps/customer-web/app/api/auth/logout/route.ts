@@ -7,6 +7,10 @@ import {
   appendExpiredWebSessionCookies,
   webSessionIdFromRequest,
 } from "@/lib/auth-session";
+import {
+  expiredProofKeyCookies,
+  expiredProofScopeCookie,
+} from "@/lib/public-proof-key.mjs";
 
 export async function POST(request: Request) {
   if (!originIsAllowed(request))
@@ -22,14 +26,14 @@ export async function POST(request: Request) {
       endUserIpFromHeaders(request.headers)
     );
 
-  return new Response(null, {
-    status: 303,
-    headers: appendExpiredWebSessionCookies(
-      new Headers({
-        "Cache-Control": "no-store",
-        "Clear-Site-Data": '"cache"',
-        Location: new URL("/", customerWebOrigin()).toString(),
-      })
-    ),
-  });
+  const headers = appendExpiredWebSessionCookies(
+    new Headers({
+      "Cache-Control": "no-store",
+      "Clear-Site-Data": '"cache"',
+      Location: new URL("/", customerWebOrigin()).toString(),
+    })
+  );
+  headers.append("Set-Cookie", expiredProofKeyCookies());
+  headers.append("Set-Cookie", expiredProofScopeCookie());
+  return new Response(null, { status: 303, headers });
 }

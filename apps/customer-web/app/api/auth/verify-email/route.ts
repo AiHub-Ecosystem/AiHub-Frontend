@@ -1,5 +1,7 @@
 import { AUTH_NO_STORE, readAihubAuthError } from "@/lib/auth-bff";
+import { createHash } from "node:crypto";
 import {
+  clientProofKeyFromHeaders,
   customerWebOrigin,
   endUserIpFromHeaders,
   getCurrentWebSession,
@@ -16,6 +18,7 @@ import {
   webSessionIdFromRequest,
   WEB_SESSION_TTL_SECONDS,
 } from "@/lib/auth-session";
+import { proofScopeCookie } from "@/lib/public-proof-key.mjs";
 
 function unavailable(clearSignupBinding = false) {
   const headers = new Headers(AUTH_NO_STORE);
@@ -63,7 +66,8 @@ async function verifyOnly(request: Request) {
       if (
         await getCurrentWebSession(
           oldToken,
-          endUserIpFromHeaders(request.headers)
+          endUserIpFromHeaders(request.headers),
+          clientProofKeyFromHeaders(request.headers)
         )
       )
         return redirectTo("/app/console", cookies);
@@ -94,6 +98,7 @@ async function verificationSignIn(request: Request, upstream: Response) {
     webSessionCookie(newToken, WEB_SESSION_TTL_SECONDS),
     expiredLegacyWebSessionCookie(),
     signupBindingCookie("", 0),
+    proofScopeCookie(createHash("sha256").update(newToken).digest("base64url")),
   ]);
 }
 

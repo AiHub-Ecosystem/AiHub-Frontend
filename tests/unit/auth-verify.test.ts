@@ -71,6 +71,9 @@ describe("Customer Web email verification BFF", () => {
       `${WEB_SESSION_COOKIE}=${newToken}; Path=/app; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict`,
       `${LEGACY_WEB_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`,
       "__Host-aihub_signup=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict",
+      expect.stringMatching(
+        /^aihub_proof_scope=.+; Path=\/app; Max-Age=2592000; SameSite=Strict; Secure$/
+      ),
     ]);
     expect(fetch).toHaveBeenNthCalledWith(
       1,

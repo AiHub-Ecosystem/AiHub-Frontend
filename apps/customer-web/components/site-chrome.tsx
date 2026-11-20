@@ -3,6 +3,7 @@ import path from "node:path";
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import {
+  clientProofKeyFromHeaders,
   endUserIpFromHeaders,
   getCurrentWebSession,
   WEB_SESSION_COOKIE,
@@ -296,11 +297,13 @@ function replaceMenuExtras(header: string, signedIn: boolean) {
 export async function SiteHeader() {
   const chrome = readChrome();
   const sessionId = (await cookies()).get(WEB_SESSION_COOKIE)?.value;
-  const endUserIp = endUserIpFromHeaders(await headers());
+  const requestHeaders = await headers();
+  const endUserIp = endUserIpFromHeaders(requestHeaders);
+  const proofKey = clientProofKeyFromHeaders(requestHeaders);
   let signedIn = false;
   if (sessionId) {
     try {
-      signedIn = !!(await getCurrentWebSession(sessionId, endUserIp));
+      signedIn = !!(await getCurrentWebSession(sessionId, endUserIp, proofKey));
     } catch {
       // AIHUB trouble should not make public pages unavailable.
     }

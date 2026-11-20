@@ -5,6 +5,7 @@ import { isIP } from "node:net";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
+import { isPublicProofKey } from "../../apps/customer-web/lib/public-proof-key.mjs";
 import { createContractValidator } from "./aihub-contract.mjs";
 
 const host = "127.0.0.1";
@@ -38,16 +39,6 @@ const aihubLimits = JSON.parse(
 const contractErrors = [];
 const requests = [];
 const authRequests = [];
-const isPublicProofKey = (value) =>
-  !!value &&
-  typeof value === "object" &&
-  Object.keys(value).length === 4 &&
-  value.kty === "EC" &&
-  value.crv === "P-256" &&
-  typeof value.x === "string" &&
-  /^[A-Za-z0-9_-]{43}$/.test(value.x) &&
-  typeof value.y === "string" &&
-  /^[A-Za-z0-9_-]{43}$/.test(value.y);
 const documentationRequests = [];
 const avatarRequests = [];
 const organizationRequests = [];

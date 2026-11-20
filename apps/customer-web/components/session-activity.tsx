@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import {
   currentProofKeyScope,
   getPublicProofKey,
+  installProofKeyCookie,
 } from "@/lib/web-session-proof-key";
 
 const MIN_TOUCH_INTERVAL = 60 * 60 * 1000;
@@ -13,23 +14,22 @@ export function SessionActivity() {
   useEffect(() => {
     let lastTouch = Number(sessionStorage.getItem(LAST_TOUCH_KEY)) || 0;
     let pending = false;
+    const ensureProofKeyCookie = async () => {
+      try {
+        const scope = currentProofKeyScope() ?? "aihub:current-session";
+        installProofKeyCookie(await getPublicProofKey(scope));
+      } catch {
+        // A browser without WebCrypto keeps the unbound Bearer path.
+      }
+    };
     const touch = async () => {
       if (pending || Date.now() - lastTouch < MIN_TOUCH_INTERVAL) return;
       pending = true;
       try {
-        let body = "{}";
-        try {
-          const scope = currentProofKeyScope() ?? "aihub:current-session";
-          body = JSON.stringify({
-            client_proof_key: await getPublicProofKey(scope),
-          });
-        } catch {
-          // A browser without WebCrypto keeps the unbound Bearer path.
-        }
         const response = await fetch("/app/api/auth/session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body,
+          body: "{}",
           cache: "no-store",
         });
         if (response.status === 204) {
@@ -45,6 +45,7 @@ export function SessionActivity() {
       }
     };
 
+    void ensureProofKeyCookie();
     touch();
     window.addEventListener("pointerdown", touch, { passive: true });
     window.addEventListener("keydown", touch);

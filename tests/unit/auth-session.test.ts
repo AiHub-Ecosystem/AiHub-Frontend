@@ -7,18 +7,29 @@ import {
   cachedWebSessionCount,
   clearWebSessionCache,
   getCurrentWebSession,
-  rememberClientProofKey,
 } from "@/lib/auth-session";
+import {
+  proofKeyCookie,
+  type PublicProofKey,
+} from "@/lib/public-proof-key.mjs";
 
 const origin = "http://localhost:3100";
 const token = "w".repeat(43);
+const proofKey: PublicProofKey = {
+  kty: "EC",
+  crv: "P-256",
+  x: "x".repeat(43),
+  y: "y".repeat(43),
+};
 
-function sessionRequest() {
+function sessionRequest(key?: PublicProofKey) {
   return new Request(`${origin}/api/auth/session`, {
     method: "POST",
     headers: {
       Origin: origin,
-      Cookie: `__Secure-aihub_web_session=${token}`,
+      Cookie: `__Secure-aihub_web_session=${token}${
+        key ? `; ${proofKeyCookie(key).split(";")[0]}` : ""
+      }`,
       "Content-Type": "application/json",
       "X-Real-IP": "198.51.100.10",
       "X-AIHUB-End-User-IP": "192.0.2.99",
@@ -151,13 +162,6 @@ describe("AIHUB Web Session BFF", () => {
   it("relays the browser proof key at exchange and caches the bound flag", async () => {
     process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
     const boundToken = "p".repeat(43);
-    const proofKey = {
-      kty: "EC",
-      crv: "P-256",
-      x: "x".repeat(43),
-      y: "y".repeat(43),
-    };
-    rememberClientProofKey(boundToken, proofKey);
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       Response.json({
         data: {
@@ -169,7 +173,7 @@ describe("AIHUB Web Session BFF", () => {
       })
     );
 
-    const session = await getCurrentWebSession(boundToken, undefined);
+    const session = await getCurrentWebSession(boundToken, undefined, proofKey);
 
     expect(session?.dpopBound).toBe(true);
     expect(fetch).toHaveBeenCalledWith(
@@ -183,15 +187,37 @@ describe("AIHUB Web Session BFF", () => {
     );
   });
 
+  it("reads the proof key from the request cookie", async () => {
+    process.env.CUSTOMER_WEB_ORIGIN = origin;
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        data: {
+          access_token: "jwt-cookie",
+          token_type: "Bearer",
+          expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+          dpop_bound: true,
+        },
+      })
+    );
+
+    const response = await activity(sessionRequest(proofKey));
+
+    expect(response.status).toBe(204);
+    expect(fetch).toHaveBeenCalledWith(
+      "http://127.0.0.1:3101/v1/auth/web-sessions/exchange",
+      expect.objectContaining({
+        body: JSON.stringify({
+          web_session_token: token,
+          client_proof_key: proofKey,
+        }),
+      })
+    );
+  });
+
   it("treats an exchange response without dpop_bound as unbound Bearer", async () => {
     process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
     const unboundToken = "u".repeat(43);
-    rememberClientProofKey(unboundToken, {
-      kty: "EC",
-      crv: "P-256",
-      x: "x".repeat(43),
-      y: "y".repeat(43),
-    });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       Response.json({
         data: {
@@ -202,7 +228,11 @@ describe("AIHUB Web Session BFF", () => {
       })
     );
 
-    const session = await getCurrentWebSession(unboundToken, undefined);
+    const session = await getCurrentWebSession(
+      unboundToken,
+      undefined,
+      proofKey
+    );
 
     expect(session?.dpopBound).toBe(false);
   });
@@ -210,13 +240,6 @@ describe("AIHUB Web Session BFF", () => {
   it("retries unbound when an older AIHUB image rejects the proof key field", async () => {
     process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
     const legacyToken = "v".repeat(43);
-    const proofKey = {
-      kty: "EC",
-      crv: "P-256",
-      x: "x".repeat(43),
-      y: "y".repeat(43),
-    };
-    rememberClientProofKey(legacyToken, proofKey);
     const fetch = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(null, { status: 400 }))
@@ -230,7 +253,11 @@ describe("AIHUB Web Session BFF", () => {
         })
       );
 
-    const session = await getCurrentWebSession(legacyToken, undefined);
+    const session = await getCurrentWebSession(
+      legacyToken,
+      undefined,
+      proofKey
+    );
 
     expect(session?.dpopBound).toBe(false);
     expect(fetch).toHaveBeenNthCalledWith(

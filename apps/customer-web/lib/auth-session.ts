@@ -5,8 +5,13 @@ import {
   webSessionCookie,
   webSessionIdFromRequest,
 } from "@/lib/auth-cookies";
+import {
+  proofKeyFromCookieHeader,
+  type PublicProofKey,
+} from "@/lib/public-proof-key.mjs";
 
 export * from "@/lib/auth-cookies";
+export type { PublicProofKey } from "@/lib/public-proof-key.mjs";
 
 export const WEB_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const ACCESS_TOKEN_EARLY_MS = 60_000;
@@ -16,13 +21,6 @@ export function endUserIpFromHeaders(headers: Pick<Headers, "get">) {
   return headers.get("x-real-ip") ?? undefined;
 }
 
-export type PublicProofKey = {
-  kty: "EC";
-  crv: "P-256";
-  x: string;
-  y: string;
-};
-
 type WebSession = {
   accessToken: string;
   accessTokenExpiresAt: number;
@@ -31,33 +29,12 @@ type WebSession = {
 
 const sessions = new Map<string, WebSession>();
 const exchanges = new Map<string, Promise<WebSession | null>>();
-const clientProofKeys = new Map<string, PublicProofKey>();
 
-function isPublicProofKey(value: unknown): value is PublicProofKey {
-  if (!value || typeof value !== "object") return false;
-  const key = value as Record<string, unknown>;
-  return (
-    Object.keys(key).length === 4 &&
-    key.kty === "EC" &&
-    key.crv === "P-256" &&
-    typeof key.x === "string" &&
-    /^[A-Za-z0-9_-]{43}$/.test(key.x) &&
-    typeof key.y === "string" &&
-    /^[A-Za-z0-9_-]{43}$/.test(key.y)
-  );
-}
-
-/** Remember the browser's public proof key for a Web Session until sign-out. */
-export function rememberClientProofKey(token: string, value: unknown): boolean {
-  if (!isWebSessionId(token) || !isPublicProofKey(value)) return false;
-  const previous = clientProofKeys.get(token);
-  // The Web Session binds the first key durably; a changed key needs a sign-in.
-  if (previous && (previous.x !== value.x || previous.y !== value.y))
-    return false;
-  clientProofKeys.set(token, value);
-  const cached = sessions.get(token);
-  if (cached && !cached.dpopBound) sessions.delete(token);
-  return true;
+/** The public JWK travels on every BFF request, so any instance can relay it. */
+export function clientProofKeyFromHeaders(
+  headers: Pick<Headers, "get">
+): PublicProofKey | null {
+  return proofKeyFromCookieHeader(headers.get("cookie"));
 }
 
 export function safeLocalPath(
@@ -159,10 +136,10 @@ export async function readCreatedWebSession(response: Response) {
 
 async function exchangeWebSession(
   token: string,
-  endUserIp: string | undefined
+  endUserIp: string | undefined,
+  proofKey: PublicProofKey | null
 ): Promise<WebSession | null> {
   if (!isWebSessionId(token)) return null;
-  const proofKey = clientProofKeys.get(token);
   let response: Response;
   try {
     response = await postAihubWebSession(
@@ -235,10 +212,7 @@ function pruneExpiredSessions(now = Date.now()) {
   if (now - lastPrunedAt < PRUNE_INTERVAL_MS) return;
   lastPrunedAt = now;
   for (const [token, session] of sessions) {
-    if (session.accessTokenExpiresAt <= now) {
-      sessions.delete(token);
-      clientProofKeys.delete(token);
-    }
+    if (session.accessTokenExpiresAt <= now) sessions.delete(token);
   }
 }
 
@@ -249,10 +223,15 @@ export function cachedWebSessionCount() {
 
 export async function getCurrentWebSession(
   token: string,
-  endUserIp: string | undefined
+  endUserIp: string | undefined,
+  proofKey: PublicProofKey | null = null
 ) {
   if (!isWebSessionId(token)) return null;
-  const cached = sessions.get(token);
+  let cached = sessions.get(token);
+  if (cached && proofKey && !cached.dpopBound) {
+    sessions.delete(token);
+    cached = undefined;
+  }
   if (
     cached &&
     cached.accessTokenExpiresAt > Date.now() + ACCESS_TOKEN_EARLY_MS
@@ -261,7 +240,7 @@ export async function getCurrentWebSession(
 
   let exchange = exchanges.get(token);
   if (!exchange) {
-    exchange = exchangeWebSession(token, endUserIp).finally(() =>
+    exchange = exchangeWebSession(token, endUserIp, proofKey).finally(() =>
       exchanges.delete(token)
     );
     exchanges.set(token, exchange);
@@ -271,7 +250,6 @@ export async function getCurrentWebSession(
 
 export function clearWebSessionCache(token: string) {
   sessions.delete(token);
-  clientProofKeys.delete(token);
 }
 
 export async function requireWebSession(request: Request) {
@@ -285,7 +263,11 @@ export async function requireWebSession(request: Request) {
 
   try {
     if (
-      await getCurrentWebSession(token, endUserIpFromHeaders(request.headers))
+      await getCurrentWebSession(
+        token,
+        endUserIpFromHeaders(request.headers),
+        clientProofKeyFromHeaders(request.headers)
+      )
     )
       return null;
   } catch {
@@ -332,7 +314,8 @@ export async function authenticatedAihubFetch(
     throw new Error("AIHUB path must be same-origin");
 
   const endUserIp = endUserIpFromHeaders(request.headers);
-  let session = await getCurrentWebSession(token, endUserIp);
+  const proofKey = clientProofKeyFromHeaders(request.headers);
+  let session = await getCurrentWebSession(token, endUserIp, proofKey);
   if (!session)
     return authRequired({
       "Cache-Control": "no-store",
@@ -352,7 +335,7 @@ export async function authenticatedAihubFetch(
   if (response.status !== 401) return response;
 
   sessions.delete(token);
-  session = await getCurrentWebSession(token, endUserIp);
+  session = await getCurrentWebSession(token, endUserIp, proofKey);
   return session
     ? send(session.accessToken)
     : authRequired({

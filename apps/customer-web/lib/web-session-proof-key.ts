@@ -1,16 +1,15 @@
 "use client";
 
+import {
+  PROOF_KEY_COOKIE,
+  PROOF_SCOPE_COOKIE,
+  type PublicProofKey,
+} from "@/lib/public-proof-key.mjs";
+
 const DB_NAME = "aihub-web-proof-key";
 const STORE = "proof-keys";
 const SCOPE_KEY = "aihub:web-session-account";
 const ALGORITHM: EcKeyGenParams = { name: "ECDSA", namedCurve: "P-256" };
-
-export type PublicProofKey = {
-  kty: "EC";
-  crv: "P-256";
-  x: string;
-  y: string;
-};
 
 type StoredProofKey = {
   scope: string;
@@ -101,10 +100,27 @@ export function getPublicProofKey(scope: string) {
   return key.then((stored) => stored.publicJwk);
 }
 
+/** Every BFF request carries the JWK, so any app instance can relay it. */
+export function installProofKeyCookie(key: PublicProofKey) {
+  document.cookie = `${PROOF_KEY_COOKIE}=${encodeURIComponent(
+    JSON.stringify(key)
+  )}; Path=/app; Max-Age=2592000; SameSite=Strict; Secure`;
+}
+
 export function rememberProofKeyScope(scope: string) {
   sessionStorage.setItem(SCOPE_KEY, normalizeScope(scope));
 }
 
+function cookieValue(name: string) {
+  for (const part of document.cookie.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator === -1) continue;
+    if (part.slice(0, separator).trim() === name)
+      return decodeURIComponent(part.slice(separator + 1));
+  }
+  return null;
+}
+
 export function currentProofKeyScope() {
-  return sessionStorage.getItem(SCOPE_KEY);
+  return sessionStorage.getItem(SCOPE_KEY) ?? cookieValue(PROOF_SCOPE_COOKIE);
 }

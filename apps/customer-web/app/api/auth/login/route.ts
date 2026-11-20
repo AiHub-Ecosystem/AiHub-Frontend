@@ -3,13 +3,13 @@ import {
   endUserIpFromHeaders,
   originIsAllowed,
   postAihubWebSession,
-  rememberClientProofKey,
   readCreatedWebSession,
   safeLocalPath,
   WEB_SESSION_TTL_SECONDS,
   webSessionCookie,
   expiredLegacyWebSessionCookie,
 } from "@/lib/auth-session";
+import { proofScopeCookie } from "@/lib/public-proof-key.mjs";
 
 const noStore = { "Cache-Control": "no-store" };
 
@@ -100,14 +100,6 @@ export async function POST(request: Request) {
 
   try {
     const sessionToken = await readCreatedWebSession(upstream);
-    const proofKeyField = form.get("client_proof_key");
-    if (typeof proofKeyField === "string") {
-      try {
-        rememberClientProofKey(sessionToken, JSON.parse(proofKeyField));
-      } catch {
-        // A malformed browser key leaves the token unbound.
-      }
-    }
     const headers = new Headers({
       ...noStore,
       Location: new URL(next, customerWebOrigin()).toString(),
@@ -117,6 +109,7 @@ export async function POST(request: Request) {
       webSessionCookie(sessionToken, WEB_SESSION_TTL_SECONDS)
     );
     headers.append("Set-Cookie", expiredLegacyWebSessionCookie());
+    headers.append("Set-Cookie", proofScopeCookie(email.trim().toLowerCase()));
     return new Response(null, {
       status: 303,
       headers,
