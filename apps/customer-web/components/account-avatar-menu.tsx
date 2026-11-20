@@ -62,7 +62,11 @@ function actionableError(
   code: string | undefined,
   action: "upload" | "remove"
 ) {
-  if (code === "AUTH_REQUIRED" || code === "AUTH_USER_ACCESS_TOKEN_INVALID")
+  if (
+    code === "AUTH_REQUIRED" ||
+    code === "AUTH_USER_ACCESS_TOKEN_INVALID" ||
+    code === "DPOP_PROOF_REQUIRED"
+  )
     return "Phiên đăng nhập không hợp lệ. Hãy đăng nhập lại.";
   if (code === "FORBIDDEN" || code === "ACCOUNT_DISABLED")
     return "Tài khoản hiện không được phép quản lý ảnh đại diện. Liên hệ quản trị viên.";

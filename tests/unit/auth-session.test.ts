@@ -380,7 +380,10 @@ describe("AIHUB Web Session BFF", () => {
     fetch.mockResolvedValueOnce(new Response("{}", { status: 200 }));
 
     const response = await authenticatedAihubFetch(
-      new Request(`${origin}/app/api/organizations`, { method: "GET" }),
+      new Request(`${origin}/app/api/organizations`, {
+        method: "GET",
+        headers: { "Sec-Fetch-Site": "same-origin" },
+      }),
       sessionToken,
       "/v1/organizations/me/members"
     );
@@ -395,7 +398,10 @@ describe("AIHUB Web Session BFF", () => {
     const fetch = await boundSession(sessionToken);
     fetch.mockResolvedValueOnce(new Response("{}", { status: 200 }));
     const first = await authenticatedAihubFetch(
-      new Request(`${origin}/app/api/organizations`, { method: "GET" }),
+      new Request(`${origin}/app/api/organizations`, {
+        method: "GET",
+        headers: { "Sec-Fetch-Site": "same-origin" },
+      }),
       sessionToken,
       "/v1/organizations/me/members"
     );
@@ -407,6 +413,7 @@ describe("AIHUB Web Session BFF", () => {
       new Request(`${origin}/app/api/organizations`, {
         method: "GET",
         headers: {
+          "Sec-Fetch-Site": "same-origin",
           "X-DPoP-Challenge": challenge,
           "X-DPoP-Proof": makeProof({
             method: "GET",
@@ -455,7 +462,10 @@ describe("AIHUB Web Session BFF", () => {
     await getCurrentWebSession(sessionToken, undefined, proofKey);
     const path = "/v1/organizations/me/members";
     const first = await authenticatedAihubFetch(
-      new Request(`${origin}/app/api/organizations`, { method: "GET" }),
+      new Request(`${origin}/app/api/organizations`, {
+        method: "GET",
+        headers: { "Sec-Fetch-Site": "same-origin" },
+      }),
       sessionToken,
       path
     );
@@ -464,6 +474,7 @@ describe("AIHUB Web Session BFF", () => {
       new Request(`${origin}/app/api/organizations`, {
         method: "GET",
         headers: {
+          "Sec-Fetch-Site": "same-origin",
           "X-DPoP-Challenge": challenge,
           "X-DPoP-Proof": makeProof({
             method: "GET",
@@ -503,7 +514,10 @@ describe("AIHUB Web Session BFF", () => {
     fetch.mockResolvedValueOnce(new Response("{}", { status: 200 }));
 
     await authenticatedAihubFetch(
-      new Request(`${origin}/app/api/organizations`, { method: "GET" }),
+      new Request(`${origin}/app/api/organizations`, {
+        method: "GET",
+        headers: { "Sec-Fetch-Site": "same-origin" },
+      }),
       unboundToken,
       "/v1/organizations/me/members"
     );

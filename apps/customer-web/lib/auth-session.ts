@@ -380,6 +380,11 @@ export async function authenticatedAihubFetch(
     url: htu,
     accessToken: session.accessToken,
   };
+  // Direct BFF requests (tests, server-to-server) cannot sign a proof; only
+  // browser-initiated same-origin fetches use the DPoP handshake.
+  const useDpop =
+    session.dpopBound &&
+    request.headers.get("sec-fetch-site") === "same-origin";
   const challenge = request.headers.get(DPOP_REQUEST_CHALLENGE_HEADER);
   const proofsHeader = request.headers.get(DPOP_REQUEST_PROOFS_HEADER);
   let proofs: Record<string, string> = {};
@@ -392,7 +397,7 @@ export async function authenticatedAihubFetch(
     } catch {}
   }
   const proof = proofs[htu] ?? request.headers.get(DPOP_REQUEST_PROOF_HEADER);
-  if (session.dpopBound) {
+  if (useDpop) {
     // A BFF route may call several upstream URLs; the browser can carry one
     // proof per htu. Only the call still missing its proof needs a challenge.
     if (!proof && !verifyDpopChallenge(challenge, descriptor)) {
@@ -414,7 +419,7 @@ export async function authenticatedAihubFetch(
 
   const send = (accessToken: string) => {
     const headers = new Headers(init.headers);
-    if (session!.dpopBound) {
+    if (useDpop) {
       headers.set("Authorization", `DPoP ${accessToken}`);
       headers.set("DPoP", proof!);
     } else {
@@ -438,7 +443,7 @@ export async function authenticatedAihubFetch(
       "Cache-Control": "no-store",
       "Content-Type": "application/json",
     });
-  if (!session.dpopBound) return send(session.accessToken);
+  if (!useDpop) return send(session.accessToken);
   return dpopResponse(
     DPOP_REQUIRED_CODE,
     createDpopChallenge({ ...descriptor, accessToken: session.accessToken })

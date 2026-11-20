@@ -394,29 +394,46 @@ export function QuickstartBody({
   organizationId: string;
   apiKeyId: string;
 }) {
-  const { roster, loading: rosterLoading } = useRoster();
-  const { data: keysData, loading: keysLoading } = useDpopJson<unknown>(
-    `/app/api/organizations/${encodeURIComponent(organizationId)}/api-keys`
-  );
-  const ready = !rosterLoading && !keysLoading;
+  const { roster, loading } = useRoster();
   const organization = roster?.find((item) => item.id === organizationId);
   const denied =
-    ready &&
+    !loading &&
     (!organization ||
       organization.status !== "active" ||
       !["owner", "admin"].includes(organization.membershipRole));
-  const apiKeys = ready ? parseOrganizationApiKeyList(keysData) : null;
-  const apiKey = apiKeys?.find((key) => key.id === apiKeyId);
-  const missingKey = ready && !!apiKeys && (!apiKey || !hasQuickstart(apiKey));
-  useClientRedirect(
-    denied ? "/console/orgs/denied" : missingKey ? "/console/orgs" : null
-  );
-  if (!ready) return null;
+  useClientRedirect(denied ? "/console/orgs/denied" : null);
+  if (loading) return null;
   if (!roster) return <RosterUnavailable />;
   if (!organization || denied) return null;
+  return (
+    <QuickstartKeysBody
+      organization={organization}
+      roster={roster}
+      apiKeyId={apiKeyId}
+    />
+  );
+}
+
+function QuickstartKeysBody({
+  organization,
+  roster,
+  apiKeyId,
+}: {
+  organization: NonNullable<ReturnType<typeof useRoster>["roster"]>[number];
+  roster: NonNullable<ReturnType<typeof useRoster>["roster"]>;
+  apiKeyId: string;
+}) {
+  const { data: keysData, loading } = useDpopJson<unknown>(
+    `/app/api/organizations/${encodeURIComponent(organization.id)}/api-keys`
+  );
+  const apiKeys = loading ? null : parseOrganizationApiKeyList(keysData);
+  const apiKey = apiKeys?.find((key) => key.id === apiKeyId);
+  const missingKey = !!apiKeys && (!apiKey || !hasQuickstart(apiKey));
+  useClientRedirect(missingKey ? "/console/orgs" : null);
+  if (loading) return null;
   if (!apiKeys) return <ApiKeysUnavailable />;
   if (!apiKey || missingKey) return null;
-  const apiKeysPath = `/console/orgs/${encodeURIComponent(organizationId)}/api-keys`;
+  const apiKeysPath = `/console/orgs/${encodeURIComponent(organization.id)}/api-keys`;
 
   return (
     <>
