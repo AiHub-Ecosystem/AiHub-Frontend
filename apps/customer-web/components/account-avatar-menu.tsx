@@ -132,7 +132,7 @@ export function AccountAvatarMenu() {
       setImageFailed(false);
       return true;
     } catch {
-      setAccount(cachedAccount());
+      setAccount((current) => current ?? cachedAccount());
       setError("Không thể tải thông tin tài khoản.");
       return false;
     } finally {

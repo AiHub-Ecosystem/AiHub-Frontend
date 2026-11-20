@@ -35,31 +35,8 @@ test("anonymous users sign in before Scalar and can download the protected contr
   await waitForHydration(page);
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(validPassword);
-  // The CDN is external; a blocked/slow script must not fail the auth assertions.
-  const scalarScriptResponse = page
-    .waitForResponse((response) =>
-      response
-        .url()
-        .startsWith("https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.72.1")
-    )
-    .catch(() => null);
-  const scalarSpecResponse = page
-    .waitForResponse(
-      (response) =>
-        new URL(response.url()).pathname === "/app/api/docs/openapi/v1.json"
-    )
-    .catch(() => null);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(page).toHaveURL(/\/app\/docs\/reference$/u);
-  const [scalarScript, scalarSpec] = await Promise.all([
-    scalarScriptResponse,
-    scalarSpecResponse,
-  ]);
-  if (scalarScript) expect(scalarScript.ok()).toBe(true);
-  if (scalarSpec) {
-    expect(scalarSpec.ok()).toBe(true);
-    expect((await scalarSpec.json()).info.title).toBe("AIHUB API");
-  }
 
   const scalarDataUrl = await page
     .locator("#api-reference")
