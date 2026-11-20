@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import aihubLimits from "@/data/aihub-contract/limits.json";
 import { POST as createOrganization } from "@/app/api/organizations/route";
@@ -48,6 +49,8 @@ afterEach(() => {
     "p".repeat(43),
     "u".repeat(43),
     "v".repeat(43),
+    "c".repeat(43),
+    "d".repeat(43),
   ])
     clearWebSessionCache(sessionToken);
   delete process.env.AIHUB_BASE_URL;
@@ -332,6 +335,119 @@ describe("AIHUB Web Session BFF", () => {
 
     expect(response.status).toBe(401);
     expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+  });
+
+  function makeProof(claims: { method: string; url: string; ath: string }) {
+    const header = Buffer.from(
+      JSON.stringify({
+        typ: "dpop+jwt",
+        alg: "ES256",
+        jwk: { kty: "EC", crv: "P-256", x: "x".repeat(43), y: "y".repeat(43) },
+      })
+    ).toString("base64url");
+    const payload = Buffer.from(
+      JSON.stringify({
+        htm: claims.method,
+        htu: claims.url,
+        ath: claims.ath,
+        jti: "unique-jti",
+        iat: Math.floor(Date.now() / 1000),
+      })
+    ).toString("base64url");
+    return `${header}.${payload}.signature`;
+  }
+
+  async function boundSession(sessionToken: string) {
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        data: {
+          access_token: "jwt-bound",
+          token_type: "Bearer",
+          expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+          dpop_bound: true,
+        },
+      })
+    );
+    await getCurrentWebSession(sessionToken, undefined, proofKey);
+    return fetch;
+  }
+
+  it("returns a DPoP challenge for a bound token without a proof", async () => {
+    const sessionToken = "c".repeat(43);
+    const fetch = await boundSession(sessionToken);
+    fetch.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+
+    const response = await authenticatedAihubFetch(
+      new Request(`${origin}/app/api/organizations`, { method: "GET" }),
+      sessionToken,
+      "/v1/organizations/me/members"
+    );
+
+    expect(response.status).toBe(428);
+    expect(response.headers.get("X-AIHUB-DPOP-CHALLENGE")).toBeTruthy();
+    expect((await response.json()).error.code).toBe("DPOP_PROOF_REQUIRED");
+  });
+
+  it("sends DPoP headers when a valid challenge and proof are supplied", async () => {
+    const sessionToken = "d".repeat(43);
+    const fetch = await boundSession(sessionToken);
+    fetch.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    const first = await authenticatedAihubFetch(
+      new Request(`${origin}/app/api/organizations`, { method: "GET" }),
+      sessionToken,
+      "/v1/organizations/me/members"
+    );
+    const challenge = first.headers.get("X-AIHUB-DPOP-CHALLENGE")!;
+    const ath = createHash("sha256").update("jwt-bound").digest("base64url");
+
+    fetch.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    const response = await authenticatedAihubFetch(
+      new Request(`${origin}/app/api/organizations`, {
+        method: "GET",
+        headers: {
+          "X-DPoP-Challenge": challenge,
+          "X-DPoP-Proof": makeProof({
+            method: "GET",
+            url: "http://127.0.0.1:3101/v1/organizations/me/members",
+            ath,
+          }),
+        },
+      }),
+      sessionToken,
+      "/v1/organizations/me/members"
+    );
+
+    expect(response.status).toBe(200);
+    const upstreamInit = fetch.mock.calls.at(-1)?.[1];
+    const headers = new Headers(upstreamInit?.headers);
+    expect(headers.get("authorization")).toBe("DPoP jwt-bound");
+    expect(headers.get("dpop")).toMatch(/\.signature$/);
+  });
+
+  it("keeps Bearer for unbound tokens", async () => {
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    const unboundToken = "u".repeat(43);
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        data: {
+          access_token: "jwt-unbound",
+          token_type: "Bearer",
+          expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+        },
+      })
+    );
+    await getCurrentWebSession(unboundToken, undefined);
+    fetch.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+
+    await authenticatedAihubFetch(
+      new Request(`${origin}/app/api/organizations`, { method: "GET" }),
+      unboundToken,
+      "/v1/organizations/me/members"
+    );
+
+    const headers = new Headers(fetch.mock.calls.at(-1)?.[1]?.headers);
+    expect(headers.get("authorization")).toBe("Bearer jwt-unbound");
   });
 
   it("drops expired access tokens instead of keeping every abandoned session", async () => {

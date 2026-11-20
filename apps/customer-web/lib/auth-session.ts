@@ -6,6 +6,16 @@ import {
   webSessionIdFromRequest,
 } from "@/lib/auth-cookies";
 import {
+  accessTokenHash,
+  createDpopChallenge,
+  DPOP_CHALLENGE_HEADER,
+  DPOP_INVALID_CODE,
+  DPOP_REQUEST_CHALLENGE_HEADER,
+  DPOP_REQUEST_PROOF_HEADER,
+  DPOP_REQUIRED_CODE,
+  verifyDpopChallenge,
+} from "@/lib/dpop-challenge";
+import {
   proofKeyFromCookieHeader,
   type PublicProofKey,
 } from "@/lib/public-proof-key.mjs";
@@ -303,6 +313,45 @@ function authRequired(headers: Record<string, string>) {
   );
 }
 
+function dpopProofClaims(proof: string) {
+  const [, payload] = proof.split(".");
+  if (!payload) return null;
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8")
+    ) as {
+      htm?: unknown;
+      htu?: unknown;
+      ath?: unknown;
+      jti?: unknown;
+      iat?: unknown;
+    };
+    if (
+      typeof parsed.htm !== "string" ||
+      typeof parsed.htu !== "string" ||
+      typeof parsed.ath !== "string" ||
+      typeof parsed.jti !== "string" ||
+      typeof parsed.iat !== "number"
+    )
+      return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function dpopResponse(code: string, challenge?: string) {
+  const headers = new Headers({
+    "Cache-Control": "no-store",
+    "Content-Type": "application/json",
+  });
+  if (challenge) headers.set(DPOP_CHALLENGE_HEADER, challenge);
+  return Response.json(
+    { success: false, error: { code } },
+    { status: code === DPOP_REQUIRED_CODE ? 428 : 400, headers }
+  );
+}
+
 export async function authenticatedAihubFetch(
   request: Request,
   token: string,
@@ -313,6 +362,8 @@ export async function authenticatedAihubFetch(
   if (destination.origin !== new URL(aihubUrl("/")).origin)
     throw new Error("AIHUB path must be same-origin");
 
+  const method = (init.method ?? "GET").toUpperCase();
+  const htu = `${destination.origin}${destination.pathname}`;
   const endUserIp = endUserIpFromHeaders(request.headers);
   const proofKey = clientProofKeyFromHeaders(request.headers);
   let session = await getCurrentWebSession(token, endUserIp, proofKey);
@@ -321,9 +372,36 @@ export async function authenticatedAihubFetch(
       "Cache-Control": "no-store",
       "Content-Type": "application/json",
     });
+
+  const descriptor = {
+    sessionToken: token,
+    method,
+    url: htu,
+    accessToken: session.accessToken,
+  };
+  const challenge = request.headers.get(DPOP_REQUEST_CHALLENGE_HEADER);
+  const proof = request.headers.get(DPOP_REQUEST_PROOF_HEADER);
+  if (session.dpopBound) {
+    if (!verifyDpopChallenge(challenge, descriptor))
+      return dpopResponse(DPOP_REQUIRED_CODE, createDpopChallenge(descriptor));
+    const claims = proof ? dpopProofClaims(proof) : null;
+    if (
+      !claims ||
+      claims.htm !== method ||
+      claims.htu !== htu ||
+      claims.ath !== accessTokenHash(session.accessToken)
+    )
+      return dpopResponse(DPOP_INVALID_CODE);
+  }
+
   const send = (accessToken: string) => {
     const headers = new Headers(init.headers);
-    headers.set("Authorization", `Bearer ${accessToken}`);
+    if (session!.dpopBound) {
+      headers.set("Authorization", `DPoP ${accessToken}`);
+      headers.set("DPoP", proof!);
+    } else {
+      headers.set("Authorization", `Bearer ${accessToken}`);
+    }
     return fetch(destination, {
       ...init,
       headers,
@@ -331,17 +409,27 @@ export async function authenticatedAihubFetch(
       signal: init.signal ?? AbortSignal.timeout(8_000),
     });
   };
+
   const response = await send(session.accessToken);
   if (response.status !== 401) return response;
 
   sessions.delete(token);
   session = await getCurrentWebSession(token, endUserIp, proofKey);
-  return session
-    ? send(session.accessToken)
-    : authRequired({
-        "Cache-Control": "no-store",
-        "Content-Type": "application/json",
-      });
+  if (!session)
+    return authRequired({
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json",
+    });
+  if (!session.dpopBound) return send(session.accessToken);
+  return dpopResponse(
+    DPOP_REQUIRED_CODE,
+    createDpopChallenge({
+      sessionToken: token,
+      method,
+      url: htu,
+      accessToken: session.accessToken,
+    })
+  );
 }
 
 export async function logoutFromAihubBestEffort(
