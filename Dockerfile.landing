@@ -14,7 +14,11 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000
 COPY package.json package-lock.json ./
 COPY apps/customer-web/package.json apps/customer-web/package.json
 COPY apps/landing/package.json apps/landing/package.json
-RUN npm ci --omit=dev --ignore-scripts
+COPY scripts/prod-dependencies.mjs ./scripts/
+# npm ci --omit=dev leaves scoped dev entry points behind. Trim the tree to the
+# lockfile's production set, the same way the Customer Web Dockerfile does.
+RUN npm ci --omit=dev --ignore-scripts; \
+    node scripts/prod-dependencies.mjs --prune
 COPY --from=builder /repo/apps/landing/.next apps/landing/.next
 COPY --from=builder /repo/apps/landing/next.config.ts apps/landing/next.config.ts
 COPY --from=builder /repo/apps/landing/public apps/landing/public
