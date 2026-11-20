@@ -1,12 +1,15 @@
 "use client";
 
-import { type FormEvent } from "react";
+import { useEffect, useRef, type FormEvent } from "react";
 import { getLoginErrorMessage } from "@/lib/auth-messages";
 import {
+  currentProofKeyScope,
   getPublicProofKey,
   installProofKeyCookie,
   rememberProofKeyScope,
 } from "@/lib/web-session-proof-key";
+
+type ProofKey = Awaited<ReturnType<typeof getPublicProofKey>>;
 
 export function LoginForm({
   next,
@@ -26,21 +29,33 @@ export function LoginForm({
   variant?: "lab";
 }) {
   const message = unavailableMessage ?? getLoginErrorMessage(error, retry);
+  const keys = useRef(new Map<string, ProofKey>());
 
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    const form = event.currentTarget;
-    if (!form.reportValidity()) return;
-    event.preventDefault();
-    const email = String(new FormData(form).get("email") ?? "")
+  // Generate ahead of submission: the form keeps its native synchronous
+  // navigation, so a slow IndexedDB/crypto round never delays sign-in.
+  const prepare = (scope: string) => {
+    if (!scope) return;
+    void getPublicProofKey(scope)
+      .then((key) => {
+        keys.current.set(scope, key);
+        installProofKeyCookie(key);
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    const scope = currentProofKeyScope();
+    if (scope) prepare(scope);
+  }, []);
+
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const email = String(new FormData(event.currentTarget).get("email") ?? "")
       .trim()
       .toLowerCase();
-    try {
-      rememberProofKeyScope(email);
-      installProofKeyCookie(await getPublicProofKey(email));
-    } catch {
-      // Key creation is best effort: signing in must still work unbound.
-    }
-    form.submit();
+    rememberProofKeyScope(email);
+    const key = keys.current.get(email);
+    if (key) installProofKeyCookie(key);
+    else prepare(email);
   };
 
   return (
@@ -59,6 +74,8 @@ export function LoginForm({
         type="email"
         autoComplete="username"
         maxLength={320}
+        onChange={(event) => prepare(event.target.value.trim().toLowerCase())}
+        onBlur={(event) => prepare(event.target.value.trim().toLowerCase())}
         required
       />
       <label htmlFor="login-password">Mật khẩu</label>
