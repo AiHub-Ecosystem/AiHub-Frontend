@@ -99,7 +99,6 @@ Expected: FAIL, module not found.
 `apps/customer-web/lib/dpop-challenge.ts`:
 
 ```ts
-import "server-only";
 import {
   createHash,
   createHmac,
