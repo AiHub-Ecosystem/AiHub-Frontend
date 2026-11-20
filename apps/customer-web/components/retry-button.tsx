@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 export function RetryButton() {
   const router = useRouter();
   return (
-    <button type="button" onClick={() => router.refresh()}>
+    <button type="button" onClick={() => window.location.reload()}>
       Thử lại
     </button>
   );

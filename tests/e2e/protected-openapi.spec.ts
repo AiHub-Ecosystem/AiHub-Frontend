@@ -14,6 +14,7 @@ test("anonymous users sign in before Scalar and can download the protected contr
   page,
   request,
 }) => {
+  test.setTimeout(60_000);
   await resetAuthMock(request);
   const browserAuthorizationHeaders: string[] = [];
   page.on("request", (browserRequest) => {

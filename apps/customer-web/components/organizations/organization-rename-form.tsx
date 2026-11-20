@@ -56,7 +56,7 @@ export function OrganizationRenameForm({
         return;
       }
       setOpen(false);
-      router.refresh();
+      window.location.reload();
     } catch {
       setError("Không thể kết nối. Vui lòng thử lại.");
     } finally {

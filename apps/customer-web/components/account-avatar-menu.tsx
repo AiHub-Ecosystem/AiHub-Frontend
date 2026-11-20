@@ -72,6 +72,8 @@ function actionableError(
     return "Bộ lưu trữ ảnh đang gặp sự cố. Ảnh hiện tại vẫn được giữ nguyên; hãy thử lại sau.";
   if (code === "NOT_FOUND")
     return "Ảnh chưa có trên bộ lưu trữ. Hãy chọn và tải ảnh lên lại.";
+  if (!code && action === "upload")
+    return "Phiên đăng nhập không hợp lệ. Hãy đăng nhập lại.";
   return action === "upload"
     ? "Không thể cập nhật ảnh đại diện. Ảnh hiện tại vẫn được giữ nguyên; hãy thử lại."
     : "Không thể xóa ảnh đại diện. Ảnh hiện tại vẫn được giữ nguyên; hãy thử lại.";

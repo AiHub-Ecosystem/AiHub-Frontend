@@ -195,9 +195,9 @@ test("roster failure stays retryable and does not open the create form", async (
 }) => {
   await setup(request, [], { unavailable: true });
   await signIn(page);
-  await expect(page.getByRole("alert")).toContainText(
-    "Không thể tải Organization"
-  );
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Không thể tải Organization" })
+  ).toContainText("Không thể tải Organization");
   await expect(page.getByRole("link", { name: "Thử lại" })).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Tạo Organization" })

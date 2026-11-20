@@ -53,7 +53,7 @@ export function OrganizationIdentityDialog({
         }
         if (response.status === 403) {
           setForbidden(true);
-          router.refresh();
+          window.location.reload();
           return;
         }
         if (!response.ok) throw new Error("IDENTITY_CONFIG_REQUEST_FAILED");
