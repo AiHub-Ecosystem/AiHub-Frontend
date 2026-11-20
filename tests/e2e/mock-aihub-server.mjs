@@ -44,6 +44,13 @@ const contractErrors = [];
 const requests = [];
 const authRequests = [];
 const boundAccessTokens = new Set();
+
+function proofKeyThumbprint(key) {
+  if (!isPublicProofKey(key)) return null;
+  return createHash("sha256")
+    .update(JSON.stringify({ crv: key.crv, kty: key.kty, x: key.x, y: key.y }))
+    .digest("base64url");
+}
 const seenDpopJti = new Set();
 const documentationRequests = [];
 const avatarRequests = [];
@@ -1154,6 +1161,7 @@ const server = createServer(async (request, response) => {
       clientProofKey: isPublicProofKey(body.client_proof_key)
         ? body.client_proof_key
         : null,
+      proofKeyThumbprint: proofKeyThumbprint(body.client_proof_key),
     });
     if (authMode.sessionExchangeUnauthorized || !sessionKnown) {
       sendJson(response, 401, { error: { code: "AUTH_WEB_SESSION_INVALID" } });

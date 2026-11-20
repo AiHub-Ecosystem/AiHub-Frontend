@@ -49,6 +49,10 @@ function proofKeyThumbprint(key: PublicProofKey) {
 
 const sessions = new Map<string, WebSession>();
 const exchanges = new Map<string, Promise<WebSession | null>>();
+// A Web Session whose bound key was replaced stays unusable until its token
+// changes. Keeping the marker (instead of dropping the cache entry) stops a
+// later request from silently re-exchanging a key AIHUB must not accept.
+const rejectedProofKeys = new Map<string, string>();
 
 /** The public JWK travels on every BFF request, so any instance can relay it. */
 export function clientProofKeyFromHeaders(
@@ -248,6 +252,7 @@ export async function getCurrentWebSession(
   proofKey: PublicProofKey | null = null
 ) {
   if (!isWebSessionId(token)) return null;
+  if (rejectedProofKeys.has(token)) return null;
   let cached = sessions.get(token);
   // A different browser key cannot use this bound session. AIHUB keeps the
   // first key's thumbprint with compare-and-set, so re-exchanging here would
@@ -257,7 +262,7 @@ export async function getCurrentWebSession(
     proofKey &&
     proofKeyThumbprint(proofKey) !== cached.boundThumbprint
   ) {
-    sessions.delete(token);
+    rejectedProofKeys.set(token, proofKeyThumbprint(proofKey));
     return null;
   }
   if (cached && proofKey && !cached.dpopBound) {
@@ -282,6 +287,7 @@ export async function getCurrentWebSession(
 
 export function clearWebSessionCache(token: string) {
   sessions.delete(token);
+  rejectedProofKeys.delete(token);
 }
 
 export async function requireWebSession(request: Request) {

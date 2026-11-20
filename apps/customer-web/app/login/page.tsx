@@ -34,9 +34,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const requestHeaders = await headers();
   const endUserIp = endUserIpFromHeaders(requestHeaders);
   const proofKey = clientProofKeyFromHeaders(requestHeaders);
-  let clearStaleCookie = !!sessionId && !isWebSessionId(sessionId);
+  // A page guard that rejected a replaced proof key sends error=session. Do
+  // not re-exchange here: that would bind the new key to the old Web Session,
+  // which ADR-0176 forbids, and silently bounce the user back into Console.
+  const forcedSignIn = params.error === "session";
+  let clearStaleCookie =
+    !!sessionId && (!isWebSessionId(sessionId) || forcedSignIn);
   let hasActiveSession = false;
-  if (isWebSessionId(sessionId)) {
+  if (isWebSessionId(sessionId) && !forcedSignIn) {
     try {
       hasActiveSession = !!(await getCurrentWebSession(
         sessionId,

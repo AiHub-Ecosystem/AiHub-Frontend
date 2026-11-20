@@ -576,8 +576,11 @@ describe("AIHUB Web Session BFF", () => {
     expect(
       await getCurrentWebSession(sessionToken, undefined, replaced)
     ).toBeNull();
+    // The rejection sticks: a later call cannot re-exchange the wrong key.
+    expect(
+      await getCurrentWebSession(sessionToken, undefined, replaced)
+    ).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(1); // no re-registration exchange
-    expect(cachedWebSessionCount()).toBe(0);
   });
 
   it("keeps a bound session for a direct request with no proof key", async () => {

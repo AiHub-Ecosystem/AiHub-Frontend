@@ -1106,3 +1106,73 @@ test("logout revokes the Web Session across frontend instances", async ({
   });
   expect(await protectedPage.text()).toContain("Đăng nhập");
 });
+
+test("a lost proof key forces re-sign-in and a new sign-in binds a new key", async ({
+  page,
+  request,
+}) => {
+  await resetAuthMock(request);
+  await page.goto("/app/login");
+  await waitForHydration(page);
+  await page.getByLabel("Email").fill("valid@example.test");
+  await page.getByLabel("Mật khẩu").fill(validPassword);
+  await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+  await expect(page).toHaveURL(/\/console\/orgs$/);
+  await waitForHydration(page);
+
+  async function boundExchangeCount() {
+    const logged = await request.get(`${mockUrl}/__test__/auth/requests`);
+    const requests = (await logged.json()).requests as {
+      path: string;
+      proofKeyThumbprint?: string | null;
+    }[];
+    return requests.filter(
+      (entry) => entry.path === "exchange" && entry.proofKeyThumbprint
+    ).length;
+  }
+  const before = await boundExchangeCount();
+  expect(before).toBeGreaterThan(0);
+
+  // Replace the browser key without touching the Web Session cookie: a new
+  // IndexedDB key plus a cookie carrying a different public JWK.
+  await page.evaluate(async (name) => {
+    await new Promise<void>((resolve, reject) => {
+      const drop = indexedDB.deleteDatabase("aihub-web-proof-key");
+      drop.onsuccess = () => resolve();
+      drop.onerror = () => reject(drop.error);
+    });
+    document.cookie = `${name}=${encodeURIComponent(
+      JSON.stringify({
+        kty: "EC",
+        crv: "P-256",
+        x: "a".repeat(43),
+        y: "b".repeat(43),
+      })
+    )}; Path=/app; Max-Age=2592000; SameSite=Strict; Secure`;
+  }, PROOF_KEY_COOKIE);
+
+  // The rejected session can abort the original navigation (SessionActivity
+  // reloads on 401); what matters is where the browser ends up.
+  await page.goto("/app/console/orgs", { waitUntil: "commit" }).catch(() => {});
+  await expect(page).toHaveURL(/\/app\/login(\?|$)/u);
+  // The BFF dropped the bound session; it did not re-exchange a key against it.
+  expect(await boundExchangeCount()).toBe(before);
+
+  await page.getByLabel("Email").fill("valid@example.test");
+  await page.getByLabel("Mật khẩu").fill(validPassword);
+  await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+  await expect(page).toHaveURL(/\/console\/orgs$/);
+  await expect(
+    page.getByRole("heading", { name: "Organizations", exact: true })
+  ).toBeVisible();
+  const logged = await request.get(`${mockUrl}/__test__/auth/requests`);
+  const exchanges = (
+    (await logged.json()).requests as {
+      path: string;
+      proofKeyThumbprint?: string | null;
+    }[]
+  ).filter((entry) => entry.path === "exchange" && entry.proofKeyThumbprint);
+  expect(exchanges.at(-1)?.proofKeyThumbprint).not.toBe(
+    exchanges[0].proofKeyThumbprint
+  );
+});
