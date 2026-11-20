@@ -418,6 +418,13 @@ test("a failed AVATAR_CHANGED refresh reports that account data could not be loa
   await mockStorage(page);
   await signIn(page);
   await openAccountMenu(page);
+  // Establish the precondition before injecting the failure: the initial
+  // account fetch (with DPoP challenge round-trip) must have populated the
+  // avatar, otherwise the failed refresh has no account to fall back to.
+  await expect(page.getByRole("img", { name: "Ảnh đại diện" })).toHaveAttribute(
+    "src",
+    existingAvatar.url
+  );
   await page.route("**/app/api/account", async (route) => {
     await route.fulfill({
       status: 503,
