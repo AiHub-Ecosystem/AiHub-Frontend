@@ -1,4 +1,5 @@
 "use client";
+import { dpopFetch } from "@/lib/dpop-fetch";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -30,7 +31,7 @@ export function OrganizationRenameForm({
     setError("");
     const form = new FormData(event.currentTarget);
     try {
-      const response = await fetch(
+      const response = await dpopFetch(
         `/app/api/organizations/${encodeURIComponent(organizationId)}`,
         {
           method: "PATCH",

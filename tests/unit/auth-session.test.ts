@@ -51,6 +51,7 @@ afterEach(() => {
     "v".repeat(43),
     "c".repeat(43),
     "d".repeat(43),
+    "e".repeat(43),
   ])
     clearWebSessionCache(sessionToken);
   delete process.env.AIHUB_BASE_URL;
@@ -423,6 +424,67 @@ describe("AIHUB Web Session BFF", () => {
     const headers = new Headers(upstreamInit?.headers);
     expect(headers.get("authorization")).toBe("DPoP jwt-bound");
     expect(headers.get("dpop")).toMatch(/\.signature$/);
+  });
+
+  it("issues a fresh challenge with the refreshed token's hash after a 401", async () => {
+    process.env.AIHUB_BASE_URL = "http://127.0.0.1:3101";
+    const sessionToken = "e".repeat(43);
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        Response.json({
+          data: {
+            access_token: "jwt-bound-1",
+            token_type: "Bearer",
+            expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+            dpop_bound: true,
+          },
+        })
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(
+        Response.json({
+          data: {
+            access_token: "jwt-bound-2",
+            token_type: "Bearer",
+            expires_in: aihubLimits.webSessionAccessTokenMaxSeconds,
+            dpop_bound: true,
+          },
+        })
+      );
+    await getCurrentWebSession(sessionToken, undefined, proofKey);
+    const path = "/v1/organizations/me/members";
+    const first = await authenticatedAihubFetch(
+      new Request(`${origin}/app/api/organizations`, { method: "GET" }),
+      sessionToken,
+      path
+    );
+    const challenge = first.headers.get("X-AIHUB-DPOP-CHALLENGE")!;
+    const response = await authenticatedAihubFetch(
+      new Request(`${origin}/app/api/organizations`, {
+        method: "GET",
+        headers: {
+          "X-DPoP-Challenge": challenge,
+          "X-DPoP-Proof": makeProof({
+            method: "GET",
+            url: "http://127.0.0.1:3101/v1/organizations/me/members",
+            ath: createHash("sha256").update("jwt-bound-1").digest("base64url"),
+          }),
+        },
+      }),
+      sessionToken,
+      path
+    );
+
+    expect(response.status).toBe(428);
+    const refreshed = response.headers.get("X-AIHUB-DPOP-CHALLENGE")!;
+    const payload = JSON.parse(
+      Buffer.from(refreshed.split(".")[0], "base64url").toString("utf8")
+    ) as { a: string };
+    expect(payload.a).toBe(
+      createHash("sha256").update("jwt-bound-2").digest("base64url")
+    );
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 
   it("keeps Bearer for unbound tokens", async () => {

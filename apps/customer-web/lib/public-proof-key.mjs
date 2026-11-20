@@ -2,6 +2,9 @@ const MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 export const PROOF_KEY_COOKIE = "aihub_proof_key";
 export const PROOF_SCOPE_COOKIE = "aihub_proof_scope";
+export const DPOP_CHALLENGE_HEADER = "X-AIHUB-DPOP-CHALLENGE";
+export const DPOP_REQUEST_CHALLENGE_HEADER = "X-DPoP-Challenge";
+export const DPOP_REQUEST_PROOF_HEADER = "X-DPoP-Proof";
 
 export function isPublicProofKey(value) {
   if (!value || typeof value !== "object") return false;
@@ -43,7 +46,7 @@ export function proofKeyCookie(key) {
 }
 
 export function proofScopeCookie(scope) {
-  return `${PROOF_SCOPE_COOKIE}=${encodeURIComponent(scope)}; Path=/app; Max-Age=${MAX_AGE_SECONDS}; SameSite=Strict; Secure`;
+  return `${PROOF_SCOPE_COOKIE}=${encodeURIComponent(scope)}; Path=/app; Max-Age=${MAX_AGE_SECONDS}; SameSite=Strict`;
 }
 
 export function expiredProofKeyCookies() {

@@ -1,4 +1,5 @@
 "use client";
+import { dpopFetch } from "@/lib/dpop-fetch";
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -62,7 +63,7 @@ export function OrganizationIdentityForm({
   async function save(body: Record<string, unknown>) {
     setBusy(true);
     try {
-      const response = await fetch(
+      const response = await dpopFetch(
         `/app/api/organizations/${encodeURIComponent(organizationId)}/identity-config`,
         {
           method: "PUT",

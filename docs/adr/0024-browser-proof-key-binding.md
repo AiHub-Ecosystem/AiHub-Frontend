@@ -30,6 +30,16 @@ ADR-0176 makes AIHUB accept DPoP proofs for Web Session JWTs while in `verify`, 
 - Rollback to an older Customer Web image leaves bound tokens usable as Bearer and new unbound tokens fine, per ADR-0176.
 - The `enforce` → `off`/older-image downgrade caveat from ADR-0176 still applies; rollout timing is owned by #124, whose backend metric is `aihub_user_access_token_use_total{scheme="bearer",session="web"}`.
 
+## DPoP relay (#123)
+
+Bound tokens are presented with `Authorization: DPoP` and a `DPoP` header. The browser
+signs each proof with the non-extractable key from this ADR; the BFF issues a short-lived
+stateless HMAC challenge carrying the upstream descriptor and access-token hash, and the
+browser returns the signed proof with the retried request. The BFF shape-checks the proof
+but relies on AIHUB for signature and replay verification. Console data reads are
+client-fetched so the browser is present for signing; BFF routes pass the 428 challenge
+through with its headers intact.
+
 ## Notes
 
 - The backend cutoff metric is `sum(increase(aihub_user_access_token_use_total{scheme="bearer",session="web"}[window]))`; keep the release/rollout window from #124.

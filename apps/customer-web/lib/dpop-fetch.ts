@@ -1,10 +1,11 @@
 "use client";
 
 import { signDpopProof, type DpopDescriptor } from "@/lib/dpop-proof";
-
-const CHALLENGE_HEADER = "X-AIHUB-DPOP-CHALLENGE";
-const REQUEST_CHALLENGE = "X-DPoP-Challenge";
-const REQUEST_PROOF = "X-DPoP-Proof";
+import {
+  DPOP_CHALLENGE_HEADER as CHALLENGE_HEADER,
+  DPOP_REQUEST_CHALLENGE_HEADER as REQUEST_CHALLENGE,
+  DPOP_REQUEST_PROOF_HEADER as REQUEST_PROOF,
+} from "@/lib/public-proof-key.mjs";
 
 function decodeChallenge(value: string): DpopDescriptor | null {
   const [body] = value.split(".");
@@ -30,7 +31,13 @@ function decodeChallenge(value: string): DpopDescriptor | null {
 }
 
 export async function dpopFetch(url: string, init: RequestInit = {}) {
-  let response = await fetch(url, init);
+  const withTimeout = (headers?: HeadersInit): RequestInit => ({
+    ...init,
+    headers,
+    signal: init.signal ?? AbortSignal.timeout(8_000),
+  });
+  // Two rounds are the protocol (challenge, then proof), not failure retries.
+  let response = await fetch(url, withTimeout(init.headers));
   for (let round = 0; round < 2 && response.status === 428; round += 1) {
     const challenge = response.headers.get(CHALLENGE_HEADER);
     if (!challenge) break;
@@ -40,7 +47,7 @@ export async function dpopFetch(url: string, init: RequestInit = {}) {
     const headers = new Headers(init.headers);
     headers.set(REQUEST_CHALLENGE, challenge);
     headers.set(REQUEST_PROOF, proof);
-    response = await fetch(url, { ...init, headers });
+    response = await fetch(url, withTimeout(headers));
   }
   return response;
 }

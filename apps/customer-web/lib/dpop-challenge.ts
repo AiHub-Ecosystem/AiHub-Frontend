@@ -5,9 +5,11 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 
-export const DPOP_CHALLENGE_HEADER = "X-AIHUB-DPOP-CHALLENGE";
-export const DPOP_REQUEST_CHALLENGE_HEADER = "X-DPoP-Challenge";
-export const DPOP_REQUEST_PROOF_HEADER = "X-DPoP-Proof";
+export {
+  DPOP_CHALLENGE_HEADER,
+  DPOP_REQUEST_CHALLENGE_HEADER,
+  DPOP_REQUEST_PROOF_HEADER,
+} from "@/lib/public-proof-key.mjs";
 export const DPOP_REQUIRED_CODE = "DPOP_PROOF_REQUIRED";
 export const DPOP_INVALID_CODE = "DPOP_PROOF_INVALID";
 

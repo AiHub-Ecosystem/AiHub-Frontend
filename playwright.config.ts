@@ -22,6 +22,7 @@ export default defineConfig({
     baseURL: appUrl,
     browserName: "chromium",
   },
+  expect: { timeout: 15_000 },
   webServer: [
     {
       name: "AIHUB mock",

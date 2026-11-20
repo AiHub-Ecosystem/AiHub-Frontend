@@ -6,4 +6,7 @@
   field `dpop_bound` (ADR-0024; contract 1.18.0).
 - Backend cutoff metric for `enforce` rollback, per ADR-0176:
   `sum(increase(aihub_user_access_token_use_total{scheme="bearer",session="web"}[<owner-selected window>]))`.
+- DPoP relay (#123) additionally requires AIHUB to accept `Authorization: DPoP` and the
+  `DPoP` proof header on User-Access-JWT-guarded routes, with ES256/P-256 proof verification
+  (ADR-0176). The same minimum SHA covers it.
 - Rollout ordering and flag decision are owned by [#124](https://github.com/AiHub-Ecosystem/AiHub-Frontend/issues/124).

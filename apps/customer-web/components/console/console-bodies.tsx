@@ -1,5 +1,9 @@
 "use client";
 
+// ponytail: 487 lines on purpose. These six Console views share the same roster
+// fetch, redirect hook and markup helpers; splitting them into one file each
+// would duplicate that glue six times. Split when a seventh view needs it.
+
 import { useEffect } from "react";
 import Link from "next/link";
 import { ApiKeyManager } from "@/components/organizations/api-key-manager";

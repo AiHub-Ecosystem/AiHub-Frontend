@@ -1,4 +1,5 @@
 "use client";
+import { dpopFetch } from "@/lib/dpop-fetch";
 
 import {
   useCallback,
@@ -100,7 +101,7 @@ export function AccountAvatarMenu() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/app/api/account", {
+      const response = await dpopFetch("/app/api/account", {
         cache: "no-store",
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
@@ -152,7 +153,7 @@ export function AccountAvatarMenu() {
 
     setBusy(true);
     try {
-      const grantResponse = await fetch("/app/api/account/avatar/uploads", {
+      const grantResponse = await dpopFetch("/app/api/account/avatar/uploads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content_type: file.type, byte_size: file.size }),
@@ -167,7 +168,7 @@ export function AccountAvatarMenu() {
       const signedHeaders = new Headers(grant.headers);
       // Fetch controls Content-Length; completion checks the stored file size.
       signedHeaders.delete("Content-Length");
-      const storageResponse = await fetch(grant.upload_url, {
+      const storageResponse = await dpopFetch(grant.upload_url, {
         method: grant.method,
         headers: signedHeaders,
         body: file,
@@ -177,7 +178,7 @@ export function AccountAvatarMenu() {
       });
       if (!storageResponse.ok) throw new Error("STORAGE_UPLOAD_FAILED");
 
-      const completeResponse = await fetch(
+      const completeResponse = await dpopFetch(
         `/app/api/account/avatar/uploads/${grant.asset_id}/complete`,
         {
           method: "POST",
@@ -212,7 +213,7 @@ export function AccountAvatarMenu() {
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch("/app/api/account/avatar", {
+      const response = await dpopFetch("/app/api/account/avatar", {
         method: "DELETE",
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });

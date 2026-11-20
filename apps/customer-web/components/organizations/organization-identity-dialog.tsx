@@ -1,4 +1,5 @@
 "use client";
+import { dpopFetch } from "@/lib/dpop-fetch";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -40,7 +41,7 @@ export function OrganizationIdentityDialog({
     if (!open) return;
     const controller = new AbortController();
 
-    void fetch(
+    void dpopFetch(
       `/app/api/organizations/${encodeURIComponent(organizationId)}/identity-config`,
       { signal: controller.signal }
     )

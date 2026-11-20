@@ -1,4 +1,5 @@
 "use client";
+import { dpopFetch } from "@/lib/dpop-fetch";
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -54,7 +55,7 @@ export function ApiKeyManager({
     setLoading(true);
     setListError("");
     try {
-      const response = await fetch(collectionUrl, { cache: "no-store" });
+      const response = await dpopFetch(collectionUrl, { cache: "no-store" });
       const result = await response.json().catch(() => null);
       const code = readErrorCode(result);
       if (response.status === 401) {
@@ -145,7 +146,7 @@ export function ApiKeyManager({
     setBusyAction("create");
     setFeedback(null);
     try {
-      const response = await fetch(collectionUrl, {
+      const response = await dpopFetch(collectionUrl, {
         method: "POST",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
@@ -178,7 +179,7 @@ export function ApiKeyManager({
     setBusyAction(`rotate:${apiKey.id}`);
     setFeedback(null);
     try {
-      const response = await fetch(
+      const response = await dpopFetch(
         `${collectionUrl}/${encodeURIComponent(apiKey.id)}/rotate`,
         { method: "POST", cache: "no-store" }
       );
@@ -226,7 +227,7 @@ export function ApiKeyManager({
     setBusyAction(`revoke:${apiKey.id}`);
     setFeedback(null);
     try {
-      const response = await fetch(
+      const response = await dpopFetch(
         `${collectionUrl}/${encodeURIComponent(apiKey.id)}`,
         { method: "DELETE", cache: "no-store" }
       );

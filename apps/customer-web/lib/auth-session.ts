@@ -382,16 +382,21 @@ export async function authenticatedAihubFetch(
   const challenge = request.headers.get(DPOP_REQUEST_CHALLENGE_HEADER);
   const proof = request.headers.get(DPOP_REQUEST_PROOF_HEADER);
   if (session.dpopBound) {
-    if (!verifyDpopChallenge(challenge, descriptor))
+    if (!verifyDpopChallenge(challenge, descriptor)) {
+      console.info("[dpop] challenge issued", method, htu);
       return dpopResponse(DPOP_REQUIRED_CODE, createDpopChallenge(descriptor));
+    }
     const claims = proof ? dpopProofClaims(proof) : null;
     if (
       !claims ||
       claims.htm !== method ||
       claims.htu !== htu ||
       claims.ath !== accessTokenHash(session.accessToken)
-    )
+    ) {
+      console.info("[dpop] proof rejected", method, htu);
       return dpopResponse(DPOP_INVALID_CODE);
+    }
+    console.info("[dpop] proof relayed", method, htu);
   }
 
   const send = (accessToken: string) => {
@@ -423,12 +428,7 @@ export async function authenticatedAihubFetch(
   if (!session.dpopBound) return send(session.accessToken);
   return dpopResponse(
     DPOP_REQUIRED_CODE,
-    createDpopChallenge({
-      sessionToken: token,
-      method,
-      url: htu,
-      accessToken: session.accessToken,
-    })
+    createDpopChallenge({ ...descriptor, accessToken: session.accessToken })
   );
 }
 

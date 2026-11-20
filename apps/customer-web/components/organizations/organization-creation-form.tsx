@@ -1,4 +1,5 @@
 "use client";
+import { dpopFetch } from "@/lib/dpop-fetch";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -125,7 +126,7 @@ export function OrganizationCreationForm({
         }
         setAttempt(currentAttempt);
       }
-      const response = await fetch("/app/api/organizations", {
+      const response = await dpopFetch("/app/api/organizations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

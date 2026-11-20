@@ -89,17 +89,6 @@ async function loadOrCreate(scope: string): Promise<StoredProofKey> {
   }
 }
 
-/** Public JWK for one signed-in User Account, generated at most once. */
-export function getPublicProofKey(scope: string) {
-  const normalized = normalizeScope(scope);
-  let key = pending.get(normalized);
-  if (!key) {
-    key = loadOrCreate(normalized).finally(() => pending.delete(normalized));
-    pending.set(normalized, key);
-  }
-  return key.then((stored) => stored.publicJwk);
-}
-
 /** Private key for signing; never extractable or serialized to the network. */
 export function getStoredProofKey(scope: string) {
   const normalized = normalizeScope(scope);
@@ -109,6 +98,11 @@ export function getStoredProofKey(scope: string) {
     pending.set(normalized, key);
   }
   return key;
+}
+
+/** Public JWK for one signed-in User Account, generated at most once. */
+export function getPublicProofKey(scope: string) {
+  return getStoredProofKey(scope).then((stored) => stored.publicJwk);
 }
 
 /** Every BFF request carries the JWK, so any app instance can relay it. */

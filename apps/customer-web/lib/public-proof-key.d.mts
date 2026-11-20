@@ -7,6 +7,9 @@ export type PublicProofKey = {
 
 export const PROOF_KEY_COOKIE: string;
 export const PROOF_SCOPE_COOKIE: string;
+export const DPOP_CHALLENGE_HEADER: string;
+export const DPOP_REQUEST_CHALLENGE_HEADER: string;
+export const DPOP_REQUEST_PROOF_HEADER: string;
 
 export function isPublicProofKey(value: unknown): value is PublicProofKey;
 export function parsePublicProofKey(raw: unknown): PublicProofKey | null;
