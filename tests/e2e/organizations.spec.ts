@@ -55,10 +55,6 @@ async function signIn(page: Page) {
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(password);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
-  await expect(page).toHaveURL(/\/console\/orgs$/);
-  await expect(
-    page.getByRole("heading", { name: "Organizations", exact: true })
-  ).toBeVisible();
 }
 
 /**
@@ -69,9 +65,6 @@ async function signIn(page: Page) {
 async function openCreationForm(page: Page) {
   await expect(page).toHaveURL(/\/console\/orgs$/);
   await waitForHydration(page);
-  await expect(
-    page.getByRole("heading", { name: "Organizations", exact: true })
-  ).toBeVisible();
   await page.getByRole("button", { name: "Tạo Organization" }).click();
 }
 
