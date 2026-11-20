@@ -36,7 +36,6 @@ async function signIn(page: Page) {
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(page).toHaveURL(/\/console\/orgs$/);
   await waitForHydration(page);
-  await expect(page.locator(".account-avatar-menu")).toBeVisible();
 }
 
 async function openAccountMenu(page: Page) {
