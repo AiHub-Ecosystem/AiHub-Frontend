@@ -5,6 +5,7 @@ export const PROOF_SCOPE_COOKIE = "aihub_proof_scope";
 export const DPOP_CHALLENGE_HEADER = "X-AIHUB-DPOP-CHALLENGE";
 export const DPOP_REQUEST_CHALLENGE_HEADER = "X-DPoP-Challenge";
 export const DPOP_REQUEST_PROOF_HEADER = "X-DPoP-Proof";
+export const DPOP_REQUEST_PROOFS_HEADER = "X-DPoP-Proofs";
 
 export function isPublicProofKey(value) {
   if (!value || typeof value !== "object") return false;

@@ -12,6 +12,7 @@ import {
   DPOP_INVALID_CODE,
   DPOP_REQUEST_CHALLENGE_HEADER,
   DPOP_REQUEST_PROOF_HEADER,
+  DPOP_REQUEST_PROOFS_HEADER,
   DPOP_REQUIRED_CODE,
   verifyDpopChallenge,
 } from "@/lib/dpop-challenge";
@@ -380,9 +381,21 @@ export async function authenticatedAihubFetch(
     accessToken: session.accessToken,
   };
   const challenge = request.headers.get(DPOP_REQUEST_CHALLENGE_HEADER);
-  const proof = request.headers.get(DPOP_REQUEST_PROOF_HEADER);
+  const proofsHeader = request.headers.get(DPOP_REQUEST_PROOFS_HEADER);
+  let proofs: Record<string, string> = {};
+  if (proofsHeader) {
+    try {
+      const parsed = JSON.parse(proofsHeader) as Record<string, unknown>;
+      if (parsed && typeof parsed === "object")
+        for (const [key, value] of Object.entries(parsed))
+          if (typeof value === "string") proofs[key] = value;
+    } catch {}
+  }
+  const proof = proofs[htu] ?? request.headers.get(DPOP_REQUEST_PROOF_HEADER);
   if (session.dpopBound) {
-    if (!verifyDpopChallenge(challenge, descriptor)) {
+    // A BFF route may call several upstream URLs; the browser can carry one
+    // proof per htu. Only the call still missing its proof needs a challenge.
+    if (!proof && !verifyDpopChallenge(challenge, descriptor)) {
       console.info("[dpop] challenge issued", method, htu);
       return dpopResponse(DPOP_REQUIRED_CODE, createDpopChallenge(descriptor));
     }
