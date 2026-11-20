@@ -100,6 +100,17 @@ export function getPublicProofKey(scope: string) {
   return key.then((stored) => stored.publicJwk);
 }
 
+/** Private key for signing; never extractable or serialized to the network. */
+export function getStoredProofKey(scope: string) {
+  const normalized = normalizeScope(scope);
+  let key = pending.get(normalized);
+  if (!key) {
+    key = loadOrCreate(normalized).finally(() => pending.delete(normalized));
+    pending.set(normalized, key);
+  }
+  return key;
+}
+
 /** Every BFF request carries the JWK, so any app instance can relay it. */
 export function installProofKeyCookie(key: PublicProofKey) {
   document.cookie = `${PROOF_KEY_COOKIE}=${encodeURIComponent(
