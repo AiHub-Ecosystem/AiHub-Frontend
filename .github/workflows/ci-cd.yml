@@ -536,14 +536,19 @@ jobs:
           rollback_tag="aihub-frontend:rollback-${IMAGE_TAG}"
           landing_rollback_tag="aihub-landing:rollback-${IMAGE_TAG}"
           previous_image="$(sudo -n docker inspect -f '{{.Image}}' aihub-frontend)"
-          previous_landing="$(sudo -n docker inspect -f '{{.Image}}' aihub-landing)"
+          # Landing may not have been deployed yet; only tag a rollback image when it exists.
+          previous_landing="$(sudo -n docker inspect -f '{{.Image}}' aihub-landing 2>/dev/null || true)"
           sudo -n docker tag "$previous_image" "$rollback_tag"
-          sudo -n docker tag "$previous_landing" "$landing_rollback_tag"
+          if [ -n "$previous_landing" ]; then
+            sudo -n docker tag "$previous_landing" "$landing_rollback_tag"
+          fi
 
           rollback() {
             echo "Deployment failed; restoring the previous image" >&2
             sudo -n docker tag "$rollback_tag" aihub-frontend:latest || true
-            sudo -n docker tag "$landing_rollback_tag" aihub-landing:latest || true
+            if [ -n "$previous_landing" ]; then
+              sudo -n docker tag "$landing_rollback_tag" aihub-landing:latest || true
+            fi
             sudo -n docker compose -f "$COMPOSE_FILE" up -d --no-build --no-deps --force-recreate frontend landing || true
           }
           trap rollback ERR
