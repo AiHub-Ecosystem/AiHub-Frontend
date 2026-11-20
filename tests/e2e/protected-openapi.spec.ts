@@ -23,7 +23,7 @@ test("anonymous users sign in before Scalar and can download the protected contr
     );
   });
 
-  await page.goto("/app/docs/reference");
+  await page.goto("/app/docs/reference", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(
     /\/app\/login\?next=%2Fapp%2Fdocs%2Freference$/u
   );
@@ -38,11 +38,13 @@ test("anonymous users sign in before Scalar and can download the protected contr
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(page).toHaveURL(/\/app\/docs\/reference$/u);
 
+  // The Scalar script comes from an external CDN; when it is blocked the
+  // element never mounts. Bound the wait so auth assertions still finish.
   const scalarDataUrl = await page
     .locator("#api-reference")
-    .getAttribute("data-url")
+    .getAttribute("data-url", { timeout: 3_000 })
     .catch(() => null);
-  if (!scalarDataUrl) return; // Scalar CDN blocked; auth assertions above still ran.
+  if (!scalarDataUrl) return;
   expect(scalarDataUrl).toBe("/app/api/docs/openapi/v1.json");
   await expect(
     page.getByRole("link", { name: "Download latest OpenAPI JSON" })
