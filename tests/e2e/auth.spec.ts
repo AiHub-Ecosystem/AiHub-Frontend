@@ -59,6 +59,9 @@ async function signIn(
   await page.getByLabel("Mật khẩu").fill(validPassword);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(page).toHaveURL(/\/console\/orgs$/);
+  await expect(
+    page.getByRole("heading", { name: "Organizations", exact: true })
+  ).toBeVisible();
 }
 
 async function createSession(request: APIRequestContext, email: string) {
