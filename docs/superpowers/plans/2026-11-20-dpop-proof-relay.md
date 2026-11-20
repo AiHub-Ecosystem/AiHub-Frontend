@@ -574,7 +574,7 @@ export async function signDpopProof(input: DpopDescriptor) {
     )
   );
   const signature = await crypto.subtle.sign(
-    "ECDSA",
+    { name: "ECDSA", hash: "SHA-256" },
     privateKey,
     encoder.encode(`${header}.${payload}`)
   );
@@ -761,6 +761,7 @@ git commit -m "test(mock): verify DPoP proofs in AIHUB mock (#123)"
 
 **Files:**
 
+- Create: `apps/customer-web/lib/dpop-handshake.ts`
 - Create: `apps/customer-web/components/console/use-dpop-json.ts`
 - Create: `apps/customer-web/components/console/console-data.tsx`
 - Modify: the six Console pages listed below, and `tests/e2e/organizations.spec.ts` if hydration timing changes.
@@ -771,6 +772,30 @@ git commit -m "test(mock): verify DPoP proofs in AIHUB mock (#123)"
 
 - Consumes: `dpopFetch` from Task 3.
 - Produces: `useDpopJson<T>(url)` returning `{ data: T | null; loading: boolean }`; `<ConsoleRoster ... />` and `<ConsoleApiKeys ... />` client components.
+
+- [ ] **Step 0: Pass DPoP handshakes through BFF routes**
+
+Create `apps/customer-web/lib/dpop-handshake.ts`:
+
+```ts
+import { DPOP_INVALID_CODE, DPOP_REQUIRED_CODE } from "@/lib/dpop-challenge";
+
+export async function dpopHandshakeResponse(response: Response) {
+  if (response.status !== 428 && response.status !== 400) return null;
+  try {
+    const body = (await response.clone().json()) as {
+      error?: { code?: unknown };
+    };
+    const code = body.error?.code;
+    if (code !== DPOP_REQUIRED_CODE && code !== DPOP_INVALID_CODE) return null;
+  } catch {
+    return null;
+  }
+  return response;
+}
+```
+
+Every BFF route that calls `authenticatedAihubFetch` must return this response before converting non-2xx upstream responses to its own error JSON — otherwise the `X-AIHUB-DPOP-CHALLENGE` header is lost and `dpopFetch` cannot retry. Apply it directly in `organizations/route.ts`, `organizations/[organizationId]/route.ts`, and `organizations/me/members/route.ts`, and inside the shared forwarders `upstreamFailure` (`lib/account-avatar.ts`), `forwardIdentityResponse` (`lib/organization-identity-bff.ts`), and `forwardApiKeyResponse` (`lib/organization-api-keys-bff.ts`). The docs routes already `return upstream`.
 
 - [ ] **Step 1: Write the client hook**
 

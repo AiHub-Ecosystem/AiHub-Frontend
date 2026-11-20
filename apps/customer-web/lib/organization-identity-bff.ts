@@ -8,6 +8,7 @@ import {
   rejectedWebSessionCookie,
   webSessionClearHeaders,
 } from "@/lib/auth-session";
+import { dpopHandshakeResponse } from "@/lib/dpop-handshake";
 
 export const identityNoStore = { "Cache-Control": "no-store" };
 const knownReasons = new Set([
@@ -18,6 +19,8 @@ const knownReasons = new Set([
 ]);
 
 export async function forwardIdentityResponse(upstream: Response) {
+  const dpopHandshake = await dpopHandshakeResponse(upstream);
+  if (dpopHandshake) return dpopHandshake;
   let payload: unknown;
   try {
     payload = await upstream.json();

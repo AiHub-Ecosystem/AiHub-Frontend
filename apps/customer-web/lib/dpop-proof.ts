@@ -40,7 +40,7 @@ export async function signDpopProof(input: DpopDescriptor) {
     )
   );
   const signature = await crypto.subtle.sign(
-    "ECDSA",
+    { name: "ECDSA", hash: "SHA-256" },
     privateKey,
     encoder.encode(`${header}.${payload}`)
   );

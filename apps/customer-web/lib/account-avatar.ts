@@ -2,6 +2,7 @@ import {
   rejectedWebSessionCookie,
   webSessionClearHeaders,
 } from "@/lib/auth-session";
+import { dpopHandshakeResponse } from "@/lib/dpop-handshake";
 
 export {
   AVATAR_CONTENT_TYPES,
@@ -13,29 +14,27 @@ export {
 
 export const noStore = { "Cache-Control": "no-store" };
 
-export function upstreamFailure(response: Response, fallback: string) {
+export async function upstreamFailure(response: Response, fallback: string) {
+  const dpopHandshake = await dpopHandshakeResponse(response);
+  if (dpopHandshake) return dpopHandshake;
   let code = fallback;
   const clearCookie = rejectedWebSessionCookie(response);
-  return response
-    .json()
-    .catch(() => null)
-    .then((body: unknown) => {
-      const candidate = (body as { error?: { code?: unknown } } | null)?.error
-        ?.code;
-      if (typeof candidate === "string" && /^[A-Z0-9_]{1,80}$/.test(candidate))
-        code = candidate;
-      console.error("[account-avatar] upstream request failed", {
-        status: response.status,
-        code,
-      });
-      return Response.json(
-        { error: { code } },
-        {
-          status: response.status,
-          headers: webSessionClearHeaders(noStore, !!clearCookie),
-        }
-      );
-    });
+  const body = await response.json().catch(() => null);
+  const candidate = (body as { error?: { code?: unknown } } | null)?.error
+    ?.code;
+  if (typeof candidate === "string" && /^[A-Z0-9_]{1,80}$/.test(candidate))
+    code = candidate;
+  console.error("[account-avatar] upstream request failed", {
+    status: response.status,
+    code,
+  });
+  return Response.json(
+    { error: { code } },
+    {
+      status: response.status,
+      headers: webSessionClearHeaders(noStore, !!clearCookie),
+    }
+  );
 }
 
 export function unavailable(code: string) {

@@ -5,6 +5,7 @@ import {
   rejectedWebSessionCookie,
   webSessionClearHeaders,
 } from "@/lib/auth-session";
+import { dpopHandshakeResponse } from "@/lib/dpop-handshake";
 
 export const apiKeyNoStore = { "Cache-Control": "no-store" };
 
@@ -156,6 +157,8 @@ export async function forwardApiKeyResponse(
   upstream: Response,
   mapSuccess?: (payload: unknown) => unknown
 ) {
+  const dpopHandshake = await dpopHandshakeResponse(upstream);
+  if (dpopHandshake) return dpopHandshake;
   const bytes = await readBoundedBytes(
     upstream.body,
     upstream.headers.get("content-length"),

@@ -1,3 +1,4 @@
+import { dpopHandshakeResponse } from "@/lib/dpop-handshake";
 import {
   authenticatedAihubFetch,
   originIsAllowed,
@@ -58,6 +59,8 @@ export async function POST(request: Request) {
         body: JSON.stringify({ name }),
       }
     );
+    const dpopHandshake = await dpopHandshakeResponse(upstream);
+    if (dpopHandshake) return dpopHandshake;
     const responseText = await upstream.text();
     if (upstream.ok) {
       // The client acknowledges success after receiving it; lost responses keep the same key for safe replay.

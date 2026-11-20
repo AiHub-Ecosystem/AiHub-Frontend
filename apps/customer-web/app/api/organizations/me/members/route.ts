@@ -1,3 +1,4 @@
+import { dpopHandshakeResponse } from "@/lib/dpop-handshake";
 import {
   authenticatedAihubFetch,
   rejectedWebSessionCookie,
@@ -16,6 +17,8 @@ export async function GET(request: Request) {
       sessionId,
       "/v1/organizations/me/members"
     );
+    const dpopHandshake = await dpopHandshakeResponse(upstream);
+    if (dpopHandshake) return dpopHandshake;
     if (!upstream.ok) {
       const clearCookie = rejectedWebSessionCookie(upstream);
       return Response.json(

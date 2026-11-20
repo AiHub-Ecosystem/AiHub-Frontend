@@ -104,6 +104,16 @@ test("browser proof key survives reload and is scoped to the User Account", asyn
   expect(await page.evaluate(() => document.cookie)).toContain(
     PROOF_KEY_COOKIE
   );
+  await expect
+    .poll(async () => {
+      const logged = await request.get(`${mockUrl}/__test__/auth/requests`);
+      const entries = (await logged.json()).requests;
+      return entries.some(
+        (entry: { path: string; proofValid?: boolean }) =>
+          entry.path === "dpop" && entry.proofValid === true
+      );
+    })
+    .toBe(true);
 
   const privateKeyExtractable = await page.evaluate(
     () =>

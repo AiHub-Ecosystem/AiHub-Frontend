@@ -1,3 +1,4 @@
+import { dpopHandshakeResponse } from "@/lib/dpop-handshake";
 import {
   authenticatedAihubFetch,
   originIsAllowed,
@@ -44,6 +45,8 @@ export async function PATCH(
     if (upstream.status === 403 || upstream.status === 404)
       return new Response(null, { status: 404 });
     const clearCookie = rejectedWebSessionCookie(upstream);
+    const dpopHandshake = await dpopHandshakeResponse(upstream);
+    if (dpopHandshake) return dpopHandshake;
     return new Response(await upstream.text(), {
       status: upstream.status,
       headers: webSessionClearHeaders(

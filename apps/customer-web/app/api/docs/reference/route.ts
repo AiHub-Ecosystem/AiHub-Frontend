@@ -1,7 +1,12 @@
-import { authenticatedAihubFetch } from "@/lib/auth-session";
-import { requirePageWebSession } from "@/lib/page-session";
+import {
+  authenticatedAihubFetch,
+  originIsAllowed,
+  requireWebSession,
+  webSessionIdFromRequest,
+} from "@/lib/auth-session";
 
 const VERSION = /^v[1-9][0-9]*$/u;
+const noStore = { "Cache-Control": "no-store" };
 
 function referenceHtml(html: string) {
   const majors = [
@@ -29,12 +34,16 @@ function referenceHtml(html: string) {
 }
 
 export async function GET(request: Request) {
-  const sessionId = await requirePageWebSession("/docs/reference");
+  if (!originIsAllowed(request))
+    return new Response(null, { status: 403, headers: noStore });
+  const denied = await requireWebSession(request);
+  if (denied) return denied;
+  const sessionId = webSessionIdFromRequest(request)!;
   const version = new URL(request.url).searchParams.get("version");
   if (version !== null && !VERSION.test(version)) {
     return Response.json(
       { error: { code: "INVALID_VERSION" } },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: noStore }
     );
   }
 
@@ -45,18 +54,16 @@ export async function GET(request: Request) {
       version === null ? "/docs" : `/docs?version=${version}`
     );
     if (!upstream.ok) return upstream;
-
-    const html = referenceHtml(await upstream.text());
     const headers = new Headers(upstream.headers);
     headers.delete("content-length");
     headers.delete("content-encoding");
     headers.delete("transfer-encoding");
     headers.set("Cache-Control", "no-store");
-    return new Response(html, { status: upstream.status, headers });
-  } catch {
-    return new Response(null, {
-      status: 503,
-      headers: { "Cache-Control": "no-store" },
+    return new Response(referenceHtml(await upstream.text()), {
+      status: upstream.status,
+      headers,
     });
+  } catch {
+    return new Response(null, { status: 503, headers: noStore });
   }
 }
