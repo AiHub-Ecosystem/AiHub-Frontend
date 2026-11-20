@@ -56,7 +56,7 @@ export function OrganizationRenameForm({
         return;
       }
       setOpen(false);
-      window.location.reload();
+      window.dispatchEvent(new Event("aihub:dpop-refresh"));
     } catch {
       setError("Không thể kết nối. Vui lòng thử lại.");
     } finally {

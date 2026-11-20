@@ -81,7 +81,7 @@ export function OrganizationIdentityForm({
         setJwksUrl("");
         setJwksText("");
         setReadOnly(true);
-        window.location.reload();
+        window.dispatchEvent(new Event("aihub:dpop-refresh"));
         return;
       }
       if (!response.ok) {
@@ -94,7 +94,7 @@ export function OrganizationIdentityForm({
         router.push(
           `/console/orgs/${encodeURIComponent(organizationId)}/api-keys`
         );
-      else window.location.reload();
+      else window.dispatchEvent(new Event("aihub:dpop-refresh"));
     } catch {
       setError("Không thể kết nối AIHUB. Thử lại sau.");
     } finally {

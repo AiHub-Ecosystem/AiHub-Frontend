@@ -10,7 +10,10 @@ import { useRouter } from "next/navigation";
 export function RetryButton() {
   const router = useRouter();
   return (
-    <button type="button" onClick={() => window.location.reload()}>
+    <button
+      type="button"
+      onClick={() => window.dispatchEvent(new Event("aihub:dpop-refresh"))}
+    >
       Thử lại
     </button>
   );

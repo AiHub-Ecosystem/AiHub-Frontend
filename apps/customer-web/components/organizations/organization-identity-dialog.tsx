@@ -53,7 +53,7 @@ export function OrganizationIdentityDialog({
         }
         if (response.status === 403) {
           setForbidden(true);
-          window.location.reload();
+          window.dispatchEvent(new Event("aihub:dpop-refresh"));
           return;
         }
         if (!response.ok) throw new Error("IDENTITY_CONFIG_REQUEST_FAILED");
