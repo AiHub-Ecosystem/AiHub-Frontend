@@ -7,6 +7,7 @@ import {
   webSessionCookie,
   webSessionIdFromRequest,
 } from "@/lib/auth-session";
+import { isDemoSessionToken } from "@/lib/demo-auth";
 
 const noStore = { "Cache-Control": "no-store" };
 
@@ -14,6 +15,16 @@ export async function POST(request: Request) {
   if (!originIsAllowed(request))
     return new Response(null, { status: 403, headers: noStore });
   const token = webSessionIdFromRequest(request);
+
+  if (isDemoSessionToken(token)) {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        ...noStore,
+        "Set-Cookie": webSessionCookie(token!, WEB_SESSION_TTL_SECONDS),
+      },
+    });
+  }
 
   if (!isWebSessionId(token))
     return new Response(null, {

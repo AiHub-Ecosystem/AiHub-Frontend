@@ -1,0 +1,54 @@
+# AIHub — EdTech IELTS Open API Platform (llms.txt)
+
+> Single Live Environment (No Sandbox). Every Developer and AI Agent gets an instant Volume-based Free Trial per IELTS API service.
+
+## Base URL
+- Live API: https://api.aihub.edu.vn
+- OpenAPI Spec: https://api.aihub.edu.vn/openapi.json
+- Console: /console/preview
+
+## Authentication
+- Single Live Key: `Authorization: Bearer aihub_live_...`
+- End-user Signed Identity (recommended for Exam Room & Learner Profile): `X-AIHub-User-Signature: hmac_sha256_...`
+
+## 5 Core IELTS APIs (4 Skills: Writing, Speaking, Reading, Listening)
+1. **POST /v1/ielts/questions** (`exam_gen`) — Generate IELTS exam questions with rubric & sample answers.
+   - Free Trial: 500 questions | Post-trial: 200 VND / unit
+2. **POST /v1/ielts/grade** (`grading_agent`) — Grade 4-skill IELTS submissions (band 0.0–9.0, 4 criteria, coded errors, actionable feedback).
+   - Free Trial: 100 grading units | Post-trial: 1,500 VND / unit
+   - Unit normalization: Writing = 1.0 unit, Speaking = 1.0 unit / audio minute, Reading/Listening = 0.2 unit
+3. **POST /v1/ielts/exercises/personalized** (`personalized_practice`) — Generate targeted practice sets from learner `error_codes[]`.
+   - Free Trial: 150 packs | Post-trial: 800 VND / pack
+4. **POST /v1/ielts/exam-rooms** (`exam_room`) — Provision Computer-delivered IELTS virtual exam rooms (server timer, tab lock, auto-submit).
+   - Free Trial: 20 rooms (up to 30 candidates/room) | Post-trial: 15,000 VND / room
+5. **GET /v1/ielts/learners/{id}/profile** (`learner_profile`) — Aggregate 4-skill band history, priority weaknesses, and exam readiness.
+   - Free Trial: 200 queries | Post-trial: 300 VND / query
+
+## Transparent Metering HTTP Headers
+Every API response includes:
+- `X-AIHub-Service`: service code (`exam_gen`, `grading_agent`, etc.)
+- `X-AIHub-Plan`: `free_trial` | `prepaid_credit_payg` | `enterprise`
+- `X-AIHub-Quota-Remaining`: remaining trial units or `unlimited`
+- `X-AIHub-Quota-Limit`: trial unit limit
+- `X-AIHub-Request-Id`: idempotent metering event ID
+
+## Conversion & Error Handling
+- 70% trial usage: Console banner + email notice
+- 90% trial usage: Webhook event `quota.threshold_reached`
+- 100% trial usage (without PAYG/Credit): HTTP `402 Payment Required` with JSON `{ "error": "payment_required", "upgrade_url": "..." }`
+
+## MCP Server (AI Agent Integration)
+```json
+{
+  "mcpServers": {
+    "aihub-ielts": {
+      "command": "npx",
+      "args": ["-y", "@aihub/mcp-server"],
+      "env": {
+        "AIHUB_LIVE_KEY": "aihub_live_...",
+        "AIHUB_SPEND_CAP_VND": "2000000"
+      }
+    }
+  }
+}
+```

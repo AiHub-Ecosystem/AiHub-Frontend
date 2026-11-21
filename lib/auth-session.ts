@@ -49,13 +49,25 @@ export function safeLocalPath(
 
 export function customerWebOrigin() {
   const configured = process.env.CUSTOMER_WEB_ORIGIN;
-  if (!configured) throw new Error("CUSTOMER_WEB_ORIGIN is required");
+  if (!configured) {
+    if (process.env.NODE_ENV !== "production") return "http://localhost:3000";
+    throw new Error("CUSTOMER_WEB_ORIGIN is required");
+  }
   return new URL(configured).origin;
 }
 
 export function originIsAllowed(request: Request) {
   const origin = request.headers.get("origin");
   if (!origin) return false;
+  if (process.env.NODE_ENV !== "production") {
+    try {
+      const host =
+        request.headers.get("x-forwarded-host") || request.headers.get("host");
+      if (host && new URL(origin).host === host) return true;
+    } catch {
+      return false;
+    }
+  }
   try {
     return origin === customerWebOrigin();
   } catch {

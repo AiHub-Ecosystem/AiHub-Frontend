@@ -5,6 +5,7 @@ import {
   getCurrentWebSession,
   WEB_SESSION_COOKIE,
 } from "@/lib/auth-session";
+import { isDemoSessionToken } from "@/lib/demo-auth";
 
 export async function requirePageWebSession(next: string) {
   const sessionId = (await cookies()).get(WEB_SESSION_COOKIE)?.value;
@@ -12,6 +13,7 @@ export async function requirePageWebSession(next: string) {
   const encodedNext = encodeURIComponent(next);
 
   if (!sessionId) redirect(`/login?next=${encodedNext}`);
+  if (isDemoSessionToken(sessionId)) return sessionId;
   let active: boolean;
   try {
     active = !!(await getCurrentWebSession(sessionId, endUserIp));

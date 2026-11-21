@@ -8,6 +8,7 @@ import {
   WEB_SESSION_TTL_SECONDS,
   webSessionCookie,
 } from "@/lib/auth-session";
+import { DEMO_SESSION_TOKEN, isDemoCredentials } from "@/lib/demo-auth";
 
 const noStore = { "Cache-Control": "no-store" };
 
@@ -67,6 +68,24 @@ export async function POST(request: Request) {
     password.length > 256
   ) {
     return new Response(null, { status: 400, headers: noStore });
+  }
+
+  if (isDemoCredentials(email, password)) {
+    const targetOrigin =
+      process.env.NODE_ENV !== "production"
+        ? request.headers.get("origin") || customerWebOrigin()
+        : customerWebOrigin();
+    return new Response(null, {
+      status: 303,
+      headers: {
+        ...noStore,
+        "Set-Cookie": webSessionCookie(
+          DEMO_SESSION_TOKEN,
+          WEB_SESSION_TTL_SECONDS
+        ),
+        Location: new URL(next || "/console", targetOrigin).toString(),
+      },
+    });
   }
 
   let upstream: Response;

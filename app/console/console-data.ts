@@ -1,7 +1,13 @@
 // @ts-nocheck
 /* eslint-disable */
 
-export var SVC_ORDER = ["grade", "weakness", "exercise", "roadmap"];
+export var SVC_ORDER = [
+  "exam_gen",
+  "grade",
+  "exercise",
+  "exam_room",
+  "weakness",
+];
 export var SKILL_ORDER = ["writing", "speaking", "reading", "listening"];
 export var SKL = {
   writing: "Writing",
@@ -10,10 +16,11 @@ export var SKL = {
   listening: "Listening",
 };
 export var SUF = {
+  exam_gen: "exam_gen",
   grade: "grade",
-  weakness: "analyze",
   exercise: "exercise",
-  roadmap: "roadmap",
+  exam_room: "exam_room",
+  weakness: "analyze",
 };
 export var SKM = { writing: 1, speaking: 0.6, reading: 0.45, listening: 0.4 };
 export var USERS = [
@@ -42,7 +49,7 @@ export var PAT = [
   1,
 ];
 export var API = "https://api.aihubproduction.com";
-export var KEYH = "Authorization: Bearer aihub_sandbox_znon3a…";
+export var KEYH = "Authorization: Bearer aihub_live_org_znon3a…";
 
 export function scopeOf(svc, sk) {
   return sk + "." + SUF[svc];
@@ -236,16 +243,24 @@ export var ESSAY =
 
 /* =================== 1. CHẤM CHỮA =================== */
 export var GRADE_BASE = {
-  name: "Chấm chữa",
-  group: "Dịch vụ 1 / 4",
+  name: "Agent chấm chữa IELTS",
+  group: "Dịch vụ 2 / 5",
   badge: "Stable",
   badgeCls: "badge b-stable",
-  prev: null,
+  prev: "exam_gen",
   inText: "Bài làm của học viên",
-  next: "weakness",
-  nextCta: "Phân tích điểm yếu của học viên này",
-  nextHint: "gom lỗi từ nhiều bài chấm của cùng học viên thành hồ sơ điểm yếu.",
+  next: "exercise",
+  nextCta: "Sinh bài tập cá nhân hoá từ lỗi vừa chấm",
+  nextHint: "dùng mã lỗi từ bài chấm để sinh bộ bài tập sửa đúng điểm yếu.",
   plans: [
+    {
+      name: "Free Trial",
+      feats: [
+        "30 lượt chấm miễn phí · Production endpoint",
+        "Claim ngay không cần thẻ tín dụng",
+      ],
+      price: "0đ · Free Trial",
+    },
     {
       name: "G-6K",
       feats: [
@@ -1373,8 +1388,8 @@ export function gradeOps(sk) {
 
 /* =================== 2. PHÂN TÍCH ĐIỂM YẾU =================== */
 export var WEAK_BASE = {
-  name: "Phân tích điểm yếu",
-  group: "Dịch vụ 2 / 4",
+  name: "Phân tích năng lực học viên",
+  group: "Dịch vụ 5 / 5",
   badge: "Stable",
   badgeCls: "badge b-stable",
   prev: "grade",
@@ -1831,20 +1846,27 @@ export function weakOps(sk) {
 
 /* =================== 3. TẠO BÀI TẬP =================== */
 export var EX_BASE = {
-  name: "Tạo bài tập",
-  group: "Dịch vụ 3 / 4",
+  name: "Agent tạo bài tập cá nhân hoá",
+  group: "Dịch vụ 3 / 5",
   badge: "Stable",
   badgeCls: "badge b-stable",
-  prev: "weakness",
+  prev: "grade",
   inText: "(mã lỗi ưu tiên) hoặc errors[] của một bài chấm",
-  next: "roadmap",
-  nextCta: "Xếp bài tập vào lộ trình",
-  nextHint:
-    "Lộ trình cá nhân hoá xếp các bộ bài tập theo tuần, theo mục tiêu band và ngày thi.",
+  next: null,
+  nextCta: "",
+  nextHint: "",
   demoUrl: "https://aihubproduction.com/lab",
   special: "Kho mẫu đã lưu",
   specialKey: "templates",
   plans: [
+    {
+      name: "Free Trial",
+      feats: [
+        "50 bộ bài tập miễn phí · Production endpoint",
+        "Claim ngay không cần thẻ tín dụng",
+      ],
+      price: "0đ · Free Trial",
+    },
     {
       name: "E-2K",
       feats: [
@@ -2857,39 +2879,380 @@ export function rmOps(sk) {
   });
 }
 
+/* =================== 1. TẠO ĐỀ IELTS =================== */
+export var EXAM_GEN_BASE = {
+  name: "Tạo đề IELTS",
+  group: "Dịch vụ 1 / 5",
+  badge: "Stable",
+  badgeCls: "badge b-stable",
+  prev: null,
+  inText: "Chủ đề, dạng bài & band mục tiêu",
+  next: "grade",
+  nextCta: "Chấm chữa bài làm từ đề này",
+  nextHint:
+    "gửi đề vừa tạo kèm bài làm của học viên sang Agent chấm chữa IELTS.",
+  demoUrl: "https://aihubproduction.com/demo/scoring",
+  special: "Mẫu đề chuẩn",
+  specialKey: "rubric",
+  plans: [
+    {
+      name: "Free Trial",
+      feats: [
+        "50 lượt tạo đề miễn phí · 4 kỹ năng",
+        "Claim ngay không cần thẻ tín dụng",
+      ],
+      price: "0đ · Free Trial",
+    },
+    {
+      name: "Q-5K",
+      feats: ["5.000 lượt tạo đề / năm, 4 kỹ năng", "60 request / phút"],
+      price: "[giá] credit / năm",
+    },
+    {
+      name: "Q-20K",
+      feats: ["20.000 lượt tạo đề / năm, 4 kỹ năng", "120 request / phút"],
+      price: "[giá] credit / năm",
+      current: true,
+    },
+    {
+      name: "Q-MAX",
+      feats: ["Theo nhu cầu", "SLA riêng"],
+      price: "Báo giá riêng",
+      contact: true,
+    },
+  ],
+};
+
+export function examGenFor(sk) {
+  var L = SKL[sk];
+  return {
+    scope: scopeOf("exam_gen", sk),
+    desc:
+      "Sinh đề thi IELTS " +
+      L +
+      " chuẩn format Cambridge kèm rubric, audio/biểu đồ và đáp án mẫu.",
+    tryTitle: "Tạo thử một đề IELTS " + L,
+    tryDesc: "Nhập chủ đề hoặc band mục tiêu để xem cấu trúc đề AIHub trả về.",
+    tryLabel: "Chủ đề · " + L,
+    tryInput: "Education & AI Technology · Band 7.0",
+    tryRows: 2,
+    tryCta: "Tạo đề thử",
+    tryRunningText: "Đang sinh đề chuẩn IELTS " + L + "…",
+    tryFacts: [
+      { l: "Kỹ năng", v: L },
+      { l: "Định dạng", v: "JSON + Rubric + Đáp án mẫu" },
+      { l: "Latency", v: "~68 ms" },
+    ],
+    flowDesc:
+      "Một lời gọi API trả về đề thi hoàn chỉnh kèm metadata và đáp án tham chiếu.",
+    result: {
+      headline: "Đề IELTS " + L + " #2026-084",
+      sub: "Band target 7.0 · Chuẩn Cambridge",
+      metrics: [
+        { l: "Kỹ năng", v: L },
+        { l: "Thời lượng", v: sk === "writing" ? "40 phút" : "15 phút" },
+        { l: "Độ khó", v: "Band 6.5–7.5" },
+        { l: "Rubric", v: "Có sẵn" },
+      ],
+      comment:
+        "Đề được sinh kèm tiêu chí chấm chi tiết để truyền thẳng vào API Agent chấm chữa.",
+      itemsTitle: "Thành phần đề thi",
+      items: [
+        {
+          code: "prompt",
+          text: "Đề bài chính thức chuẩn IELTS " + L,
+          meta: "Đề bài",
+        },
+        {
+          code: "rubric",
+          text: "Bảng tiêu chí & từ khóa trọng tâm",
+          meta: "Rubric",
+        },
+      ],
+    },
+    steps: [
+      {
+        short: "Cấu hình đề",
+        title: "Chọn kỹ năng, dạng bài & band mục tiêu",
+        desc: "Truyền skill, task_type và band_target để lấy đề phù hợp.",
+        fields: [
+          { id: "topic", label: "topic", kind: "input", def: "Education" },
+          {
+            id: "band",
+            label: "band_target",
+            kind: "chips",
+            options: ["6.0", "7.0", "8.0"],
+            def: "7.0",
+          },
+        ],
+        btn: "Gửi POST /v1/ielts/writing/questions/generate",
+        build: function (f) {
+          return {
+            method: "POST",
+            path: "/v1/ielts/writing/questions/generate",
+            body: {
+              skill: sk,
+              task: "task_2",
+              topic: f.topic,
+              band_target: f.band,
+            },
+          };
+        },
+        run: function (f) {
+          return {
+            status: 200,
+            ms: "68 ms",
+            body: {
+              question_id: "ielts_" + sk[0] + "_2026_084",
+              skill: sk,
+              topic: f.topic,
+              band_target: f.band,
+            },
+          };
+        },
+      },
+    ],
+  };
+}
+
+export function examGenOps(sk) {
+  var m = SKM[sk],
+    L = SKL[sk];
+  return ops({
+    recentTitle: "Đề IELTS " + L + " tạo gần đây",
+    plan: "Q-20K",
+    today: Math.round(320 * m),
+    todayMax: 2000,
+    path: "/v1/ielts/questions",
+    model: "ielts-question-gen-2026",
+    rid: "QG" + sk[0].toUpperCase(),
+    q: ["Lượt tạo đề " + L + " / năm", Math.round(4200 * m), 20000],
+    r: ["Request / phút", Math.round(28 * m) + 4, 120],
+    stats: [
+      { l: "Đề tạo 14 ngày", v: fmt(Math.round(3840 * m)) },
+      { l: "End-user", v: fmt(Math.round(920 * m)) },
+      { l: "Lỗi 24h", v: "0" },
+      { l: "Latency p95", v: "95 ms" },
+    ],
+    chartTitle: "Lượt tạo đề " + L + " 14 ngày",
+    unitShort: "Đề thi",
+    top: [22, 18, 15, 11, 9],
+    rows: [
+      [USERS[0], "Band 7.0 · Education", "1 đề", "68 ms", "Thành công", "ok"],
+      [USERS[1], "Band 6.5 · Environment", "1 đề", "72 ms", "Thành công", "ok"],
+    ],
+  });
+}
+
+/* =================== 4. TẠO PHÒNG THI ẢO =================== */
+export var EXAM_ROOM_BASE = {
+  name: "Tạo phòng thi ảo",
+  group: "Dịch vụ 4 / 5",
+  badge: "Stable",
+  badgeCls: "badge b-stable",
+  prev: "exercise",
+  inText: "Danh sách đề thi & cấu hình ca thi 4 kỹ năng",
+  next: "weakness",
+  nextCta: "Phân tích năng lực sau kỳ thi",
+  nextHint: "đồng bộ bài nộp từ phòng thi ảo sang hồ sơ năng lực học viên.",
+  demoUrl: "https://aihubproduction.com/lab",
+  special: "Cấu hình phòng thi",
+  specialKey: "profile",
+  plans: [
+    {
+      name: "R-200",
+      feats: ["200 phòng thi / năm", "Tối đa 50 thí sinh / phòng"],
+      price: "[giá] credit / năm",
+    },
+    {
+      name: "R-1K",
+      feats: ["1.000 phòng thi / năm", "Tối đa 200 thí sinh / phòng"],
+      price: "[giá] credit / năm",
+      current: true,
+    },
+    {
+      name: "R-MAX",
+      feats: ["Không giới hạn phòng thi", "SLA riêng"],
+      price: "Báo giá riêng",
+      contact: true,
+    },
+  ],
+};
+
+export function examRoomFor(sk) {
+  var L = SKL[sk];
+  return {
+    scope: scopeOf("exam_room", sk),
+    desc:
+      "Khởi tạo phòng thi ảo Computer-delivered IELTS " +
+      L +
+      " có timer đồng bộ, chống chuyển tab và thu bài tự động.",
+    tryTitle: "Tạo thử phòng thi ảo " + L,
+    tryDesc: "Nhập tên ca thi để sinh link phòng thi ảo và mã tham gia.",
+    tryLabel: "Tên phòng thi",
+    tryInput: "Mock Test IELTS " + L + " — K11",
+    tryRows: 2,
+    tryCta: "Tạo phòng thi thử",
+    tryRunningText: "Đang khởi tạo phòng thi ảo…",
+    tryFacts: [
+      { l: "Kỹ năng", v: L },
+      { l: "Anti-cheat", v: "Lock tab · Timer server" },
+      { l: "Tối đa", v: "50 thí sinh / phòng" },
+    ],
+    flowDesc:
+      "Tạo phòng thi qua POST /v1/ielts/exam-rooms, nhận join_url để nhúng iframe hoặc gửi cho học viên.",
+    result: {
+      headline: "room_nov_2026_01",
+      sub: "Phòng thi ảo · " + L + " · Sẵn sàng",
+      metrics: [
+        { l: "Trạng thái", v: "Active" },
+        { l: "Thí sinh tối đa", v: "30" },
+        { l: "Timer", v: "Server sync" },
+        { l: "Thu bài", v: "Tự động" },
+      ],
+      comment:
+        "Học viên vào link join_url để làm bài thi mô phỏng, kết quả tự động đẩy về webhook.",
+      itemsTitle: "Thông tin phòng thi",
+      items: [
+        {
+          code: "join_url",
+          text: "https://exam.aihub.edu.vn/r/room_nov_2026_01",
+          meta: "Link thi",
+        },
+        { code: "room_code", text: "IELTS-NOV-01", meta: "Mã phòng" },
+      ],
+    },
+    steps: [
+      {
+        short: "Tạo phòng",
+        title: "Khởi tạo ca thi ảo",
+        desc: "Truyền tiêu đề phòng thi, danh sách kỹ năng và số thí sinh tối đa.",
+        fields: [
+          {
+            id: "title",
+            label: "title",
+            kind: "input",
+            def: "Mock Test Tháng 11",
+          },
+          {
+            id: "max",
+            label: "max_candidates",
+            kind: "chips",
+            options: ["30", "50", "100"],
+            def: "30",
+          },
+        ],
+        btn: "Gửi POST /v1/ielts/exam-rooms",
+        build: function (f) {
+          return {
+            method: "POST",
+            path: "/v1/ielts/exam-rooms",
+            body: {
+              title: f.title,
+              skills: [sk],
+              max_candidates: Number(f.max),
+            },
+          };
+        },
+        run: function (f) {
+          return {
+            status: 200,
+            ms: "185 ms",
+            body: {
+              room_id: "room_nov_2026_01",
+              title: f.title,
+              join_url: "https://exam.aihub.edu.vn/r/room_nov_2026_01",
+            },
+          };
+        },
+      },
+    ],
+  };
+}
+
+export function examRoomOps(sk) {
+  var m = SKM[sk],
+    L = SKL[sk];
+  return ops({
+    recentTitle: "Phòng thi ảo " + L + " gần đây",
+    plan: "R-1K",
+    today: Math.round(42 * m),
+    todayMax: 500,
+    path: "/v1/ielts/exam-rooms",
+    model: "exam-room-orchestrator-v1",
+    rid: "ER" + sk[0].toUpperCase(),
+    q: ["Phòng thi " + L + " / năm", Math.round(310 * m), 1000],
+    r: ["Request / phút", Math.round(8 * m) + 1, 60],
+    stats: [
+      { l: "Phòng thi 14 ngày", v: fmt(Math.round(285 * m)) },
+      { l: "Thí sinh", v: fmt(Math.round(1420 * m)) },
+      { l: "Lỗi 24h", v: "0" },
+      { l: "Latency p95", v: "210 ms" },
+    ],
+    chartTitle: "Phòng thi " + L + " 14 ngày",
+    unitShort: "Phòng thi",
+    top: [9, 7, 6, 4, 3],
+    rows: [
+      [
+        USERS[0],
+        "Mock Test K11 · 30 thí sinh",
+        "Hoàn tất",
+        "185 ms",
+        "Thành công",
+        "ok",
+      ],
+      [
+        USERS[1],
+        "Placement Test · 20 thí sinh",
+        "Đang thi",
+        "162 ms",
+        "Thành công",
+        "ok",
+      ],
+    ],
+  });
+}
+
 export var SVC = {
+  exam_gen: EXAM_GEN_BASE,
   grade: GRADE_BASE,
-  weakness: WEAK_BASE,
   exercise: EX_BASE,
-  roadmap: RM_BASE,
+  exam_room: EXAM_ROOM_BASE,
+  weakness: WEAK_BASE,
 };
 export var PIPE = {
+  exam_gen: {
+    io: "Chủ đề & band mục tiêu → đề thi IELTS 4 kỹ năng kèm rubric",
+    unit: "Đề thi",
+    todayN: 320,
+  },
   grade: {
     io: "Bài làm 4 kỹ năng → band, nhận xét, lỗi có mã kèm lời chữa",
     unit: "Lượt chấm",
     todayN: 1153,
   },
-  weakness: {
-    io: "Lịch sử bài chấm → điểm yếu ưu tiên kèm bằng chứng",
-    unit: "Lượt phân tích",
-    todayN: 230,
-  },
   exercise: {
-    io: "Mã lỗi / điểm yếu → bộ bài tập kèm đáp án",
+    io: "Mã lỗi / điểm yếu → bộ bài tập cá nhân hoá kèm đáp án",
     unit: "Bộ bài tập",
     todayN: 455,
   },
-  roadmap: {
-    io: "Hồ sơ điểm yếu + mục tiêu → lộ trình theo tuần",
-    unit: "Lộ trình",
-    todayN: 56,
+  exam_room: {
+    io: "Cấu hình ca thi → phòng thi ảo 4 kỹ năng có timer & anti-cheat",
+    unit: "Phòng thi",
+    todayN: 42,
+  },
+  weakness: {
+    io: "Lịch sử bài chấm & thi → hồ sơ năng lực học viên toàn diện",
+    unit: "Hồ sơ phân tích",
+    todayN: 230,
   },
 };
 export var QUOTA_DEF = {
+  exam_gen: ["Lượt tạo đề / năm (key này)", 20000],
   grade: ["Lượt chấm / năm (key này)", 12000],
-  weakness: ["Lượt phân tích / năm (key này)", 5000],
   exercise: ["Bộ bài tập / năm (key này)", 5000],
-  roadmap: ["Học viên có lộ trình / năm (key này)", 1000],
+  exam_room: ["Phòng thi ảo / năm (key này)", 1000],
+  weakness: ["Lượt phân tích năng lực / năm (key này)", 5000],
 };
 
 export function G(list) {
@@ -2953,8 +3316,8 @@ export var KEYS0 = [
   {
     id: "k_minh",
     name: "Minh test",
-    prefix: "aihub_sandbox_znon3a",
-    env: "Sandbox",
+    prefix: "aihub_live_org_znon3a",
+    env: "Production",
     grants: G(["writing.grade", "speaking.grade"]),
     today: 0,
     expires: "31/10/2026 20:56",

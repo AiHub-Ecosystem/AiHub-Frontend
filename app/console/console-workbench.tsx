@@ -51,6 +51,12 @@ import {
   exOps,
   rmFor,
   rmOps,
+  EXAM_GEN_BASE,
+  examGenFor,
+  examGenOps,
+  EXAM_ROOM_BASE,
+  examRoomFor,
+  examRoomOps,
   G,
   svcGranted,
   grantedSkills,
@@ -89,7 +95,9 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
       keys: KEYS0.map(function (k) {
         return Object.assign({}, k, { grants: Object.assign({}, k.grants) });
       }),
-      mode: "mock",
+      mode: "sandbox",
+      integrateWay: "postman",
+      showAllStep1Keys: false,
       scenario: "ok",
       progress: {},
       fv: {},
@@ -106,7 +114,7 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
       grantDraft: {},
       createOpen: false,
       newName: "",
-      newEnv: "Sandbox",
+      newEnv: "Production",
       newExp: "30 ngày",
       reveal: "",
       revealFor: null,
@@ -136,7 +144,9 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
     var key = svc + "_" + sk;
     if (this._cache[key]) return this._cache[key];
     var c;
-    if (svc === "grade") {
+    if (svc === "exam_gen")
+      c = Object.assign({}, EXAM_GEN_BASE, examGenFor(sk), examGenOps(sk));
+    else if (svc === "grade") {
       var body =
         sk === "writing"
           ? GRADE_W
@@ -144,10 +154,12 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
             ? GRADE_S
             : Object.assign(gradeObjective(sk), gradeOps(sk));
       c = Object.assign({}, GRADE_BASE, body, { scope: scopeOf("grade", sk) });
-    } else if (svc === "weakness")
-      c = Object.assign({}, WEAK_BASE, weakFor(sk), weakOps(sk));
-    else if (svc === "exercise")
+    } else if (svc === "exercise")
       c = Object.assign({}, EX_BASE, exFor(sk), exOps(sk));
+    else if (svc === "exam_room")
+      c = Object.assign({}, EXAM_ROOM_BASE, examRoomFor(sk), examRoomOps(sk));
+    else if (svc === "weakness")
+      c = Object.assign({}, WEAK_BASE, weakFor(sk), weakOps(sk));
     else c = Object.assign({}, RM_BASE, rmFor(sk), rmOps(sk));
     c.skillLabel = "IELTS " + SKL[sk];
     this._cache[key] = c;
@@ -214,6 +226,12 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
     } catch (e) {}
   }
   openSvc(svc, tab, sk) {
+    if (svc === "exam_room" || svc === "weakness") {
+      this.flash(
+        (SVC[svc]?.name || "Dịch vụ này") + " đang tạm khóa — sắp ra mắt."
+      );
+      return;
+    }
     var e = Object.assign({}, this.state.expanded || {});
     e[svc] = true;
     var x = {
@@ -343,10 +361,11 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
     var nav = {
       overview: navCls(S.page === "overview" || S.page === "key"),
       sandbox: navCls(S.page === "sandbox"),
+      exam_gen: svcPage && S.svc === "exam_gen" ? "nav par" : "nav",
       grade: svcPage && S.svc === "grade" ? "nav par" : "nav",
-      weakness: svcPage && S.svc === "weakness" ? "nav par" : "nav",
       exercise: svcPage && S.svc === "exercise" ? "nav par" : "nav",
-      roadmap: svcPage && S.svc === "roadmap" ? "nav par" : "nav",
+      exam_room: svcPage && S.svc === "exam_room" ? "nav par" : "nav",
+      weakness: svcPage && S.svc === "weakness" ? "nav par" : "nav",
       identity: navCls(S.page === "identity"),
       plans: navCls(S.page === "plans"),
       billing: navCls(S.page === "billing"),
@@ -444,6 +463,7 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
         );
       });
       return {
+        id: kk.id,
         name: kk.name,
         prefix: kk.prefix,
         env: kk.revoked ? "Đã thu hồi" : kk.env,
@@ -456,6 +476,24 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
         expires: kk.expires,
         svcs: svcs,
         noScope: svcs.length === 0,
+        hasCurrentScope: !!kk.grants[sv.scope],
+        quickToggleScope: function () {
+          var nextKeys = S.keys.map(function (item) {
+            if (item.id !== kk.id) return item;
+            var ng = Object.assign({}, item.grants);
+            if (ng[sv.scope]) delete ng[sv.scope];
+            else ng[sv.scope] = true;
+            return Object.assign({}, item, { grants: ng });
+          });
+          self.setState({ keys: nextKeys });
+          self.flash(
+            (kk.grants[sv.scope] ? "Đã gỡ quyền " : "Đã cấp quyền ") +
+              sv.scope +
+              " cho " +
+              kk.name +
+              "."
+          );
+        },
         open: function () {
           self.go("key", { keyId: kk.id });
         },
@@ -476,13 +514,9 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
           {
             l: "API keys",
             v: String(keysVisible.length),
-            s:
-              prodCount +
-              " Production · " +
-              (keysVisible.length - prodCount) +
-              " Sandbox",
+            s: keysVisible.length + " Production",
           },
-          { l: "Credit còn lại", v: "0", s: "Sandbox miễn phí" },
+          { l: "Credit còn lại", v: "0", s: "Free Trial theo từng API" },
           {
             l: "Học viên được phục vụ",
             v: "0",
@@ -493,16 +527,12 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
           {
             l: "Request hôm nay",
             v: "1.894",
-            s: "4 dịch vụ × 4 kỹ năng · " + keysVisible.length + " key",
+            s: "5 dịch vụ × 4 kỹ năng · " + keysVisible.length + " key",
           },
           {
             l: "API keys",
             v: String(keysVisible.length),
-            s:
-              prodCount +
-              " Production · " +
-              (keysVisible.length - prodCount) +
-              " Sandbox",
+            s: keysVisible.length + " Production",
           },
           {
             l: "Credit còn lại",
@@ -540,7 +570,7 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
     var obItems = [
       {
         t: "Tạo API key",
-        d: "Đã có key Sandbox “Minh test” với quyền writing.grade, speaking.grade. Key Production tạo khi bạn sẵn sàng.",
+        d: "Đã có key Production mặc định “Minh test” cho Tổ chức với quyền writing.grade, speaking.grade. Tạo thêm key nếu cần phân quyền riêng.",
         cta: "Tạo key Production",
         done: true,
         go: function () {
@@ -808,10 +838,22 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
       showSlow: !!out && !out.err && !!out.slow && !S.running,
       slowNote: curStep.slowNote || "",
     };
-    var appCode = curStep.app && sv.code ? sv.code[S.codeTab](v) : "";
+    var appCode =
+      S.codeTab === "postman"
+        ? '# Cách 1: Import trực tiếp cURL này vào Postman (Import → Raw text)\ncurl -X POST "' +
+          API +
+          (sv.path || "/v1/ielts/writing/task2/grade") +
+          '" \\\n  -H "' +
+          KEYH +
+          '" \\\n  -H "Content-Type: application/json" \\\n  -d \'' +
+          JSON.stringify(v, null, 2) +
+          "'"
+        : curStep.app && sv.code && sv.code[S.codeTab]
+          ? sv.code[S.codeTab](v)
+          : "";
     var modeOpts = [
       { k: "mock", l: "Mô phỏng" },
-      { k: "sandbox", l: "Gọi Sandbox thật" },
+      { k: "sandbox", l: "Gọi Production (Free Trial)" },
     ].map(function (o) {
       return {
         label: o.l,
@@ -837,9 +879,10 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
       };
     });
     var codeTabs = [
-      { k: "prompt", l: "Prompt cho AI" },
-      { k: "node", l: "Node.js" },
-      { k: "python", l: "Python" },
+      { k: "postman", l: "Cách 1: Test Postman (cURL)" },
+      { k: "prompt", l: "Cách 2: Build app mới (Prompt AI)" },
+      { k: "node", l: "Cách 3: Hệ thống sẵn có (Node.js)" },
+      { k: "python", l: "Cách 3: Hệ thống sẵn có (Python)" },
     ].map(function (o) {
       return {
         label: o.l,
@@ -1051,7 +1094,7 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
       false
     );
 
-    var newEnvOpts = ["Sandbox", "Production"].map(function (o) {
+    var newEnvOpts = ["Production"].map(function (o) {
       return {
         label: o,
         on: S.newEnv === o,
@@ -1079,7 +1122,74 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
       self.setState({ grantFor: null, createOpen: false });
     };
 
+    var step1Keys = S.showAllStep1Keys ? keyRows : keyRows.slice(0, 3);
+    var step1HasMore = keyRows.length > 3;
+    var step1MoreCount = Math.max(0, keyRows.length - 3);
+    var toggleStep1Keys = function () {
+      self.setState({ showAllStep1Keys: !S.showAllStep1Keys });
+    };
+    var integrateWay = S.integrateWay || "postman";
+    var integrateWayOpts = [
+      { k: "postman", l: "Cách 1: Test bằng Postman" },
+      { k: "build_new", l: "Cách 2: Build app mới từ đầu" },
+      { k: "existing", l: "Cách 3: Tích hợp hệ thống đang có" },
+    ].map(function (o) {
+      return {
+        label: o.l,
+        on: integrateWay === o.k,
+        cls: segCls(integrateWay === o.k),
+        pick: function () {
+          self.setState({ integrateWay: o.k });
+        },
+      };
+    });
+    var postmanCurl =
+      'curl -X POST "' +
+      API +
+      (sv.path || "/v1/ielts/writing/task2/grade") +
+      '" \\\n  -H "' +
+      KEYH +
+      '" \\\n  -H "Content-Type: application/json" \\\n  -d \'' +
+      JSON.stringify(
+        {
+          skill: S.skill,
+          scope: sv.scope,
+          end_user_id: "student_1042",
+        },
+        null,
+        2
+      ) +
+      "'";
+    var buildNewPrompt =
+      "Build a web app integrating AIHub Production API (" +
+      sv.name +
+      " — " +
+      sv.skillLabel +
+      "):\n- Endpoint: POST " +
+      API +
+      (sv.path || "/v1/ielts/writing/task2/grade") +
+      "\n- Auth: " +
+      KEYH +
+      "\n- Required scope: " +
+      sv.scope +
+      "\n- Render the form, call the endpoint from server route, and display structured JSON response.";
+
     return {
+      step1Keys: step1Keys,
+      step1HasMore: step1HasMore,
+      step1MoreCount: step1MoreCount,
+      showAllStep1Keys: !!S.showAllStep1Keys,
+      toggleStep1Keys: toggleStep1Keys,
+      integrateWay: integrateWay,
+      integrateWayOpts: integrateWayOpts,
+      postmanCurl: postmanCurl,
+      buildNewPrompt: buildNewPrompt,
+      copyPostman: function () {
+        self.copy("postman", postmanCurl);
+      },
+      copyBuildPrompt: function () {
+        self.copy("build_prompt", buildNewPrompt);
+      },
       nav: nav,
       pg: pg,
       exp: exp,
@@ -1087,7 +1197,7 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
       sub: sub,
       navT: navT,
       crumb: crumb,
-      orgPlan: isNew ? "Sandbox" : "Business",
+      orgPlan: isNew ? "Free Trial" : "Business",
       isNew: isNew,
       isDone: isDone,
       demoNewCls: segCls(isNew),
@@ -1147,7 +1257,7 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
         self.setState({
           createOpen: true,
           newName: "",
-          newEnv: "Sandbox",
+          newEnv: "Production",
           newExp: "30 ngày",
         });
       },
@@ -1229,12 +1339,13 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
       modeNote:
         S.mode === "mock"
           ? "Không cần key. Dữ liệu mô phỏng có cùng cấu trúc với API thật; chọn “Lỗi” để xem lỗi thường gặp và cách xử lý."
-          : "Gọi thật tới môi trường Sandbox bằng key “Minh test”. Miễn phí, có giới hạn lượt gọi mỗi ngày.",
-      modeBadge: S.mode === "mock" ? "Dữ liệu mô phỏng" : "Sandbox",
+          : "Gọi thật tới môi trường Production bằng gói Free Trial của từng API (key mặc định “Minh test”).",
+      modeBadge:
+        S.mode === "mock" ? "Dữ liệu mô phỏng" : "Production · Free Trial",
       keyLine:
         S.mode === "mock"
           ? "Đang dùng key demo — không cần nhập gì."
-          : "Đang dùng key Minh test (aihub_sandbox_znon3a).",
+          : "Đang dùng key Production Minh test (aihub_live_org_znon3a).",
       resetFlow: function () {
         self.setProg(k, { cur: 0, done: {}, out: {} });
         var fv = Object.assign({}, S.fv);
@@ -1467,6 +1578,17 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
       keyCountText,
       keyLine,
       keyRows,
+      step1Keys,
+      step1HasMore,
+      step1MoreCount,
+      showAllStep1Keys,
+      toggleStep1Keys,
+      integrateWay,
+      integrateWayOpts,
+      postmanCurl,
+      buildNewPrompt,
+      copyPostman,
+      copyBuildPrompt,
       keys,
       kpis,
       lastUsed,
@@ -1674,242 +1796,81 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
             </svg>
             Tổng quan
           </button>
-          <button type="button" className={nav.sandbox} onClick={goSandbox}>
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"></path>
-              <path d="M7.5 15h9"></path>
-            </svg>
-            Sandbox
-          </button>
 
-          <div className="navgrp">Dịch vụ</div>
-          <button
-            type="button"
-            className={nav.grade}
-            onClick={navT.grade}
-            aria-expanded={exp.grade}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M12 20h9"></path>
-              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path>
-            </svg>
-            <span style={{ flex: "1" }}>Chấm chữa</span>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#5C5D77"
-              strokeWidth="2"
-              strokeLinecap="round"
-              aria-hidden="true"
-            >
-              <path d={chev.grade}></path>
-            </svg>
-          </button>
-
-          {Boolean(exp.grade) && (
-            <>
-              <div className="subnav">
-                {sub.grade?.map((x: any, idx_x: number) => (
-                  <React.Fragment key={idx_x}>
-                    <button
-                      type="button"
-                      className={x.cls}
-                      aria-current={x.cur}
-                      onClick={x.go}
+          <div className="navgrp">Dịch vụ (5 APIs)</div>
+          {SVC_ORDER.map((svcKey: string) => {
+            const isLocked = svcKey === "exam_room" || svcKey === "weakness";
+            return (
+              <React.Fragment key={svcKey}>
+                <button
+                  type="button"
+                  className={nav[svcKey]}
+                  onClick={
+                    isLocked
+                      ? () =>
+                          this.flash(
+                            (SVC[svcKey]?.name || "Dịch vụ") +
+                              " đang tạm khóa — sắp ra mắt."
+                          )
+                      : navT[svcKey]
+                  }
+                  aria-expanded={isLocked ? false : exp[svcKey]}
+                  style={isLocked ? { opacity: 0.55 } : undefined}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path>
+                  </svg>
+                  <span style={{ flex: "1" }}>{SVC[svcKey]?.name}</span>
+                  {isLocked ? (
+                    <span className="badge" style={{ fontSize: "10px" }}>
+                      Tạm khóa
+                    </span>
+                  ) : (
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#5C5D77"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      aria-hidden="true"
                     >
-                      {x.label}
-                    </button>
-                  </React.Fragment>
-                ))}
-              </div>
-            </>
-          )}
+                      <path d={chev[svcKey]}></path>
+                    </svg>
+                  )}
+                </button>
 
-          <button
-            type="button"
-            className={nav.weakness}
-            onClick={navT.weakness}
-            aria-expanded={exp.weakness}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="11" cy="11" r="7"></circle>
-              <path d="M20 20l-3.5-3.5"></path>
-              <path d="M8 13l2-2 1.5 1.5L14 10"></path>
-            </svg>
-            <span style={{ flex: "1" }}>Phân tích điểm yếu</span>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#5C5D77"
-              strokeWidth="2"
-              strokeLinecap="round"
-              aria-hidden="true"
-            >
-              <path d={chev.weakness}></path>
-            </svg>
-          </button>
-
-          {Boolean(exp.weakness) && (
-            <>
-              <div className="subnav">
-                {sub.weakness?.map((x: any, idx_x: number) => (
-                  <React.Fragment key={idx_x}>
-                    <button
-                      type="button"
-                      className={x.cls}
-                      aria-current={x.cur}
-                      onClick={x.go}
-                    >
-                      {x.label}
-                    </button>
-                  </React.Fragment>
-                ))}
-              </div>
-            </>
-          )}
-
-          <button
-            type="button"
-            className={nav.exercise}
-            onClick={navT.exercise}
-            aria-expanded={exp.exercise}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M9 6h11M9 12h11M9 18h11"></path>
-              <path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"></path>
-            </svg>
-            <span style={{ flex: "1" }}>Tạo bài tập</span>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#5C5D77"
-              strokeWidth="2"
-              strokeLinecap="round"
-              aria-hidden="true"
-            >
-              <path d={chev.exercise}></path>
-            </svg>
-          </button>
-
-          {Boolean(exp.exercise) && (
-            <>
-              <div className="subnav">
-                {sub.exercise?.map((x: any, idx_x: number) => (
-                  <React.Fragment key={idx_x}>
-                    <button
-                      type="button"
-                      className={x.cls}
-                      aria-current={x.cur}
-                      onClick={x.go}
-                    >
-                      {x.label}
-                    </button>
-                  </React.Fragment>
-                ))}
-              </div>
-            </>
-          )}
-
-          <button
-            type="button"
-            className={nav.roadmap}
-            onClick={navT.roadmap}
-            aria-expanded={exp.roadmap}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"></path>
-              <path d="M9 4v14M15 6v14"></path>
-            </svg>
-            <span style={{ flex: "1" }}>Lộ trình cá nhân hoá</span>
-            <span className="badge b-beta">Beta</span>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#5C5D77"
-              strokeWidth="2"
-              strokeLinecap="round"
-              aria-hidden="true"
-            >
-              <path d={chev.roadmap}></path>
-            </svg>
-          </button>
-
-          {Boolean(exp.roadmap) && (
-            <>
-              <div className="subnav">
-                {sub.roadmap?.map((x: any, idx_x: number) => (
-                  <React.Fragment key={idx_x}>
-                    <button
-                      type="button"
-                      className={x.cls}
-                      aria-current={x.cur}
-                      onClick={x.go}
-                    >
-                      {x.label}
-                    </button>
-                  </React.Fragment>
-                ))}
-              </div>
-            </>
-          )}
+                {!isLocked && Boolean(exp[svcKey]) && (
+                  <div className="subnav">
+                    {sub[svcKey]?.map((x: any, idx_x: number) => (
+                      <React.Fragment key={idx_x}>
+                        <button
+                          type="button"
+                          className={x.cls}
+                          aria-current={x.cur}
+                          onClick={x.go}
+                        >
+                          {x.label}
+                        </button>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
 
           <div className="navgrp">Bảo mật</div>
           <button type="button" className={nav.identity} onClick={goIdentity}>
@@ -2153,7 +2114,7 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
                     className="h"
                     style={{ fontSize: "20px", lineHeight: "26px" }}
                   >
-                    4 dịch vụ × 4 kỹ năng
+                    5 dịch vụ × 4 kỹ năng
                   </h2>
                   <p className="muted" style={{ margin: "4px 0 0" }}>
                     Mỗi dịch vụ có 4 tab IELTS Writing, Speaking, Reading,
@@ -3351,1068 +3312,191 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
                           gap: "16px",
                         }}
                       >
-                        <section
-                          className="card"
-                          style={{
-                            padding: "24px",
-                            display: "grid",
-                            gridTemplateColumns:
-                              "repeat(auto-fit, minmax(320px, 1fr))",
-                            gap: "24px",
-                          }}
-                        >
-                          <div
+                        {false && (
+                          <section
+                            className="card"
                             style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "12px",
+                              padding: "24px",
+                              display: "grid",
+                              gridTemplateColumns:
+                                "repeat(auto-fit, minmax(320px, 1fr))",
+                              gap: "24px",
                             }}
                           >
-                            <div className="eyebrow-p">
-                              Bước 1 · Làm ngay tại đây
-                            </div>
-                            <h2
-                              className="h"
-                              style={{ fontSize: "20px", lineHeight: "26px" }}
-                            >
-                              {sv.tryTitle}
-                            </h2>
-                            <p className="muted" style={{ margin: "0" }}>
-                              {sv.tryDesc}
-                            </p>
-                            <div>
-                              <label className="flabel" htmlFor="try-input">
-                                {sv.tryLabel}
-                              </label>
-                              <textarea
-                                id="try-input"
-                                className="inp inp-t"
-                                rows={sv.tryRows}
-                                style={{
-                                  resize: "vertical",
-                                  lineHeight: "22px",
-                                }}
-                                value={tryInput}
-                                onChange={onTryInput}
-                              ></textarea>
-                            </div>
-                            <dl
-                              style={{
-                                display: "grid",
-                                gridTemplateColumns: "1fr auto",
-                                gap: "8px 12px",
-                                margin: "0",
-                                fontSize: "13px",
-                              }}
-                            >
-                              {sv.tryFacts?.map((f: any, idx_f: number) => (
-                                <React.Fragment key={idx_f}>
-                                  <dt className="muted">{f.l}</dt>
-                                  <dd
-                                    style={{
-                                      margin: "0",
-                                      fontWeight: "600",
-                                      textAlign: "right",
-                                    }}
-                                  >
-                                    {f.v}
-                                  </dd>
-                                </React.Fragment>
-                              ))}
-                            </dl>
                             <div
                               style={{
                                 display: "flex",
-                                alignItems: "center",
+                                flexDirection: "column",
                                 gap: "12px",
-                                flexWrap: "wrap",
                               }}
                             >
-                              <button
-                                type="button"
-                                className="btn btn-p"
-                                onClick={runTry}
-                                disabled={tryRunning}
+                              <div className="eyebrow-p">
+                                Bước 1 · Làm ngay tại đây
+                              </div>
+                              <h2
+                                className="h"
+                                style={{ fontSize: "20px", lineHeight: "26px" }}
                               >
-                                {tryCta}
-                              </button>
-                              <span
-                                className="muted"
-                                style={{ fontSize: "12px" }}
+                                {sv.tryTitle}
+                              </h2>
+                              <p className="muted" style={{ margin: "0" }}>
+                                {sv.tryDesc}
+                              </p>
+                              <div>
+                                <label className="flabel" htmlFor="try-input">
+                                  {sv.tryLabel}
+                                </label>
+                                <textarea
+                                  id="try-input"
+                                  className="inp inp-t"
+                                  rows={sv.tryRows}
+                                  style={{
+                                    resize: "vertical",
+                                    lineHeight: "22px",
+                                  }}
+                                  value={tryInput}
+                                  onChange={onTryInput}
+                                ></textarea>
+                              </div>
+                              <dl
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "1fr auto",
+                                  gap: "8px 12px",
+                                  margin: "0",
+                                  fontSize: "13px",
+                                }}
                               >
-                                Lượt chạy thử không tính vào quota.
-                              </span>
-                            </div>
-                          </div>
-                          <div
-                            style={{
-                              border: "1px solid #E4E4EC",
-                              borderRadius: "16px",
-                              padding: "18px",
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "12px",
-                              minHeight: "280px",
-                            }}
-                          >
-                            <div style={{ fontWeight: "600" }}>
-                              Kết quả vừa chạy
-                            </div>
-
-                            {Boolean(tryEmpty) && (
-                              <>
-                                <div
-                                  style={{
-                                    flex: "1",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                    gap: "6px",
-                                    textAlign: "center",
-                                    background: "#F7F7FB",
-                                    borderRadius: "12px",
-                                    padding: "24px",
-                                  }}
-                                >
-                                  <div style={{ fontWeight: "600" }}>
-                                    Chưa có kết quả
-                                  </div>
-                                  <div
-                                    className="muted"
-                                    style={{
-                                      fontSize: "13px",
-                                      maxWidth: "280px",
-                                    }}
-                                  >
-                                    Bấm “{sv.tryCta}” để xem AIHub trả về gì —
-                                    nó sẽ hiện ở đây.
-                                  </div>
-                                </div>
-                              </>
-                            )}
-
-                            {Boolean(tryRunning) && (
-                              <>
-                                <div
-                                  style={{
-                                    flex: "1",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                    gap: "10px",
-                                    background: "#F7F7FB",
-                                    borderRadius: "12px",
-                                  }}
-                                >
-                                  <div
-                                    className="track"
-                                    style={{ width: "60%" }}
-                                  >
-                                    <div
-                                      className="fill"
-                                      style={{ width: "60%" }}
-                                    ></div>
-                                  </div>
-                                  <div
-                                    className="muted"
-                                    style={{ fontSize: "13px" }}
-                                  >
-                                    {sv.tryRunningText}
-                                  </div>
-                                </div>
-                              </>
-                            )}
-
-                            {Boolean(tryDone) && (
-                              <>
-                                <div
-                                  className="fade"
-                                  style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: "12px",
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "baseline",
-                                      gap: "10px",
-                                      flexWrap: "wrap",
-                                    }}
-                                  >
-                                    <span
-                                      className="h"
+                                {sv.tryFacts?.map((f: any, idx_f: number) => (
+                                  <React.Fragment key={idx_f}>
+                                    <dt className="muted">{f.l}</dt>
+                                    <dd
                                       style={{
-                                        fontSize: "30px",
-                                        lineHeight: "36px",
-                                        color: "#4547C9",
+                                        margin: "0",
+                                        fontWeight: "600",
+                                        textAlign: "right",
                                       }}
                                     >
-                                      {res.headline}
-                                    </span>
-                                    <span
+                                      {f.v}
+                                    </dd>
+                                  </React.Fragment>
+                                ))}
+                              </dl>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "12px",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  className="btn btn-p"
+                                  onClick={runTry}
+                                  disabled={tryRunning}
+                                >
+                                  {tryCta}
+                                </button>
+                                <span
+                                  className="muted"
+                                  style={{ fontSize: "12px" }}
+                                >
+                                  Lượt chạy thử không tính vào quota.
+                                </span>
+                              </div>
+                            </div>
+                            <div
+                              style={{
+                                border: "1px solid #E4E4EC",
+                                borderRadius: "16px",
+                                padding: "18px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "12px",
+                                minHeight: "280px",
+                              }}
+                            >
+                              <div style={{ fontWeight: "600" }}>
+                                Kết quả vừa chạy
+                              </div>
+
+                              {Boolean(tryEmpty) && (
+                                <>
+                                  <div
+                                    style={{
+                                      flex: "1",
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      justifyContent: "center",
+                                      alignItems: "center",
+                                      gap: "6px",
+                                      textAlign: "center",
+                                      background: "#F7F7FB",
+                                      borderRadius: "12px",
+                                      padding: "24px",
+                                    }}
+                                  >
+                                    <div style={{ fontWeight: "600" }}>
+                                      Chưa có kết quả
+                                    </div>
+                                    <div
+                                      className="muted"
+                                      style={{
+                                        fontSize: "13px",
+                                        maxWidth: "280px",
+                                      }}
+                                    >
+                                      Bấm “{sv.tryCta}” để xem AIHub trả về gì —
+                                      nó sẽ hiện ở đây.
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+
+                              {Boolean(tryRunning) && (
+                                <>
+                                  <div
+                                    style={{
+                                      flex: "1",
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      justifyContent: "center",
+                                      alignItems: "center",
+                                      gap: "10px",
+                                      background: "#F7F7FB",
+                                      borderRadius: "12px",
+                                    }}
+                                  >
+                                    <div
+                                      className="track"
+                                      style={{ width: "60%" }}
+                                    >
+                                      <div
+                                        className="fill"
+                                        style={{ width: "60%" }}
+                                      ></div>
+                                    </div>
+                                    <div
                                       className="muted"
                                       style={{ fontSize: "13px" }}
                                     >
-                                      {res.sub}
-                                    </span>
-                                  </div>
-                                  <div
-                                    style={{
-                                      display: "grid",
-                                      gridTemplateColumns:
-                                        "repeat(2, minmax(0, 1fr))",
-                                      gap: "8px",
-                                    }}
-                                  >
-                                    {res.metrics?.map(
-                                      (m: any, idx_m: number) => (
-                                        <React.Fragment key={idx_m}>
-                                          <div
-                                            style={{
-                                              background: "#F7F7FB",
-                                              borderRadius: "10px",
-                                              padding: "8px 10px",
-                                            }}
-                                          >
-                                            <div
-                                              className="muted"
-                                              style={{
-                                                fontSize: "12px",
-                                                lineHeight: "16px",
-                                              }}
-                                            >
-                                              {m.l}
-                                            </div>
-                                            <div
-                                              className="mono"
-                                              style={{ fontWeight: "600" }}
-                                            >
-                                              {m.v}
-                                            </div>
-                                          </div>
-                                        </React.Fragment>
-                                      )
-                                    )}
-                                  </div>
-                                  <p
-                                    style={{
-                                      margin: "0",
-                                      fontSize: "13px",
-                                      lineHeight: "19px",
-                                    }}
-                                  >
-                                    {res.comment}
-                                  </p>
-                                  <div className="eyebrow">
-                                    {res.itemsTitle}
-                                  </div>
-
-                                  {res.items?.map((it: any, idx_it: number) => (
-                                    <React.Fragment key={idx_it}>
-                                      <div
-                                        style={{
-                                          display: "flex",
-                                          gap: "10px",
-                                          alignItems: "flex-start",
-                                          fontSize: "13px",
-                                          lineHeight: "18px",
-                                        }}
-                                      >
-                                        <span
-                                          className="scope"
-                                          style={{ flex: "none" }}
-                                        >
-                                          {it.code}
-                                        </span>
-                                        <span style={{ flex: "1" }}>
-                                          {it.text}
-                                          <span className="muted">
-                                            {" "}
-                                            · {it.meta}
-                                          </span>
-                                        </span>
-                                      </div>
-                                    </React.Fragment>
-                                  ))}
-
-                                  {Boolean(chain.hasNext) && (
-                                    <>
-                                      <button
-                                        type="button"
-                                        className="btn btn-s btn-sm"
-                                        style={{ alignSelf: "flex-start" }}
-                                        onClick={chain.goNextIntegrate}
-                                      >
-                                        {chain.nextCta} →
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </section>
-
-                        <section
-                          className="card"
-                          style={{
-                            padding: "24px",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "16px",
-                          }}
-                        >
-                          <div>
-                            <div className="eyebrow-p">
-                              Bước 2 · Tích hợp vào hệ thống của bạn
-                            </div>
-                            <h2
-                              className="h"
-                              style={{
-                                fontSize: "20px",
-                                lineHeight: "26px",
-                                marginTop: "4px",
-                              }}
-                            >
-                              Thử gọi API ngay tại đây
-                            </h2>
-                            <p className="muted" style={{ margin: "4px 0 0" }}>
-                              {sv.flowDesc}
-                            </p>
-                          </div>
-
-                          <div
-                            style={{
-                              background: "#F7F7FB",
-                              borderRadius: "14px",
-                              padding: "14px 16px",
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "10px",
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: "20px",
-                                flexWrap: "wrap",
-                                alignItems: "flex-end",
-                              }}
-                            >
-                              <div>
-                                <div
-                                  className="eyebrow"
-                                  style={{ marginBottom: "6px" }}
-                                >
-                                  Chế độ
-                                </div>
-                                <div
-                                  className="seg"
-                                  role="group"
-                                  aria-label="Chế độ gọi"
-                                >
-                                  {modeOpts?.map((o: any, idx_o: number) => (
-                                    <React.Fragment key={idx_o}>
-                                      <button
-                                        type="button"
-                                        className={o.cls}
-                                        aria-pressed={o.on}
-                                        onClick={o.pick}
-                                      >
-                                        {o.label}
-                                      </button>
-                                    </React.Fragment>
-                                  ))}
-                                </div>
-                              </div>
-                              <div>
-                                <div
-                                  className="eyebrow"
-                                  style={{ marginBottom: "6px" }}
-                                >
-                                  Kịch bản
-                                </div>
-                                <div
-                                  className="seg"
-                                  role="group"
-                                  aria-label="Kịch bản"
-                                >
-                                  {scenOpts?.map((o: any, idx_o: number) => (
-                                    <React.Fragment key={idx_o}>
-                                      <button
-                                        type="button"
-                                        className={o.cls}
-                                        aria-pressed={o.on}
-                                        onClick={o.pick}
-                                      >
-                                        {o.label}
-                                      </button>
-                                    </React.Fragment>
-                                  ))}
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                className="btn btn-s btn-sm"
-                                style={{ marginLeft: "auto" }}
-                                onClick={resetFlow}
-                              >
-                                <svg
-                                  width="14"
-                                  height="14"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  aria-hidden="true"
-                                >
-                                  <path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path>
-                                  <path d="M3 3v5h5"></path>
-                                </svg>
-                                Làm lại
-                              </button>
-                            </div>
-                            <div
-                              className="muted"
-                              style={{ fontSize: "12px", lineHeight: "16px" }}
-                            >
-                              {modeNote}
-                            </div>
-                          </div>
-
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: "8px",
-                              alignItems: "center",
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            {stepPills?.map((p: any, idx_p: number) => (
-                              <React.Fragment key={idx_p}>
-                                <button
-                                  type="button"
-                                  className={p.cls}
-                                  disabled={p.locked}
-                                  onClick={p.go}
-                                  aria-current={p.ariaCur}
-                                >
-                                  {Boolean(p.done) && (
-                                    <>
-                                      <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2.5"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        aria-hidden="true"
-                                      >
-                                        <path d="M5 12l5 5 9-10"></path>
-                                      </svg>
-                                    </>
-                                  )}
-
-                                  {p.label}
-                                </button>
-                              </React.Fragment>
-                            ))}
-
-                            <div
-                              style={{
-                                marginLeft: "auto",
-                                display: "flex",
-                                gap: "6px",
-                              }}
-                            >
-                              <button
-                                type="button"
-                                className="btn btn-s btn-sm"
-                                onClick={prevStep}
-                                disabled={atFirst}
-                              >
-                                ‹ Trước
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-s btn-sm"
-                                onClick={nextStep}
-                                disabled={nextLocked}
-                              >
-                                Sau ›
-                              </button>
-                            </div>
-                          </div>
-
-                          <div
-                            className="fade"
-                            style={{
-                              border: "2px solid #5B5FEF",
-                              borderRadius: "18px",
-                              padding: "20px",
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "14px",
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "flex-start",
-                                gap: "12px",
-                              }}
-                            >
-                              <span
-                                style={{
-                                  width: "32px",
-                                  height: "32px",
-                                  borderRadius: "50%",
-                                  background: "#5B5FEF",
-                                  color: "#fff",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  font: "700 12px/16px 'Plus Jakarta Sans', sans-serif",
-                                  flex: "none",
-                                }}
-                              >
-                                {cur.num}
-                              </span>
-                              <div style={{ flex: "1" }}>
-                                <h3
-                                  className="h"
-                                  style={{
-                                    fontSize: "17px",
-                                    lineHeight: "24px",
-                                  }}
-                                >
-                                  {cur.title}
-                                </h3>
-                                <p
-                                  className="muted"
-                                  style={{
-                                    margin: "2px 0 0",
-                                    fontSize: "13px",
-                                    lineHeight: "19px",
-                                  }}
-                                >
-                                  {cur.desc}
-                                </p>
-                              </div>
-                              <span className={cur.statusCls}>
-                                {cur.statusText}
-                              </span>
-                            </div>
-
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: "8px",
-                                alignItems: "center",
-                                fontSize: "13px",
-                                background: "#F7F7FB",
-                                borderRadius: "10px",
-                                padding: "8px 12px",
-                                flexWrap: "wrap",
-                              }}
-                            >
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="#5C5D77"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                aria-hidden="true"
-                              >
-                                <circle cx="8" cy="15" r="4"></circle>
-                                <path d="M11 12l9-9M17 6l3 3"></path>
-                              </svg>
-                              <span>{keyLine}</span>
-                              <button
-                                type="button"
-                                className="btn-link"
-                                style={{ fontSize: "13px" }}
-                                onClick={goOverview}
-                              >
-                                Xem / đổi key
-                              </button>
-                            </div>
-
-                            {Boolean(cur.isCall) && (
-                              <>
-                                <div
-                                  style={{
-                                    display: "grid",
-                                    gridTemplateColumns:
-                                      "repeat(auto-fit, minmax(300px, 1fr))",
-                                    gap: "20px",
-                                    alignItems: "start",
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      flexDirection: "column",
-                                      gap: "14px",
-                                    }}
-                                  >
-                                    {cur.fields?.map(
-                                      (f: any, idx_f: number) => (
-                                        <React.Fragment key={idx_f}>
-                                          <div>
-                                            {Boolean(f.isChips) && (
-                                              <>
-                                                <div className="flabel">
-                                                  {f.label}
-                                                </div>
-                                                <div
-                                                  className="seg"
-                                                  role="group"
-                                                  aria-label={f.label}
-                                                >
-                                                  {f.opts?.map(
-                                                    (o: any, idx_o: number) => (
-                                                      <React.Fragment
-                                                        key={idx_o}
-                                                      >
-                                                        <button
-                                                          type="button"
-                                                          className={o.cls}
-                                                          aria-pressed={o.on}
-                                                          onClick={o.pick}
-                                                        >
-                                                          {o.label}
-                                                        </button>
-                                                      </React.Fragment>
-                                                    )
-                                                  )}
-                                                </div>
-                                              </>
-                                            )}
-
-                                            {Boolean(f.isInput) && (
-                                              <>
-                                                <label
-                                                  className="flabel"
-                                                  htmlFor={f.domId}
-                                                >
-                                                  {f.label}
-                                                </label>
-                                                <input
-                                                  id={f.domId}
-                                                  className="inp"
-                                                  value={f.value}
-                                                  onChange={f.onChange}
-                                                />
-                                              </>
-                                            )}
-
-                                            {Boolean(f.isText) && (
-                                              <>
-                                                <label
-                                                  className="flabel"
-                                                  htmlFor={f.domId}
-                                                >
-                                                  {f.label}
-                                                </label>
-                                                <textarea
-                                                  id={f.domId}
-                                                  className="inp inp-t"
-                                                  rows="5"
-                                                  style={{ resize: "vertical" }}
-                                                  value={f.value}
-                                                  onChange={f.onChange}
-                                                ></textarea>
-                                              </>
-                                            )}
-
-                                            {Boolean(f.hasHelp) && (
-                                              <>
-                                                <div className="help">
-                                                  {f.help}
-                                                </div>
-                                              </>
-                                            )}
-                                          </div>
-                                        </React.Fragment>
-                                      )
-                                    )}
-
-                                    <div
-                                      style={{
-                                        display: "flex",
-                                        gap: "10px",
-                                        alignItems: "center",
-                                        flexWrap: "wrap",
-                                      }}
-                                    >
-                                      <button
-                                        type="button"
-                                        className="btn btn-p"
-                                        onClick={runStep}
-                                        disabled={running}
-                                      >
-                                        <svg
-                                          width="14"
-                                          height="14"
-                                          viewBox="0 0 24 24"
-                                          fill="currentColor"
-                                          aria-hidden="true"
-                                        >
-                                          <path d="M7 4l13 8-13 8z"></path>
-                                        </svg>
-                                        {runLabel}
-                                      </button>
-                                      <span className="scope">
-                                        {cur.endpoint}
-                                      </span>
-                                    </div>
-
-                                    {Boolean(cur.showFix) && (
-                                      <>
-                                        <div
-                                          style={{
-                                            background: "#FDECEA",
-                                            color: "#7A1B12",
-                                            borderRadius: "12px",
-                                            padding: "12px 14px",
-                                            fontSize: "13px",
-                                            lineHeight: "19px",
-                                          }}
-                                        >
-                                          <strong>Cách xử lý:</strong> {cur.fix}
-                                        </div>
-                                      </>
-                                    )}
-
-                                    {Boolean(cur.showSlow) && (
-                                      <>
-                                        <div
-                                          style={{
-                                            background: "#FFF4DB",
-                                            color: "#5C3B00",
-                                            borderRadius: "12px",
-                                            padding: "12px 14px",
-                                            fontSize: "13px",
-                                            lineHeight: "19px",
-                                          }}
-                                        >
-                                          <strong>Phản hồi chậm:</strong>{" "}
-                                          {cur.slowNote}
-                                        </div>
-                                      </>
-                                    )}
-                                  </div>
-
-                                  <div
-                                    style={{
-                                      background: "#14152B",
-                                      borderRadius: "16px",
-                                      overflow: "hidden",
-                                      boxShadow:
-                                        "0 12px 32px rgba(20,21,43,.14)",
-                                    }}
-                                  >
-                                    <div
-                                      style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: "8px",
-                                        padding: "10px 14px",
-                                        background: "#1E2040",
-                                        borderBottom: "1px solid #33355A",
-                                      }}
-                                    >
-                                      <span
-                                        style={{
-                                          width: "9px",
-                                          height: "9px",
-                                          borderRadius: "50%",
-                                          background: "#F26D6D",
-                                        }}
-                                      ></span>
-                                      <span
-                                        style={{
-                                          width: "9px",
-                                          height: "9px",
-                                          borderRadius: "50%",
-                                          background: "#F2C46D",
-                                        }}
-                                      ></span>
-                                      <span
-                                        style={{
-                                          width: "9px",
-                                          height: "9px",
-                                          borderRadius: "50%",
-                                          background: "#6DD39B",
-                                        }}
-                                      ></span>
-                                      <span
-                                        className="mono"
-                                        style={{
-                                          color: "#F3F3FA",
-                                          fontSize: "12px",
-                                          marginLeft: "6px",
-                                        }}
-                                      >
-                                        API console
-                                      </span>
-                                      <span
-                                        className="badge"
-                                        style={{
-                                          marginLeft: "auto",
-                                          background: "#33355A",
-                                          color: "#F3F3FA",
-                                        }}
-                                      >
-                                        {modeBadge}
-                                      </span>
-                                    </div>
-                                    <div
-                                      style={{
-                                        padding: "14px",
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: "10px",
-                                      }}
-                                    >
-                                      <div
-                                        style={{
-                                          display: "flex",
-                                          justifyContent: "space-between",
-                                          alignItems: "center",
-                                        }}
-                                      >
-                                        <span
-                                          className="eyebrow"
-                                          style={{ color: "#9C9DC2" }}
-                                        >
-                                          Request
-                                        </span>
-                                        <button
-                                          type="button"
-                                          className="btn-link"
-                                          style={{
-                                            color: "#8B8EF5",
-                                            fontSize: "12px",
-                                          }}
-                                          onClick={copyReq}
-                                        >
-                                          Copy cURL
-                                        </button>
-                                      </div>
-                                      <pre
-                                        className="code"
-                                        style={{
-                                          padding: "0",
-                                          background: "transparent",
-                                        }}
-                                      >
-                                        {cur.reqText}
-                                      </pre>
-                                      <div
-                                        style={{
-                                          borderTop: "1px solid #33355A",
-                                          paddingTop: "10px",
-                                          display: "flex",
-                                          justifyContent: "space-between",
-                                          alignItems: "center",
-                                        }}
-                                      >
-                                        <span
-                                          className="eyebrow"
-                                          style={{ color: "#9C9DC2" }}
-                                        >
-                                          Response
-                                        </span>
-                                        <span
-                                          className="mono"
-                                          style={{
-                                            color: "#9C9DC2",
-                                            fontSize: "12px",
-                                          }}
-                                        >
-                                          {cur.lat}
-                                        </span>
-                                      </div>
-
-                                      {Boolean(cur.hasResp) && (
-                                        <>
-                                          <pre
-                                            className="code"
-                                            style={parseStyle(
-                                              `padding: 0; background: transparent; color: ${cur.respColor};`
-                                            )}
-                                          >
-                                            {cur.respText}
-                                          </pre>
-                                        </>
-                                      )}
-
-                                      {Boolean(running) && (
-                                        <>
-                                          <div
-                                            className="mono"
-                                            style={{
-                                              color: "#9C9DC2",
-                                              fontSize: "13px",
-                                            }}
-                                          >
-                                            Đang gọi…
-                                          </div>
-                                        </>
-                                      )}
-
-                                      {Boolean(cur.noResp) && (
-                                        <>
-                                          <div
-                                            style={{
-                                              color: "#9C9DC2",
-                                              fontSize: "13px",
-                                            }}
-                                          >
-                                            Chưa gọi. Điền thông tin bên trái
-                                            rồi bấm nút chạy, kết quả sẽ hiện ở
-                                            đây.
-                                          </div>
-                                        </>
-                                      )}
+                                      {sv.tryRunningText}
                                     </div>
                                   </div>
-                                </div>
-                              </>
-                            )}
+                                </>
+                              )}
 
-                            {Boolean(cur.isApp) && (
-                              <>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: "16px",
-                                  }}
-                                >
+                              {Boolean(tryDone) && (
+                                <>
                                   <div
+                                    className="fade"
                                     style={{
-                                      background: "#F7F6FF",
-                                      border: "1px solid #E4E4EC",
-                                      borderRadius: "16px",
-                                      padding: "16px",
                                       display: "flex",
                                       flexDirection: "column",
                                       gap: "12px",
                                     }}
                                   >
-                                    <div
-                                      style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                        gap: "12px",
-                                        flexWrap: "wrap",
-                                      }}
-                                    >
-                                      <div>
-                                        <div style={{ fontWeight: "600" }}>
-                                          Làm y hệt trong app của bạn
-                                        </div>
-                                        <div
-                                          className="muted"
-                                          style={{ fontSize: "12px" }}
-                                        >
-                                          Đã điền sẵn đúng giá trị bạn vừa chạy
-                                          thử.
-                                        </div>
-                                      </div>
-                                      <div
-                                        className="seg"
-                                        role="group"
-                                        aria-label="Định dạng"
-                                      >
-                                        {codeTabs?.map(
-                                          (o: any, idx_o: number) => (
-                                            <React.Fragment key={idx_o}>
-                                              <button
-                                                type="button"
-                                                className={o.cls}
-                                                aria-pressed={o.on}
-                                                onClick={o.pick}
-                                              >
-                                                {o.label}
-                                              </button>
-                                            </React.Fragment>
-                                          )
-                                        )}
-                                      </div>
-                                    </div>
-                                    <pre
-                                      className="code"
-                                      style={{
-                                        maxHeight: "320px",
-                                        overflow: "auto",
-                                      }}
-                                    >
-                                      {appCode}
-                                    </pre>
-                                    <div>
-                                      <button
-                                        type="button"
-                                        className="btn btn-p btn-sm"
-                                        onClick={copyApp}
-                                      >
-                                        {copyAppLabel}
-                                      </button>
-                                    </div>
-                                    <div
-                                      style={{
-                                        fontSize: "13px",
-                                        lineHeight: "19px",
-                                      }}
-                                    >
-                                      <strong>Sau khi copy:</strong>
-                                      <ol
-                                        style={{
-                                          margin: "6px 0 0",
-                                          paddingLeft: "20px",
-                                          display: "flex",
-                                          flexDirection: "column",
-                                          gap: "2px",
-                                        }}
-                                      >
-                                        {sv.after?.map(
-                                          (a: any, idx_a: number) => (
-                                            <React.Fragment key={idx_a}>
-                                              <li>{a}</li>
-                                            </React.Fragment>
-                                          )
-                                        )}
-                                      </ol>
-                                    </div>
-                                  </div>
-                                  <div
-                                    style={{
-                                      border: "1px solid #E4E4EC",
-                                      borderRadius: "16px",
-                                      padding: "16px",
-                                      display: "flex",
-                                      flexDirection: "column",
-                                      gap: "12px",
-                                    }}
-                                  >
-                                    <div className="eyebrow">
-                                      Dữ liệu vừa trả về
-                                    </div>
                                     <div
                                       style={{
                                         display: "flex",
@@ -4424,8 +3508,8 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
                                       <span
                                         className="h"
                                         style={{
-                                          fontSize: "26px",
-                                          lineHeight: "32px",
+                                          fontSize: "30px",
+                                          lineHeight: "36px",
                                           color: "#4547C9",
                                         }}
                                       >
@@ -4442,7 +3526,7 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
                                       style={{
                                         display: "grid",
                                         gridTemplateColumns:
-                                          "repeat(auto-fit, minmax(150px, 1fr))",
+                                          "repeat(2, minmax(0, 1fr))",
                                         gap: "8px",
                                       }}
                                     >
@@ -4476,109 +3560,1271 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
                                         )
                                       )}
                                     </div>
-                                    <div
-                                      role="table"
-                                      aria-label="Dữ liệu vừa trả về"
+                                    <p
+                                      style={{
+                                        margin: "0",
+                                        fontSize: "13px",
+                                        lineHeight: "19px",
+                                      }}
                                     >
-                                      <div
-                                        role="row"
-                                        className="trow"
-                                        style={{
-                                          gridTemplateColumns:
-                                            "minmax(150px, 1fr) minmax(0, 2.4fr) minmax(110px, 0.9fr)",
-                                        }}
-                                      >
-                                        <div
-                                          role="columnheader"
-                                          className="thc"
-                                        >
-                                          Mã
-                                        </div>
-                                        <div
-                                          role="columnheader"
-                                          className="thc"
-                                        >
-                                          Chi tiết
-                                        </div>
-                                        <div
-                                          role="columnheader"
-                                          className="thc"
-                                        >
-                                          Nhóm
-                                        </div>
-                                      </div>
+                                      {res.comment}
+                                    </p>
+                                    <div className="eyebrow">
+                                      {res.itemsTitle}
+                                    </div>
 
-                                      {res.items?.map(
-                                        (it: any, idx_it: number) => (
-                                          <React.Fragment key={idx_it}>
-                                            <div
-                                              role="row"
-                                              className="trow"
-                                              style={{
-                                                gridTemplateColumns:
-                                                  "minmax(150px, 1fr) minmax(0, 2.4fr) minmax(110px, 0.9fr)",
-                                              }}
+                                    {res.items?.map(
+                                      (it: any, idx_it: number) => (
+                                        <React.Fragment key={idx_it}>
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              gap: "10px",
+                                              alignItems: "flex-start",
+                                              fontSize: "13px",
+                                              lineHeight: "18px",
+                                            }}
+                                          >
+                                            <span
+                                              className="scope"
+                                              style={{ flex: "none" }}
                                             >
-                                              <div role="cell" className="tc">
-                                                <span className="scope">
-                                                  {it.code}
-                                                </span>
-                                              </div>
-                                              <div role="cell" className="tc">
-                                                {it.text}
-                                              </div>
-                                              <div
-                                                role="cell"
-                                                className="tc muted"
-                                              >
-                                                {it.meta}
-                                              </div>
-                                            </div>
+                                              {it.code}
+                                            </span>
+                                            <span style={{ flex: "1" }}>
+                                              {it.text}
+                                              <span className="muted">
+                                                {" "}
+                                                · {it.meta}
+                                              </span>
+                                            </span>
+                                          </div>
+                                        </React.Fragment>
+                                      )
+                                    )}
+
+                                    {Boolean(chain.hasNext) && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          className="btn btn-s btn-sm"
+                                          style={{ alignSelf: "flex-start" }}
+                                          onClick={chain.goNextIntegrate}
+                                        >
+                                          {chain.nextCta} →
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </section>
+                        )}
+
+                        <section
+                          className="card"
+                          style={{
+                            padding: "24px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "12px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "flex-start",
+                              gap: "16px",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <div>
+                              <div className="eyebrow-p">
+                                Bước 1 · Cấp quyền cho API Key của Tổ chức
+                              </div>
+                              <h2
+                                className="h"
+                                style={{
+                                  fontSize: "20px",
+                                  lineHeight: "26px",
+                                  marginTop: "4px",
+                                }}
+                              >
+                                Cấp quyền scope{" "}
+                                <span className="scope">{sv.scope}</span> cho
+                                Key
+                              </h2>
+                              <p
+                                className="muted"
+                                style={{ margin: "4px 0 0" }}
+                              >
+                                Tổ chức có sẵn 1 Key Production mặc định (hoặc
+                                tạo thêm nhiều Key). Hãy cấp quyền{" "}
+                                <span className="mono">{sv.scope}</span> cho Key
+                                trước khi test ở Bước 2.
+                              </p>
+                            </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: "8px",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <button
+                                type="button"
+                                className="btn btn-p btn-sm"
+                                onClick={openCreate}
+                              >
+                                + Tạo Key mới
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Danh sách Key đã có (mặc định 3 key mới nhất + Xem thêm) */}
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "8px",
+                              marginTop: "4px",
+                            }}
+                          >
+                            {step1Keys?.map((kr: any, idx_kr: number) => (
+                              <div
+                                key={kr.id || idx_kr}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  gap: "12px",
+                                  flexWrap: "wrap",
+                                  padding: "10px 14px",
+                                  borderRadius: "10px",
+                                  background: "#F7F7FB",
+                                  border: "1px solid #E4E4EC",
+                                }}
+                              >
+                                <div>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "8px",
+                                      flexWrap: "wrap",
+                                    }}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={kr.open}
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        padding: 0,
+                                        cursor: "pointer",
+                                        fontWeight: 700,
+                                        fontSize: "14px",
+                                        color: "#3A64FA",
+                                        textDecoration: "underline",
+                                        textUnderlineOffset: "3px",
+                                      }}
+                                    >
+                                      {kr.name}
+                                    </button>
+                                    <span className={kr.envCls}>{kr.env}</span>
+                                    <span
+                                      className="mono muted"
+                                      style={{ fontSize: "12px" }}
+                                    >
+                                      {kr.prefix}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                  }}
+                                >
+                                  {kr.hasCurrentScope ? (
+                                    <span className="pill p-ok">
+                                      ✓ Đã cấp {sv.scope}
+                                    </span>
+                                  ) : (
+                                    <span className="pill p-warn">
+                                      Chưa cấp quyền
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className={
+                                      kr.hasCurrentScope
+                                        ? "btn btn-s btn-sm"
+                                        : "btn btn-p btn-sm"
+                                    }
+                                    onClick={kr.quickToggleScope}
+                                  >
+                                    {kr.hasCurrentScope
+                                      ? "Gỡ quyền"
+                                      : "Cấp quyền nhanh"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-g btn-sm"
+                                    onClick={kr.grant}
+                                  >
+                                    Chi tiết
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                            {Boolean(step1HasMore) && (
+                              <div>
+                                <button
+                                  type="button"
+                                  className="btn btn-s btn-sm"
+                                  onClick={toggleStep1Keys}
+                                >
+                                  {showAllStep1Keys
+                                    ? "Thu gọn (chỉ hiện 3 key gần nhất)"
+                                    : "Xem thêm (" +
+                                      step1MoreCount +
+                                      " key khác)"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </section>
+
+                        <section
+                          className="card"
+                          style={{
+                            padding: "24px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "16px",
+                          }}
+                        >
+                          <div>
+                            <div className="eyebrow-p">
+                              Bước 2 · Chọn cách Test & Tích hợp (3 cách)
+                            </div>
+                            <h2
+                              className="h"
+                              style={{
+                                fontSize: "20px",
+                                lineHeight: "26px",
+                                marginTop: "4px",
+                              }}
+                            >
+                              {integrateWay === "postman"
+                                ? "Cách 1: Test nhanh bằng Postman"
+                                : integrateWay === "build_new"
+                                  ? "Cách 2: Build app mới từ đầu với API"
+                                  : "Cách 3: Tích hợp API vào hệ thống đang có (Production)"}
+                            </h2>
+                            <div
+                              className="seg"
+                              role="group"
+                              aria-label="3 cách tích hợp"
+                              style={{ marginTop: "10px" }}
+                            >
+                              {integrateWayOpts?.map(
+                                (o: any, idx_w: number) => (
+                                  <button
+                                    key={idx_w}
+                                    type="button"
+                                    className={o.cls}
+                                    aria-pressed={o.on}
+                                    onClick={o.pick}
+                                  >
+                                    {o.label}
+                                  </button>
+                                )
+                              )}
+                            </div>
+                          </div>
+
+                          {integrateWay === "postman" && (
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "12px",
+                              }}
+                            >
+                              <p className="muted" style={{ margin: 0 }}>
+                                Mở Postman → <strong>Import → Raw text</strong>{" "}
+                                và dán lệnh cURL Production bên dưới (đã gắn sẵn
+                                Key mặc định của Tổ chức):
+                              </p>
+                              <pre className="code">{postmanCurl}</pre>
+                              <div>
+                                <button
+                                  type="button"
+                                  className="btn btn-p btn-sm"
+                                  onClick={copyPostman}
+                                >
+                                  Copy cURL cho Postman
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {integrateWay === "build_new" && (
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "12px",
+                              }}
+                            >
+                              <p className="muted" style={{ margin: 0 }}>
+                                Dán Prompt dưới đây vào AI Coding Agent (Cursor,
+                                Antigravity, Claude Code...) để dựng app mới từ
+                                đầu kết nối thẳng Production API:
+                              </p>
+                              <pre className="code">{buildNewPrompt}</pre>
+                              <div>
+                                <button
+                                  type="button"
+                                  className="btn btn-p btn-sm"
+                                  onClick={copyBuildPrompt}
+                                >
+                                  Copy Prompt Build App
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {integrateWay === "existing" && (
+                            <>
+                              <p className="muted" style={{ margin: 0 }}>
+                                {sv.flowDesc}
+                              </p>
+
+                              <div
+                                style={{
+                                  background: "#F7F7FB",
+                                  borderRadius: "14px",
+                                  padding: "14px 16px",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "10px",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: "20px",
+                                    flexWrap: "wrap",
+                                    alignItems: "flex-end",
+                                  }}
+                                >
+                                  <div>
+                                    <div
+                                      className="eyebrow"
+                                      style={{ marginBottom: "6px" }}
+                                    >
+                                      Chế độ
+                                    </div>
+                                    <div
+                                      className="seg"
+                                      role="group"
+                                      aria-label="Chế độ gọi"
+                                    >
+                                      {modeOpts?.map(
+                                        (o: any, idx_o: number) => (
+                                          <React.Fragment key={idx_o}>
+                                            <button
+                                              type="button"
+                                              className={o.cls}
+                                              aria-pressed={o.on}
+                                              onClick={o.pick}
+                                            >
+                                              {o.label}
+                                            </button>
                                           </React.Fragment>
                                         )
                                       )}
                                     </div>
+                                  </div>
+                                  <div>
+                                    <div
+                                      className="eyebrow"
+                                      style={{ marginBottom: "6px" }}
+                                    >
+                                      Kịch bản
+                                    </div>
+                                    <div
+                                      className="seg"
+                                      role="group"
+                                      aria-label="Kịch bản"
+                                    >
+                                      {scenOpts?.map(
+                                        (o: any, idx_o: number) => (
+                                          <React.Fragment key={idx_o}>
+                                            <button
+                                              type="button"
+                                              className={o.cls}
+                                              aria-pressed={o.on}
+                                              onClick={o.pick}
+                                            >
+                                              {o.label}
+                                            </button>
+                                          </React.Fragment>
+                                        )
+                                      )}
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="btn btn-s btn-sm"
+                                    style={{ marginLeft: "auto" }}
+                                    onClick={resetFlow}
+                                  >
+                                    <svg
+                                      width="14"
+                                      height="14"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      aria-hidden="true"
+                                    >
+                                      <path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path>
+                                      <path d="M3 3v5h5"></path>
+                                    </svg>
+                                    Làm lại
+                                  </button>
+                                </div>
+                                <div
+                                  className="muted"
+                                  style={{
+                                    fontSize: "12px",
+                                    lineHeight: "16px",
+                                  }}
+                                >
+                                  {modeNote}
+                                </div>
+                              </div>
 
-                                    {Boolean(chain.hasNext) && (
-                                      <>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "8px",
+                                  alignItems: "center",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                {stepPills?.map((p: any, idx_p: number) => (
+                                  <React.Fragment key={idx_p}>
+                                    <button
+                                      type="button"
+                                      className={p.cls}
+                                      disabled={p.locked}
+                                      onClick={p.go}
+                                      aria-current={p.ariaCur}
+                                    >
+                                      {Boolean(p.done) && (
+                                        <>
+                                          <svg
+                                            width="14"
+                                            height="14"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2.5"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            aria-hidden="true"
+                                          >
+                                            <path d="M5 12l5 5 9-10"></path>
+                                          </svg>
+                                        </>
+                                      )}
+
+                                      {p.label}
+                                    </button>
+                                  </React.Fragment>
+                                ))}
+
+                                <div
+                                  style={{
+                                    marginLeft: "auto",
+                                    display: "flex",
+                                    gap: "6px",
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    className="btn btn-s btn-sm"
+                                    onClick={prevStep}
+                                    disabled={atFirst}
+                                  >
+                                    ‹ Trước
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-s btn-sm"
+                                    onClick={nextStep}
+                                    disabled={nextLocked}
+                                  >
+                                    Sau ›
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div
+                                className="fade"
+                                style={{
+                                  border: "2px solid #5B5FEF",
+                                  borderRadius: "18px",
+                                  padding: "20px",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "14px",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    gap: "12px",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      width: "32px",
+                                      height: "32px",
+                                      borderRadius: "50%",
+                                      background: "#5B5FEF",
+                                      color: "#fff",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      font: "700 12px/16px 'Plus Jakarta Sans', sans-serif",
+                                      flex: "none",
+                                    }}
+                                  >
+                                    {cur.num}
+                                  </span>
+                                  <div style={{ flex: "1" }}>
+                                    <h3
+                                      className="h"
+                                      style={{
+                                        fontSize: "17px",
+                                        lineHeight: "24px",
+                                      }}
+                                    >
+                                      {cur.title}
+                                    </h3>
+                                    <p
+                                      className="muted"
+                                      style={{
+                                        margin: "2px 0 0",
+                                        fontSize: "13px",
+                                        lineHeight: "19px",
+                                      }}
+                                    >
+                                      {cur.desc}
+                                    </p>
+                                  </div>
+                                  <span className={cur.statusCls}>
+                                    {cur.statusText}
+                                  </span>
+                                </div>
+
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: "8px",
+                                    alignItems: "center",
+                                    fontSize: "13px",
+                                    background: "#F7F7FB",
+                                    borderRadius: "10px",
+                                    padding: "8px 12px",
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  <svg
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="#5C5D77"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                  >
+                                    <circle cx="8" cy="15" r="4"></circle>
+                                    <path d="M11 12l9-9M17 6l3 3"></path>
+                                  </svg>
+                                  <span>{keyLine}</span>
+                                  <button
+                                    type="button"
+                                    className="btn-link"
+                                    style={{ fontSize: "13px" }}
+                                    onClick={goOverview}
+                                  >
+                                    Xem / đổi key
+                                  </button>
+                                </div>
+
+                                {Boolean(cur.isCall) && (
+                                  <>
+                                    <div
+                                      style={{
+                                        display: "grid",
+                                        gridTemplateColumns:
+                                          "repeat(auto-fit, minmax(300px, 1fr))",
+                                        gap: "20px",
+                                        alignItems: "start",
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          display: "flex",
+                                          flexDirection: "column",
+                                          gap: "14px",
+                                        }}
+                                      >
+                                        {cur.fields?.map(
+                                          (f: any, idx_f: number) => (
+                                            <React.Fragment key={idx_f}>
+                                              <div>
+                                                {Boolean(f.isChips) && (
+                                                  <>
+                                                    <div className="flabel">
+                                                      {f.label}
+                                                    </div>
+                                                    <div
+                                                      className="seg"
+                                                      role="group"
+                                                      aria-label={f.label}
+                                                    >
+                                                      {f.opts?.map(
+                                                        (
+                                                          o: any,
+                                                          idx_o: number
+                                                        ) => (
+                                                          <React.Fragment
+                                                            key={idx_o}
+                                                          >
+                                                            <button
+                                                              type="button"
+                                                              className={o.cls}
+                                                              aria-pressed={
+                                                                o.on
+                                                              }
+                                                              onClick={o.pick}
+                                                            >
+                                                              {o.label}
+                                                            </button>
+                                                          </React.Fragment>
+                                                        )
+                                                      )}
+                                                    </div>
+                                                  </>
+                                                )}
+
+                                                {Boolean(f.isInput) && (
+                                                  <>
+                                                    <label
+                                                      className="flabel"
+                                                      htmlFor={f.domId}
+                                                    >
+                                                      {f.label}
+                                                    </label>
+                                                    <input
+                                                      id={f.domId}
+                                                      className="inp"
+                                                      value={f.value}
+                                                      onChange={f.onChange}
+                                                    />
+                                                  </>
+                                                )}
+
+                                                {Boolean(f.isText) && (
+                                                  <>
+                                                    <label
+                                                      className="flabel"
+                                                      htmlFor={f.domId}
+                                                    >
+                                                      {f.label}
+                                                    </label>
+                                                    <textarea
+                                                      id={f.domId}
+                                                      className="inp inp-t"
+                                                      rows="5"
+                                                      style={{
+                                                        resize: "vertical",
+                                                      }}
+                                                      value={f.value}
+                                                      onChange={f.onChange}
+                                                    ></textarea>
+                                                  </>
+                                                )}
+
+                                                {Boolean(f.hasHelp) && (
+                                                  <>
+                                                    <div className="help">
+                                                      {f.help}
+                                                    </div>
+                                                  </>
+                                                )}
+                                              </div>
+                                            </React.Fragment>
+                                          )
+                                        )}
+
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            gap: "10px",
+                                            alignItems: "center",
+                                            flexWrap: "wrap",
+                                          }}
+                                        >
+                                          <button
+                                            type="button"
+                                            className="btn btn-p"
+                                            onClick={runStep}
+                                            disabled={running}
+                                          >
+                                            <svg
+                                              width="14"
+                                              height="14"
+                                              viewBox="0 0 24 24"
+                                              fill="currentColor"
+                                              aria-hidden="true"
+                                            >
+                                              <path d="M7 4l13 8-13 8z"></path>
+                                            </svg>
+                                            {runLabel}
+                                          </button>
+                                          <span className="scope">
+                                            {cur.endpoint}
+                                          </span>
+                                        </div>
+
+                                        {Boolean(cur.showFix) && (
+                                          <>
+                                            <div
+                                              style={{
+                                                background: "#FDECEA",
+                                                color: "#7A1B12",
+                                                borderRadius: "12px",
+                                                padding: "12px 14px",
+                                                fontSize: "13px",
+                                                lineHeight: "19px",
+                                              }}
+                                            >
+                                              <strong>Cách xử lý:</strong>{" "}
+                                              {cur.fix}
+                                            </div>
+                                          </>
+                                        )}
+
+                                        {Boolean(cur.showSlow) && (
+                                          <>
+                                            <div
+                                              style={{
+                                                background: "#FFF4DB",
+                                                color: "#5C3B00",
+                                                borderRadius: "12px",
+                                                padding: "12px 14px",
+                                                fontSize: "13px",
+                                                lineHeight: "19px",
+                                              }}
+                                            >
+                                              <strong>Phản hồi chậm:</strong>{" "}
+                                              {cur.slowNote}
+                                            </div>
+                                          </>
+                                        )}
+                                      </div>
+
+                                      <div
+                                        style={{
+                                          background: "#14152B",
+                                          borderRadius: "16px",
+                                          overflow: "hidden",
+                                          boxShadow:
+                                            "0 12px 32px rgba(20,21,43,.14)",
+                                        }}
+                                      >
                                         <div
                                           style={{
                                             display: "flex",
                                             alignItems: "center",
-                                            gap: "12px",
-                                            padding: "12px 14px",
-                                            borderRadius: "12px",
-                                            background: "#F7F6FF",
-                                            flexWrap: "wrap",
+                                            gap: "8px",
+                                            padding: "10px 14px",
+                                            background: "#1E2040",
+                                            borderBottom: "1px solid #33355A",
                                           }}
                                         >
                                           <span
                                             style={{
-                                              flex: "1",
-                                              minWidth: "220px",
-                                              fontSize: "13px",
+                                              width: "9px",
+                                              height: "9px",
+                                              borderRadius: "50%",
+                                              background: "#F26D6D",
+                                            }}
+                                          ></span>
+                                          <span
+                                            style={{
+                                              width: "9px",
+                                              height: "9px",
+                                              borderRadius: "50%",
+                                              background: "#F2C46D",
+                                            }}
+                                          ></span>
+                                          <span
+                                            style={{
+                                              width: "9px",
+                                              height: "9px",
+                                              borderRadius: "50%",
+                                              background: "#6DD39B",
+                                            }}
+                                          ></span>
+                                          <span
+                                            className="mono"
+                                            style={{
+                                              color: "#F3F3FA",
+                                              fontSize: "12px",
+                                              marginLeft: "6px",
                                             }}
                                           >
-                                            <strong>
-                                              Bước tiếp theo trong chuỗi:
-                                            </strong>{" "}
-                                            {chain.nextHint}
+                                            API console
                                           </span>
+                                          <span
+                                            className="badge"
+                                            style={{
+                                              marginLeft: "auto",
+                                              background: "#33355A",
+                                              color: "#F3F3FA",
+                                            }}
+                                          >
+                                            {modeBadge}
+                                          </span>
+                                        </div>
+                                        <div
+                                          style={{
+                                            padding: "14px",
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            gap: "10px",
+                                          }}
+                                        >
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              justifyContent: "space-between",
+                                              alignItems: "center",
+                                            }}
+                                          >
+                                            <span
+                                              className="eyebrow"
+                                              style={{ color: "#9C9DC2" }}
+                                            >
+                                              Request
+                                            </span>
+                                            <button
+                                              type="button"
+                                              className="btn-link"
+                                              style={{
+                                                color: "#8B8EF5",
+                                                fontSize: "12px",
+                                              }}
+                                              onClick={copyReq}
+                                            >
+                                              Copy cURL
+                                            </button>
+                                          </div>
+                                          <pre
+                                            className="code"
+                                            style={{
+                                              padding: "0",
+                                              background: "transparent",
+                                            }}
+                                          >
+                                            {cur.reqText}
+                                          </pre>
+                                          <div
+                                            style={{
+                                              borderTop: "1px solid #33355A",
+                                              paddingTop: "10px",
+                                              display: "flex",
+                                              justifyContent: "space-between",
+                                              alignItems: "center",
+                                            }}
+                                          >
+                                            <span
+                                              className="eyebrow"
+                                              style={{ color: "#9C9DC2" }}
+                                            >
+                                              Response
+                                            </span>
+                                            <span
+                                              className="mono"
+                                              style={{
+                                                color: "#9C9DC2",
+                                                fontSize: "12px",
+                                              }}
+                                            >
+                                              {cur.lat}
+                                            </span>
+                                          </div>
+
+                                          {Boolean(cur.hasResp) && (
+                                            <>
+                                              <pre
+                                                className="code"
+                                                style={parseStyle(
+                                                  `padding: 0; background: transparent; color: ${cur.respColor};`
+                                                )}
+                                              >
+                                                {cur.respText}
+                                              </pre>
+                                            </>
+                                          )}
+
+                                          {Boolean(running) && (
+                                            <>
+                                              <div
+                                                className="mono"
+                                                style={{
+                                                  color: "#9C9DC2",
+                                                  fontSize: "13px",
+                                                }}
+                                              >
+                                                Đang gọi…
+                                              </div>
+                                            </>
+                                          )}
+
+                                          {Boolean(cur.noResp) && (
+                                            <>
+                                              <div
+                                                style={{
+                                                  color: "#9C9DC2",
+                                                  fontSize: "13px",
+                                                }}
+                                              >
+                                                Chưa gọi. Điền thông tin bên
+                                                trái rồi bấm nút chạy, kết quả
+                                                sẽ hiện ở đây.
+                                              </div>
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+
+                                {Boolean(cur.isApp) && (
+                                  <>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: "16px",
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          background: "#F7F6FF",
+                                          border: "1px solid #E4E4EC",
+                                          borderRadius: "16px",
+                                          padding: "16px",
+                                          display: "flex",
+                                          flexDirection: "column",
+                                          gap: "12px",
+                                        }}
+                                      >
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            gap: "12px",
+                                            flexWrap: "wrap",
+                                          }}
+                                        >
+                                          <div>
+                                            <div style={{ fontWeight: "600" }}>
+                                              Làm y hệt trong app của bạn
+                                            </div>
+                                            <div
+                                              className="muted"
+                                              style={{ fontSize: "12px" }}
+                                            >
+                                              Đã điền sẵn đúng giá trị bạn vừa
+                                              chạy thử.
+                                            </div>
+                                          </div>
+                                          <div
+                                            className="seg"
+                                            role="group"
+                                            aria-label="Định dạng"
+                                          >
+                                            {codeTabs?.map(
+                                              (o: any, idx_o: number) => (
+                                                <React.Fragment key={idx_o}>
+                                                  <button
+                                                    type="button"
+                                                    className={o.cls}
+                                                    aria-pressed={o.on}
+                                                    onClick={o.pick}
+                                                  >
+                                                    {o.label}
+                                                  </button>
+                                                </React.Fragment>
+                                              )
+                                            )}
+                                          </div>
+                                        </div>
+                                        <pre
+                                          className="code"
+                                          style={{
+                                            maxHeight: "320px",
+                                            overflow: "auto",
+                                          }}
+                                        >
+                                          {appCode}
+                                        </pre>
+                                        <div>
                                           <button
                                             type="button"
                                             className="btn btn-p btn-sm"
-                                            onClick={chain.goNextIntegrate}
+                                            onClick={copyApp}
                                           >
-                                            {chain.nextCta}
+                                            {copyAppLabel}
                                           </button>
                                         </div>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              </>
-                            )}
-                          </div>
+                                        <div
+                                          style={{
+                                            fontSize: "13px",
+                                            lineHeight: "19px",
+                                          }}
+                                        >
+                                          <strong>Sau khi copy:</strong>
+                                          <ol
+                                            style={{
+                                              margin: "6px 0 0",
+                                              paddingLeft: "20px",
+                                              display: "flex",
+                                              flexDirection: "column",
+                                              gap: "2px",
+                                            }}
+                                          >
+                                            {sv.after?.map(
+                                              (a: any, idx_a: number) => (
+                                                <React.Fragment key={idx_a}>
+                                                  <li>{a}</li>
+                                                </React.Fragment>
+                                              )
+                                            )}
+                                          </ol>
+                                        </div>
+                                      </div>
+                                      <div
+                                        style={{
+                                          border: "1px solid #E4E4EC",
+                                          borderRadius: "16px",
+                                          padding: "16px",
+                                          display: "flex",
+                                          flexDirection: "column",
+                                          gap: "12px",
+                                        }}
+                                      >
+                                        <div className="eyebrow">
+                                          Dữ liệu vừa trả về
+                                        </div>
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            alignItems: "baseline",
+                                            gap: "10px",
+                                            flexWrap: "wrap",
+                                          }}
+                                        >
+                                          <span
+                                            className="h"
+                                            style={{
+                                              fontSize: "26px",
+                                              lineHeight: "32px",
+                                              color: "#4547C9",
+                                            }}
+                                          >
+                                            {res.headline}
+                                          </span>
+                                          <span
+                                            className="muted"
+                                            style={{ fontSize: "13px" }}
+                                          >
+                                            {res.sub}
+                                          </span>
+                                        </div>
+                                        <div
+                                          style={{
+                                            display: "grid",
+                                            gridTemplateColumns:
+                                              "repeat(auto-fit, minmax(150px, 1fr))",
+                                            gap: "8px",
+                                          }}
+                                        >
+                                          {res.metrics?.map(
+                                            (m: any, idx_m: number) => (
+                                              <React.Fragment key={idx_m}>
+                                                <div
+                                                  style={{
+                                                    background: "#F7F7FB",
+                                                    borderRadius: "10px",
+                                                    padding: "8px 10px",
+                                                  }}
+                                                >
+                                                  <div
+                                                    className="muted"
+                                                    style={{
+                                                      fontSize: "12px",
+                                                      lineHeight: "16px",
+                                                    }}
+                                                  >
+                                                    {m.l}
+                                                  </div>
+                                                  <div
+                                                    className="mono"
+                                                    style={{
+                                                      fontWeight: "600",
+                                                    }}
+                                                  >
+                                                    {m.v}
+                                                  </div>
+                                                </div>
+                                              </React.Fragment>
+                                            )
+                                          )}
+                                        </div>
+                                        <div
+                                          role="table"
+                                          aria-label="Dữ liệu vừa trả về"
+                                        >
+                                          <div
+                                            role="row"
+                                            className="trow"
+                                            style={{
+                                              gridTemplateColumns:
+                                                "minmax(150px, 1fr) minmax(0, 2.4fr) minmax(110px, 0.9fr)",
+                                            }}
+                                          >
+                                            <div
+                                              role="columnheader"
+                                              className="thc"
+                                            >
+                                              Mã
+                                            </div>
+                                            <div
+                                              role="columnheader"
+                                              className="thc"
+                                            >
+                                              Chi tiết
+                                            </div>
+                                            <div
+                                              role="columnheader"
+                                              className="thc"
+                                            >
+                                              Nhóm
+                                            </div>
+                                          </div>
+
+                                          {res.items?.map(
+                                            (it: any, idx_it: number) => (
+                                              <React.Fragment key={idx_it}>
+                                                <div
+                                                  role="row"
+                                                  className="trow"
+                                                  style={{
+                                                    gridTemplateColumns:
+                                                      "minmax(150px, 1fr) minmax(0, 2.4fr) minmax(110px, 0.9fr)",
+                                                  }}
+                                                >
+                                                  <div
+                                                    role="cell"
+                                                    className="tc"
+                                                  >
+                                                    <span className="scope">
+                                                      {it.code}
+                                                    </span>
+                                                  </div>
+                                                  <div
+                                                    role="cell"
+                                                    className="tc"
+                                                  >
+                                                    {it.text}
+                                                  </div>
+                                                  <div
+                                                    role="cell"
+                                                    className="tc muted"
+                                                  >
+                                                    {it.meta}
+                                                  </div>
+                                                </div>
+                                              </React.Fragment>
+                                            )
+                                          )}
+                                        </div>
+
+                                        {Boolean(chain.hasNext) && (
+                                          <>
+                                            <div
+                                              style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "12px",
+                                                padding: "12px 14px",
+                                                borderRadius: "12px",
+                                                background: "#F7F6FF",
+                                                flexWrap: "wrap",
+                                              }}
+                                            >
+                                              <span
+                                                style={{
+                                                  flex: "1",
+                                                  minWidth: "220px",
+                                                  fontSize: "13px",
+                                                }}
+                                              >
+                                                <strong>
+                                                  Bước tiếp theo trong chuỗi:
+                                                </strong>{" "}
+                                                {chain.nextHint}
+                                              </span>
+                                              <button
+                                                type="button"
+                                                className="btn btn-p btn-sm"
+                                                onClick={chain.goNextIntegrate}
+                                              >
+                                                {chain.nextCta}
+                                              </button>
+                                            </div>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </>
+                          )}
                         </section>
                       </div>
                     </>
@@ -6652,7 +6898,7 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
                     Sandbox
                   </h1>
                   <p className="muted" style={{ margin: "4px 0 0" }}>
-                    Môi trường miễn phí để thử cả 4 dịch vụ × 4 kỹ năng. Kết quả
+                    Môi trường miễn phí để thử cả 5 dịch vụ × 4 kỹ năng. Kết quả
                     sandbox giống production về cấu trúc, có giới hạn lượt gọi
                     mỗi ngày.
                   </p>
@@ -7007,7 +7253,7 @@ export class ConsoleWorkbench extends React.Component<{}, any> {
                       Nạp credit vào ví
                     </h2>
                     <p className="muted" style={{ margin: "0" }}>
-                      Dùng chung cho cả 4 dịch vụ và 4 kỹ năng.
+                      Dùng chung cho cả 5 dịch vụ và 4 kỹ năng.
                     </p>
                     <ul
                       style={{

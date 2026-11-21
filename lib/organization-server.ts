@@ -9,10 +9,12 @@ import {
   parseOrganizationRoster,
   type OrganizationMembership,
 } from "@/lib/organizations";
+import { DEMO_ORGANIZATION_ROSTER, isDemoSessionToken } from "@/lib/demo-auth";
 
 export async function readOrganizationRoster(
   sessionId: string
 ): Promise<OrganizationMembership[] | null> {
+  if (isDemoSessionToken(sessionId)) return DEMO_ORGANIZATION_ROSTER;
   let response: Response;
   try {
     response = await fetch(
