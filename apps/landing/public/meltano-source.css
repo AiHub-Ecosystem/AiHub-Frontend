@@ -3566,6 +3566,10 @@ em span {
   text-indent: 0 !important;
   overflow: visible !important;
 }
+.hero-title em:before,
+.hero-title em:after {
+  content: "";
+}
 .title-inline em {
   font-style: normal;
   display: inline-block;
