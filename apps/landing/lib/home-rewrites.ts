@@ -121,19 +121,37 @@ const CTA_NEW =
   '<div class="cta-banner-buttons"><a href="/demo" class="btn alt-blue-btn">Xem Demo</a></div>' +
   "</div></div></div></div>";
 
+// data/home.html is pretty-printed while these needles were written minified.
+// ponytail: whitespace-insensitive regex; upgrade to a DOM parser if selectors ever need structure.
+function replaceFragment(
+  html: string,
+  search: string,
+  replacement: string
+): string {
+  const normalized = search.replace(/<br\s*\/?>/g, "<br>");
+  const tokens = normalized.match(/<[^>]+>|[^<>\s]+/g) ?? [];
+  const pattern = tokens
+    .map((token) => {
+      let escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      escaped = escaped.replace(/\\s+|\s+/g, "\\s+");
+      escaped = escaped.replace(/>/g, "\\s*>");
+      return escaped === "<br\\s*>" ? "<br\\s*\\/?>" : escaped;
+    })
+    .join("\\s*");
+  return html.replace(new RegExp(pattern), replacement);
+}
+
 export function rewriteHomeBody(html: string): string {
   let out = html;
 
   // Xoá hẳn nút nổi "OPEN" (portal-top) cạnh hero
-  const portalTopStart = out.indexOf(
-    '<a href="https://docs.meltano.com" target="_blank" rel="noreferrer" class="portal-top'
-  );
-  if (portalTopStart !== -1) {
-    const portalTopEnd = out.indexOf("</a>", portalTopStart) + 4;
-    out = out.slice(0, portalTopStart) + out.slice(portalTopEnd);
-  }
-
   out = out.replace(
+    /<a\s+href="https:\/\/docs\.meltano\.com"[\s\S]*?class="portal-top[\s\S]*?<\/a>/,
+    ""
+  );
+
+  out = replaceFragment(
+    out,
     '<h1 class="hero-title align-center">Dependable data by<br><em>default</em></h1>' +
       '<p class="hero-description p1 align-center">Meltano is an ETL platform built on ' +
       "open-source foundations, <br> engineered by experts for cloud scale, efficiency, " +
@@ -161,7 +179,7 @@ export function rewriteHomeBody(html: string): string {
   // Blog preview — trỏ sang /blog vẫn còn nguyên nội dung Meltano.
   out = removeSection(out, BLOG_START, CTA_START);
   // CTA cuối trang.
-  out = out.replace(CTA_OLD, CTA_NEW);
+  out = replaceFragment(out, CTA_OLD, CTA_NEW);
 
   return out;
 }
