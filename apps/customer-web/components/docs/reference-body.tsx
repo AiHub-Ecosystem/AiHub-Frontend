@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { dpopFetch } from "@/lib/dpop-fetch";
 import {
   currentProofKeyScope,
@@ -9,7 +9,11 @@ import {
 } from "@/lib/web-session-proof-key";
 
 export function ReferenceBody() {
-  const [html, setHtml] = useState<string | null>(null);
+  const [markup, setMarkup] = useState<string | null>(null);
+  const [scriptAttrs, setScriptAttrs] = useState<Record<string, string> | null>(
+    null
+  );
+  const hostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const version = new URLSearchParams(window.location.search).get("version");
@@ -26,7 +30,19 @@ export function ReferenceBody() {
       }
       const response = await dpopFetch(`/app/api/docs/reference${query}`);
       if (!active || !response.ok) return;
-      setHtml(await response.text());
+      const html = await response.text();
+      // innerHTML does not execute scripts. Split the Scalar CDN script out so
+      // it can be appended as a real element and actually mount the UI.
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const script = doc.querySelector("script[src]");
+      const attrs = script
+        ? Object.fromEntries(
+            [...script.attributes].map((attr) => [attr.name, attr.value])
+          )
+        : null;
+      script?.remove();
+      setMarkup(doc.body.innerHTML);
+      setScriptAttrs(attrs);
     };
     void load().catch(() => {});
     return () => {
@@ -34,6 +50,15 @@ export function ReferenceBody() {
     };
   }, []);
 
-  if (html === null) return null;
-  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  useEffect(() => {
+    if (!scriptAttrs || !hostRef.current) return;
+    const script = document.createElement("script");
+    for (const [name, value] of Object.entries(scriptAttrs))
+      script.setAttribute(name, value);
+    hostRef.current.append(script);
+    return () => script.remove();
+  }, [scriptAttrs]);
+
+  if (markup === null) return null;
+  return <div ref={hostRef} dangerouslySetInnerHTML={{ __html: markup }} />;
 }
