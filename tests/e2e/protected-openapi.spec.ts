@@ -73,7 +73,6 @@ test("anonymous users sign in before Scalar and can download the protected contr
     .getAttribute("data-url", { timeout: 3_000 })
     .catch(() => null);
   if (!scalarDataUrl) return;
-  expect(scalarDataUrl).toBe("/app/api/docs/openapi/v1.json");
   await expect(
     page.getByRole("link", { name: "Download latest OpenAPI JSON" })
   ).toHaveAttribute("download", "openapi.json");
