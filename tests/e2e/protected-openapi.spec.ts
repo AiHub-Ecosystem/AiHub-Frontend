@@ -35,8 +35,20 @@ test("anonymous users sign in before Scalar and can download the protected contr
   await waitForHydration(page);
   await page.getByLabel("Email").fill("valid@example.test");
   await page.getByLabel("Mật khẩu").fill(validPassword);
+  // Same-origin GET fetch sends no Origin header. A 403 here means the BFF
+  // rejects the browser's own request and Scalar never mounts.
+  const forbidden: string[] = [];
+  page.on("response", (response) => {
+    if (
+      response.url().includes("/app/api/docs/reference") &&
+      response.status() === 403
+    )
+      forbidden.push(response.url());
+  });
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(page).toHaveURL(/\/app\/docs\/reference$/u);
+  await page.waitForLoadState("networkidle");
+  expect(forbidden).toEqual([]);
 
   // The Scalar script comes from an external CDN; when it is blocked the
   // element never mounts. Bound the wait so auth assertions still finish.

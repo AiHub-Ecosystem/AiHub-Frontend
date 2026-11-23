@@ -1,6 +1,5 @@
 import {
   authenticatedAihubFetch,
-  originIsAllowed,
   requireWebSession,
   webSessionIdFromRequest,
 } from "@/lib/auth-session";
@@ -34,8 +33,6 @@ function referenceHtml(html: string) {
 }
 
 export async function GET(request: Request) {
-  if (!originIsAllowed(request))
-    return new Response(null, { status: 403, headers: noStore });
   const denied = await requireWebSession(request);
   if (denied) return denied;
   const sessionId = webSessionIdFromRequest(request)!;
