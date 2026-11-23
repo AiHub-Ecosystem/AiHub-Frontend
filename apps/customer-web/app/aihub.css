@@ -1374,3 +1374,13 @@ body:has(.reference-standalone) > header,
 body:has(.reference-standalone) > footer {
   display: none !important;
 }
+
+/* Scalar 1.72.1 squeezes the Authentication heading under the auth selector
+   in this layout; keep the heading on its own row. */
+.reference-standalone .scalar-app div:has(> button > h2) {
+  flex-wrap: wrap;
+}
+
+.reference-standalone .scalar-app div:has(> button > h2) > button:first-child {
+  flex: 1 1 100%;
+}
