@@ -1359,3 +1359,18 @@ a.aihub-card:hover {
 .aihub-shell code {
   overflow-wrap: anywhere;
 }
+
+/* Scalar owns the viewport on the reference page. The root layout's site
+   header/footer otherwise overlap its sidebar and title. */
+.reference-standalone {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  overflow: auto;
+  background: #0f0f11;
+}
+
+body:has(.reference-standalone) > header,
+body:has(.reference-standalone) > footer {
+  display: none !important;
+}

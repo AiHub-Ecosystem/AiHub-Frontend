@@ -86,5 +86,11 @@ export function ReferenceBody() {
   }, [scriptAttrs, specUrl]);
 
   if (markup === null) return null;
-  return <div ref={hostRef} dangerouslySetInnerHTML={{ __html: markup }} />;
+  return (
+    <div
+      className="reference-standalone"
+      ref={hostRef}
+      dangerouslySetInnerHTML={{ __html: markup }}
+    />
+  );
 }
