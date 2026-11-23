@@ -49,6 +49,22 @@ test("anonymous users sign in before Scalar and can download the protected contr
   await expect(page).toHaveURL(/\/app\/docs\/reference$/u);
   await page.waitForLoadState("networkidle");
   expect(forbidden).toEqual([]);
+  // Docs is outside Console, so ReferenceBody itself must install the proof key
+  // the BFF needs to bind the web session and satisfy AIHUB's DPoP enforcement.
+  await expect
+    .poll(async () =>
+      page
+        .context()
+        .cookies()
+        .then((cookies) =>
+          cookies.some(
+            (cookie) =>
+              cookie.name === "aihub_proof_key" &&
+              cookie.domain.includes("127.0.0.1")
+          )
+        )
+    )
+    .toBe(true);
 
   // The Scalar script comes from an external CDN; when it is blocked the
   // element never mounts. Bound the wait so auth assertions still finish.
