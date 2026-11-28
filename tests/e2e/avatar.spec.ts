@@ -84,7 +84,7 @@ async function mockStorage(page: Page, status = 200, failImages = false) {
   return uploads;
 }
 
-test("the signed-in account menu shows the Username initial when no Avatar exists", async ({
+test("the account menu reads the username and empty avatar from their own routes", async ({
   page,
   request,
 }) => {
@@ -95,6 +95,16 @@ test("the signed-in account menu shows the Username initial when no Avatar exist
   await expect(
     page.getByRole("img", { name: "Ký tự đầu tên người dùng" })
   ).toHaveText("E\u0301");
+
+  const { requests } = await (
+    await request.get(`${mockUrl}/__test__/avatar/requests`)
+  ).json();
+  expect(requests).toEqual(
+    expect.arrayContaining([
+      { method: "GET", path: "identity" },
+      { method: "GET", path: "avatar" },
+    ])
+  );
 });
 
 test("upload and replace send image bytes only to storage, then confirm with AIHUB", async ({

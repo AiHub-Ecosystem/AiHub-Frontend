@@ -117,18 +117,29 @@ export function AccountAvatarMenu() {
     setLoading(true);
     setError(null);
     try {
-      const response = await dpopFetch("/app/api/account", {
+      const init: RequestInit = {
         cache: "no-store",
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-      if (response.status === 401) {
+      };
+      const [profile, avatar] = await Promise.all([
+        dpopFetch("/app/api/account", init),
+        dpopFetch("/app/api/account/avatar", init),
+      ]);
+      if (profile.status === 401 || avatar.status === 401) {
         router.push("/login?error=session");
         return false;
       }
-      if (!response.ok) throw new Error("ACCOUNT_UNAVAILABLE");
-      const payload = (await response.json()) as { data: Account };
-      setAccount(payload.data);
-      sessionStorage.setItem(ACCOUNT_CACHE_KEY, JSON.stringify(payload.data));
+      if (!profile.ok || !avatar.ok) throw new Error("ACCOUNT_UNAVAILABLE");
+      const [profileBody, avatarBody] = (await Promise.all([
+        profile.json(),
+        avatar.json(),
+      ])) as [
+        { data: Pick<Account, "username"> },
+        { data: Pick<Account, "avatar"> },
+      ];
+      const account = { ...profileBody.data, ...avatarBody.data };
+      setAccount(account);
+      sessionStorage.setItem(ACCOUNT_CACHE_KEY, JSON.stringify(account));
       setImageFailed(false);
       return true;
     } catch {
