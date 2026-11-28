@@ -568,7 +568,7 @@ const server = createServer(async (request, response) => {
       response,
       200,
       {
-        data: { username: avatarConfig.username, avatar: avatarConfig.avatar },
+        data: { avatar: avatarConfig.avatar },
         meta: { request_id: "req_01M3B7FRTFBA7ZEN6YJP8KCBEY" },
       },
       { "Cache-Control": "no-store" }

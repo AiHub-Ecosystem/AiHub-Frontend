@@ -3,7 +3,7 @@ import {
   requireWebSession,
   webSessionIdFromRequest,
 } from "@/lib/auth-session";
-import { isAvatar, noStore, upstreamFailure } from "@/lib/account-avatar";
+import { noStore, upstreamFailure } from "@/lib/account-avatar";
 
 export async function GET(request: Request) {
   const denied = await requireWebSession(request);
@@ -14,17 +14,16 @@ export async function GET(request: Request) {
     const upstream = await authenticatedAihubFetch(
       request,
       sessionId,
-      "/v1/me/avatar"
+      "/v1/me"
     );
     if (!upstream.ok) return upstreamFailure(upstream, "ACCOUNT_UNAVAILABLE");
 
     const payload = (await upstream.json()) as {
-      data?: { username?: unknown; avatar?: unknown };
+      data?: { username?: unknown };
     };
     if (
       typeof payload.data?.username !== "string" ||
-      !payload.data.username.trim() ||
-      !isAvatar(payload.data?.avatar)
+      !payload.data.username.trim()
     )
       return Response.json(
         { error: { code: "ACCOUNT_RESPONSE_INVALID" } },
@@ -32,7 +31,7 @@ export async function GET(request: Request) {
       );
     return Response.json(
       {
-        data: { username: payload.data.username, avatar: payload.data.avatar },
+        data: { username: payload.data.username },
       },
       { headers: noStore }
     );
